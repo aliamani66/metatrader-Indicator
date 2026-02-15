@@ -241,7 +241,7 @@ void EnterTrades()
    if(NumPending(SellComment) == 0)
      {
       SellEntryPrice = Ask + TradeGap;
-      double SellSL = BuyEntryPrice - STP;
+      double SellSL = BuyEntryPrice + STP;
       if(OrderCalcMargin(ORDER_TYPE_BUY,MySymbol,LotSize(),Ask,Margin) && Margin <= AccountInfoDouble(ACCOUNT_MARGIN_FREE))
          Trade.SellStop(LotSize(),SellEntryPrice,MySymbol,SellSL,0,ORDER_TIME_GTC,0,SellComment);
 
