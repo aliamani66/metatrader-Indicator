@@ -271,7 +271,7 @@ void DeletePending(const string OrderComment)
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-void TradilingStop()
+void TrailingStop()
   {
 
    if(TotalTrades()==0)
@@ -298,7 +298,7 @@ void TradilingStop()
       if(PositionInfo.PositionType() == POSITION_TYPE_SELL)
          if(CurrentPrice > SellTrailPrice)
             continue;
-      
+
       double NewSL = PositionInfo.PositionType() == POSITION_TYPE_BUY?CurrentPrice-TrailBy:CurrentPrice+TrailBy;
       if(PositionInfo.PositionType() == POSITION_TYPE_BUY && NewSL <= CurrentSL)
          continue;
@@ -306,9 +306,9 @@ void TradilingStop()
       if(PositionInfo.PositionType() == POSITION_TYPE_SELL && NewSL >= CurrentSL)
          continue;
       ulong Ticket = PositionInfo.Ticket();
-      
+
       if(!Trade.PositionModify(Ticket,NewSL,PositionTP))
-       Alert("Error Modifying Position due too:" , GetLastError());
+         Alert("Error Modifying Position due too:", GetLastError());
      }
   }
 //+------------------------------------------------------------------+
@@ -364,7 +364,18 @@ void OnDeinit(const int reason)
 void OnTick()
   {
 //---
-   Comment("Spread = ", SymbolInfoInteger(MySymbol,SYMBOL_SPREAD));
+// Comment("Spread = ", SymbolInfoInteger(MySymbol,SYMBOL_SPREAD));
+   Ask = SymbolInfoDouble(MySymbol,SYMBOL_ASK);
+   Bid = SymbolInfoDouble(MySymbol,SYMBOL_BID);
+
+   if((TradeSession1() || TradeSession2()) && !NewsPresent(NewsImportance,MinutesToNews*60))
+      if(SpradGood())
+         EnterTrades();
+   if(NumTrades(POSITION_TYPE_BUY)>0 && NumPending(SellComment) > 0)
+      DeletePending(SellComment);
+   if(NumTrades(POSITION_TYPE_SELL)>0 && NumPending(BuyComment) > 0)
+      DeletePending(BuyComment);
+   TrailingStop();
 
   }
 //+------------------------------------------------------------------+
