@@ -22,6 +22,11 @@ input string MySymbol = "EURUSD";
 input ENUM_TIMEFRAMES MyTimeFrame = PERIOD_M1;
 input int MaxSlippage = 1;
 
+input group "SPRAD FILTER INPUTS"
+input bool UseSpreadFilter = false; 
+input double MaxSpreadPoints = 0.5;
+
+
 input group "RISK INPUTS"
 input EnumRisk LotUsed = UseFixedLot;
 input double BalanceIncrease = 1000;
@@ -40,6 +45,11 @@ input int StartHour2 = 15;
 input int StartMinutes2 = 00;
 input int EndHour2 = 15;
 input int EndMinute2 = 30;
+
+input group "NEWS FILTER INPUT"
+input bool UseNewsFilter = false; 
+input ENUM_CALENDAR_EVENT_IMPORTANCE NewsImportance = CALENDAR_IMPORTANCE_HIGH;
+input uint MinutesToNews = 15;
 
 int StartTimeSeconds1,StartTimeSeconds2,EndTimeSeconds1,EndTimeSeconds2;
 
@@ -131,6 +141,48 @@ bool TradeSession2(){
    return false;
 }
 
+bool SpradGood(){
+   if(!UseSpreadFilter)
+      return true;
+   if(SymbolInfoInteger(MySymbol,SYMBOL_SPREAD)<=MaxSpreadPoints)
+      return true;
+   return false; 
+}
+
+
+bool NewsPresent(ENUM_CALENDAR_EVENT_IMPORTANCE Importance , uint Seconds = 900){
+   if(!UseNewsFilter)
+      return true;
+   MqlCalendarValue Values[];
+   ResetLastError();
+   int NewsTotal = CalendarValueHistory(Values, TimeCurrent(), TimeCurrent()+Seconds, NULL, NULL);
+   if(NewsTotal<=0)
+   {
+      if(GetLastError() > 0){
+         Print("Failed to get news because of error :" + GetLastError() );
+      } else {
+         Print("There is no news for the current symbol");
+         return false;
+      }
+   }
+   for(int i=0;i<NewsTotal;i++)
+     {
+      MqlCalendarEvent Event;
+      CalendarEventById(Values[i].event_id,Event);
+      
+      MqlCalendarCountry Country;
+      CalendarCountryById(Event.country_id,Country);
+      
+      if(StringFind(MySymbol,Country.currency) >-1)
+      {
+         if(Event.importance == Importance)
+            if(TimeCurrent()-Values[i].time<Seconds)
+               return true;
+      }
+         
+     }
+      return false; 
+}
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -179,6 +231,7 @@ void OnDeinit(const int reason)
 void OnTick()
   {
 //---
+   Comment("Spread = " , SymbolInfoInteger(MySymbol,SYMBOL_SPREAD));
    
   }
 //+------------------------------------------------------------------+
