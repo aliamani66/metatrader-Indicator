@@ -22,7 +22,7 @@ input string MySymbol = "EURUSD";
 input ENUM_TIMEFRAMES MyTimeFrame = PERIOD_M1;
 input int MaxSlippage = 1;
 
-input group "SPRAD FILTER INPUTS"
+input group "SPREAD FILTER INPUTS"
 input bool UseSpreadFilter = false;
 input double MaxSpreadPoints = 0.5;
 
@@ -86,7 +86,7 @@ double LotSize()
 int NumTrades(const ENUM_POSITION_TYPE PosType)
   {
    int Num = 0;
-   for(int i=PositionsTotal()-1;i>0;i--)
+   for(int i=PositionsTotal()-1;i>=0;i--)
      {
       if(!PositionInfo.SelectByIndex(i))
          continue;
