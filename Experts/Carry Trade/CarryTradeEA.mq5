@@ -22,13 +22,13 @@ input int MaxSlippage = 1;
 
 input group "SPREAD FILTER INPUTS"
 input bool UseSpreadFilter = true;
-input int MaxSpread = 2;
-input double MaxSpreadPoints = MaxSpread*10 ;
+input double MaxSpread = 2;
+double MaxSpreadPoints = MaxSpread * 10 ;
 
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-int NumTrades(const ENUM_POSITION_TYPE PosType)
+int NumOfTrades(const ENUM_POSITION_TYPE PosType)
   {
    int Num = 0;
    for(int i=PositionsTotal()-1;i>=0;i--)
@@ -47,13 +47,39 @@ int NumTrades(const ENUM_POSITION_TYPE PosType)
   }
 
 
-bool SpradGood()
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool SpreadGood()
   {
    if(!UseSpreadFilter)
       return true;
    if(SymbolInfoInteger(MySymbol,SYMBOL_SPREAD) <= MaxSpreadPoints)
       return true;
    return false;
+  }
+
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool BuySignal()
+  {
+   if(SymbolInfoDouble(MySymbol,SYMBOL_SWAP_LONG) > 15 && NumOfTrades(POSITION_TYPE_BUY) == 0 && SpreadGood())
+      return true;
+   return false;
+
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool SellSignal()
+  {
+   if(SymbolInfoDouble(MySymbol,SYMBOL_SWAP_SHORT) > 15 && NumOfTrades(POSITION_TYPE_SELL) == 0 && SpreadGood())
+      return true;
+   return false;
+
   }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
