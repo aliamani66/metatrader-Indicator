@@ -1,26 +1,8 @@
 ﻿//+------------------------------------------------------------------+
-//| MarketStructure_MTF.mq5                                          |
-//| Multi-Timeframe Market Structure overlay                         |
-//|                                                                    |
-//| Computes HH/LL swing structure (fractal pivots, same algorithm    |
-//| as MarketStructure.mq5 v13) independently on up to 4 source       |
-//| timeframes and plots all of them on the chart you attach the      |
-//| indicator to (e.g. attach to M5, set sources to D1/H4/H1/M5).     |
-//|                                                                    |
-//| - If the same swing point qualifies as a major pivot on more      |
-//|   than one timeframe at once, only the HIGHEST timeframe gets a   |
-//|   text label (dedup), so labels don't stack on top of each other. |
-//| - Connecting lines are OFF by default (InpShowLines=false) -      |
-//|   only the pivot dots + labels are drawn. Turn lines back on if   |
-//|   you want the zig-zag style structure lines.                     |
-//|                                                                    |
-//| Optional "Causal Link" feature: for a chosen Child TF and Parent  |
-//| TF (e.g. M15 -> H1), draws a dotted line + label connecting the   |
-//| child-timeframe swing point to the parent-timeframe major pivot   |
-//| it falls inside, so you can see which lower-TF swing produced a   |
-//| given higher-TF pivot.                                            |
+//| MarketStructure_MTF_fixed.mq5                                    |
+//| Multi-Timeframe Market Structure overlay - fixed mapping/index   |
 //+------------------------------------------------------------------+
-#property version   "1.10"
+#property version   "1.11"
 #property indicator_chart_window
 #property indicator_buffers 16
 #property indicator_plots   8
@@ -73,7 +55,7 @@
 #property indicator_color8  clrAqua, clrLightPink
 #property indicator_width8  1
 
-//--- Inputs: source timeframes (results are all drawn on the chart you attach to)
+//--- Inputs: source timeframes
 input ENUM_TIMEFRAMES InpTF1     = PERIOD_D1;
 input bool             InpUseTF1 = true;
 input ENUM_TIMEFRAMES InpTF2     = PERIOD_H4;
@@ -83,21 +65,19 @@ input bool             InpUseTF3 = true;
 input ENUM_TIMEFRAMES InpTF4     = PERIOD_M5;
 input bool             InpUseTF4 = true;
 
-input int  InpPivotBars      = 5;     // fractal bars left/right (same meaning as v13's PivotBars)
+input int  InpPivotBars      = 5;     // fractal bars left/right
 input int  InpMaxBarsTF      = 3000;  // max history bars scanned per source timeframe
-input bool InpShowLines      = false; // draw the zig-zag connecting lines (off = dots/labels only)
-input bool InpShowLabels     = true;  // tag each VISIBLE major pivot dot with its timeframe
-input int  InpMaxLabelsPerTF = 60;    // cap labels per TF to avoid chart clutter
+input bool InpShowLines      = false; // draw connecting lines
+input bool InpShowLabels     = true;  // show labels
+input int  InpMaxLabelsPerTF = 60;    // cap labels per TF
 
-//--- Dedup: when the same swing point is a major pivot on several TFs at once,
-//    only the highest timeframe among them gets the text label.
-input int InpDedupTolerancePts = 2;   // price tolerance (in points) to consider two pivots "the same point"
+input int InpDedupTolerancePts = 2;   // dedup tolerance in points
 
-//--- Inputs: Causal Link (which lower-TF swing produced a higher-TF pivot)
+// Causal link
 input bool             InpShowCausalLink   = false;
 input ENUM_TIMEFRAMES  InpCausalChildTF    = PERIOD_M15;
 input ENUM_TIMEFRAMES  InpCausalParentTF   = PERIOD_H1;
-input color             InpCausalLinkColor = clrYellow;
+input color            InpCausalLinkColor  = clrYellow;
 
 //--- Buffers
 double TF1_Line[], TF1_LineColor[], TF1_Dot[], TF1_DotColor[];
@@ -105,7 +85,7 @@ double TF2_Line[], TF2_LineColor[], TF2_Dot[], TF2_DotColor[];
 double TF3_Line[], TF3_LineColor[], TF3_Dot[], TF3_DotColor[];
 double TF4_Line[], TF4_LineColor[], TF4_Dot[], TF4_DotColor[];
 
-//--- A raw fractal pivot (every confirmed swing high/low)
+//--- A raw fractal pivot
 struct SPivot
 {
    datetime time;
@@ -113,12 +93,12 @@ struct SPivot
    bool     isHigh;
 };
 
-//--- A qualifying "major" pivot (HH or LL, after the same-type filter + comparison as v13)
+//--- A qualifying "major" pivot
 struct SDot
 {
    datetime time;
    double   price;
-   bool     isHH; // true = Higher-High pivot, false = Lower-Low pivot
+   bool     isHH;
 };
 
 //+------------------------------------------------------------------+
@@ -149,17 +129,14 @@ int OnInit()
    for(int p = 0; p < 8; p++)
       PlotIndexSetDouble(p, PLOT_EMPTY_VALUE, 0.0);
 
-   IndicatorSetString(INDICATOR_SHORTNAME, "Market Structure MTF v1");
+   IndicatorSetString(INDICATOR_SHORTNAME, "Market Structure MTF v1 (fixed)");
    return INIT_SUCCEEDED;
 }
-
+//+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
    ObjectsDeleteAll(0, "MSM_");
 }
-
-//+------------------------------------------------------------------+
-//| Strip "PERIOD_" prefix for compact labels                        |
 //+------------------------------------------------------------------+
 string TFName(ENUM_TIMEFRAMES tf)
 {
@@ -167,11 +144,8 @@ string TFName(ENUM_TIMEFRAMES tf)
    StringReplace(s, "PERIOD_", "");
    return s;
 }
-
 //+------------------------------------------------------------------+
-//| Core engine: same fractal + filter + HH/LL logic as v13,         |
-//| generalized to any symbol/timeframe via time-based indexing.     |
-//+------------------------------------------------------------------+
+// BuildStructure: fractal pivots -> filter -> HH/LL dots
 bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int maxBars,
                      SDot &dots[], SPivot &rawPivots[],
                      datetime &segA[], datetime &segB[],
@@ -204,7 +178,7 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
 
    int n = copied;
 
-   // --- Step 1: raw fractal pivots ---
+   // Step 1: raw fractal pivots
    SPivot pivots[]; int pivotCount = 0;
    for(int i = pivotBars; i < n - pivotBars; i++)
    {
@@ -217,13 +191,18 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
       if(isH && !isL)
       {
          ArrayResize(pivots, pivotCount + 1);
-         pivots[pivotCount].time = tm[i]; pivots[pivotCount].price = high[i]; pivots[pivotCount].isHigh = true;
+         // tm[i] from CopyTime in MQL5 is the OPEN time of the bar
+         pivots[pivotCount].time  = tm[i];
+         pivots[pivotCount].price = high[i];
+         pivots[pivotCount].isHigh = true;
          pivotCount++;
       }
       else if(isL && !isH)
       {
          ArrayResize(pivots, pivotCount + 1);
-         pivots[pivotCount].time = tm[i]; pivots[pivotCount].price = low[i]; pivots[pivotCount].isHigh = false;
+         pivots[pivotCount].time  = tm[i];
+         pivots[pivotCount].price = low[i];
+         pivots[pivotCount].isHigh = false;
          pivotCount++;
       }
    }
@@ -231,9 +210,9 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
    ArrayResize(rawPivots, pivotCount);
    for(int i = 0; i < pivotCount; i++) rawPivots[i] = pivots[i];
 
-   if(pivotCount < 2) return true; // valid call, nothing to draw yet
+   if(pivotCount < 2) return true;
 
-   // --- Step 2: filter consecutive same-type pivots (keep the extreme) ---
+   // Step 2: filter consecutive same-type pivots (keep extreme)
    SPivot filtered[]; int fCount = 0;
    ArrayResize(filtered, 1); filtered[0] = pivots[0]; fCount = 1;
 
@@ -254,7 +233,7 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
       }
    }
 
-   // --- Step 3: tag HH / LL segments (identical comparison rule to v13) ---
+   // Step 3: tag HH / LL segments
    int segCount = 0, dotCount = 0;
    for(int i = 1; i < fCount; i++)
    {
@@ -273,15 +252,13 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
       segCount++;
 
       ArrayResize(dots, dotCount + 1);
-      dots[dotCount].time = cur.time; dots[dotCount].price = cur.price; dots[dotCount].isHH = isHH;
+      dots[dotCount].time  = cur.time;
+      dots[dotCount].price = cur.price;
+      dots[dotCount].isHH  = isHH;
       dotCount++;
    }
    return true;
 }
-
-//+------------------------------------------------------------------+
-//| Does an enabled higher timeframe already have a matching pivot   |
-//| (same type, price within tolerance, time inside its own bar)?    |
 //+------------------------------------------------------------------+
 bool HasHigherPriorityMatch(ENUM_TIMEFRAMES myTF, datetime t, double price, bool isHH,
                              ENUM_TIMEFRAMES otherTF, bool otherEnabled, SDot &otherDots[],
@@ -290,7 +267,7 @@ bool HasHigherPriorityMatch(ENUM_TIMEFRAMES myTF, datetime t, double price, bool
    if(!otherEnabled) return false;
    int myPeriod    = PeriodSeconds(myTF);
    int otherPeriod = PeriodSeconds(otherTF);
-   if(otherPeriod <= myPeriod) return false; // only a strictly higher timeframe can "own" the label
+   if(otherPeriod <= myPeriod) return false; // only strictly higher TF can own label
 
    int n = ArraySize(otherDots);
    for(int i = 0; i < n; i++)
@@ -301,57 +278,58 @@ bool HasHigherPriorityMatch(ENUM_TIMEFRAMES myTF, datetime t, double price, bool
    }
    return false;
 }
-
 //+------------------------------------------------------------------+
-//| For higher timeframes, map source timestamp to chart timeframe   |
-//| by shifting to the bar's OPEN time instead of CLOSE time.        |
-//+------------------------------------------------------------------+
+// Map source time to chart TF: return the first chart-TF bar time >= srcTime
 datetime MapSourceTime(datetime srcTime, ENUM_TIMEFRAMES srcTF)
 {
-    int currSec = PeriodSeconds(PERIOD_CURRENT);
+   // srcTime is OPEN time of the source TF bar (from CopyTime)
+   // We want the first chart-TF bar whose time >= srcTime
+   int currSec = PeriodSeconds(PERIOD_CURRENT);
+   if(currSec <= 0) return srcTime;
 
-    // زمان را به اولین کندل TF کوچک‌تر بعد از srcTime منتقل کن
-    datetime mapped = ((srcTime + currSec - 1) / currSec) * currSec;
-
-    return mapped;
+   // Round up to the next multiple of currSec (first bar start >= srcTime)
+   datetime mapped = ((srcTime + currSec - 1) / currSec) * currSec;
+   return mapped;
 }
-
 //+------------------------------------------------------------------+
-//| Find the index (chronological, 0=oldest) of the chart bar that   |
-//| "contains" time t, by binary search directly on the SAME time[]  |
-//| array OnCalculate gave us - never relies on iBarShift's separate |
-//| (and sometimes out-of-sync) internal history cache, which was    |
-//| causing pivot dots to land tens of bars away from their true     |
-//| location on lower timeframes.                                    |
-//+------------------------------------------------------------------+
+// Find first bar index whose time >= t (works for ascending or descending arrays)
 int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
 {
-    if(ratesTotal <= 0) return -1;
+   if(ratesTotal <= 0) return -1;
 
-    // اگر زمان Pivot قبل از اولین کندل است → کندل اول
-    if(t <= chartTime[0]) return 0;
+   // Determine ordering: ascending (oldest..newest) or descending (newest..oldest)
+   bool ascending = (chartTime[0] < chartTime[ratesTotal - 1]);
 
-    // اگر زمان Pivot بعد از آخرین کندل است → آخرین کندل
-    if(t >= chartTime[ratesTotal - 1]) return ratesTotal - 1;
+   // Boundary checks
+   if(ascending)
+   {
+      if(t <= chartTime[0]) return 0;
+      if(t >  chartTime[ratesTotal - 1]) return ratesTotal - 1;
+   }
+   else
+   {
+      if(t >= chartTime[0]) return 0;
+      if(t <  chartTime[ratesTotal - 1]) return ratesTotal - 1;
+   }
 
-    // باینری سرچ برای پیدا کردن اولین کندل که زمانش >= t باشد
-    int lo = 0, hi = ratesTotal - 1;
-    while(lo < hi)
-    {
-        int mid = (lo + hi) / 2;
-        if(chartTime[mid] < t)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-
-    return lo;
+   int lo = 0, hi = ratesTotal - 1;
+   while(lo < hi)
+   {
+      int mid = (lo + hi) / 2;
+      if(ascending)
+      {
+         if(chartTime[mid] < t) lo = mid + 1;
+         else hi = mid;
+      }
+      else
+      {
+         // descending
+         if(chartTime[mid] > t) lo = mid + 1;
+         else hi = mid;
+      }
+   }
+   return lo;
 }
-
-
-//+------------------------------------------------------------------+
-//| Draw one slot's lines (optional), pivot dots, and de-duplicated  |
-//| labels using already-computed structure data.                   |
 //+------------------------------------------------------------------+
 void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], double &prB[], bool &segHH[],
               bool &labelOk[], ENUM_TIMEFRAMES srcTF,
@@ -366,13 +344,14 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
       {
          datetime mappedA = MapSourceTime(segA[s], srcTF);
          datetime mappedB = MapSourceTime(segB[s], srcTF);
-         
+
          int idxA = FindBarIndex(chartTime, ratesTotal, mappedA);
          int idxB = FindBarIndex(chartTime, ratesTotal, mappedB);
          if(idxA < 0 || idxB < 0) continue;
          if(idxA > idxB) continue;
 
-         datetime ta = mappedA, tb = mappedB;
+         datetime ta = chartTime[idxA];
+         datetime tb = chartTime[idxB];
          double   paV = prA[s],  pbV = prB[s];
 
          for(int k = idxA; k <= idxB; k++)
@@ -385,7 +364,7 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
       }
    }
 
-   // --- pivot dots (always drawn, independent of showLines) ---
+   // pivot dots
    int dotCount = ArraySize(dots);
    for(int i = 0; i < dotCount; i++)
    {
@@ -396,7 +375,7 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
       dotColor[idx] = dots[i].isHH ? 0.0 : 1.0;
    }
 
-   // --- de-duplicated labels: only dots where labelOk[i]==true, capped to maxLabels (most recent first) ---
+   // labels (most recent first, capped)
    if(showLabels)
    {
       int allowedIdx[]; int allowedCount = 0;
@@ -413,10 +392,17 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
          int i = allowedIdx[a];
          datetime mappedTime = MapSourceTime(dots[i].time, srcTF);
          string name = "MSM_LBL_" + tfTag + "_" + IntegerToString((int)dots[i].time);
+
+         // Create or update text object
          if(ObjectFind(0, name) < 0)
+         {
             ObjectCreate(0, name, OBJ_TEXT, 0, mappedTime, dots[i].price);
+         }
          else
-           ObjectSetInteger(0, name, OBJPROP_TIME, mappedTime);
+         {
+            ObjectSetInteger(0, name, OBJPROP_TIME, mappedTime);
+            ObjectSetDouble(0, name, OBJPROP_PRICE, dots[i].price);
+         }
 
          ObjectSetString(0, name, OBJPROP_TEXT, tfTag + (dots[i].isHH ? " HH" : " LL"));
          ObjectSetInteger(0, name, OBJPROP_COLOR, dots[i].isHH ? clrDodgerBlue : clrOrangeRed);
@@ -425,11 +411,6 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
       }
    }
 }
-
-//+------------------------------------------------------------------+
-//| Causal link: for each Parent-TF major pivot, find the Child-TF   |
-//| raw fractal swing (same type, High<->HH / Low<->LL) that falls   |
-//| inside that parent bar's time window, and connect them.          |
 //+------------------------------------------------------------------+
 void ProcessCausalLinks(ENUM_TIMEFRAMES childTF, ENUM_TIMEFRAMES parentTF,
                          int pivotBars, int maxBars, color lnColor)
@@ -448,7 +429,7 @@ void ProcessCausalLinks(ENUM_TIMEFRAMES childTF, ENUM_TIMEFRAMES parentTF,
    {
       datetime tStart = pdots[i].time;
       datetime tEnd   = tStart + parentSeconds;
-      bool wantHigh = pdots[i].isHH; // HH parent pivot -> look for a child HIGH; LL -> child LOW
+      bool wantHigh = pdots[i].isHH;
 
       int bestIdx = -1; double bestDiff = DBL_MAX;
       for(int r = 0; r < rawCount; r++)
@@ -461,21 +442,29 @@ void ProcessCausalLinks(ENUM_TIMEFRAMES childTF, ENUM_TIMEFRAMES parentTF,
       if(bestIdx < 0) continue;
 
       string ln = "MSM_LINK_" + IntegerToString((int)pdots[i].time);
-      ObjectCreate(0, ln, OBJ_TREND, 0, craw[bestIdx].time, craw[bestIdx].price, pdots[i].time, pdots[i].price);
+      // Map times for drawing trend
+      datetime childMapped = MapSourceTime(craw[bestIdx].time, childTF);
+      datetime parentMapped = MapSourceTime(pdots[i].time, parentTF);
+      ObjectCreate(0, ln, OBJ_TREND, 0, childMapped, craw[bestIdx].price, parentMapped, pdots[i].price);
       ObjectSetInteger(0, ln, OBJPROP_COLOR, lnColor);
       ObjectSetInteger(0, ln, OBJPROP_STYLE, STYLE_DOT);
       ObjectSetInteger(0, ln, OBJPROP_WIDTH, 1);
       ObjectSetInteger(0, ln, OBJPROP_RAY_RIGHT, false);
 
       string lbl = "MSM_LINKLBL_" + IntegerToString((int)pdots[i].time);
-      ObjectCreate(0, lbl, OBJ_TEXT, 0, craw[bestIdx].time, craw[bestIdx].price);
+      if(ObjectFind(0, lbl) < 0)
+         ObjectCreate(0, lbl, OBJ_TEXT, 0, childMapped, craw[bestIdx].price);
+      else
+      {
+         ObjectSetInteger(0, lbl, OBJPROP_TIME, childMapped);
+         ObjectSetDouble(0, lbl, OBJPROP_PRICE, craw[bestIdx].price);
+      }
       ObjectSetString(0, lbl, OBJPROP_TEXT, TFName(childTF) + " -> " + TFName(parentTF));
       ObjectSetInteger(0, lbl, OBJPROP_COLOR, lnColor);
       ObjectSetInteger(0, lbl, OBJPROP_FONTSIZE, 7);
       ObjectSetInteger(0, lbl, OBJPROP_ANCHOR, wantHigh ? ANCHOR_BOTTOM : ANCHOR_TOP);
    }
 }
-
 //+------------------------------------------------------------------+
 int OnCalculate(const int rates_total,
                 const int prev_calculated,
@@ -521,7 +510,7 @@ int OnCalculate(const int rates_total,
 
    ObjectsDeleteAll(0, "MSM_");
 
-   // --- Step A: compute structure for all 4 slots up front (needed for cross-TF dedup) ---
+   // compute structure for all slots
    SDot dotsS1[]; SPivot rawS1[]; datetime segAS1[],segBS1[]; double pAS1[],pBS1[]; bool hhS1[];
    bool ok1 = InpUseTF1 && BuildStructure(_Symbol, InpTF1, InpPivotBars, InpMaxBarsTF, dotsS1, rawS1, segAS1, segBS1, pAS1, pBS1, hhS1);
 
@@ -536,7 +525,7 @@ int OnCalculate(const int rates_total,
 
    double tol = InpDedupTolerancePts * _Point;
 
-   // --- Step B: dedup labels - a dot keeps its label only if no enabled HIGHER timeframe already has it ---
+   // dedup labels
    bool labelOkS1[]; ArrayResize(labelOkS1, ArraySize(dotsS1));
    for(int i = 0; i < ArraySize(dotsS1); i++)
    {
@@ -577,7 +566,7 @@ int OnCalculate(const int rates_total,
       labelOkS4[i] = ok;
    }
 
-   // --- Step C: draw ---
+   // draw
    if(ok1) DrawSlot(dotsS1, segAS1, segBS1, pAS1, pBS1, hhS1, labelOkS1, InpTF1, time, rates_total, TF1_Line,TF1_LineColor,TF1_Dot,TF1_DotColor, TFName(InpTF1), InpShowLines, InpShowLabels, InpMaxLabelsPerTF);
    if(ok2) DrawSlot(dotsS2, segAS2, segBS2, pAS2, pBS2, hhS2, labelOkS2, InpTF2, time, rates_total, TF2_Line,TF2_LineColor,TF2_Dot,TF2_DotColor, TFName(InpTF2), InpShowLines, InpShowLabels, InpMaxLabelsPerTF);
    if(ok3) DrawSlot(dotsS3, segAS3, segBS3, pAS3, pBS3, hhS3, labelOkS3, InpTF3, time, rates_total, TF3_Line,TF3_LineColor,TF3_Dot,TF3_DotColor, TFName(InpTF3), InpShowLines, InpShowLabels, InpMaxLabelsPerTF);
