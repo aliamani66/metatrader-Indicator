@@ -408,7 +408,8 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
          if(ObjectFind(0, name) < 0)
             ObjectCreate(0, name, OBJ_TEXT, 0, mappedTime, dots[i].price);
          else
-            ObjectSetDateTime(0, name, 0, mappedTime);
+           ObjectSetInteger(0, name, OBJPROP_TIME, mappedTime);
+
          ObjectSetString(0, name, OBJPROP_TEXT, tfTag + (dots[i].isHH ? " HH" : " LL"));
          ObjectSetInteger(0, name, OBJPROP_COLOR, dots[i].isHH ? clrDodgerBlue : clrOrangeRed);
          ObjectSetInteger(0, name, OBJPROP_ANCHOR, dots[i].isHH ? ANCHOR_BOTTOM : ANCHOR_TOP);
