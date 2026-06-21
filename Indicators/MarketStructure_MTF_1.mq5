@@ -1,13 +1,13 @@
 ﻿//+------------------------------------------------------------------+
-//| MarketStructure_MTF_fixed.mq5                                    |
-//| Multi-Timeframe Market Structure overlay - fixed mapping/index   |
+//| MarketStructure_MTF_final_fixed.mq5                              |
+//| Multi-Timeframe Market Structure overlay - final fixed version   |
 //+------------------------------------------------------------------+
-#property version   "1.11"
+#property version   "1.21"
 #property indicator_chart_window
 #property indicator_buffers 16
 #property indicator_plots   8
 
-// TF1 (default Daily) - heaviest weight = "most major"
+// TF1 (default Daily)
 #property indicator_label1  "TF1 Line"
 #property indicator_type1   DRAW_COLOR_LINE
 #property indicator_color1  clrNavy, clrDarkRed
@@ -43,7 +43,7 @@
 #property indicator_color6  clrDeepSkyBlue, clrTomato
 #property indicator_width6  2
 
-// TF4 (default M5) - lightest weight = "most minor"
+// TF4 (default M5)
 #property indicator_label7  "TF4 Line"
 #property indicator_type7   DRAW_COLOR_LINE
 #property indicator_color7  clrAqua, clrLightPink
@@ -55,7 +55,7 @@
 #property indicator_color8  clrAqua, clrLightPink
 #property indicator_width8  1
 
-//--- Inputs: source timeframes
+//--- Inputs
 input ENUM_TIMEFRAMES InpTF1     = PERIOD_D1;
 input bool             InpUseTF1 = true;
 input ENUM_TIMEFRAMES InpTF2     = PERIOD_H4;
@@ -65,15 +65,14 @@ input bool             InpUseTF3 = true;
 input ENUM_TIMEFRAMES InpTF4     = PERIOD_M5;
 input bool             InpUseTF4 = true;
 
-input int  InpPivotBars      = 5;     // fractal bars left/right
-input int  InpMaxBarsTF      = 3000;  // max history bars scanned per source timeframe
-input bool InpShowLines      = false; // draw connecting lines
-input bool InpShowLabels     = true;  // show labels
-input int  InpMaxLabelsPerTF = 60;    // cap labels per TF
+input int  InpPivotBars      = 5;
+input int  InpMaxBarsTF      = 3000;
+input bool InpShowLines      = false;
+input bool InpShowLabels     = true;
+input int  InpMaxLabelsPerTF = 60;
 
-input int InpDedupTolerancePts = 2;   // dedup tolerance in points
+input int InpDedupTolerancePts = 2;
 
-// Causal link
 input bool             InpShowCausalLink   = false;
 input ENUM_TIMEFRAMES  InpCausalChildTF    = PERIOD_M15;
 input ENUM_TIMEFRAMES  InpCausalParentTF   = PERIOD_H1;
@@ -85,71 +84,66 @@ double TF2_Line[], TF2_LineColor[], TF2_Dot[], TF2_DotColor[];
 double TF3_Line[], TF3_LineColor[], TF3_Dot[], TF3_DotColor[];
 double TF4_Line[], TF4_LineColor[], TF4_Dot[], TF4_DotColor[];
 
-//--- A raw fractal pivot
-struct SPivot
-{
-   datetime time;
-   double   price;
-   bool     isHigh;
-};
-
-//--- A qualifying "major" pivot
-struct SDot
-{
-   datetime time;
-   double   price;
-   bool     isHH;
-};
+//--- Structures
+struct SPivot { datetime time; double price; bool isHigh; };
+struct SDot   { datetime time; double price; bool isHH; };
 
 //+------------------------------------------------------------------+
-int OnInit()
+// Helper: safely recreate a trend object with exact times/prices
+void UpdateTrendObject(string name, datetime t1, double p1, datetime t2, double p2, color clr, int width=1)
 {
-   SetIndexBuffer(0,  TF1_Line,      INDICATOR_DATA);
-   SetIndexBuffer(1,  TF1_LineColor, INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(2,  TF1_Dot,       INDICATOR_DATA);
-   SetIndexBuffer(3,  TF1_DotColor,  INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(4,  TF2_Line,      INDICATOR_DATA);
-   SetIndexBuffer(5,  TF2_LineColor, INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(6,  TF2_Dot,       INDICATOR_DATA);
-   SetIndexBuffer(7,  TF2_DotColor,  INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(8,  TF3_Line,      INDICATOR_DATA);
-   SetIndexBuffer(9,  TF3_LineColor, INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(10, TF3_Dot,       INDICATOR_DATA);
-   SetIndexBuffer(11, TF3_DotColor,  INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(12, TF4_Line,      INDICATOR_DATA);
-   SetIndexBuffer(13, TF4_LineColor, INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(14, TF4_Dot,       INDICATOR_DATA);
-   SetIndexBuffer(15, TF4_DotColor,  INDICATOR_COLOR_INDEX);
-
-   PlotIndexSetInteger(1, PLOT_ARROW, 108);
-   PlotIndexSetInteger(3, PLOT_ARROW, 108);
-   PlotIndexSetInteger(5, PLOT_ARROW, 108);
-   PlotIndexSetInteger(7, PLOT_ARROW, 108);
-
-   for(int p = 0; p < 8; p++)
-      PlotIndexSetDouble(p, PLOT_EMPTY_VALUE, 0.0);
-
-   IndicatorSetString(INDICATOR_SHORTNAME, "Market Structure MTF v1 (fixed)");
-   return INIT_SUCCEEDED;
+   if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
+   bool ok = ObjectCreate(0, name, OBJ_TREND, 0, t1, p1, t2, p2);
+   if(ok)
+   {
+      ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+      ObjectSetInteger(0, name, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, name, OBJPROP_WIDTH, width);
+      ObjectSetInteger(0, name, OBJPROP_RAY_RIGHT, false);
+   }
 }
 //+------------------------------------------------------------------+
-void OnDeinit(const int reason)
+// Snap a source time to the chart's bar OPEN time (first bar start >= srcTime)
+datetime SnapToChartBar(datetime srcTime)
 {
-   ObjectsDeleteAll(0, "MSM_");
+   int currSec = PeriodSeconds(PERIOD_CURRENT);
+   if(currSec <= 0) return srcTime;
+   return ((srcTime + currSec - 1) / currSec) * currSec;
 }
 //+------------------------------------------------------------------+
-string TFName(ENUM_TIMEFRAMES tf)
+// Map source time to chart TF: return srcTime (OPEN time) unchanged
+datetime MapSourceTime(datetime srcTime, ENUM_TIMEFRAMES srcTF)
 {
-   string s = EnumToString(tf);
-   StringReplace(s, "PERIOD_", "");
-   return s;
+   // tm[] from CopyTime is OPEN time in MT5; keep it as-is
+   return srcTime;
+}
+//+------------------------------------------------------------------+
+// Find first bar index whose time == t, else first bar with time > t
+int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
+{
+   if(ratesTotal <= 0) return -1;
+
+   // chartTime[] from OnCalculate is chronological (oldest..newest)
+   if(t <= chartTime[0]) return 0;
+   if(t >= chartTime[ratesTotal - 1]) return ratesTotal - 1;
+
+   int lo = 0, hi = ratesTotal - 1;
+   while(lo <= hi)
+   {
+      int mid = (lo + hi) / 2;
+      if(chartTime[mid] == t) return mid;          // exact match preferred
+      if(chartTime[mid] < t) lo = mid + 1;
+      else hi = mid - 1;
+   }
+   if(lo < ratesTotal) return lo;
+   return ratesTotal - 1;
 }
 //+------------------------------------------------------------------+
 // BuildStructure: fractal pivots -> filter -> HH/LL dots
 bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int maxBars,
-                     SDot &dots[], SPivot &rawPivots[],
-                     datetime &segA[], datetime &segB[],
-                     double &prA[], double &prB[], bool &segHH[])
+                    SDot &dots[], SPivot &rawPivots[],
+                    datetime &segA[], datetime &segB[],
+                    double &prA[], double &prB[], bool &segHH[])
 {
    ArrayResize(dots, 0);
    ArrayResize(rawPivots, 0);
@@ -178,7 +172,7 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
 
    int n = copied;
 
-   // Step 1: raw fractal pivots
+   // Step 1: raw fractal pivots (tm[] is OPEN time in MT5)
    SPivot pivots[]; int pivotCount = 0;
    for(int i = pivotBars; i < n - pivotBars; i++)
    {
@@ -191,8 +185,7 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
       if(isH && !isL)
       {
          ArrayResize(pivots, pivotCount + 1);
-         // tm[i] from CopyTime in MQL5 is the OPEN time of the bar
-         pivots[pivotCount].time  = tm[i];
+         pivots[pivotCount].time  = tm[i];      // OPEN time of the source bar
          pivots[pivotCount].price = high[i];
          pivots[pivotCount].isHigh = true;
          pivotCount++;
@@ -261,8 +254,8 @@ bool BuildStructure(const string symbol, ENUM_TIMEFRAMES tf, int pivotBars, int 
 }
 //+------------------------------------------------------------------+
 bool HasHigherPriorityMatch(ENUM_TIMEFRAMES myTF, datetime t, double price, bool isHH,
-                             ENUM_TIMEFRAMES otherTF, bool otherEnabled, SDot &otherDots[],
-                             double priceTolerance)
+                            ENUM_TIMEFRAMES otherTF, bool otherEnabled, SDot &otherDots[],
+                            double priceTolerance)
 {
    if(!otherEnabled) return false;
    int myPeriod    = PeriodSeconds(myTF);
@@ -279,64 +272,13 @@ bool HasHigherPriorityMatch(ENUM_TIMEFRAMES myTF, datetime t, double price, bool
    return false;
 }
 //+------------------------------------------------------------------+
-// Map source time to chart TF: return the first chart-TF bar time >= srcTime
-datetime MapSourceTime(datetime srcTime, ENUM_TIMEFRAMES srcTF)
-{
-   // srcTime is OPEN time of the source TF bar (from CopyTime)
-   // We want the first chart-TF bar whose time >= srcTime
-   int currSec = PeriodSeconds(PERIOD_CURRENT);
-   if(currSec <= 0) return srcTime;
-
-   // Round up to the next multiple of currSec (first bar start >= srcTime)
-   datetime mapped = ((srcTime + currSec - 1) / currSec) * currSec;
-   return mapped;
-}
-//+------------------------------------------------------------------+
-// Find first bar index whose time >= t (works for ascending or descending arrays)
-int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
-{
-   if(ratesTotal <= 0) return -1;
-
-   // Determine ordering: ascending (oldest..newest) or descending (newest..oldest)
-   bool ascending = (chartTime[0] < chartTime[ratesTotal - 1]);
-
-   // Boundary checks
-   if(ascending)
-   {
-      if(t <= chartTime[0]) return 0;
-      if(t >  chartTime[ratesTotal - 1]) return ratesTotal - 1;
-   }
-   else
-   {
-      if(t >= chartTime[0]) return 0;
-      if(t <  chartTime[ratesTotal - 1]) return ratesTotal - 1;
-   }
-
-   int lo = 0, hi = ratesTotal - 1;
-   while(lo < hi)
-   {
-      int mid = (lo + hi) / 2;
-      if(ascending)
-      {
-         if(chartTime[mid] < t) lo = mid + 1;
-         else hi = mid;
-      }
-      else
-      {
-         // descending
-         if(chartTime[mid] > t) lo = mid + 1;
-         else hi = mid;
-      }
-   }
-   return lo;
-}
-//+------------------------------------------------------------------+
 void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], double &prB[], bool &segHH[],
               bool &labelOk[], ENUM_TIMEFRAMES srcTF,
               const datetime &chartTime[], int ratesTotal,
               double &lineBuf[], double &lineColor[], double &dotBuf[], double &dotColor[],
               string tfTag, bool showLines, bool showLabels, int maxLabels)
 {
+   // draw connecting lines (optional)
    if(showLines)
    {
       int segCount = ArraySize(segA);
@@ -350,10 +292,11 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
          if(idxA < 0 || idxB < 0) continue;
          if(idxA > idxB) continue;
 
-         datetime ta = chartTime[idxA];
+         datetime ta = chartTime[idxA]; // ensure exact chart bar open times
          datetime tb = chartTime[idxB];
          double   paV = prA[s],  pbV = prB[s];
 
+         // draw buffer line for plot
          for(int k = idxA; k <= idxB; k++)
          {
             double frac = (tb == ta) ? 1.0 : (double)(chartTime[k] - ta) / (double)(tb - ta);
@@ -361,10 +304,14 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
             lineBuf[k]   = paV + frac * (pbV - paV);
             lineColor[k] = segHH[s] ? 0.0 : 1.0;
          }
+
+         // persistent trend object (keeps lines visually exact on chart)
+         string ln = "MSM_SEG_" + tfTag + "_" + IntegerToString((int)ta);
+         UpdateTrendObject(ln, ta, paV, tb, pbV, segHH[s] ? clrDodgerBlue : clrOrangeRed, 1);
       }
    }
 
-   // pivot dots
+   // pivot dots (plot buffers)
    int dotCount = ArraySize(dots);
    for(int i = 0; i < dotCount; i++)
    {
@@ -375,7 +322,7 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
       dotColor[idx] = dots[i].isHH ? 0.0 : 1.0;
    }
 
-   // labels (most recent first, capped)
+   // labels: place exactly on the chart bar open time (chartTime[idx])
    if(showLabels)
    {
       int allowedIdx[]; int allowedCount = 0;
@@ -391,19 +338,13 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
       {
          int i = allowedIdx[a];
          datetime mappedTime = MapSourceTime(dots[i].time, srcTF);
+         int idx = FindBarIndex(chartTime, ratesTotal, mappedTime);
+         if(idx < 0) continue;
+         datetime objTime = chartTime[idx]; // exact bar open time
+
          string name = "MSM_LBL_" + tfTag + "_" + IntegerToString((int)dots[i].time);
-
-         // Create or update text object
-         if(ObjectFind(0, name) < 0)
-         {
-            ObjectCreate(0, name, OBJ_TEXT, 0, mappedTime, dots[i].price);
-         }
-         else
-         {
-            ObjectSetInteger(0, name, OBJPROP_TIME, mappedTime);
-            ObjectSetDouble(0, name, OBJPROP_PRICE, dots[i].price);
-         }
-
+         if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
+         ObjectCreate(0, name, OBJ_TEXT, 0, objTime, dots[i].price);
          ObjectSetString(0, name, OBJPROP_TEXT, tfTag + (dots[i].isHH ? " HH" : " LL"));
          ObjectSetInteger(0, name, OBJPROP_COLOR, dots[i].isHH ? clrDodgerBlue : clrOrangeRed);
          ObjectSetInteger(0, name, OBJPROP_ANCHOR, dots[i].isHH ? ANCHOR_BOTTOM : ANCHOR_TOP);
@@ -413,7 +354,7 @@ void DrawSlot(SDot &dots[], datetime &segA[], datetime &segB[], double &prA[], d
 }
 //+------------------------------------------------------------------+
 void ProcessCausalLinks(ENUM_TIMEFRAMES childTF, ENUM_TIMEFRAMES parentTF,
-                         int pivotBars, int maxBars, color lnColor)
+                        int pivotBars, int maxBars, color lnColor)
 {
    SDot pdots[]; SPivot praw[]; datetime pa[], pb2[]; double ppA[], ppB[]; bool phh[];
    if(!BuildStructure(_Symbol, parentTF, pivotBars, maxBars, pdots, praw, pa, pb2, ppA, ppB, phh)) return;
@@ -424,6 +365,13 @@ void ProcessCausalLinks(ENUM_TIMEFRAMES childTF, ENUM_TIMEFRAMES parentTF,
    int parentSeconds = PeriodSeconds(parentTF);
    int pdCount  = ArraySize(pdots);
    int rawCount = ArraySize(craw);
+
+   // get chart time array for mapping (use current chart timeframe)
+   int rates_total = Bars(_Symbol, PERIOD_CURRENT);
+   if(rates_total <= 0) return;
+   datetime chartTime[]; ArrayResize(chartTime, rates_total);
+   for(int i = 0; i < rates_total; i++) chartTime[i] = iTime(_Symbol, PERIOD_CURRENT, rates_total - 1 - i);
+   // chartTime now chronological (oldest..newest)
 
    for(int i = 0; i < pdCount; i++)
    {
@@ -441,29 +389,71 @@ void ProcessCausalLinks(ENUM_TIMEFRAMES childTF, ENUM_TIMEFRAMES parentTF,
       }
       if(bestIdx < 0) continue;
 
-      string ln = "MSM_LINK_" + IntegerToString((int)pdots[i].time);
-      // Map times for drawing trend
+      // map times to chart bars
       datetime childMapped = MapSourceTime(craw[bestIdx].time, childTF);
       datetime parentMapped = MapSourceTime(pdots[i].time, parentTF);
-      ObjectCreate(0, ln, OBJ_TREND, 0, childMapped, craw[bestIdx].price, parentMapped, pdots[i].price);
-      ObjectSetInteger(0, ln, OBJPROP_COLOR, lnColor);
-      ObjectSetInteger(0, ln, OBJPROP_STYLE, STYLE_DOT);
-      ObjectSetInteger(0, ln, OBJPROP_WIDTH, 1);
-      ObjectSetInteger(0, ln, OBJPROP_RAY_RIGHT, false);
+
+      int idxChild = FindBarIndex(chartTime, rates_total, childMapped);
+      int idxParent = FindBarIndex(chartTime, rates_total, parentMapped);
+      if(idxChild < 0 || idxParent < 0) continue;
+
+      datetime childObjTime = chartTime[idxChild];
+      datetime parentObjTime = chartTime[idxParent];
+
+      string ln = "MSM_LINK_" + IntegerToString((int)pdots[i].time);
+      UpdateTrendObject(ln, childObjTime, craw[bestIdx].price, parentObjTime, pdots[i].price, lnColor, 1);
 
       string lbl = "MSM_LINKLBL_" + IntegerToString((int)pdots[i].time);
-      if(ObjectFind(0, lbl) < 0)
-         ObjectCreate(0, lbl, OBJ_TEXT, 0, childMapped, craw[bestIdx].price);
-      else
-      {
-         ObjectSetInteger(0, lbl, OBJPROP_TIME, childMapped);
-         ObjectSetDouble(0, lbl, OBJPROP_PRICE, craw[bestIdx].price);
-      }
+      if(ObjectFind(0, lbl) >= 0) ObjectDelete(0, lbl);
+      ObjectCreate(0, lbl, OBJ_TEXT, 0, childObjTime, craw[bestIdx].price);
       ObjectSetString(0, lbl, OBJPROP_TEXT, TFName(childTF) + " -> " + TFName(parentTF));
       ObjectSetInteger(0, lbl, OBJPROP_COLOR, lnColor);
       ObjectSetInteger(0, lbl, OBJPROP_FONTSIZE, 7);
-      ObjectSetInteger(0, lbl, OBJPROP_ANCHOR, wantHigh ? ANCHOR_BOTTOM : ANCHOR_TOP);
+      ObjectSetInteger(0, lbl, OBJPROP_ANCHOR, pdots[i].isHH ? ANCHOR_BOTTOM : ANCHOR_TOP);
    }
+}
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   SetIndexBuffer(0,  TF1_Line,      INDICATOR_DATA);
+   SetIndexBuffer(1,  TF1_LineColor, INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(2,  TF1_Dot,       INDICATOR_DATA);
+   SetIndexBuffer(3,  TF1_DotColor,  INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(4,  TF2_Line,      INDICATOR_DATA);
+   SetIndexBuffer(5,  TF2_LineColor, INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(6,  TF2_Dot,       INDICATOR_DATA);
+   SetIndexBuffer(7,  TF2_DotColor,  INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(8,  TF3_Line,      INDICATOR_DATA);
+   SetIndexBuffer(9,  TF3_LineColor, INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(10, TF3_Dot,       INDICATOR_DATA);
+   SetIndexBuffer(11, TF3_DotColor,  INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(12, TF4_Line,      INDICATOR_DATA);
+   SetIndexBuffer(13, TF4_LineColor, INDICATOR_COLOR_INDEX);
+   SetIndexBuffer(14, TF4_Dot,       INDICATOR_DATA);
+   SetIndexBuffer(15, TF4_DotColor,  INDICATOR_COLOR_INDEX);
+
+   PlotIndexSetInteger(1, PLOT_ARROW, 108);
+   PlotIndexSetInteger(3, PLOT_ARROW, 108);
+   PlotIndexSetInteger(5, PLOT_ARROW, 108);
+   PlotIndexSetInteger(7, PLOT_ARROW, 108);
+
+   for(int p = 0; p < 8; p++)
+      PlotIndexSetDouble(p, PLOT_EMPTY_VALUE, 0.0);
+
+   IndicatorSetString(INDICATOR_SHORTNAME, "Market Structure MTF final (fixed)");
+   return INIT_SUCCEEDED;
+}
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   ObjectsDeleteAll(0, "MSM_");
+}
+//+------------------------------------------------------------------+
+string TFName(ENUM_TIMEFRAMES tf)
+{
+   string s = EnumToString(tf);
+   StringReplace(s, "PERIOD_", "");
+   return s;
 }
 //+------------------------------------------------------------------+
 int OnCalculate(const int rates_total,
