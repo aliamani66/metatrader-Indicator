@@ -1,4 +1,4 @@
-//+------------------------------------------------------------------+
+﻿//+------------------------------------------------------------------+
 //| MarketStructure_MTF.mq5                                          |
 //| Multi-Timeframe Market Structure overlay                         |
 //|                                                                    |
@@ -308,13 +308,12 @@ bool HasHigherPriorityMatch(ENUM_TIMEFRAMES myTF, datetime t, double price, bool
 //+------------------------------------------------------------------+
 datetime MapSourceTime(datetime srcTime, ENUM_TIMEFRAMES srcTF)
 {
-   int srcPeriodSec = PeriodSeconds(srcTF);
-   int currPeriodSec = PeriodSeconds(PERIOD_CURRENT);
-   
-   if(srcPeriodSec <= currPeriodSec) return srcTime;
-   
-   // For higher TF: shift to bar OPEN instead of CLOSE
-   return srcTime - srcPeriodSec;
+    int currSec = PeriodSeconds(PERIOD_CURRENT);
+
+    // زمان را به اولین کندل TF کوچک‌تر بعد از srcTime منتقل کن
+    datetime mapped = ((srcTime + currSec - 1) / currSec) * currSec;
+
+    return mapped;
 }
 
 //+------------------------------------------------------------------+
@@ -327,19 +326,28 @@ datetime MapSourceTime(datetime srcTime, ENUM_TIMEFRAMES srcTF)
 //+------------------------------------------------------------------+
 int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
 {
-   if(ratesTotal <= 0) return -1;
-   if(t <= chartTime[0]) return 0;
-   if(t >= chartTime[ratesTotal-1]) return ratesTotal - 1;
+    if(ratesTotal <= 0) return -1;
 
-   int lo = 0, hi = ratesTotal - 1;
-   while(lo < hi)
-   {
-      int mid = (lo + hi + 1) / 2;
-      if(chartTime[mid] <= t) lo = mid;
-      else hi = mid - 1;
-   }
-   return lo;
+    // اگر زمان Pivot قبل از اولین کندل است → کندل اول
+    if(t <= chartTime[0]) return 0;
+
+    // اگر زمان Pivot بعد از آخرین کندل است → آخرین کندل
+    if(t >= chartTime[ratesTotal - 1]) return ratesTotal - 1;
+
+    // باینری سرچ برای پیدا کردن اولین کندل که زمانش >= t باشد
+    int lo = 0, hi = ratesTotal - 1;
+    while(lo < hi)
+    {
+        int mid = (lo + hi) / 2;
+        if(chartTime[mid] < t)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+
+    return lo;
 }
+
 
 //+------------------------------------------------------------------+
 //| Draw one slot's lines (optional), pivot dots, and de-duplicated  |
