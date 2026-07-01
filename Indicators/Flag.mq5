@@ -590,9 +590,6 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
          string lblName = "FLAG_LBL_" + tfTag + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
          if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
          
-         // محاسبه موقعیت label: یکم بالاتر از boxTop
-         double labelPrice = boxTop + (boxTop - boxBottom) * 0.05; // 5% بالاتر از ارتفاع باکس
-         
          // ساخت label: مقدار pivot + نماد timeframe (مثلاً 3D یا 5W)
          string tfSymbol = "";
          if(tf == PERIOD_D1) tfSymbol = "D";
@@ -603,21 +600,34 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
          
          string labelText = IntegerToString(pivotBars) + tfSymbol;
          
-         // محاسبه زمان label
+         // محاسبه موقعیت label - همه در یک ارتفاع ولی زمان‌های متفاوت
+         double labelPrice = boxTop + (boxTop - boxBottom) * 0.08; // 8% بالاتر
+         
+         // محاسبه زمان label با offset برای جدا کردن
          datetime labelTime = t1;
+         int timeOffset = 0;
          
          if(tf == PERIOD_W1)
          {
-            // برای هفتگی: وسط باکس از نظر زمانی
+            // برای هفتگی: وسط باکس
             labelTime = (datetime)((t1 + t2) / 2);
-            // یکم بالاتر از boxTop
-            labelPrice = boxTop + (boxTop - boxBottom) * 0.10; // 10% بالاتر
+            if(pivotBars == 3) timeOffset = 0;
+            else if(pivotBars == 5) timeOffset = 86400 * 2; // 2 روز جلوتر
          }
+         else if(tf == PERIOD_D1)
+         {
+            // برای دیلی: از چپ باکس با offset
+            if(pivotBars == 3) timeOffset = 0;
+            else if(pivotBars == 5) timeOffset = 3600 * 6; // 6 ساعت جلوتر
+            else if(pivotBars == 8) timeOffset = 3600 * 12; // 12 ساعت جلوتر
+         }
+         
+         labelTime += timeOffset;
          
          ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
          ObjectSetString(0, lblName, OBJPROP_TEXT, labelText);
          ObjectSetInteger(0, lblName, OBJPROP_COLOR, clr);
-         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 10);
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
          ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
       }
    }
