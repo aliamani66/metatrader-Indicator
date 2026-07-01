@@ -1,3 +1,14 @@
-# MQL5
+# MQL5 Indicators
 
-MQL5 Algo Forge / [aliamani55](https://www.mql5.com/en/users/aliamani55)
+This repository contains custom MQL5 indicators for MetaTrader 5.
+
+## Indicators
+
+- **Flag.mq5**: Flag/BOS continuation box indicator with multi-pivot support (3, 5, 8)
+
+## Features
+
+- Multiple timeframe support (Daily, Weekly, H4, H1)
+- Configurable pivot periods
+- Box extension logic based on price action
+- Custom filtering conditions for valid boxes
