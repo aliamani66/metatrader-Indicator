@@ -24,22 +24,28 @@
 //--- Inputs : source structure timeframes
 input ENUM_TIMEFRAMES InpTF1      = PERIOD_D1;
 input bool             InpUseTF1  = true;
+input color            InpColorTF1 = clrMagenta;
+
 input ENUM_TIMEFRAMES InpTF2      = PERIOD_W1;
 input bool             InpUseTF2  = true;
-input ENUM_TIMEFRAMES InpTF3      = PERIOD_H1;
-input bool             InpUseTF3  = false;
+input color            InpColorTF2 = clrDodgerBlue;
+
+input ENUM_TIMEFRAMES InpTF3      = PERIOD_H4;
+input bool             InpUseTF3  = true;
+input color            InpColorTF3 = clrWhite;
+
+input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
+input bool             InpUseTF4  = true;
+input color            InpColorTF4 = clrYellow;
 
 input int    InpPivotBars1  = 3;
 input bool   InpUsePivot1   = true;
-input color  InpBoxColor1   = clrGold;
 
 input int    InpPivotBars2  = 5;
 input bool   InpUsePivot2   = true;
-input color  InpBoxColor2   = clrDodgerBlue;
 
 input int    InpPivotBars3  = 8;
-input bool   InpUsePivot3   = true;
-input color  InpBoxColor3   = clrWhite;
+input bool   InpUsePivot3   = false;
 
 input int    InpMaxBarsTF   = 3000;
 
@@ -169,13 +175,58 @@ string TFName(ENUM_TIMEFRAMES tf)
 }
 
 //+------------------------------------------------------------------+
+//| حذف تکراری‌ها از رشته label (مثلاً 3D-5D-5D به 3D-5D تبدیل شود) |
+//+------------------------------------------------------------------+
+string RemoveDuplicates(string inputStr)
+{
+   if(inputStr == "") return "";
+   
+   string result = "";
+   string parts[];
+   ushort separator = '-';
+   int count = StringSplit(inputStr, separator, parts);
+   
+   if(count <= 0) return inputStr;
+   
+   // اولین عنصر را اضافه کن
+   result = parts[0];
+   
+   // بقیه را بررسی کن و فقط unique ها را اضافه کن
+   for(int i = 1; i < count; i++)
+   {
+      bool exists = false;
+      
+      // بررسی کن آیا قبلاً اضافه شده
+      string checkParts[];
+      int checkCount = StringSplit(result, separator, checkParts);
+      
+      for(int j = 0; j < checkCount; j++)
+      {
+         if(checkParts[j] == parts[i])
+         {
+            exists = true;
+            break;
+         }
+      }
+      
+      // اگر وجود نداشت، اضافه کن
+      if(!exists)
+      {
+         result += "-" + parts[i];
+      }
+   }
+   
+   return result;
+}
+
+//+------------------------------------------------------------------+
 //| منطق باکس‌های فقط High تا Low - نسخه جدید:                        |
 //| فقط از High تا Low باکس رسم می‌شود                                |
 //| برای هر High باید قبلی، جاری، و بعدی بررسی شود                   |
 //+------------------------------------------------------------------+
 void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
                const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
-               int ratesTotal)
+               int ratesTotal, string &boxLabels[][2]) // اضافه کردن آرایه برای ذخیره label ها
 {
    SPivot pivots[];
    if(!BuildAlternatingPivots(tf, pivotBars, InpMaxBarsTF, pivots)) return;
@@ -585,50 +636,44 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       string boxName = "FLAG_BOX_" + tfTag + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
       DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth);
 
-      if(InpShowLabel)
+      // ذخیره کلید باکس و label برای این باکس
+      string boxKey = IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
+      
+      // ساخت label: مقدار pivot + نماد timeframe (مثلاً 3D یا 5W)
+      string tfSymbol = "";
+      if(tf == PERIOD_D1) tfSymbol = "D";
+      else if(tf == PERIOD_W1) tfSymbol = "W";
+      else if(tf == PERIOD_H4) tfSymbol = "H4";
+      else if(tf == PERIOD_H1) tfSymbol = "H1";
+      else tfSymbol = TFName(tf);
+      
+      string labelText = IntegerToString(pivotBars) + tfSymbol;
+      
+      // اضافه کردن این label به آرایه
+      int size = ArrayRange(boxLabels, 0);
+      bool found = false;
+      
+      // پیدا کردن باکس در آرایه
+      for(int b = 0; b < size; b++)
       {
-         string lblName = "FLAG_LBL_" + tfTag + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
-         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-         
-         // ساخت label: مقدار pivot + نماد timeframe (مثلاً 3D یا 5W)
-         string tfSymbol = "";
-         if(tf == PERIOD_D1) tfSymbol = "D";
-         else if(tf == PERIOD_W1) tfSymbol = "W";
-         else if(tf == PERIOD_H4) tfSymbol = "H4";
-         else if(tf == PERIOD_H1) tfSymbol = "H1";
-         else tfSymbol = TFName(tf);
-         
-         string labelText = IntegerToString(pivotBars) + tfSymbol;
-         
-         // محاسبه موقعیت label - همه در یک ارتفاع ولی زمان‌های متفاوت
-         double labelPrice = boxTop + (boxTop - boxBottom) * 0.08; // 8% بالاتر
-         
-         // محاسبه زمان label با offset برای جدا کردن
-         datetime labelTime = t1;
-         int timeOffset = 0;
-         
-         if(tf == PERIOD_W1)
+         if(boxLabels[b][0] == boxKey)
          {
-            // برای هفتگی: وسط باکس
-            labelTime = (datetime)((t1 + t2) / 2);
-            if(pivotBars == 3) timeOffset = 0;
-            else if(pivotBars == 5) timeOffset = 86400 * 2; // 2 روز جلوتر
+            // اضافه کردن label با -
+            if(boxLabels[b][1] != "")
+               boxLabels[b][1] += "-" + labelText;
+            else
+               boxLabels[b][1] = labelText;
+            found = true;
+            break;
          }
-         else if(tf == PERIOD_D1)
-         {
-            // برای دیلی: از چپ باکس با offset
-            if(pivotBars == 3) timeOffset = 0;
-            else if(pivotBars == 5) timeOffset = 3600 * 6; // 6 ساعت جلوتر
-            else if(pivotBars == 8) timeOffset = 3600 * 12; // 12 ساعت جلوتر
-         }
-         
-         labelTime += timeOffset;
-         
-         ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
-         ObjectSetString(0, lblName, OBJPROP_TEXT, labelText);
-         ObjectSetInteger(0, lblName, OBJPROP_COLOR, clr);
-         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
+      }
+      
+      // اگر باکس جدید است، اضافه کن
+      if(!found)
+      {
+         ArrayResize(boxLabels, size + 1, size + 100);
+         boxLabels[size][0] = boxKey;
+         boxLabels[size][1] = labelText;
       }
    }
 }
@@ -661,13 +706,13 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < 10) return 0;
 
-   static datetime lastSrcTime[3] = {0, 0, 0};
+   static datetime lastSrcTime[4] = {0, 0, 0, 0};
 
-   ENUM_TIMEFRAMES tfArr[3]  = {InpTF1, InpTF2, InpTF3};
-   bool            useArr[3] = {InpUseTF1, InpUseTF2, InpUseTF3};
+   ENUM_TIMEFRAMES tfArr[4]  = {InpTF1, InpTF2, InpTF3, InpTF4};
+   bool            useArr[4] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4};
 
    bool needRecalc = (prev_calculated == 0);
-   for(int s = 0; s < 3; s++)
+   for(int s = 0; s < 4; s++)
    {
       if(!useArr[s]) continue;
       datetime t0 = iTime(_Symbol, tfArr[s], 0);
@@ -678,13 +723,19 @@ int OnCalculate(const int rates_total,
    ObjectsDeleteAll(0, "FLAG_");
 
    int pivotBarsArr[3] = {InpPivotBars1, InpPivotBars2, InpPivotBars3};
-   color boxColorArr[3] = {InpBoxColor1, InpBoxColor2, InpBoxColor3};
    bool usePivotArr[3] = {InpUsePivot1, InpUsePivot2, InpUsePivot3};
    
-   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2]);
-   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2]);
+   // آرایه برای ذخیره label های هر باکس
+   string boxLabels[][2]; // [i][0] = boxKey, [i][1] = combined label
+   ArrayResize(boxLabels, 0);
    
-   for(int s = 0; s < 3; s++)
+   // آرایه رنگ‌ها برای هر timeframe
+   color tfColorArr[4] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4};
+   
+   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3]);
+   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3]);
+   
+   for(int s = 0; s < 4; s++)
    {
       if(!useArr[s]) 
       {
@@ -693,7 +744,9 @@ int OnCalculate(const int rates_total,
       }
       
       ENUM_TIMEFRAMES currentTF = tfArr[s];
-      Print("Processing TF ", s, ": ", currentTF);
+      color currentColor = tfColorArr[s]; // رنگ این timeframe
+      
+      Print("Processing TF ", s, ": ", currentTF, " with color: ", currentColor);
       
       // برای هر pivotBars که فعال است
       for(int p = 0; p < 3; p++)
@@ -703,10 +756,68 @@ int OnCalculate(const int rates_total,
          // برای تایم فریم هفتگی فقط 3 و 5 را فعال کن (نه 8)
          if(currentTF == PERIOD_W1 && pivotBarsArr[p] == 8) continue;
          
-         // Debug: چاپ کردن برای بررسی
-         Print("Calling ProcessTF with TF=", currentTF, " pivotBars=", pivotBarsArr[p]);
+         // برای H4 فقط pivot 5 را فعال کن
+         if(currentTF == PERIOD_H4 && pivotBarsArr[p] != 5) continue;
          
-         ProcessTF(currentTF, pivotBarsArr[p], boxColorArr[p], time, high, low, rates_total);
+         // برای H1 فقط pivot 3 و 5 را فعال کن
+         if(currentTF == PERIOD_H1 && pivotBarsArr[p] != 3 && pivotBarsArr[p] != 5) continue;
+         
+         // Debug: چاپ کردن برای بررسی
+         Print("Calling ProcessTF with TF=", currentTF, " pivotBars=", pivotBarsArr[p], " color=", currentColor);
+         
+         ProcessTF(currentTF, pivotBarsArr[p], currentColor, time, high, low, rates_total, boxLabels);
+      }
+   }
+
+   // حالا label های ترکیبی را رسم کن
+   if(InpShowLabel)
+   {
+      int labelCount = ArrayRange(boxLabels, 0);
+      
+      for(int i = 0; i < labelCount; i++)
+      {
+         string boxKey = boxLabels[i][0];
+         string combinedLabel = boxLabels[i][1];
+         
+         if(combinedLabel == "") continue;
+         
+         // حذف تکراری‌ها از label
+         combinedLabel = RemoveDuplicates(combinedLabel);
+         
+         // پیدا کردن اولین باکس با این کلید برای گرفتن موقعیت
+         string searchPrefix = "FLAG_BOX_";
+         int totalObjects = ObjectsTotal(0, 0, OBJ_RECTANGLE);
+         
+         for(int obj = 0; obj < totalObjects; obj++)
+         {
+            string objName = ObjectName(0, obj, 0, OBJ_RECTANGLE);
+            
+            if(StringFind(objName, searchPrefix) == 0 && StringFind(objName, boxKey) > 0)
+            {
+               // پیدا کردن موقعیت باکس
+               datetime t1 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 0);
+               datetime t2 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 1);
+               double top = ObjectGetDouble(0, objName, OBJPROP_PRICE, 0);
+               double bottom = ObjectGetDouble(0, objName, OBJPROP_PRICE, 1);
+               color boxColor = (color)ObjectGetInteger(0, objName, OBJPROP_COLOR);
+               
+               // محاسبه موقعیت label
+               double labelPrice = top + (top - bottom) * 0.12;
+               datetime labelTime = (datetime)((t1 + t2) / 2); // وسط باکس
+               
+               // رسم label
+               string lblName = "FLAG_LBL_" + boxKey;
+               if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+               
+               ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
+               ObjectSetString(0, lblName, OBJPROP_TEXT, combinedLabel);
+               ObjectSetInteger(0, lblName, OBJPROP_COLOR, boxColor);
+               ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 9);
+               ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
+               
+               break; // فقط یک label برای هر باکس
+            }
+         }
       }
    }
 
