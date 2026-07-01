@@ -38,6 +38,11 @@ input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
 input bool             InpUseTF4  = true;
 input color            InpColorTF4 = clrYellow;
 
+input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
+input bool             InpUseTF5  = true;
+input color            InpColorTF5 = clrLime;
+input int              InpM15DaysBack = 20; // فقط برای 20 روز اخیر
+
 input int    InpPivotBars1  = 3;
 input bool   InpUsePivot1   = true;
 
@@ -226,7 +231,7 @@ string RemoveDuplicates(string inputStr)
 //+------------------------------------------------------------------+
 void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
                const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
-               int ratesTotal, string &boxLabels[][2]) // اضافه کردن آرایه برای ذخیره label ها
+               int ratesTotal, string &boxLabels[][2], int daysBack = 0) // اضافه کردن آرایه برای ذخیره label ها و محدودیت روز
 {
    SPivot pivots[];
    if(!BuildAlternatingPivots(tf, pivotBars, InpMaxBarsTF, pivots)) return;
@@ -236,10 +241,23 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
    
    if(count < 3) return; // حداقل سه pivot نیاز است
 
+   // محاسبه زمان محدودیت (اگر daysBack > 0)
+   datetime limitTime = 0;
+   if(daysBack > 0)
+   {
+      limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
+   }
+
    // پردازش هر High که Low بعد از آن دارد
    for(int i = 1; i < count; i++)
    {
       SPivot cur = pivots[i];
+      
+      // بررسی محدودیت زمانی
+      if(daysBack > 0 && cur.time < limitTime)
+      {
+         continue; // این pivot خیلی قدیمی است
+      }
       
       // فقط High ها را در نظر بگیر
       if(!cur.isHigh) continue;
@@ -645,6 +663,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       else if(tf == PERIOD_W1) tfSymbol = "W";
       else if(tf == PERIOD_H4) tfSymbol = "H4";
       else if(tf == PERIOD_H1) tfSymbol = "H1";
+      else if(tf == PERIOD_M15) tfSymbol = "M15";
       else tfSymbol = TFName(tf);
       
       string labelText = IntegerToString(pivotBars) + tfSymbol;
@@ -706,13 +725,13 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < 10) return 0;
 
-   static datetime lastSrcTime[4] = {0, 0, 0, 0};
+   static datetime lastSrcTime[5] = {0, 0, 0, 0, 0};
 
-   ENUM_TIMEFRAMES tfArr[4]  = {InpTF1, InpTF2, InpTF3, InpTF4};
-   bool            useArr[4] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4};
+   ENUM_TIMEFRAMES tfArr[5]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5};
+   bool            useArr[5] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5};
 
    bool needRecalc = (prev_calculated == 0);
-   for(int s = 0; s < 4; s++)
+   for(int s = 0; s < 5; s++)
    {
       if(!useArr[s]) continue;
       datetime t0 = iTime(_Symbol, tfArr[s], 0);
@@ -730,12 +749,12 @@ int OnCalculate(const int rates_total,
    ArrayResize(boxLabels, 0);
    
    // آرایه رنگ‌ها برای هر timeframe
-   color tfColorArr[4] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4};
+   color tfColorArr[5] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5};
    
-   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3]);
-   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3]);
+   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4]);
+   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4]);
    
-   for(int s = 0; s < 4; s++)
+   for(int s = 0; s < 5; s++)
    {
       if(!useArr[s]) 
       {
@@ -747,6 +766,18 @@ int OnCalculate(const int rates_total,
       color currentColor = tfColorArr[s]; // رنگ این timeframe
       
       Print("Processing TF ", s, ": ", currentTF, " with color: ", currentColor);
+      
+      // برای M15 فقط pivot 3 و فقط 2 روز اخیر
+      if(currentTF == PERIOD_M15)
+      {
+         // فقط pivot 3
+         if(InpUsePivot1 && InpPivotBars1 == 3)
+         {
+            Print("Calling ProcessTF for M15 with pivotBars=3, daysBack=", InpM15DaysBack);
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack);
+         }
+         continue; // بقیه pivot ها برای M15 اجرا نشوند
+      }
       
       // برای هر pivotBars که فعال است
       for(int p = 0; p < 3; p++)
