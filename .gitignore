@@ -1,0 +1,17 @@
+# MQL5 folders to ignore
+Experts/
+Files/
+Images/
+Include/
+Libraries/
+Logs/
+Profiles/
+Scripts/
+Services/
+Shared Projects/
+
+# Indicators subfolders to ignore
+Indicators/AlgoTrade/
+Indicators/Examples/
+Indicators/Free Indicators/
+Indicators/Market/
