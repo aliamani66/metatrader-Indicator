@@ -41,7 +41,7 @@ input color            InpColorTF4 = clrYellow;
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 20; // فقط برای 20 روز اخیر
+input int              InpM15DaysBack = 50; // فقط برای 20 روز اخیر
 
 input int    InpPivotBars1  = 3;
 input bool   InpUsePivot1   = true;
@@ -59,6 +59,15 @@ input bool   InpShowLabel   = true;
 
 //--- Pivot structure
 struct SPivot { datetime time; double price; bool isHigh; };
+
+//--- Box structure for filtering
+struct SBox 
+{ 
+   datetime timeLeft; 
+   datetime timeRight; 
+   double priceTop; 
+   double priceBottom; 
+};
 
 //+------------------------------------------------------------------+
 //| Build pivots: returns ALTERNATING High/Low pivots (not just HH/LL) |
@@ -231,7 +240,8 @@ string RemoveDuplicates(string inputStr)
 //+------------------------------------------------------------------+
 void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
                const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
-               int ratesTotal, string &boxLabels[][2], int daysBack = 0) // اضافه کردن آرایه برای ذخیره label ها و محدودیت روز
+               int ratesTotal, string &boxLabels[][2], int daysBack, 
+               SBox &outputBoxes[], int filterCount, const SBox &filterBoxes[])
 {
    SPivot pivots[];
    if(!BuildAlternatingPivots(tf, pivotBars, InpMaxBarsTF, pivots)) return;
@@ -247,6 +257,10 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
    {
       limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
    }
+   
+   // شمارنده برای ذخیره باکس‌ها
+   int boxCount = 0;
+   bool shouldSaveBoxes = (filterCount == 0); // فقط اگر فیلتر نداریم، باکس‌ها را ذخیره کن
 
    // پردازش هر High که Low بعد از آن دارد
    for(int i = 1; i < count; i++)
@@ -650,9 +664,46 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       // رسم باکس: از boxTop تا boxBottom
       datetime t1 = chartTime[leftIdx];
       datetime t2 = chartTime[rightIdx];
+      
+      // بررسی فیلتر: آیا این باکس داخل یکی از filterBoxes است؟
+      bool passFilter = true;
+      if(filterCount > 0)
+      {
+         passFilter = false; // ابتدا فرض می‌کنیم فیلتر pass نمی‌کند
+         
+         // بررسی کن آیا این باکس داخل یکی از باکس‌های فیلتر است
+         for(int f = 0; f < filterCount; f++)
+         {
+            // باکس M15 باید کاملاً داخل باکس H1 باشد (هم از نظر زمان و هم قیمت)
+            bool timeInside = (t1 >= filterBoxes[f].timeLeft && t2 <= filterBoxes[f].timeRight);
+            bool priceInside = (boxTop <= filterBoxes[f].priceTop && boxBottom >= filterBoxes[f].priceBottom);
+            
+            if(timeInside && priceInside)
+            {
+               passFilter = true;
+               break;
+            }
+         }
+         
+         if(!passFilter)
+         {
+            continue; // این باکس فیلتر را pass نکرد، رسم نکن
+         }
+      }
 
       string boxName = "FLAG_BOX_" + tfTag + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
       DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth);
+      
+      // ذخیره باکس برای استفاده در فیلتر بعدی
+      if(shouldSaveBoxes)
+      {
+         ArrayResize(outputBoxes, boxCount + 1);
+         outputBoxes[boxCount].timeLeft = t1;
+         outputBoxes[boxCount].timeRight = t2;
+         outputBoxes[boxCount].priceTop = boxTop;
+         outputBoxes[boxCount].priceBottom = boxBottom;
+         boxCount++;
+      }
 
       // ذخیره کلید باکس و label برای این باکس
       string boxKey = IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
@@ -751,9 +802,72 @@ int OnCalculate(const int rates_total,
    // آرایه رنگ‌ها برای هر timeframe
    color tfColorArr[5] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5};
    
+   // آرایه برای ذخیره باکس‌های H1
+   SBox h1Boxes[];
+   ArrayResize(h1Boxes, 0);
+   
    Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4]);
    Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4]);
    
+   // مرحله 1: ابتدا باکس‌های H1 را پردازش و ذخیره کن
+   for(int s = 0; s < 5; s++)
+   {
+      if(!useArr[s]) continue;
+      
+      ENUM_TIMEFRAMES currentTF = tfArr[s];
+      color currentColor = tfColorArr[s];
+      
+      // فقط H1 را در این مرحله پردازش کن
+      if(currentTF != PERIOD_H1) continue;
+      
+      Print("Processing H1 to collect boxes");
+      
+      for(int p = 0; p < 3; p++)
+      {
+         if(!usePivotArr[p]) continue;
+         
+         // برای H1 فقط pivot 3 و 5 را فعال کن
+         if(pivotBarsArr[p] != 3 && pivotBarsArr[p] != 5) continue;
+         
+         Print("Collecting H1 boxes with pivotBars=", pivotBarsArr[p]);
+         
+         // پردازش و ذخیره باکس‌های H1
+         SBox tempBoxes[];
+         SBox emptyFilter[]; // آرایه خالی برای فیلتر
+         ProcessTF(currentTF, pivotBarsArr[p], currentColor, time, high, low, rates_total, boxLabels, 0, tempBoxes, 0, emptyFilter);
+         
+         // اضافه کردن به آرایه اصلی
+         int oldSize = ArraySize(h1Boxes);
+         int newSize = ArraySize(tempBoxes);
+         ArrayResize(h1Boxes, oldSize + newSize);
+         for(int b = 0; b < newSize; b++)
+         {
+            h1Boxes[oldSize + b] = tempBoxes[b];
+         }
+      }
+      
+      break; // فقط یک بار H1 را پردازش کن
+   }
+   
+   Print("Total H1 boxes collected: ", ArraySize(h1Boxes));
+   
+   // محدود کردن به 400 باکس اخیر H1
+   int h1Count = ArraySize(h1Boxes);
+   if(h1Count > 400)
+   {
+      // حذف باکس‌های قدیمی (ابتدای آرایه)
+      int toRemove = h1Count - 400;
+      for(int i = 0; i < 400; i++)
+      {
+         h1Boxes[i] = h1Boxes[i + toRemove];
+      }
+      ArrayResize(h1Boxes, 400);
+      h1Count = 400;
+   }
+   
+   Print("H1 boxes after limiting to 400: ", h1Count);
+   
+   // مرحله 2: پردازش بقیه timeframe ها
    for(int s = 0; s < 5; s++)
    {
       if(!useArr[s]) 
@@ -767,17 +881,21 @@ int OnCalculate(const int rates_total,
       
       Print("Processing TF ", s, ": ", currentTF, " with color: ", currentColor);
       
-      // برای M15 فقط pivot 3 و فقط 2 روز اخیر
+      // برای M15 فقط pivot 3 و فقط با فیلتر H1
       if(currentTF == PERIOD_M15)
       {
          // فقط pivot 3
          if(InpUsePivot1 && InpPivotBars1 == 3)
          {
-            Print("Calling ProcessTF for M15 with pivotBars=3, daysBack=", InpM15DaysBack);
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack);
+            Print("Calling ProcessTF for M15 with pivotBars=3, filtered by ", h1Count, " H1 boxes");
+            SBox dummyBoxes[];
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack, dummyBoxes, h1Count, h1Boxes);
          }
          continue; // بقیه pivot ها برای M15 اجرا نشوند
       }
+      
+      // H1 قبلاً پردازش شده، رد کن
+      if(currentTF == PERIOD_H1) continue;
       
       // برای هر pivotBars که فعال است
       for(int p = 0; p < 3; p++)
@@ -790,13 +908,12 @@ int OnCalculate(const int rates_total,
          // برای H4 فقط pivot 5 را فعال کن
          if(currentTF == PERIOD_H4 && pivotBarsArr[p] != 5) continue;
          
-         // برای H1 فقط pivot 3 و 5 را فعال کن
-         if(currentTF == PERIOD_H1 && pivotBarsArr[p] != 3 && pivotBarsArr[p] != 5) continue;
-         
          // Debug: چاپ کردن برای بررسی
          Print("Calling ProcessTF with TF=", currentTF, " pivotBars=", pivotBarsArr[p], " color=", currentColor);
          
-         ProcessTF(currentTF, pivotBarsArr[p], currentColor, time, high, low, rates_total, boxLabels);
+         SBox dummyBoxes[];
+         SBox emptyFilter[];
+         ProcessTF(currentTF, pivotBarsArr[p], currentColor, time, high, low, rates_total, boxLabels, 0, dummyBoxes, 0, emptyFilter);
       }
    }
 
