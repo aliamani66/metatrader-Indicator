@@ -376,7 +376,38 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
          }
       }
       
-      // شرط 1: اگر High بعدی و High قبلی پایین‌تر از High جاری باشند
+      // ========== شرط‌های جدید: ابتدا بررسی می‌شوند ==========
+      
+      // شرط جدید 1: پیووت مستقل V-shape
+      // اگر High و Low بعدی بالاتر AND High قبلی پایین‌تر AND Low قبلی بالاتر → باکس بکش
+      bool isIndependentPivot = false;
+      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
+      {
+         if(nextHigh > highPrice && nextLow > lowPrice && prevHigh < highPrice && prevLow > lowPrice)
+         {
+            isIndependentPivot = true;
+         }
+      }
+      
+      // شرط جدید 2: پیووت top در روند صعودی
+      // اگر High و Low جاری بالاتر از قبلی AND High بعدی پایین‌تر AND Low بعدی بالاتر از قبلی → باکس بکش
+      bool isUptrendTop = false;
+      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
+      {
+         if(highPrice > prevHigh && lowPrice > prevLow && nextHigh < highPrice && nextLow > prevLow)
+         {
+            isUptrendTop = true;
+         }
+      }
+      
+      // فلگ برای اینکه آیا باید شرط‌های قدیمی را بررسی کنیم یا نه
+      bool skipOldConditions = (isIndependentPivot || isUptrendTop);
+      
+      // ========== شرط‌های قبلی (فقط اگر شرط‌های جدید برقرار نباشند) ==========
+      
+      if(!skipOldConditions)
+      {
+         // شرط 1: اگر High بعدی و High قبلی پایین‌تر از High جاری باشند
       // بررسی می‌کنیم که آیا reversal واقعی وجود دارد یا نه
       if(nextHigh > 0 && prevHigh > 0 && nextHigh < highPrice && prevHigh < highPrice)
       {
@@ -429,8 +460,8 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       }
       
       // شرط جدید: اگر High جاری < High قبلی و Low جاری > Low قبلی و Low جاری > Low بعدی
-      // یعنی inside bar یا کندل محدود → باکس نکش (مگر اینکه inside bar معتبر باشد)
-      if(!isValidInsideBar && prevHigh > 0 && prevLow > 0 && nextLow > 0)
+      // یعنی inside bar یا کندل محدود → باکس نکش (مگر اینکه inside bar معتبر، pivot مستقل، یا uptrend top باشد)
+      if(!isValidInsideBar && !isIndependentPivot && !isUptrendTop && prevHigh > 0 && prevLow > 0 && nextLow > 0)
       {
          if(highPrice < prevHigh && lowPrice > prevLow && lowPrice > nextLow)
          {
@@ -440,13 +471,14 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       }
       
       // شرط فیلتر: اگر High بعدی و Low بعدی و Low قبلی همه بالاتر، ولی High قبلی پایین‌تر
-      // (مگر اینکه inside bar معتبر باشد)
-      if(!isValidInsideBar && prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
+      // (مگر اینکه inside bar معتبر، pivot مستقل، یا uptrend top باشد)
+      if(!isValidInsideBar && !isIndependentPivot && !isUptrendTop && prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
       {
          if(nextHigh > highPrice && nextLow > lowPrice && prevLow > lowPrice && prevHigh < highPrice)
          {
-            // پیووت خاص → باکس نکش
-            continue;
+            // این همان شرط اول است که باید باکس بکشد
+            // پس این continue را حذف می‌کنیم یا شرط را تغییر می‌دهیم
+            // continue; // این خط را کامنت می‌کنیم چون الان می‌خواهیم باکس بکشیم
          }
       }
       
@@ -513,60 +545,72 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
             }
          }
       }
+      } // پایان if(!skipOldConditions) اول
       
       // تعیین نوع روند و محدوده باکس
       bool isBullish = false;
       double boxTop = highPrice;
       double boxBottom = lowPrice;
       
-      // شرط ویژه: اگر High جاری < High قبلی و Low جاری < Low قبلی → باکس از Low قبلی تا High جاری
-      if(prevHigh > 0 && prevLow > 0 && highPrice < prevHigh && lowPrice < prevLow)
+      // اگر شرط‌های جدید برقرار هستند
+      if(isIndependentPivot || isUptrendTop)
       {
-         isBullish = false; // روند نزولی
+         isBullish = isUptrendTop; // اگر uptrend top است، صعودی
          boxTop = highPrice;
-         boxBottom = prevLow; // استفاده از Low قبلی
+         boxBottom = lowPrice;
       }
-      else if(nextHigh > 0 && nextLow > 0)
+      // اگر از شرط‌های قدیمی آمدیم
+      else if(!skipOldConditions)
       {
-         // شرط 1: H_next > H_cur و L_next > L_cur → صعودی
-         if(nextHigh > highPrice && nextLow > lowPrice)
+         // شرط ویژه: اگر High جاری < High قبلی و Low جاری < Low قبلی → باکس از Low قبلی تا High جاری
+         if(prevHigh > 0 && prevLow > 0 && highPrice < prevHigh && lowPrice < prevLow)
          {
-            isBullish = true;
+            isBullish = false; // روند نزولی
             boxTop = highPrice;
-            boxBottom = lowPrice;
+            boxBottom = prevLow; // استفاده از Low قبلی
          }
-         // شرط 4: H_next < H_cur و L_next < L_cur → نزولی
-         else if(nextHigh < highPrice && nextLow < lowPrice)
+         else if(nextHigh > 0 && nextLow > 0)
          {
-            isBullish = false;
-            boxTop = highPrice;
-            boxBottom = lowPrice;
-         }
-         // شرط 2: H_next < H_cur و L_next > L_cur → باکس بکش
-         else if(nextHigh < highPrice && nextLow > lowPrice)
-         {
-            isBullish = true; // فرض صعودی
-            boxTop = highPrice;
-            boxBottom = lowPrice;
-         }
-         // شرط 3: H_next > H_cur و L_next < L_cur → باکس بکش
-         else if(nextHigh > highPrice && nextLow < lowPrice)
-         {
-            isBullish = false; // فرض نزولی
-            boxTop = highPrice;
-            boxBottom = lowPrice;
+            // شرط 1: H_next > H_cur و L_next > L_cur → صعودی
+            if(nextHigh > highPrice && nextLow > lowPrice)
+            {
+               isBullish = true;
+               boxTop = highPrice;
+               boxBottom = lowPrice;
+            }
+            // شرط 4: H_next < H_cur و L_next < L_cur → نزولی
+            else if(nextHigh < highPrice && nextLow < lowPrice)
+            {
+               isBullish = false;
+               boxTop = highPrice;
+               boxBottom = lowPrice;
+            }
+            // شرط 2: H_next < H_cur و L_next > L_cur → باکس بکش
+            else if(nextHigh < highPrice && nextLow > lowPrice)
+            {
+               isBullish = true; // فرض صعودی
+               boxTop = highPrice;
+               boxBottom = lowPrice;
+            }
+            // شرط 3: H_next > H_cur و L_next < L_cur → باکس بکش
+            else if(nextHigh > highPrice && nextLow < lowPrice)
+            {
+               isBullish = false; // فرض نزولی
+               boxTop = highPrice;
+               boxBottom = lowPrice;
+            }
+            else
+            {
+               // هیچ شرطی برقرار نیست → باکس نکش
+               continue;
+            }
          }
          else
          {
-            // هیچ شرطی برقرار نیست → باکس نکش
+            // nextHigh یا nextLow وجود ندارند → باکس نکش
             continue;
          }
-      }
-      else
-      {
-         // nextHigh یا nextLow وجود ندارند → باکس نکش
-         continue;
-      }
+      } // پایان else if(!skipOldConditions)
       
       // بررسی حداقل اندازه باکس: باکس باید حداقل قابل مشاهده باشد
       double boxHeight = boxTop - boxBottom;
