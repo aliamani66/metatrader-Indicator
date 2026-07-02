@@ -1,22 +1,14 @@
 //+------------------------------------------------------------------+
 //| Flag.mq5                                                          |
-//| Flag / BOS continuation box indicator   v6.00                     |
+//| Flag / BOS continuation box indicator   v6.20                     |
 //|                                                                    |
 //| باکس‌های فقط High تا Low:                                          |
 //| - فقط از High تا Low باکس رسم می‌شود                              |
 //| - برای هر High باید سه تا (قبلی، جاری، بعدی) بررسی شود           |
 //|                                                                    |
-//| شرایط رسم باکس:                                                    |
-//| 1. اگر H_next > H_cur و L_next > L_cur → صعودی → باکس از H تا L  |
-//| 2. اگر H_next < H_cur و L_next > L_cur → باکس بکش                 |
-//| 3. اگر H_next > H_cur و L_next < L_cur → باکس بکش                 |
-//| 4. اگر H_next < H_cur و L_next < L_cur → باکس بکش (نزولی)        |
-//| 5. اگر H_next < H_cur و H_prev < H_cur → هیچ باکسی نکش            |
-//|                                                                    |
-//| امتداد جلو: صعودی تا از High رد شود، نزولی تا از Low رد شود       |
-//| امتداد عقب: صعودی تا به Low برسد، نزولی تا وارد High شود          |
+//| v6.20: اضافه شدن M1 (1 دقیقه) + فیلترهای جدید                     |
 //+------------------------------------------------------------------+
-#property version   "6.00"
+#property version   "6.20"
 #property indicator_chart_window
 #property indicator_buffers 0
 #property indicator_plots   0
@@ -41,7 +33,17 @@ input color            InpColorTF4 = clrYellow;
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 50; // فقط برای 20 روز اخیر
+input int              InpM15DaysBack = 50; // فقط برای 50 روز اخیر
+
+input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
+input bool             InpUseTF6  = true;
+input color            InpColorTF6 = clrAqua;
+input int              InpM5DaysBack = 30; // فقط برای 30 روز اخیر
+
+input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
+input bool             InpUseTF7  = true;
+input color            InpColorTF7 = clrYellow;
+input int              InpM1DaysBack = 10; // فقط برای 10 روز اخیر
 
 input int    InpPivotBars1  = 3;
 input bool   InpUsePivot1   = true;
@@ -377,6 +379,26 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       }
       
       // ========== شرط‌های جدید: ابتدا بررسی می‌شوند ==========
+      
+      // فیلتر 1: اگر High جاری از قبلی و بعدی بالاتر، Low جاری از بعدی پایین‌تر، و Low قبلی از جاری پایین‌تر → باکس نکش
+      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
+      {
+         if(highPrice > prevHigh && highPrice > nextHigh && lowPrice < nextLow && prevLow < lowPrice)
+         {
+            // این پیووت معیار را ندارد → باکس نکش
+            continue;
+         }
+      }
+      
+      // فیلتر 2: اگر High جاری از همه بالاتر و Low جاری هم از همه بالاتر → Higher High معمولی → باکس نکش
+      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
+      {
+         if(highPrice > prevHigh && highPrice > nextHigh && lowPrice > prevLow && lowPrice > nextLow)
+         {
+            // Higher High معمولی در روند صعودی، نه پیووت مستقل → باکس نکش
+            continue;
+         }
+      }
       
       // شرط جدید 1: پیووت مستقل V-shape
       // اگر High و Low بعدی بالاتر AND High قبلی پایین‌تر AND Low قبلی بالاتر → باکس بکش
@@ -759,6 +781,8 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
       else if(tf == PERIOD_H4) tfSymbol = "H4";
       else if(tf == PERIOD_H1) tfSymbol = "H1";
       else if(tf == PERIOD_M15) tfSymbol = "M15";
+      else if(tf == PERIOD_M5) tfSymbol = "M5";
+      else if(tf == PERIOD_M1) tfSymbol = "M1";
       else tfSymbol = TFName(tf);
       
       string labelText = IntegerToString(pivotBars) + tfSymbol;
@@ -820,13 +844,13 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < 10) return 0;
 
-   static datetime lastSrcTime[5] = {0, 0, 0, 0, 0};
+   static datetime lastSrcTime[7] = {0, 0, 0, 0, 0, 0, 0};
 
-   ENUM_TIMEFRAMES tfArr[5]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5};
-   bool            useArr[5] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5};
+   ENUM_TIMEFRAMES tfArr[7]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
+   bool            useArr[7] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
 
    bool needRecalc = (prev_calculated == 0);
-   for(int s = 0; s < 5; s++)
+   for(int s = 0; s < 7; s++)
    {
       if(!useArr[s]) continue;
       datetime t0 = iTime(_Symbol, tfArr[s], 0);
@@ -844,14 +868,14 @@ int OnCalculate(const int rates_total,
    ArrayResize(boxLabels, 0);
    
    // آرایه رنگ‌ها برای هر timeframe
-   color tfColorArr[5] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5};
+   color tfColorArr[7] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
    
    // آرایه برای ذخیره باکس‌های H1
    SBox h1Boxes[];
    ArrayResize(h1Boxes, 0);
    
-   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4]);
-   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4]);
+   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4], " useArr[5]=", useArr[5], " useArr[6]=", useArr[6]);
+   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4], " TF6=", tfArr[5], " TF7=", tfArr[6]);
    
    // مرحله 1: ابتدا باکس‌های H1 را پردازش و ذخیره کن
    for(int s = 0; s < 5; s++)
@@ -912,7 +936,7 @@ int OnCalculate(const int rates_total,
    Print("H1 boxes after limiting to 400: ", h1Count);
    
    // مرحله 2: پردازش بقیه timeframe ها
-   for(int s = 0; s < 5; s++)
+   for(int s = 0; s < 7; s++)
    {
       if(!useArr[s]) 
       {
@@ -936,6 +960,32 @@ int OnCalculate(const int rates_total,
             ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack, dummyBoxes, h1Count, h1Boxes);
          }
          continue; // بقیه pivot ها برای M15 اجرا نشوند
+      }
+      
+      // برای M5 فقط pivot 3 و فقط با فیلتر H1
+      if(currentTF == PERIOD_M5)
+      {
+         // فقط pivot 3
+         if(InpUsePivot1 && InpPivotBars1 == 3)
+         {
+            Print("Calling ProcessTF for M5 with pivotBars=3, filtered by ", h1Count, " H1 boxes");
+            SBox dummyBoxes[];
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM5DaysBack, dummyBoxes, h1Count, h1Boxes);
+         }
+         continue; // بقیه pivot ها برای M5 اجرا نشوند
+      }
+      
+      // برای M1 فقط pivot 3 و فقط با فیلتر H1
+      if(currentTF == PERIOD_M1)
+      {
+         // فقط pivot 3
+         if(InpUsePivot1 && InpPivotBars1 == 3)
+         {
+            Print("Calling ProcessTF for M1 with pivotBars=3, filtered by ", h1Count, " H1 boxes");
+            SBox dummyBoxes[];
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM1DaysBack, dummyBoxes, h1Count, h1Boxes);
+         }
+         continue; // بقیه pivot ها برای M1 اجرا نشوند
       }
       
       // H1 قبلاً پردازش شده، رد کن
