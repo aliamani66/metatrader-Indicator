@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
-//| MarketStructure.mq5 v13                                          |
+//| MarketStructure.mq5 v14 - Optimized with caching                 |
 //+------------------------------------------------------------------+
-#property version "13.0"
+#property version "14.0"
 #property indicator_chart_window
 #property indicator_buffers 4
 #property indicator_plots   4
@@ -47,7 +47,7 @@ int OnInit()
    PlotIndexSetDouble(2, PLOT_EMPTY_VALUE, 0.0);
    PlotIndexSetDouble(3, PLOT_EMPTY_VALUE, 0.0);
 
-   IndicatorSetString(INDICATOR_SHORTNAME, "Market Structure v13");
+   IndicatorSetString(INDICATOR_SHORTNAME, "Market Structure v14 (Optimized)");
    return INIT_SUCCEEDED;
 }
 
@@ -64,7 +64,17 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < PivotBars * 2 + 3) return 0;
 
-   // ??? ???? ??? ??????
+   // کش: فقط وقتی کندل جدید تشکیل شد محاسبه کن
+   static datetime lastCalcTime = 0;
+   datetime currentTime = time[rates_total - 1];
+   
+   // اگر کندل جدید نیست، skip کن
+   if(prev_calculated > 0 && lastCalcTime == currentTime)
+      return rates_total;
+   
+   lastCalcTime = currentTime;
+
+   // پاک کردن بافرها
    ArrayInitialize(BH,  0.0);
    ArrayInitialize(BL,  0.0);
    ArrayInitialize(BHD, 0.0);
