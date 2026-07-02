@@ -15,3 +15,6 @@ Indicators/AlgoTrade/
 Indicators/Examples/
 Indicators/Free Indicators/
 Indicators/Market/
+
+# Compiled files
+*.ex5
