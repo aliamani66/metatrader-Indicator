@@ -949,15 +949,15 @@ int OnCalculate(const int rates_total,
       
       Print("Processing TF ", s, ": ", currentTF, " with color: ", currentColor);
       
-      // برای M15 فقط pivot 3 و فقط با فیلتر H1
+      // برای M15 بدون فیلتر - همه باکس‌ها رسم می‌شوند
       if(currentTF == PERIOD_M15)
       {
          // فقط pivot 3
          if(InpUsePivot1 && InpPivotBars1 == 3)
          {
-            Print("Calling ProcessTF for M15 with pivotBars=3, filtered by ", h1Count, " H1 boxes");
+            Print("Calling ProcessTF for M15 with pivotBars=3, NO FILTER");
             SBox dummyBoxes[];
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack, dummyBoxes, h1Count, h1Boxes);
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack, dummyBoxes, 0, dummyBoxes); // filterCount = 0
          }
          continue; // بقیه pivot ها برای M15 اجرا نشوند
       }
