@@ -593,39 +593,25 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
          }
          else if(nextHigh > 0 && nextLow > 0)
          {
-            // شرط 1: H_next > H_cur و L_next > L_cur → صعودی
-            if(nextHigh > highPrice && nextLow > lowPrice)
+            // منطق ساده: فقط به High بعدی نگاه می‌کنیم
+            // اگر High بعدی > High جاری → صعودی
+            // اگر High بعدی < High جاری → نزولی
+            if(nextHigh > highPrice)
             {
-               isBullish = true;
-               boxTop = highPrice;
-               boxBottom = lowPrice;
+               isBullish = true; // صعودی
             }
-            // شرط 4: H_next < H_cur و L_next < L_cur → نزولی
-            else if(nextHigh < highPrice && nextLow < lowPrice)
+            else if(nextHigh < highPrice)
             {
-               isBullish = false;
-               boxTop = highPrice;
-               boxBottom = lowPrice;
-            }
-            // شرط 2: H_next < H_cur و L_next > L_cur → باکس بکش
-            else if(nextHigh < highPrice && nextLow > lowPrice)
-            {
-               isBullish = true; // فرض صعودی
-               boxTop = highPrice;
-               boxBottom = lowPrice;
-            }
-            // شرط 3: H_next > H_cur و L_next < L_cur → باکس بکش
-            else if(nextHigh > highPrice && nextLow < lowPrice)
-            {
-               isBullish = false; // فرض نزولی
-               boxTop = highPrice;
-               boxBottom = lowPrice;
+               isBullish = false; // نزولی
             }
             else
             {
-               // هیچ شرطی برقرار نیست → باکس نکش
+               // High بعدی = High جاری (نادر) → باکس نکش
                continue;
             }
+            
+            boxTop = highPrice;
+            boxBottom = lowPrice;
          }
          else
          {
@@ -757,7 +743,9 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
          }
       }
 
-      string boxName = "FLAG_BOX_" + tfTag + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
+      // اضافه کردن نوع باکس (B=Bullish, R=Bearish) به نام باکس
+      string boxType = isBullish ? "B" : "R";
+      string boxName = "FLAG_BOX_" + tfTag + "_" + boxType + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
       DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth);
       
       // ذخیره باکس برای استفاده در فیلتر بعدی

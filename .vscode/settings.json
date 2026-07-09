@@ -23,5 +23,25 @@
     "editor.tabSize": 3,
     "C_Cpp.default.forcedInclude": [
         "c:\\Users\\USER\\.vscode\\extensions\\l-i-v.mql-tools-2.2.0\\data\\mql5_en.mqh"
-    ]
+    ],
+    "kiro.agent.endpoint": "http://localhost:20128/v1",
+    "kiro.agent.defaultModel": "kr/claude-sonnet-4.5",
+    
+    
+
+  
+  
+    "anthropic.apiKey": "sk-6166cc8495a65cea-b24sry-c5c502ed",
+    "anthropic.baseUrl": "http://localhost:20128/v1",
+    
+    "cline.apiProvider": "anthropic",
+    "cline.anthropicApiKey": "sk-6166cc8495a65cea-b24sry-c5c502ed", 
+    "cline.anthropicBaseUrl": "http://localhost:20128/v1",
+    "cline.anthropicModel": "claude-3-5-sonnet-20241022"
+
+
+
+
+
+
 }

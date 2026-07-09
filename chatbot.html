@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>چت‌بات با 9Router</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            text-align: center;
+        }
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        .bot-message {
+            background: white;
+            color: #333;
+            margin-right: auto;
+            text-align: left;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .input-area {
+            display: flex;
+            padding: 20px;
+            background: white;
+            border-radius: 0 0 20px 20px;
+            gap: 10px;
+        }
+        #userInput {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #667eea;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+        #sendBtn {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        #sendBtn:hover {
+            background: #5568d3;
+        }
+        #sendBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            padding: 10px;
+        }
+        .settings {
+            padding: 15px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+        }
+        .settings label {
+            margin-left: 10px;
+        }
+        .settings input, .settings select {
+            margin: 5px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 چت‌بات با 9Router</h1>
+            <p>متصل به Claude AI</p>
+        </div>
+        <div class="settings">
+            <label>آدرس API:</label>
+            <input type="text" id="apiUrl" value="http://localhost:443/v1/chat/completions" style="width: 300px;">
+            <label>مدل:</label>
+            <select id="modelSelect">
+                <option value="kr/claude-opus-4.5">Claude Sonnet 5</option>
+                <option value="kr/claude-haiku-4.5">Claude Sonnet 4.5</option>
+                <option value="kr/claude-opus-4.8">Claude Sonnet 4</option>
+                <option value="kr/claude-sonnet-4.5">Claude Haiku 4.5</option>
+            </select>
+        </div>
+        <div class="chat-box" id="chatBox">
+            <div class="message bot-message">سلام! من یه چت‌بات هستم که از 9Router استفاده میکنم. چطور میتونم کمکتون کنم؟</div>
+        </div>
+        <div class="loading" id="loading">در حال دریافت پاسخ...</div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="پیام خود را بنویسید..." />
+            <button id="sendBtn">ارسال</button>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loading = document.getElementById('loading');
+        const apiUrl = document.getElementById('apiUrl');
+        const modelSelect = document.getElementById('modelSelect');
+        
+        let conversationHistory = [];
+
+        function addMessage(text, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = text;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            userInput.value = '';
+            sendBtn.disabled = true;
+            loading.style.display = 'block';
+
+            conversationHistory.push({
+                role: 'user',
+                content: message
+            });
+
+            try {
+                const response = await fetch(apiUrl.value, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer dummy'
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        messages: conversationHistory
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`خطا ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const botReply = data.choices[0].message.content;
+                
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: botReply
+                });
+
+                addMessage(botReply, false);
+            } catch (error) {
+                addMessage(`خطا: ${error.message}. مطمئن شوید که 9Router روشن است و روی پورت صحیح اجرا میشود.`, false);
+            } finally {
+                loading.style.display = 'none';
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        userInput.focus();
+    </script>
+</body>
+</html>
