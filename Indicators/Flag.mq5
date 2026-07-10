@@ -71,6 +71,9 @@ struct SBox
    double priceBottom; 
 };
 
+//--- Global flag to draw only once
+bool g_boxesDrawn = false;
+
 //+------------------------------------------------------------------+
 //| Build pivots: returns ALTERNATING High/Low pivots (not just HH/LL) |
 //+------------------------------------------------------------------+
@@ -814,6 +817,7 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    ObjectsDeleteAll(0, "FLAG_");
+   g_boxesDrawn = false; // ریست کردن فلگ
 }
 
 //+------------------------------------------------------------------+
@@ -832,42 +836,44 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < 10) return 0;
 
-   static datetime lastSrcTime[7] = {0, 0, 0, 0, 0, 0, 0};
-
-   ENUM_TIMEFRAMES tfArr[7]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
-   bool            useArr[7] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
-
-   bool needRecalc = (prev_calculated == 0);
-   for(int s = 0; s < 7; s++)
+   // اگر قبلاً باکس‌ها رسم شده‌اند، دیگر رفرش نکن
+   if(g_boxesDrawn && prev_calculated > 0)
    {
-      if(!useArr[s]) continue;
-      datetime t0 = iTime(_Symbol, tfArr[s], 0);
-      if(t0 != lastSrcTime[s]) { needRecalc = true; lastSrcTime[s] = t0; }
+      return rates_total;
    }
-   if(!needRecalc) return rates_total;
-
-   ObjectsDeleteAll(0, "FLAG_");
-
-   int pivotBarsArr[3] = {InpPivotBars1, InpPivotBars2, InpPivotBars3};
-   bool usePivotArr[3] = {InpUsePivot1, InpUsePivot2, InpUsePivot3};
    
-   // آرایه برای ذخیره label های هر باکس
-   string boxLabels[][2]; // [i][0] = boxKey, [i][1] = combined label
-   ArrayResize(boxLabels, 0);
-   
-   // آرایه رنگ‌ها برای هر timeframe
-   color tfColorArr[7] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
-   
-   // آرایه برای ذخیره باکس‌های H1
-   SBox h1Boxes[];
-   ArrayResize(h1Boxes, 0);
-   
-   Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4], " useArr[5]=", useArr[5], " useArr[6]=", useArr[6]);
-   Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4], " TF6=", tfArr[5], " TF7=", tfArr[6]);
-   
-   // مرحله 1: ابتدا باکس‌های H1 را پردازش و ذخیره کن
-   for(int s = 0; s < 5; s++)
+   // فقط یک بار باکس‌ها را بکش
+   if(prev_calculated == 0 || !g_boxesDrawn)
    {
+      Print("🎨 Flag: رسم باکس‌ها...");
+      
+      ObjectsDeleteAll(0, "FLAG_");
+
+      static datetime lastSrcTime[7] = {0, 0, 0, 0, 0, 0, 0};
+
+      ENUM_TIMEFRAMES tfArr[7]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
+      bool            useArr[7] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
+
+      int pivotBarsArr[3] = {InpPivotBars1, InpPivotBars2, InpPivotBars3};
+      bool usePivotArr[3] = {InpUsePivot1, InpUsePivot2, InpUsePivot3};
+   
+      // آرایه برای ذخیره label های هر باکس
+      string boxLabels[][2]; // [i][0] = boxKey, [i][1] = combined label
+      ArrayResize(boxLabels, 0);
+   
+      // آرایه رنگ‌ها برای هر timeframe
+      color tfColorArr[7] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
+   
+      // آرایه برای ذخیره باکس‌های H1
+      SBox h1Boxes[];
+      ArrayResize(h1Boxes, 0);
+   
+      Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4], " useArr[5]=", useArr[5], " useArr[6]=", useArr[6]);
+      Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4], " TF6=", tfArr[5], " TF7=", tfArr[6]);
+   
+      // مرحله 1: ابتدا باکس‌های H1 را پردازش و ذخیره کن
+      for(int s = 0; s < 5; s++)
+      {
       if(!useArr[s]) continue;
       
       ENUM_TIMEFRAMES currentTF = tfArr[s];
@@ -950,28 +956,28 @@ int OnCalculate(const int rates_total,
          continue; // بقیه pivot ها برای M15 اجرا نشوند
       }
       
-      // برای M5 فقط pivot 3 و فقط با فیلتر H1
+      // برای M5 بدون فیلتر H1
       if(currentTF == PERIOD_M5)
       {
          // فقط pivot 3
          if(InpUsePivot1 && InpPivotBars1 == 3)
          {
-            Print("Calling ProcessTF for M5 with pivotBars=3, filtered by ", h1Count, " H1 boxes");
+            Print("Calling ProcessTF for M5 with pivotBars=3, NO FILTER");
             SBox dummyBoxes[];
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM5DaysBack, dummyBoxes, h1Count, h1Boxes);
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM5DaysBack, dummyBoxes, 0, dummyBoxes);
          }
          continue; // بقیه pivot ها برای M5 اجرا نشوند
       }
       
-      // برای M1 فقط pivot 3 و فقط با فیلتر H1
+      // برای M1 بدون فیلتر H1
       if(currentTF == PERIOD_M1)
       {
          // فقط pivot 3
          if(InpUsePivot1 && InpPivotBars1 == 3)
          {
-            Print("Calling ProcessTF for M1 with pivotBars=3, filtered by ", h1Count, " H1 boxes");
+            Print("Calling ProcessTF for M1 with pivotBars=3, NO FILTER");
             SBox dummyBoxes[];
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM1DaysBack, dummyBoxes, h1Count, h1Boxes);
+            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM1DaysBack, dummyBoxes, 0, dummyBoxes);
          }
          continue; // بقیه pivot ها برای M1 اجرا نشوند
       }
@@ -1050,6 +1056,11 @@ int OnCalculate(const int rates_total,
          }
       }
    }
+   
+      // باکس‌ها رسم شدند، فلگ را فعال کن
+      g_boxesDrawn = true;
+      Print("✅ Flag: باکس‌ها رسم شدند - دیگر رفرش نمی‌شوند");
+   }  // بستن if(prev_calculated == 0 || !g_boxesDrawn)
 
    return rates_total;
 }
