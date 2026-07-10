@@ -1,0 +1,4 @@
+❌ cf/@cf/moonshotai/kimi-k2.6
+❌ nvidia/nemotron-3-ultra-550b-a55b
+❌ nvidia/parakeet-ctc-1.1b-asr
+❌ sk-xxx/claude-sonnet-4
