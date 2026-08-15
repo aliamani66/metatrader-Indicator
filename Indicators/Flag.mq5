@@ -1,159 +1,80 @@
 //+------------------------------------------------------------------+
-//| Flag.mq5                                                          |
-//| Flag / BOS continuation box indicator   v6.20                     |
-//|                                                                    |
-//| باکس‌های فقط High تا Low:                                          |
-//| - فقط از High تا Low باکس رسم می‌شود                              |
-//| - برای هر High باید سه تا (قبلی، جاری، بعدی) بررسی شود           |
-//|                                                                    |
-//| v6.20: اضافه شدن M1 (1 دقیقه) + فیلترهای جدید                     |
+//| Flag.mq5                                                         |
+//| Multi-Timeframe Flag Indicator with 3-Pivot Context Inspector    |
 //+------------------------------------------------------------------+
-#property version   "6.20"
+#property copyright "Flag Indicator"
+#property link      ""
+#property version   "39.00"
 #property indicator_chart_window
 #property indicator_buffers 0
 #property indicator_plots   0
 
+#include <MarketStructureEngine.mqh>
+
 //--- Inputs : source structure timeframes
+input group "=== Timeframes to Display ==="
 input ENUM_TIMEFRAMES InpTF1      = PERIOD_D1;
-input bool             InpUseTF1  = true;
+input bool             InpUseTF1  = false;
 input color            InpColorTF1 = clrMagenta;
 
 input ENUM_TIMEFRAMES InpTF2      = PERIOD_W1;
-input bool             InpUseTF2  = true;
+input bool             InpUseTF2  = false;
 input color            InpColorTF2 = clrDodgerBlue;
 
 input ENUM_TIMEFRAMES InpTF3      = PERIOD_H4;
-input bool             InpUseTF3  = true;
+input bool             InpUseTF3  = false;
 input color            InpColorTF3 = clrWhite;
 
 input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
-input bool             InpUseTF4  = true;
+input bool             InpUseTF4  = true;          // فقط H1 به صورت پیش‌فرض فعال است
 input color            InpColorTF4 = clrYellow;
 
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
-input bool             InpUseTF5  = true;
+input bool             InpUseTF5  = false;
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 50; // فقط برای 50 روز اخیر
+input int              InpM15DaysBack = 50;
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
-input bool             InpUseTF6  = true;
+input bool             InpUseTF6  = false;
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 30; // فقط برای 30 روز اخیر
+input int              InpM5DaysBack = 30;
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
-input bool             InpUseTF7  = true;
+input bool             InpUseTF7  = false;
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 10; // فقط برای 10 روز اخیر
+input int              InpM1DaysBack = 10;
 
-input int    InpPivotBars1  = 3;
-input bool   InpUsePivot1   = true;
+input group "=== Structure Calculation (matches MarketStructure_v2) ==="
+input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
+input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (Max Bars)
 
-input int    InpPivotBars2  = 5;
-input bool   InpUsePivot2   = true;
+input group "=== Visuals ==="
+input int              InpLineWidth   = 2;           // ضخامت خط باکس‌ها
+input bool             InpShowLabel   = true;        // نمایش برچسب تایم‌فریم
 
-input int    InpPivotBars3  = 8;
-input bool   InpUsePivot3   = false;
+input group "=== Chart Display Settings ==="
+input bool             InpHideGrid    = true;        // حذف گرید از چارت
+input bool             InpHideVolumes = true;        // حذف نمودار حجم
 
-input int    InpMaxBarsTF   = 3000;
-
-input int    InpLineWidth   = 1;
-input bool   InpShowLabel   = true;
-
-//--- Pivot structure
-struct SPivot { datetime time; double price; bool isHigh; };
-
-//--- Box structure for filtering
-struct SBox 
-{ 
-   datetime timeLeft; 
-   datetime timeRight; 
-   double priceTop; 
-   double priceBottom; 
+// Storage for drawn boxes and pivots
+struct SBoxInfo
+{
+   string   boxName;
+   int      swingIdx;
+   datetime t1;
+   datetime t2;
+   double   top;
+   double   bottom;
 };
 
-//--- Global flag to draw only once
-bool g_boxesDrawn = false;
+SPivot   g_pivotsH1[];
+int      g_pivotCountH1 = 0;
+SBoxInfo g_drawnBoxes[];
+int      g_boxCount = 0;
+int      g_clickCounter = 0;
 
 //+------------------------------------------------------------------+
-//| Build pivots: returns ALTERNATING High/Low pivots (not just HH/LL) |
-//+------------------------------------------------------------------+
-bool BuildAlternatingPivots(ENUM_TIMEFRAMES tf, int pivotBars, int maxBars, SPivot &pivots[])
-{
-   ArrayResize(pivots, 0);
-
-   int availBars = iBars(_Symbol, tf);
-   if(availBars <= 0) return false;
-   int reqBars = MathMin(availBars, maxBars);
-   if(reqBars < pivotBars * 2 + 3) return false;
-
-   double high[], low[]; datetime tm[];
-   ArraySetAsSeries(high, true);
-   ArraySetAsSeries(low,  true);
-   ArraySetAsSeries(tm,   true);
-
-   int copied = CopyHigh(_Symbol, tf, 0, reqBars, high);
-   if(copied < pivotBars * 2 + 3) return false;
-   CopyLow(_Symbol, tf, 0, copied, low);
-   CopyTime(_Symbol, tf, 0, copied, tm);
-
-   ArraySetAsSeries(high, false);
-   ArraySetAsSeries(low,  false);
-   ArraySetAsSeries(tm,   false);
-
-   int n = copied;
-
-   // Step 1: Find all fractal pivots
-   SPivot raw[]; int rc = 0;
-   for(int i = pivotBars; i < n - pivotBars; i++)
-   {
-      bool isH = true, isL = true;
-      for(int k = 1; k <= pivotBars; k++)
-      {
-         if(high[i-k] >= high[i] || high[i+k] >= high[i]) isH = false;
-         if(low[i-k]  <= low[i]  || low[i+k]  <= low[i])  isL = false;
-      }
-      if(isH && !isL)
-      {
-         ArrayResize(raw, rc + 1);
-         raw[rc].time = tm[i]; raw[rc].price = high[i]; raw[rc].isHigh = true;
-         rc++;
-      }
-      else if(isL && !isH)
-      {
-         ArrayResize(raw, rc + 1);
-         raw[rc].time = tm[i]; raw[rc].price = low[i]; raw[rc].isHigh = false;
-         rc++;
-      }
-   }
-   if(rc < 2) return false;
-
-   // Step 2: Alternating filter
-   ArrayResize(pivots, 1);
-   pivots[0] = raw[0];
-   int pCount = 1;
-
-   for(int i = 1; i < rc; i++)
-   {
-      SPivot last = pivots[pCount - 1];
-      SPivot cur  = raw[i];
-      if(cur.isHigh == last.isHigh)
-      {
-         if(cur.isHigh && cur.price > last.price) pivots[pCount - 1] = cur;
-         else if(!cur.isHigh && cur.price < last.price) pivots[pCount - 1] = cur;
-      }
-      else
-      {
-         ArrayResize(pivots, pCount + 1);
-         pivots[pCount] = cur;
-         pCount++;
-      }
-   }
-   
-   return (pCount >= 2);
-}
-
-//+------------------------------------------------------------------+
-//| Floor search: largest chart bar index k such that chartTime[k]<=t|
+//| Find Bar Index in non-series chartTime array                     |
 //+------------------------------------------------------------------+
 int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
 {
@@ -172,11 +93,13 @@ int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
 }
 
 //+------------------------------------------------------------------+
+//| Helper: Draw Hollow Box on Chart                                 |
+//+------------------------------------------------------------------+
 void DrawHollowBox(string name, datetime t1, double top, datetime t2, double bottom,
                    color clr, int width)
 {
    if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
-   if(!ObjectCreate(0, name, OBJ_RECTANGLE, 0, t1, top, t2, bottom)) return;
+   ObjectCreate(0, name, OBJ_RECTANGLE, 0, t1, top, t2, bottom);
    ObjectSetInteger(0, name, OBJPROP_COLOR,      clr);
    ObjectSetInteger(0, name, OBJPROP_WIDTH,      width);
    ObjectSetInteger(0, name, OBJPROP_FILL,       false);
@@ -186,6 +109,8 @@ void DrawHollowBox(string name, datetime t1, double top, datetime t2, double bot
 }
 
 //+------------------------------------------------------------------+
+//| Helper: Friendly Timeframe Name                                  |
+//+------------------------------------------------------------------+
 string TFName(ENUM_TIMEFRAMES tf)
 {
    string s = EnumToString(tf);
@@ -194,634 +119,272 @@ string TFName(ENUM_TIMEFRAMES tf)
 }
 
 //+------------------------------------------------------------------+
-//| حذف تکراری‌ها از رشته label (مثلاً 3D-5D-5D به 3D-5D تبدیل شود) |
+//| Evaluate Corrective Pullback Flag Swings                         |
 //+------------------------------------------------------------------+
-string RemoveDuplicates(string inputStr)
+bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
 {
-   if(inputStr == "") return "";
-   
-   string result = "";
-   string parts[];
-   ushort separator = '-';
-   int count = StringSplit(inputStr, separator, parts);
-   
-   if(count <= 0) return inputStr;
-   
-   // اولین عنصر را اضافه کن
-   result = parts[0];
-   
-   // بقیه را بررسی کن و فقط unique ها را اضافه کن
-   for(int i = 1; i < count; i++)
+   if(idx < 0 || idx >= totalCount - 1) return false;
+
+   SPivot p1 = pivots[idx];     // شروع یال جاری
+   SPivot p2 = pivots[idx + 1]; // پایان یال جاری
+
+   // Extract previous High and previous Low before idx
+   double prevH = -1, prevL = -1;
+   for(int j = idx - 1; j >= 0; j--)
    {
-      bool exists = false;
-      
-      // بررسی کن آیا قبلاً اضافه شده
-      string checkParts[];
-      int checkCount = StringSplit(result, separator, checkParts);
-      
-      for(int j = 0; j < checkCount; j++)
+      if(pivots[j].isHigh && prevH < 0) prevH = pivots[j].price;
+      if(!pivots[j].isHigh && prevL < 0) prevL = pivots[j].price;
+      if(prevH > 0 && prevL > 0) break;
+   }
+
+   // Extract next High and next Low after idx+1
+   double nextH = -1, nextL = -1;
+   for(int j = idx + 2; j < totalCount; j++)
+   {
+      if(pivots[j].isHigh && nextH < 0) nextH = pivots[j].price;
+      if(!pivots[j].isHigh && nextL < 0) nextL = pivots[j].price;
+      if(nextH > 0 && nextL > 0) break;
+   }
+
+   // 1. اصلاح نزولی در روند صعودی: Drop (High -> Low)
+   if(p1.isHigh && !p2.isHigh)
+   {
+      if(prevL > 0 && p2.price > prevL)
       {
-         if(checkParts[j] == parts[i])
-         {
-            exists = true;
-            break;
-         }
-      }
-      
-      // اگر وجود نداشت، اضافه کن
-      if(!exists)
-      {
-         result += "-" + parts[i];
+         // اگر سقف بعدی پایین‌تر از P1 باشد (چرخش به روند نزولی)، این یال موج ریزش اولیه است نه پرچم!
+         if(nextH > 0 && nextH < p1.price)
+            return false;
+
+         return true;
       }
    }
-   
-   return result;
+   // 2. اصلاح صعودی در روند نزولی: Rally (Low -> High)
+   else if(!p1.isHigh && p2.isHigh)
+   {
+      if(prevH > 0 && p2.price < prevH)
+      {
+         // اگر کف بعدی بالاتر از P1 باشد (چرخش به روند صعودی)، این یال موج صعود اولیه است نه پرچم!
+         if(nextL > 0 && nextL > p1.price)
+            return false;
+
+         return true;
+      }
+   }
+
+   return false;
 }
 
 //+------------------------------------------------------------------+
-//| منطق باکس‌های فقط High تا Low - نسخه جدید:                        |
-//| فقط از High تا Low باکس رسم می‌شود                                |
-//| برای هر High باید قبلی، جاری، و بعدی بررسی شود                   |
+//| Process Timeframe Swings & Draw Flag Boxes                       |
 //+------------------------------------------------------------------+
-void ProcessTF(ENUM_TIMEFRAMES tf, int pivotBars, color clr,
+void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
                const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
-               int ratesTotal, string &boxLabels[][2], int daysBack, 
-               SBox &outputBoxes[], int filterCount, const SBox &filterBoxes[])
+               int ratesTotal, int daysBack)
 {
    SPivot pivots[];
-   if(!BuildAlternatingPivots(tf, pivotBars, InpMaxBarsTF, pivots)) return;
+   if(!BuildAlternatingPivots(tf, sBars, InpMaxBarsTF, pivots)) return;
 
-   string tfTag = TFName(tf) + "_P" + IntegerToString(pivotBars);
    int count = ArraySize(pivots);
-   
-   if(count < 3) return; // حداقل سه pivot نیاز است
+   if(count < 2) return;
 
-   // محاسبه زمان محدودیت (اگر daysBack > 0)
+   if(tf == PERIOD_H1)
+   {
+      ArrayResize(g_pivotsH1, count);
+      for(int i = 0; i < count; i++) g_pivotsH1[i] = pivots[i];
+      g_pivotCountH1 = count;
+   }
+
+   string tfTag = TFName(tf);
+   string tfSymbol = (tf == PERIOD_H1) ? "H1" : tfTag;
+
    datetime limitTime = 0;
    if(daysBack > 0)
-   {
       limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
-   }
-   
-   // شمارنده برای ذخیره باکس‌ها
-   int boxCount = 0;
-   bool shouldSaveBoxes = (filterCount == 0); // فقط اگر فیلتر نداریم، باکس‌ها را ذخیره کن
 
-   // پردازش هر High که Low بعد از آن دارد
-   for(int i = 1; i < count; i++)
+   for(int i = 0; i < count - 1; i++)
    {
-      SPivot cur = pivots[i];
-      
-      // بررسی محدودیت زمانی
-      if(daysBack > 0 && cur.time < limitTime)
-      {
-         continue; // این pivot خیلی قدیمی است
-      }
-      
-      // فقط High ها را در نظر بگیر
-      if(!cur.isHigh) continue;
-      
-      // Low بعد از این High را پیدا کن
-      int lowIdx = -1;
-      for(int j = i + 1; j < count; j++)
-      {
-         if(!pivots[j].isHigh) 
-         {
-            lowIdx = j;
-            break;
-         }
-      }
-      
-      if(lowIdx == -1) continue; // Low بعدی وجود ندارد
-      
-      SPivot curLow = pivots[lowIdx];
-      double highPrice = cur.price;
-      double lowPrice = curLow.price;
-      
-      // High قبلی و بعدی را پیدا کن
-      double prevHigh = -1, nextHigh = -1;
-      double prevLow = -1, nextLow = -1;
-      datetime prevLowTime = 0;
-      
-      // High قبلی
-      for(int j = i - 1; j >= 0; j--)
-      {
-         if(pivots[j].isHigh) 
-         {
-            prevHigh = pivots[j].price;
-            break;
-         }
-      }
-      
-      // Low قبلی
-      for(int j = i - 1; j >= 0; j--)
-      {
-         if(!pivots[j].isHigh) 
-         {
-            prevLow = pivots[j].price;
-            prevLowTime = pivots[j].time;
-            break;
-         }
-      }
-      
-      // High بعدی
-      for(int j = lowIdx + 1; j < count; j++)
-      {
-         if(pivots[j].isHigh) 
-         {
-            nextHigh = pivots[j].price;
-            break;
-         }
-      }
-      
-      // Low بعدی
-      for(int j = lowIdx + 1; j < count; j++)
-      {
-         if(!pivots[j].isHigh) 
-         {
-            nextLow = pivots[j].price;
-            break;
-         }
-      }
-      
-      // High و Low دوم بعدی
-      double nextHigh2 = -1, nextLow2 = -1;
-      int nextLowIdx = -1;
-      
-      // ابتدا Low بعدی را پیدا کن
-      for(int j = lowIdx + 1; j < count; j++)
-      {
-         if(!pivots[j].isHigh) 
-         {
-            nextLowIdx = j;
-            break;
-         }
-      }
-      
-      // اگر Low بعدی پیدا شد، High دوم بعدی را پیدا کن
-      if(nextLowIdx > 0)
-      {
-         for(int j = nextLowIdx + 1; j < count; j++)
-         {
-            if(pivots[j].isHigh) 
-            {
-               nextHigh2 = pivots[j].price;
-               break;
-            }
-         }
-         
-         // Low دوم بعدی را پیدا کن
-         for(int j = nextLowIdx + 1; j < count; j++)
-         {
-            if(!pivots[j].isHigh) 
-            {
-               nextLow2 = pivots[j].price;
-               break;
-            }
-         }
-      }
-      
-      // ========== شرط‌های جدید: ابتدا بررسی می‌شوند ==========
-      
-      // فیلتر 1: اگر High جاری از قبلی و بعدی بالاتر، Low جاری از بعدی پایین‌تر، و Low قبلی از جاری پایین‌تر → باکس نکش
-      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         if(highPrice > prevHigh && highPrice > nextHigh && lowPrice < nextLow && prevLow < lowPrice)
-         {
-            // این پیووت معیار را ندارد → باکس نکش
-            continue;
-         }
-      }
-      
-      // فیلتر 2: اگر High جاری از همه بالاتر و Low جاری هم از همه بالاتر → Higher High معمولی → باکس نکش
-      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         if(highPrice > prevHigh && highPrice > nextHigh && lowPrice > prevLow && lowPrice > nextLow)
-         {
-            // Higher High معمولی در روند صعودی، نه پیووت مستقل → باکس نکش
-            continue;
-         }
-      }
-      
-      // شرط جدید 1: پیووت مستقل V-shape
-      // اگر High و Low بعدی بالاتر AND High قبلی پایین‌تر AND Low قبلی بالاتر → باکس بکش
-      bool isIndependentPivot = false;
-      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         if(nextHigh > highPrice && nextLow > lowPrice && prevHigh < highPrice && prevLow > lowPrice)
-         {
-            isIndependentPivot = true;
-         }
-      }
-      
-      // شرط جدید 2: پیووت top در روند صعودی
-      // اگر High و Low جاری بالاتر از قبلی AND High بعدی پایین‌تر AND Low بعدی بالاتر از قبلی → باکس بکش
-      bool isUptrendTop = false;
-      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         if(highPrice > prevHigh && lowPrice > prevLow && nextHigh < highPrice && nextLow > prevLow)
-         {
-            isUptrendTop = true;
-         }
-      }
-      
-      // فلگ برای اینکه آیا باید شرط‌های قدیمی را بررسی کنیم یا نه
-      bool skipOldConditions = (isIndependentPivot || isUptrendTop);
-      
-      // ========== شرط‌های قبلی (فقط اگر شرط‌های جدید برقرار نباشند) ==========
-      
-      if(!skipOldConditions)
-      {
-         // شرط 1: اگر High بعدی و High قبلی پایین‌تر از High جاری باشند
-      // بررسی می‌کنیم که آیا reversal واقعی وجود دارد یا نه
-      if(nextHigh > 0 && prevHigh > 0 && nextHigh < highPrice && prevHigh < highPrice)
-      {
-         // بررسی کن: آیا High و Low جاری از قبلی پایین‌تر هستند؟ (downtrend)
-         bool downtrend = (prevLow > 0 && highPrice < prevHigh && lowPrice < prevLow);
-         
-         // اگر در downtrend نیستیم، یعنی High مجزا است
-         if(!downtrend)
-         {
-            // High مجزا است → این High باکس نمی‌گیرد
-            continue;
-         }
-         
-         // در downtrend هستیم - بررسی reversal واقعی با دو پیووت بعدی
-         // بررسی reversal اول: High و Low بعدی اول هر دو بالاتر باشند
-         bool reversal1 = (nextLow > 0 && nextHigh > highPrice && nextLow > lowPrice);
-         
-         // بررسی reversal دوم: High و Low دوم بعدی هم بالاتر باشند
-         bool reversal2 = false;
-         if(nextHigh2 > 0 && nextLow2 > 0)
-         {
-            reversal2 = (nextHigh2 > nextHigh && nextLow2 > nextLow);
-         }
-         
-         // فقط اگر هر دو reversal کامل و قوی باشند → باکس نکش
-         if(reversal1 && reversal2)
-         {
-            // بررسی اضافی: reversal2 باید قوی باشد
-            double move1 = nextHigh - highPrice; // اولین حرکت صعودی
-            double move2 = nextHigh2 - nextHigh; // دومین حرکت صعودی
-            
-            // اگر دومین حرکت هم قوی باشد → reversal تایید شده
-            if(move2 >= move1 * 0.5) // حداقل 50% از حرکت اول
-            {
-               continue; // reversal قوی تایید شده - باکس نکش
-            }
-         }
-         // در غیر این صورت در downtrend هستیم و باکس کشیده می‌شود
-      }
-      
-      // شرط استثنا: اگر High جاری از قبلی و بعدی پایین‌تر و Low جاری از قبلی و بعدی بالاتر
-      // این یک inside bar معتبر است → باکس بکش
-      bool isValidInsideBar = false;
-      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         if(highPrice < prevHigh && highPrice < nextHigh && lowPrice > prevLow && lowPrice > nextLow)
-         {
-            isValidInsideBar = true;
-         }
-      }
-      
-      // شرط جدید: اگر High جاری < High قبلی و Low جاری > Low قبلی و Low جاری > Low بعدی
-      // یعنی inside bar یا کندل محدود → باکس نکش (مگر اینکه inside bar معتبر، pivot مستقل، یا uptrend top باشد)
-      if(!isValidInsideBar && !isIndependentPivot && !isUptrendTop && prevHigh > 0 && prevLow > 0 && nextLow > 0)
-      {
-         if(highPrice < prevHigh && lowPrice > prevLow && lowPrice > nextLow)
-         {
-            // کندل محدود و مجزا → باکس نکش
-            continue;
-         }
-      }
-      
-      // شرط فیلتر: اگر High بعدی و Low بعدی و Low قبلی همه بالاتر، ولی High قبلی پایین‌تر
-      // (مگر اینکه inside bar معتبر، pivot مستقل، یا uptrend top باشد)
-      if(!isValidInsideBar && !isIndependentPivot && !isUptrendTop && prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         if(nextHigh > highPrice && nextLow > lowPrice && prevLow > lowPrice && prevHigh < highPrice)
-         {
-            // این همان شرط اول است که باید باکس بکشد
-            // پس این continue را حذف می‌کنیم یا شرط را تغییر می‌دهیم
-            // continue; // این خط را کامنت می‌کنیم چون الان می‌خواهیم باکس بکشیم
-         }
-      }
-      
-      // شرط 2: اگر Low بعدی و Low قبلی بالاتر از Low جاری → بررسی uptrend
-      if(nextLow > 0 && prevLow > 0 && nextLow > lowPrice && prevLow > lowPrice)
-      {
-         // بررسی کن: آیا High و Low جاری از قبلی بالاتر هستند؟ (uptrend)
-         bool uptrend = (prevHigh > 0 && highPrice > prevHigh && lowPrice > prevLow);
-         
-         if(uptrend)
-         {
-            // در uptrend هستیم - بررسی نقطه چرخش به سمت نزولی
-            bool reversal1 = (nextHigh > 0 && nextHigh < highPrice && nextLow < lowPrice);
-            
-            bool reversal2 = false;
-            if(nextHigh2 > 0 && nextLow2 > 0)
-            {
-               reversal2 = (nextHigh2 < nextHigh && nextLow2 < nextLow);
-            }
-            
-            if(reversal1 && reversal2)
-            {
-               // بررسی قدرت reversal
-               double move1 = highPrice - nextHigh;
-               double move2 = nextHigh - nextHigh2;
-               
-               if(move2 >= move1 * 0.5)
-               {
-                  continue; // نقطه چرخش قوی به نزولی - باکس نکش
-               }
-            }
-         }
-         else
-         {
-            // Low مجزا نیست، بلکه ممکن است در downtrend باشد
-            // در این حالت باید باکس کشیده شود
-            // فقط اگر واقعاً Low مجزا باشد (نه قبلی بالاتر و نه بعدی بالاتر) باکس نکش
-            // continue; // این خط را کامنت می‌کنیم
-         }
-      }
-      
-      // شرط 3: Inside bar نزولی - فقط اگر واقعاً inside bar با ادامه نزولی قوی باشد
-      if(prevHigh > 0 && prevLow > 0 && nextHigh > 0 && nextLow > 0)
-      {
-         // بررسی inside bar واقعی
-         bool isInsideBar = (highPrice < prevHigh && lowPrice > prevLow);
-         
-         if(isInsideBar)
-         {
-            // فقط اگر روند بعدی هم نزولی قوی است، باکس نکش
-            // یعنی High و Low بعدی هر دو به طور قابل توجهی پایین‌تر باشند
-            bool strongBearish = (nextHigh < highPrice && nextLow < lowPrice);
-            
-            // بررسی کن که آیا ادامه نزولی قوی است
-            if(strongBearish && nextHigh2 > 0 && nextLow2 > 0)
-            {
-               // اگر حرکت دوم هم نزولی قوی باشد
-               bool strongBearish2 = (nextHigh2 < nextHigh && nextLow2 < nextLow);
-               
-               if(strongBearish2)
-               {
-                  continue; // Inside bar با روند نزولی قوی - باکس نکش
-               }
-            }
-         }
-      }
-      } // پایان if(!skipOldConditions) اول
-      
-      // تعیین نوع روند و محدوده باکس
-      bool isBullish = false;
-      double boxTop = highPrice;
-      double boxBottom = lowPrice;
-      
-      // اگر شرط‌های جدید برقرار هستند
-      if(isIndependentPivot || isUptrendTop)
-      {
-         isBullish = isUptrendTop; // اگر uptrend top است، صعودی
-         boxTop = highPrice;
-         boxBottom = lowPrice;
-      }
-      // اگر از شرط‌های قدیمی آمدیم
-      else if(!skipOldConditions)
-      {
-         // شرط ویژه: اگر High جاری < High قبلی و Low جاری < Low قبلی → باکس از Low قبلی تا High جاری
-         if(prevHigh > 0 && prevLow > 0 && highPrice < prevHigh && lowPrice < prevLow)
-         {
-            isBullish = false; // روند نزولی
-            boxTop = highPrice;
-            boxBottom = prevLow; // استفاده از Low قبلی
-         }
-         else if(nextHigh > 0 && nextLow > 0)
-         {
-            // منطق ساده: فقط به High بعدی نگاه می‌کنیم
-            // اگر High بعدی > High جاری → صعودی
-            // اگر High بعدی < High جاری → نزولی
-            if(nextHigh > highPrice)
-            {
-               isBullish = true; // صعودی
-            }
-            else if(nextHigh < highPrice)
-            {
-               isBullish = false; // نزولی
-            }
-            else
-            {
-               // High بعدی = High جاری (نادر) → باکس نکش
-               continue;
-            }
-            
-            boxTop = highPrice;
-            boxBottom = lowPrice;
-         }
-         else
-         {
-            // nextHigh یا nextLow وجود ندارند → باکس نکش
-            continue;
-         }
-      } // پایان else if(!skipOldConditions)
-      
-      // بررسی حداقل اندازه باکس: باکس باید حداقل قابل مشاهده باشد
-      double boxHeight = boxTop - boxBottom;
-      if(boxHeight <= 0)
-      {
-         // ارتفاع باکس صفر یا منفی → باکس نکش
+      SPivot p1 = pivots[i];
+      SPivot p2 = pivots[i + 1];
+
+      if(daysBack > 0 && p1.time < limitTime)
          continue;
-      }
-      
-      int idxHigh = FindBarIndex(chartTime, ratesTotal, cur.time);
-      int idxLow = FindBarIndex(chartTime, ratesTotal, curLow.time);
-      if(idxHigh < 0 || idxLow < 0) continue;
-      
-      // برای باکس‌های نزولی که از prevLow استفاده می‌کنند، index آن را پیدا کن
-      int idxPrevLow = -1;
-      if(!isBullish && boxBottom == prevLow && prevLow > 0 && prevLowTime > 0)
-      {
-         idxPrevLow = FindBarIndex(chartTime, ratesTotal, prevLowTime);
-      }
 
-      // ===== امتداد به عقب =====
-      // از High شروع می‌کنیم و به عقب می‌رویم تا کندلی که کاملاً داخل باکس نیست
-      int leftIdx = idxHigh;
-      
-      for(int k = idxHigh - 1; k >= 0; k--)
+      if(!IsValidFlagLeg(i, pivots, count))
+         continue;
+
+      double boxTop    = MathMax(p1.price, p2.price);
+      double boxBottom = MathMin(p1.price, p2.price);
+
+      int idx1 = FindBarIndex(chartTime, ratesTotal, p1.time);
+      int idx2 = FindBarIndex(chartTime, ratesTotal, p2.time);
+      if(idx1 < 0 || idx2 < 0) continue;
+
+      int idxStart = MathMin(idx1, idx2);
+      int idxEnd   = MathMax(idx1, idx2);
+
+      int leftIdx = idxStart;
+
+      // Forward extension: extend from end of swing until breakout
+      int rightIdx = idxEnd;
+      for(int k = idxEnd + 1; k < ratesTotal; k++)
       {
-         // بررسی کنیم آیا این کندل کاملاً داخل باکس است
-         bool candleInsideBox = (chartLow[k] >= boxBottom && chartHigh[k] <= boxTop);
-         
-         if(!candleInsideBox)
+         if(chartHigh[k] > boxTop || chartLow[k] < boxBottom)
          {
-            // اولین کندل خارج از باکس
-            leftIdx = k + 1;
+            rightIdx = k;
             break;
          }
-         
-         leftIdx = k;
+         rightIdx = k;
       }
-      
-      // یک کندل بیشتر به عقب امتداد بده
-      if(leftIdx > 0) leftIdx--;
-
-      // ===== امتداد به جلو =====
-      int rightIdx = idxLow;
-      
-      // برای باکس‌های نزولی که از prevLow استفاده می‌کنند
-      if(idxPrevLow >= 0 && !isBullish && boxBottom == prevLow)
-      {
-         // از prevLow شروع می‌کنیم و به جلو می‌رویم تا قیمت از prevLow رد شود
-         rightIdx = idxPrevLow;
-         
-         for(int k = idxPrevLow + 1; k < ratesTotal; k++)
-         {
-            // اگر قیمت از prevLow پایین‌تر رفت
-            if(chartLow[k] < prevLow)
-            {
-               // امتداد متوقف می‌شود
-               rightIdx = k - 1;
-               break;
-            }
-            
-            rightIdx = k;
-         }
-      }
-      else
-      {
-         // برای بقیه باکس‌ها: منطق قبلی
-         for(int k = idxLow + 1; k < ratesTotal; k++)
-         {
-            // اگر High کندل از boxBottom پایین‌تر رفت، یعنی کل کندل از پایین باکس رد شده
-            if(chartHigh[k] < boxBottom)
-            {
-               // امتداد متوقف می‌شود
-               rightIdx = k - 1;
-               break;
-            }
-            
-            // بررسی کنیم آیا این کندل کاملاً داخل باکس است
-            bool candleInsideBox = (chartLow[k] >= boxBottom && chartHigh[k] <= boxTop);
-            
-            if(!candleInsideBox)
-            {
-               // اولین کندل خارج از باکس
-               rightIdx = k - 1;
-               break;
-            }
-            
-            rightIdx = k;
-         }
-      }
-      
-      // یک کندل بیشتر به جلو امتداد بده
+      if(rightIdx <= idxStart && idxStart < ratesTotal - 1) rightIdx = idxStart + 1;
       if(rightIdx < ratesTotal - 1) rightIdx++;
 
-      // رسم باکس: از boxTop تا boxBottom
       datetime t1 = chartTime[leftIdx];
       datetime t2 = chartTime[rightIdx];
-      
-      // بررسی فیلتر: آیا این باکس داخل یکی از filterBoxes است؟
-      bool passFilter = true;
-      if(filterCount > 0)
-      {
-         passFilter = false; // ابتدا فرض می‌کنیم فیلتر pass نمی‌کند
-         
-         // بررسی کن آیا این باکس داخل یکی از باکس‌های فیلتر است
-         for(int f = 0; f < filterCount; f++)
-         {
-            // باکس M15 باید کاملاً داخل باکس H1 باشد (هم از نظر زمان و هم قیمت)
-            bool timeInside = (t1 >= filterBoxes[f].timeLeft && t2 <= filterBoxes[f].timeRight);
-            bool priceInside = (boxTop <= filterBoxes[f].priceTop && boxBottom >= filterBoxes[f].priceBottom);
-            
-            if(timeInside && priceInside)
-            {
-               passFilter = true;
-               break;
-            }
-         }
-         
-         if(!passFilter)
-         {
-            continue; // این باکس فیلتر را pass نکرد، رسم نکن
-         }
-      }
 
-      // اضافه کردن نوع باکس (B=Bullish, R=Bearish) به نام باکس
-      string boxType = isBullish ? "B" : "R";
-      string boxName = "FLAG_BOX_" + tfTag + "_" + boxType + "_" + IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
+      string boxKey = IntegerToString((int)p1.time) + "_" + IntegerToString((int)p2.time);
+      string boxName = "FLAG_BOX_" + tfTag + "_" + boxKey;
       DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth);
-      
-      // ذخیره باکس برای استفاده در فیلتر بعدی
-      if(shouldSaveBoxes)
+
+      // Register box for click inspection
+      if(tf == PERIOD_H1)
       {
-         ArrayResize(outputBoxes, boxCount + 1);
-         outputBoxes[boxCount].timeLeft = t1;
-         outputBoxes[boxCount].timeRight = t2;
-         outputBoxes[boxCount].priceTop = boxTop;
-         outputBoxes[boxCount].priceBottom = boxBottom;
-         boxCount++;
+         ArrayResize(g_drawnBoxes, g_boxCount + 1);
+         g_drawnBoxes[g_boxCount].boxName  = boxName;
+         g_drawnBoxes[g_boxCount].swingIdx = i;
+         g_drawnBoxes[g_boxCount].t1       = t1;
+         g_drawnBoxes[g_boxCount].t2       = t2;
+         g_drawnBoxes[g_boxCount].top      = boxTop;
+         g_drawnBoxes[g_boxCount].bottom   = boxBottom;
+         g_boxCount++;
       }
 
-      // ذخیره کلید باکس و label برای این باکس
-      string boxKey = IntegerToString((int)cur.time) + "_" + IntegerToString((int)curLow.time);
-      
-      // ساخت label: مقدار pivot + نماد timeframe (مثلاً 3D یا 5W)
-      string tfSymbol = "";
-      if(tf == PERIOD_D1) tfSymbol = "D";
-      else if(tf == PERIOD_W1) tfSymbol = "W";
-      else if(tf == PERIOD_H4) tfSymbol = "H4";
-      else if(tf == PERIOD_H1) tfSymbol = "H1";
-      else if(tf == PERIOD_M15) tfSymbol = "M15";
-      else if(tf == PERIOD_M5) tfSymbol = "M5";
-      else if(tf == PERIOD_M1) tfSymbol = "M1";
-      else tfSymbol = TFName(tf);
-      
-      string labelText = IntegerToString(pivotBars) + tfSymbol;
-      
-      // اضافه کردن این label به آرایه
-      int size = ArrayRange(boxLabels, 0);
-      bool found = false;
-      
-      // پیدا کردن باکس در آرایه
-      for(int b = 0; b < size; b++)
+      // Draw Label directly
+      if(InpShowLabel)
       {
-         if(boxLabels[b][0] == boxKey)
-         {
-            // اضافه کردن label با -
-            if(boxLabels[b][1] != "")
-               boxLabels[b][1] += "-" + labelText;
-            else
-               boxLabels[b][1] = labelText;
-            found = true;
-            break;
-         }
-      }
-      
-      // اگر باکس جدید است، اضافه کن
-      if(!found)
-      {
-         ArrayResize(boxLabels, size + 1, size + 100);
-         boxLabels[size][0] = boxKey;
-         boxLabels[size][1] = labelText;
+         double labelPrice = boxTop + (boxTop - boxBottom) * 0.08;
+         datetime labelTime = (datetime)((t1 + t2) / 2);
+         string lblName = "FLAG_LBL_" + tfTag + "_" + boxKey;
+         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
+         ObjectSetString(0, lblName, OBJPROP_TEXT, tfSymbol);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, clr);
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 9);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
       }
    }
 }
 
+//+------------------------------------------------------------------+
+//| Print Box Diagnostic Data for Targeted Removal (3-Pivots Deep)   |
+//+------------------------------------------------------------------+
+void PrintBoxRemovalInfo(int bIdx)
+{
+   if(bIdx < 0 || bIdx >= g_boxCount) return;
+
+   int swIdx = g_drawnBoxes[bIdx].swingIdx;
+   if(swIdx < 0 || swIdx >= g_pivotCountH1 - 1) return;
+
+   SPivot p1 = g_pivotsH1[swIdx];
+   SPivot p2 = g_pivotsH1[swIdx + 1];
+
+   g_clickCounter++;
+   string legType = (p1.isHigh ? "نزولی (Drop: " + p1.label + " -> " + p2.label + ")" : "صعودی (Rally: " + p1.label + " -> " + p2.label + ")");
+
+   // Highlight clicked box in Magenta to show it was selected
+   ObjectSetInteger(0, g_drawnBoxes[bIdx].boxName, OBJPROP_COLOR, clrMagenta);
+   ObjectSetInteger(0, g_drawnBoxes[bIdx].boxName, OBJPROP_WIDTH, 4);
+
+   Print("══════════════════════════════════════════════════════════════════════");
+   Print("❌ [باکس انتخاب‌شده جهت بررسی و حذف #", g_clickCounter, "]");
+   Print("📍 جهت یال: ", legType);
+   Print("📌 شروع یال (P1): [", p1.label, "] = ", DoubleToString(p1.price, _Digits), " | زمان=", TimeToString(p1.time));
+   Print("📌 پایان یال (P2): [", p2.label, "] = ", DoubleToString(p2.price, _Digits), " | زمان=", TimeToString(p2.time));
+   
+   Print("--- ⬅️ ۳ پیووت قبلی ---");
+   if(swIdx >= 1)
+      Print("   ⬅️ ۱ پیووت قبل (P-1): [", g_pivotsH1[swIdx-1].label, "] = ", DoubleToString(g_pivotsH1[swIdx-1].price, _Digits), " | زمان=", TimeToString(g_pivotsH1[swIdx-1].time));
+   if(swIdx >= 2)
+      Print("   ⬅️ ۲ پیووت قبل (P-2): [", g_pivotsH1[swIdx-2].label, "] = ", DoubleToString(g_pivotsH1[swIdx-2].price, _Digits), " | زمان=", TimeToString(g_pivotsH1[swIdx-2].time));
+   if(swIdx >= 3)
+      Print("   ⬅️ ۳ پیووت قبل (P-3): [", g_pivotsH1[swIdx-3].label, "] = ", DoubleToString(g_pivotsH1[swIdx-3].price, _Digits), " | زمان=", TimeToString(g_pivotsH1[swIdx-3].time));
+
+   Print("--- ➡️ ۳ پیووت بعدی ---");
+   if(swIdx + 2 < g_pivotCountH1)
+      Print("   ➡️ ۱ پیووت بعد از P2 (P+2): [", g_pivotsH1[swIdx+2].label, "] = ", DoubleToString(g_pivotsH1[swIdx+2].price, _Digits), " | زمان=", TimeToString(g_pivotsH1[swIdx+2].time));
+   if(swIdx + 3 < g_pivotCountH1)
+      Print("   ➡️ ۲ پیووت بعد از P2 (P+3): [", g_pivotsH1[swIdx+3].label, "] = ", DoubleToString(g_pivotsH1[swIdx+3].price, _Digits), " | زمان=", TimeToString(g_pivotsH1[swIdx+3].time));
+   if(swIdx + 4 < g_pivotCountH1)
+      Print("   ➡️ ۳ پیووت بعد از P2 (P+4): [", g_pivotsH1[swIdx+4].label, "] = ", DoubleToString(g_pivotsH1[swIdx+4].price, _Digits), " | زمان=", TimeToString(g_pivotsH1[swIdx+4].time));
+
+   Print("📋 مشخصات خلاصه:");
+   Print("   p1=", p1.price, " (", p1.label, "), p2=", p2.price, " (", p2.label, ")");
+   Print("══════════════════════════════════════════════════════════════════════");
+   ChartRedraw(0);
+}
+
+//+------------------------------------------------------------------+
+//| Find Nearest Drawn Box to Click                                  |
+//+------------------------------------------------------------------+
+int FindNearestBox(datetime clickTime, double clickPrice)
+{
+   if(g_boxCount <= 0) return -1;
+
+   int bestIdx = -1;
+   double minDistance = DBL_MAX;
+
+   for(int i = 0; i < g_boxCount; i++)
+   {
+      datetime t1 = g_drawnBoxes[i].t1;
+      datetime t2 = g_drawnBoxes[i].t2;
+      double top = g_drawnBoxes[i].top;
+      double bottom = g_drawnBoxes[i].bottom;
+
+      if(clickTime >= t1 - PeriodSeconds(_Period)*3 && clickTime <= t2 + PeriodSeconds(_Period)*3)
+      {
+         double midPrice = (top + bottom) / 2.0;
+         double dist = MathAbs(clickPrice - midPrice);
+         if(dist < minDistance)
+         {
+            minDistance = dist;
+            bestIdx = i;
+         }
+      }
+   }
+
+   return bestIdx;
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   IndicatorSetString(INDICATOR_SHORTNAME, "Flag v6.00");
+   if(InpHideGrid)
+      ChartSetInteger(0, CHART_SHOW_GRID, false);
+   if(InpHideVolumes)
+      ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
+
+   ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
+   ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
+
+   ObjectsDeleteAll(0, "FLAG_");
+   ChartRedraw(0);
+   IndicatorSetString(INDICATOR_SHORTNAME, "Flag v39.00 (3-Pivot Inspector)");
+   Print("🎯 Flag v39 آماده است: روی هر باکسی کلیک کنید، اطلاعات کامل ۳ پیووت قبل و ۳ پیووت بعد در تب Experts چاپ می‌شود.");
    return INIT_SUCCEEDED;
 }
 
+//+------------------------------------------------------------------+
+//| Custom indicator deinitialization function                       |
+//+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
    ObjectsDeleteAll(0, "FLAG_");
-   g_boxesDrawn = false; // ریست کردن فلگ
+   ChartRedraw(0);
 }
 
 //+------------------------------------------------------------------+
-
+//| Custom indicator iteration function                              |
 //+------------------------------------------------------------------+
 int OnCalculate(const int rates_total,
                 const int prev_calculated,
@@ -836,232 +399,60 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < 10) return 0;
 
-   // اگر قبلاً باکس‌ها رسم شده‌اند، دیگر رفرش نکن
-   if(g_boxesDrawn && prev_calculated > 0)
-   {
-      return rates_total;
-   }
-   
-   // فقط یک بار باکس‌ها را بکش
-   if(prev_calculated == 0 || !g_boxesDrawn)
-   {
-      Print("🎨 Flag: رسم باکس‌ها...");
-      
-      ObjectsDeleteAll(0, "FLAG_");
+   if(InpHideGrid)
+      ChartSetInteger(0, CHART_SHOW_GRID, false);
+   if(InpHideVolumes)
+      ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
 
-      static datetime lastSrcTime[7] = {0, 0, 0, 0, 0, 0, 0};
+   ObjectsDeleteAll(0, "FLAG_");
+   ArrayResize(g_drawnBoxes, 0);
+   g_boxCount = 0;
 
-      ENUM_TIMEFRAMES tfArr[7]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
-      bool            useArr[7] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
+   ENUM_TIMEFRAMES tfArr[7]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
+   bool            useArr[7] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
+   color           tfColorArr[7] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
+   int             daysBackArr[7] = {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
 
-      int pivotBarsArr[3] = {InpPivotBars1, InpPivotBars2, InpPivotBars3};
-      bool usePivotArr[3] = {InpUsePivot1, InpUsePivot2, InpUsePivot3};
-   
-      // آرایه برای ذخیره label های هر باکس
-      string boxLabels[][2]; // [i][0] = boxKey, [i][1] = combined label
-      ArrayResize(boxLabels, 0);
-   
-      // آرایه رنگ‌ها برای هر timeframe
-      color tfColorArr[7] = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
-   
-      // آرایه برای ذخیره باکس‌های H1
-      SBox h1Boxes[];
-      ArrayResize(h1Boxes, 0);
-   
-      Print("useArr[0]=", useArr[0], " useArr[1]=", useArr[1], " useArr[2]=", useArr[2], " useArr[3]=", useArr[3], " useArr[4]=", useArr[4], " useArr[5]=", useArr[5], " useArr[6]=", useArr[6]);
-      Print("TF1=", tfArr[0], " TF2=", tfArr[1], " TF3=", tfArr[2], " TF4=", tfArr[3], " TF5=", tfArr[4], " TF6=", tfArr[5], " TF7=", tfArr[6]);
-   
-      // مرحله 1: ابتدا باکس‌های H1 را پردازش و ذخیره کن
-      for(int s = 0; s < 5; s++)
-      {
-      if(!useArr[s]) continue;
-      
-      ENUM_TIMEFRAMES currentTF = tfArr[s];
-      color currentColor = tfColorArr[s];
-      
-      // فقط H1 را در این مرحله پردازش کن
-      if(currentTF != PERIOD_H1) continue;
-      
-      Print("Processing H1 to collect boxes");
-      
-      for(int p = 0; p < 3; p++)
-      {
-         if(!usePivotArr[p]) continue;
-         
-         // برای H1 فقط pivot 3 و 5 را فعال کن
-         if(pivotBarsArr[p] != 3 && pivotBarsArr[p] != 5) continue;
-         
-         Print("Collecting H1 boxes with pivotBars=", pivotBarsArr[p]);
-         
-         // پردازش و ذخیره باکس‌های H1
-         SBox tempBoxes[];
-         SBox emptyFilter[]; // آرایه خالی برای فیلتر
-         ProcessTF(currentTF, pivotBarsArr[p], currentColor, time, high, low, rates_total, boxLabels, 0, tempBoxes, 0, emptyFilter);
-         
-         // اضافه کردن به آرایه اصلی
-         int oldSize = ArraySize(h1Boxes);
-         int newSize = ArraySize(tempBoxes);
-         ArrayResize(h1Boxes, oldSize + newSize);
-         for(int b = 0; b < newSize; b++)
-         {
-            h1Boxes[oldSize + b] = tempBoxes[b];
-         }
-      }
-      
-      break; // فقط یک بار H1 را پردازش کن
-   }
-   
-   Print("Total H1 boxes collected: ", ArraySize(h1Boxes));
-   
-   // محدود کردن به 400 باکس اخیر H1
-   int h1Count = ArraySize(h1Boxes);
-   if(h1Count > 400)
-   {
-      // حذف باکس‌های قدیمی (ابتدای آرایه)
-      int toRemove = h1Count - 400;
-      for(int i = 0; i < 400; i++)
-      {
-         h1Boxes[i] = h1Boxes[i + toRemove];
-      }
-      ArrayResize(h1Boxes, 400);
-      h1Count = 400;
-   }
-   
-   Print("H1 boxes after limiting to 400: ", h1Count);
-   
-   // مرحله 2: پردازش بقیه timeframe ها
    for(int s = 0; s < 7; s++)
    {
-      if(!useArr[s]) 
-      {
-         Print("Skipping TF ", s, " because useArr is false");
-         continue;
-      }
-      
+      if(!useArr[s]) continue;
+
       ENUM_TIMEFRAMES currentTF = tfArr[s];
-      color currentColor = tfColorArr[s]; // رنگ این timeframe
-      
-      Print("Processing TF ", s, ": ", currentTF, " with color: ", currentColor);
-      
-      // برای M15 بدون فیلتر - همه باکس‌ها رسم می‌شوند
-      if(currentTF == PERIOD_M15)
-      {
-         // فقط pivot 3
-         if(InpUsePivot1 && InpPivotBars1 == 3)
-         {
-            Print("Calling ProcessTF for M15 with pivotBars=3, NO FILTER");
-            SBox dummyBoxes[];
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM15DaysBack, dummyBoxes, 0, dummyBoxes); // filterCount = 0
-         }
-         continue; // بقیه pivot ها برای M15 اجرا نشوند
-      }
-      
-      // برای M5 بدون فیلتر H1
-      if(currentTF == PERIOD_M5)
-      {
-         // فقط pivot 3
-         if(InpUsePivot1 && InpPivotBars1 == 3)
-         {
-            Print("Calling ProcessTF for M5 with pivotBars=3, NO FILTER");
-            SBox dummyBoxes[];
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM5DaysBack, dummyBoxes, 0, dummyBoxes);
-         }
-         continue; // بقیه pivot ها برای M5 اجرا نشوند
-      }
-      
-      // برای M1 بدون فیلتر H1
-      if(currentTF == PERIOD_M1)
-      {
-         // فقط pivot 3
-         if(InpUsePivot1 && InpPivotBars1 == 3)
-         {
-            Print("Calling ProcessTF for M1 with pivotBars=3, NO FILTER");
-            SBox dummyBoxes[];
-            ProcessTF(currentTF, 3, currentColor, time, high, low, rates_total, boxLabels, InpM1DaysBack, dummyBoxes, 0, dummyBoxes);
-         }
-         continue; // بقیه pivot ها برای M1 اجرا نشوند
-      }
-      
-      // H1 قبلاً پردازش شده، رد کن
-      if(currentTF == PERIOD_H1) continue;
-      
-      // برای هر pivotBars که فعال است
-      for(int p = 0; p < 3; p++)
-      {
-         if(!usePivotArr[p]) continue; // اگر این pivotBars غیرفعال است، رد شو
-         
-         // برای تایم فریم هفتگی فقط 3 و 5 را فعال کن (نه 8)
-         if(currentTF == PERIOD_W1 && pivotBarsArr[p] == 8) continue;
-         
-         // برای H4 فقط pivot 5 را فعال کن
-         if(currentTF == PERIOD_H4 && pivotBarsArr[p] != 5) continue;
-         
-         // Debug: چاپ کردن برای بررسی
-         Print("Calling ProcessTF with TF=", currentTF, " pivotBars=", pivotBarsArr[p], " color=", currentColor);
-         
-         SBox dummyBoxes[];
-         SBox emptyFilter[];
-         ProcessTF(currentTF, pivotBarsArr[p], currentColor, time, high, low, rates_total, boxLabels, 0, dummyBoxes, 0, emptyFilter);
-      }
+      color currentColor = tfColorArr[s];
+      int daysBack = daysBackArr[s];
+
+      ProcessTF(currentTF, InpSwingBars, currentColor, time, high, low, rates_total, daysBack);
    }
 
-   // حالا label های ترکیبی را رسم کن
-   if(InpShowLabel)
-   {
-      int labelCount = ArrayRange(boxLabels, 0);
-      
-      for(int i = 0; i < labelCount; i++)
-      {
-         string boxKey = boxLabels[i][0];
-         string combinedLabel = boxLabels[i][1];
-         
-         if(combinedLabel == "") continue;
-         
-         // حذف تکراری‌ها از label
-         combinedLabel = RemoveDuplicates(combinedLabel);
-         
-         // پیدا کردن اولین باکس با این کلید برای گرفتن موقعیت
-         string searchPrefix = "FLAG_BOX_";
-         int totalObjects = ObjectsTotal(0, 0, OBJ_RECTANGLE);
-         
-         for(int obj = 0; obj < totalObjects; obj++)
-         {
-            string objName = ObjectName(0, obj, 0, OBJ_RECTANGLE);
-            
-            if(StringFind(objName, searchPrefix) == 0 && StringFind(objName, boxKey) > 0)
-            {
-               // پیدا کردن موقعیت باکس
-               datetime t1 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 0);
-               datetime t2 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 1);
-               double top = ObjectGetDouble(0, objName, OBJPROP_PRICE, 0);
-               double bottom = ObjectGetDouble(0, objName, OBJPROP_PRICE, 1);
-               color boxColor = (color)ObjectGetInteger(0, objName, OBJPROP_COLOR);
-               
-               // محاسبه موقعیت label
-               double labelPrice = top + (top - bottom) * 0.12;
-               datetime labelTime = (datetime)((t1 + t2) / 2); // وسط باکس
-               
-               // رسم label
-               string lblName = "FLAG_LBL_" + boxKey;
-               if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-               
-               ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
-               ObjectSetString(0, lblName, OBJPROP_TEXT, combinedLabel);
-               ObjectSetInteger(0, lblName, OBJPROP_COLOR, boxColor);
-               ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 9);
-               ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
-               
-               break; // فقط یک label برای هر باکس
-            }
-         }
-      }
-   }
-   
-      // باکس‌ها رسم شدند، فلگ را فعال کن
-      g_boxesDrawn = true;
-      Print("✅ Flag: باکس‌ها رسم شدند - دیگر رفرش نمی‌شوند");
-   }  // بستن if(prev_calculated == 0 || !g_boxesDrawn)
-
+   ChartRedraw(0);
    return rates_total;
+}
+
+//+------------------------------------------------------------------+
+//| ChartEvent: Handle User Click on Box                             |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id,
+                  const long &lparam,
+                  const double &dparam,
+                  const string &sparam)
+{
+   if(id == CHARTEVENT_CLICK)
+   {
+      int x = (int)lparam;
+      int y = (int)dparam;
+
+      datetime dt;
+      double price;
+      int window = 0;
+
+      if(ChartXYToTimePrice(0, x, y, window, dt, price))
+      {
+         int boxIdx = FindNearestBox(dt, price);
+         if(boxIdx >= 0)
+         {
+            PrintBoxRemovalInfo(boxIdx);
+         }
+      }
+   }
 }
 //+------------------------------------------------------------------+
