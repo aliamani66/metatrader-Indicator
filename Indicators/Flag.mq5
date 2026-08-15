@@ -151,9 +151,17 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
    {
       if(prevL > 0 && p2.price > prevL)
       {
-         // اگر سقف بعدی پایین‌تر از P1 باشد (چرخش به روند نزولی)، این یال موج ریزش اولیه است نه پرچم!
-         if(nextH > 0 && nextH < p1.price)
+         // اگر سقف بعد و کف بعد هر دو پایین‌تر بیایند -> چرخش روند
+         if(nextH > 0 && nextH < p1.price && nextL > 0 && nextL < p2.price)
             return false;
+
+         // اگر شروع یال (P1) مستقیماً از یک کف پایین‌تر (LL) آمده باشد (اسپایک چرخش از نزولی)
+         // برای تأیید پرچم صعودی، سقف‌های بعدی حتماً باید سقف P1 را بشکنند
+         if(idx >= 3 && pivots[idx - 1].price < pivots[idx - 3].price)
+         {
+            if(nextH > 0 && nextH <= p1.price)
+               return false;
+         }
 
          return true;
       }
@@ -163,9 +171,17 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
    {
       if(prevH > 0 && p2.price < prevH)
       {
-         // اگر کف بعدی بالاتر از P1 باشد (چرخش به روند صعودی)، این یال موج صعود اولیه است نه پرچم!
-         if(nextL > 0 && nextL > p1.price)
+         // اگر کف بعد و سقف بعد هر دو بالاتر بیایند -> چرخش روند
+         if(nextL > 0 && nextL > p1.price && nextH > 0 && nextH > p2.price)
             return false;
+
+         // اگر شروع یال (P1) مستقیماً از یک سقف بالاتر (HH) آمده باشد (اسپایک چرخش از صعودی)
+         // برای تأیید پرچم نزولی، کف‌های بعدی حتماً باید کف P1 را بشکنند
+         if(idx >= 3 && pivots[idx - 1].price > pivots[idx - 3].price)
+         {
+            if(nextL > 0 && nextL >= p1.price)
+               return false;
+         }
 
          return true;
       }
@@ -182,10 +198,16 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
                int ratesTotal, int daysBack)
 {
    SPivot pivots[];
-   if(!BuildAlternatingPivots(tf, sBars, InpMaxBarsTF, pivots)) return;
+   if(!BuildAlternatingPivots(tf, sBars, InpMaxBarsTF, pivots))
+   {
+      Print("⚠️ [Flag] اطلاعات تایم‌فریم ", EnumToString(tf), " هنوز کامل لود نشده یا پیووتی نیافت.");
+      return;
+   }
 
    int count = ArraySize(pivots);
    if(count < 2) return;
+
+   Print("✅ [Flag] تایم‌فریم ", EnumToString(tf), " با موفقیت ", count, " پیووت ماژور شناسایی کرد.");
 
    if(tf == PERIOD_H1)
    {
@@ -222,9 +244,21 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       int idxStart = MathMin(idx1, idx2);
       int idxEnd   = MathMax(idx1, idx2);
 
+      // ===== امتداد به عقب (Backward Extension) =====
       int leftIdx = idxStart;
+      for(int k = idxStart - 1; k >= 0; k--)
+      {
+         bool candleInsideBox = (chartLow[k] >= boxBottom && chartHigh[k] <= boxTop);
+         if(!candleInsideBox)
+         {
+            leftIdx = k + 1;
+            break;
+         }
+         leftIdx = k;
+      }
+      if(leftIdx > 0) leftIdx--;
 
-      // Forward extension: extend from end of swing until breakout
+      // ===== امتداد به جلو (Forward Extension) =====
       int rightIdx = idxEnd;
       for(int k = idxEnd + 1; k < ratesTotal; k++)
       {
@@ -235,7 +269,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
          }
          rightIdx = k;
       }
-      if(rightIdx <= idxStart && idxStart < ratesTotal - 1) rightIdx = idxStart + 1;
+      if(rightIdx <= leftIdx && leftIdx < ratesTotal - 1) rightIdx = leftIdx + 1;
       if(rightIdx < ratesTotal - 1) rightIdx++;
 
       datetime t1 = chartTime[leftIdx];

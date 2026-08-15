@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
 //| MarketStructure_v2.mq5                                           |
-//| Market Structure Indicator (Direct Shared Engine)                |
+//| Clean Market Structure Indicator (Lines Only, No Labels/Dots)    |
 //+------------------------------------------------------------------+
 #property copyright "Market Structure v2"
 #property link      ""
-#property version   "33.00"
+#property version   "35.00"
 #property indicator_chart_window
-#property indicator_buffers 4
-#property indicator_plots   2
+#property indicator_buffers 2
+#property indicator_plots   1
 
 //--- Plot 1: ZigZag Structure Line (Color Section)
 #property indicator_label1  "Structure Line"
@@ -15,12 +15,6 @@
 #property indicator_color1  clrDodgerBlue, clrCrimson
 #property indicator_style1  STYLE_SOLID
 #property indicator_width1  2
-
-//--- Plot 2: Pivot Points (Color Arrow)
-#property indicator_label2  "Pivot Dot"
-#property indicator_type2   DRAW_COLOR_ARROW
-#property indicator_color2  clrDodgerBlue, clrCrimson
-#property indicator_width2  3
 
 #include <MarketStructureEngine.mqh>
 
@@ -33,22 +27,20 @@ input group "=== Structure Calculation (matches Flag) ==="
 input int    InpSwingBars         = 6;             // عمق امواج ماژور (Swing Bars - پیش‌فرض 6)
 input int    InpMaxBars           = 3000;          // حداکثر کندل‌های محاسبه (Max Bars)
 
-input group "=== Visuals & Labels ==="
-input bool   InpShowLabels        = true;          // نمایش برچسب‌های HH, LH, LL, HL
-input color  InpColorBullish      = clrDodgerBlue; // رنگ صعودی (HH / HL)
-input color  InpColorBearish      = clrCrimson;    // رنگ نزولی (LH / LL)
-input int    InpFontSize          = 10;            // اندازه فونت برچسب‌ها
-input string InpFontName          = "Trebuchet MS";// نام فونت
+input group "=== Visuals ==="
+input color  InpColorBullish      = clrDodgerBlue; // رنگ صعودی
+input color  InpColorBearish      = clrCrimson;    // رنگ نزولی
+input color  InpHighlightColor    = clrYellow;     // رنگ یال انتخاب‌شده با کلیک
+input int    InpHighlightWidth    = 4;             // ضخامت یال زرد
 
 //--- Buffers
 double BufferLine[];
 double BufferLineColor[];
-double BufferArrow[];
-double BufferArrowColor[];
 
 // Global storage for current swings
 SPivot g_swings[];
 int    g_swingCount = 0;
+int    g_clickCount = 0;
 
 //--- Prefix for chart objects
 const string OBJ_PREFIX = "MSv2_";
@@ -79,25 +71,22 @@ int OnInit()
 {
    SetIndexBuffer(0, BufferLine,       INDICATOR_DATA);
    SetIndexBuffer(1, BufferLineColor,  INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(2, BufferArrow,      INDICATOR_DATA);
-   SetIndexBuffer(3, BufferArrowColor, INDICATOR_COLOR_INDEX);
-
-   PlotIndexSetInteger(1, PLOT_ARROW, 159); // Dot arrow
 
    PlotIndexSetDouble(0, PLOT_EMPTY_VALUE, 0.0);
    PlotIndexSetDouble(1, PLOT_EMPTY_VALUE, 0.0);
-   PlotIndexSetDouble(2, PLOT_EMPTY_VALUE, 0.0);
-   PlotIndexSetDouble(3, PLOT_EMPTY_VALUE, 0.0);
 
    if(InpHideGrid)
       ChartSetInteger(0, CHART_SHOW_GRID, false);
    if(InpHideVolumes)
       ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
 
+   ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
+   ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
+
    ObjectsDeleteAll(0, OBJ_PREFIX);
    ChartRedraw(0);
 
-   IndicatorSetString(INDICATOR_SHORTNAME, "MarketStructure v33.0");
+   IndicatorSetString(INDICATOR_SHORTNAME, "MarketStructure v35.0 (Clean Lines)");
    return INIT_SUCCEEDED;
 }
 
@@ -108,31 +97,6 @@ void OnDeinit(const int reason)
 {
    ObjectsDeleteAll(0, OBJ_PREFIX);
    ChartRedraw(0);
-}
-
-//+------------------------------------------------------------------+
-//| Helper: Create or update text label on chart                     |
-//+------------------------------------------------------------------+
-void DrawLabel(string name, datetime t, double price, string text, color clr, bool above)
-{
-   if(ObjectFind(0, name) < 0)
-   {
-      ObjectCreate(0, name, OBJ_TEXT, 0, t, price);
-   }
-   
-   ObjectSetString(0, name, OBJPROP_TEXT, text);
-   ObjectSetString(0, name, OBJPROP_FONT, InpFontName);
-   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, InpFontSize);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
-   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-   ObjectSetInteger(0, name, OBJPROP_HIDDEN, true);
-   ObjectSetDouble(0, name, OBJPROP_PRICE, price);
-   ObjectSetInteger(0, name, OBJPROP_TIME, t);
-
-   if(above)
-      ObjectSetInteger(0, name, OBJPROP_ANCHOR, ANCHOR_LOWER);
-   else
-      ObjectSetInteger(0, name, OBJPROP_ANCHOR, ANCHOR_UPPER);
 }
 
 //+------------------------------------------------------------------+
@@ -161,8 +125,6 @@ int OnCalculate(const int rates_total,
    //--- Clear Buffers
    ArrayInitialize(BufferLine, 0.0);
    ArrayInitialize(BufferLineColor, 0.0);
-   ArrayInitialize(BufferArrow, 0.0);
-   ArrayInitialize(BufferArrowColor, 0.0);
 
    SPivot pivots[];
    if(!BuildAlternatingPivots(_Period, sBars, InpMaxBars, pivots))
@@ -172,7 +134,7 @@ int OnCalculate(const int rates_total,
    if(sCount < 2)
       return rates_total;
 
-   // Store globally
+   // Store globally for click handler
    ArrayResize(g_swings, sCount);
    for(int i = 0; i < sCount; i++)
    {
@@ -184,10 +146,10 @@ int OnCalculate(const int rates_total,
    }
    g_swingCount = sCount;
 
-   // Clear old labels
+   // Clear any leftover labels
    ObjectsDeleteAll(0, OBJ_PREFIX + "Lbl_");
 
-   // Render ZigZag Lines and Points
+   // Render Clean ZigZag Lines right on the chart bars
    for(int i = 0; i < sCount; i++)
    {
       int chartBar = FindChartBarIndex(time, rates_total, g_swings[i].time);
@@ -203,17 +165,144 @@ int OnCalculate(const int rates_total,
 
       BufferLine[chartBar]      = pr;
       BufferLineColor[chartBar] = legColor;
-
-      BufferArrow[chartBar]      = pr;
-      BufferArrowColor[chartBar] = (g_swings[i].clr == InpColorBullish) ? 0 : 1;
-
-      if(InpShowLabels)
-      {
-         string objName = OBJ_PREFIX + "Lbl_" + IntegerToString(i);
-         DrawLabel(objName, g_swings[i].time, pr, g_swings[i].label, g_swings[i].clr, g_swings[i].isHigh);
-      }
    }
 
    return rates_total;
+}
+
+//+------------------------------------------------------------------+
+//| Find nearest swing leg to click                                  |
+//+------------------------------------------------------------------+
+int FindNearestSwingLeg(datetime clickTime, double clickPrice)
+{
+   if(g_swingCount < 2) return -1;
+
+   int bestIdx = -1;
+   double minDistance = DBL_MAX;
+
+   for(int i = 0; i < g_swingCount - 1; i++)
+   {
+      datetime t1 = g_swings[i].time;
+      datetime t2 = g_swings[i + 1].time;
+      double   p1 = g_swings[i].price;
+      double   p2 = g_swings[i + 1].price;
+
+      datetime tStart = MathMin(t1, t2);
+      datetime tEnd   = MathMax(t1, t2);
+
+      if(clickTime >= tStart - PeriodSeconds(_Period)*3 && clickTime <= tEnd + PeriodSeconds(_Period)*3)
+      {
+         double expectedPrice = p1;
+         if(t2 != t1)
+         {
+            double ratio = (double)(clickTime - t1) / (double)(t2 - t1);
+            ratio = MathMax(0.0, MathMin(1.0, ratio));
+            expectedPrice = p1 + ratio * (p2 - p1);
+         }
+
+         double dist = MathAbs(clickPrice - expectedPrice);
+         if(dist < minDistance)
+         {
+            minDistance = dist;
+            bestIdx = i;
+         }
+      }
+   }
+
+   if(bestIdx == -1)
+   {
+      for(int i = 0; i < g_swingCount - 1; i++)
+      {
+         datetime midTime = (datetime)((g_swings[i].time + g_swings[i + 1].time) / 2);
+         double timeDiff = (double)MathAbs(clickTime - midTime);
+         if(timeDiff < minDistance)
+         {
+            minDistance = timeDiff;
+            bestIdx = i;
+         }
+      }
+   }
+
+   return bestIdx;
+}
+
+//+------------------------------------------------------------------+
+//| Highlight clicked swing leg with Yellow Line & Print Diagnostics |
+//+------------------------------------------------------------------+
+void HighlightSwingLeg(int idx)
+{
+   if(idx < 0 || idx >= g_swingCount - 1) return;
+
+   SPivot p1 = g_swings[idx];
+   SPivot p2 = g_swings[idx + 1];
+
+   g_clickCount++;
+   string lineName = OBJ_PREFIX + "HIGHLIGHT_LEG";
+   if(ObjectFind(0, lineName) >= 0)
+      ObjectDelete(0, lineName);
+
+   ObjectCreate(0, lineName, OBJ_TREND, 0, p1.time, p1.price, p2.time, p2.price);
+   ObjectSetInteger(0, lineName, OBJPROP_COLOR,      InpHighlightColor);
+   ObjectSetInteger(0, lineName, OBJPROP_WIDTH,      InpHighlightWidth);
+   ObjectSetInteger(0, lineName, OBJPROP_STYLE,      STYLE_SOLID);
+   ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT,  false);
+   ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, lineName, OBJPROP_BACK,       false);
+
+   string legType = (p1.isHigh ? "نزولی (Drop: " + p1.label + " -> " + p2.label + ")" : "صعودی (Rally: " + p1.label + " -> " + p2.label + ")");
+   Print("══════════════════════════════════════════════════════════════════════");
+   Print("🟡 [یال ماژور زرد انتخاب‌شده #", g_clickCount, "]");
+   Print("📍 جهت یال: ", legType);
+   Print("📌 شروع (P1): [", p1.label, "] = ", DoubleToString(p1.price, _Digits), " | زمان=", TimeToString(p1.time));
+   Print("📌 پایان (P2): [", p2.label, "] = ", DoubleToString(p2.price, _Digits), " | زمان=", TimeToString(p2.time));
+   
+   Print("--- ⬅️ ۳ پیووت قبل ---");
+   if(idx >= 1)
+      Print("   ⬅️ ۱ پیووت قبل (P-1): [", g_swings[idx-1].label, "] = ", DoubleToString(g_swings[idx-1].price, _Digits), " | زمان=", TimeToString(g_swings[idx-1].time));
+   if(idx >= 2)
+      Print("   ⬅️ ۲ پیووت قبل (P-2): [", g_swings[idx-2].label, "] = ", DoubleToString(g_swings[idx-2].price, _Digits), " | زمان=", TimeToString(g_swings[idx-2].time));
+   if(idx >= 3)
+      Print("   ⬅️ ۳ پیووت قبل (P-3): [", g_swings[idx-3].label, "] = ", DoubleToString(g_swings[idx-3].price, _Digits), " | زمان=", TimeToString(g_swings[idx-3].time));
+
+   Print("--- ➡️ ۳ پیووت بعد ---");
+   if(idx + 2 < g_swingCount)
+      Print("   ➡️ ۱ پیووت بعد از P2 (P+2): [", g_swings[idx+2].label, "] = ", DoubleToString(g_swings[idx+2].price, _Digits), " | زمان=", TimeToString(g_swings[idx+2].time));
+   if(idx + 3 < g_swingCount)
+      Print("   ➡️ ۲ پیووت بعد از P2 (P+3): [", g_swings[idx+3].label, "] = ", DoubleToString(g_swings[idx+3].price, _Digits), " | زمان=", TimeToString(g_swings[idx+3].time));
+   if(idx + 4 < g_swingCount)
+      Print("   ➡️ ۳ پیووت بعد از P2 (P+4): [", g_swings[idx+4].label, "] = ", DoubleToString(g_swings[idx+4].price, _Digits), " | زمان=", TimeToString(g_swings[idx+4].time));
+
+   Print("📋 مشخصات خلاصه:");
+   Print("   p1=", p1.price, " (", p1.label, "), p2=", p2.price, " (", p2.label, ")");
+   Print("══════════════════════════════════════════════════════════════════════");
+   ChartRedraw(0);
+}
+
+//+------------------------------------------------------------------+
+//| ChartEvent: Handle Mouse Click                                   |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id,
+                  const long &lparam,
+                  const double &dparam,
+                  const string &sparam)
+{
+   if(id == CHARTEVENT_CLICK)
+   {
+      int x = (int)lparam;
+      int y = (int)dparam;
+
+      datetime dt;
+      double price;
+      int window = 0;
+
+      if(ChartXYToTimePrice(0, x, y, window, dt, price))
+      {
+         int legIdx = FindNearestSwingLeg(dt, price);
+         if(legIdx >= 0)
+         {
+            HighlightSwingLeg(legIdx);
+         }
+      }
+   }
 }
 //+------------------------------------------------------------------+
