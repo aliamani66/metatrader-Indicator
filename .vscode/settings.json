@@ -31,17 +31,13 @@
 
   
   
-    "anthropic.apiKey": "sk-6166cc8495a65cea-b24sry-c5c502ed",
+    "anthropic.apiKey": "sk-ff333d1922bf392d-257ee9-87e13344",
     "anthropic.baseUrl": "http://localhost:20128/v1",
     
     "cline.apiProvider": "anthropic",
-    "cline.anthropicApiKey": "sk-6166cc8495a65cea-b24sry-c5c502ed", 
+    "cline.anthropicApiKey": "sk-ff333d1922bf392d-257ee9-87e13344", 
     "cline.anthropicBaseUrl": "http://localhost:20128/v1",
-    "cline.anthropicModel": "claude-3-5-sonnet-20241022"
-
-
-
-
-
-
+    "cline.anthropicModel": "claude-3-5-sonnet-20241022",
+    "claudeCodeChat.permissions.yoloMode": false,
+    "editor.rtl": true
 }

@@ -22,7 +22,7 @@ input bool             InpUseTF2  = false;
 input color            InpColorTF2 = clrDodgerBlue;
 
 input ENUM_TIMEFRAMES InpTF3      = PERIOD_H4;
-input bool             InpUseTF3  = false;
+input bool             InpUseTF3  = true;           // چهارساعته (H4) فعال شد
 input color            InpColorTF3 = clrWhite;
 
 input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
