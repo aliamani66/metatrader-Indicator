@@ -1,10 +1,10 @@
 //+------------------------------------------------------------------+
 //| MarketStructure_v2.mq5                                           |
-//| Pure Price-Action Swings (No Fake Swings on Consecutive Bars)   |
+//| Macro Market Structure (Guaranteed Absolute Extreme Lock)        |
 //+------------------------------------------------------------------+
 #property copyright "Market Structure v2"
 #property link      ""
-#property version   "12.00"
+#property version   "18.00"
 #property indicator_chart_window
 #property indicator_buffers 4
 #property indicator_plots   2
@@ -24,18 +24,19 @@
 
 //--- Inputs
 input group "=== Chart Display Settings ==="
-input bool   InpHideGrid          = true;        // حذف گرید از چارت (Hide Grid)
-input bool   InpHideVolumes       = true;        // حذف نمودار حجم پایین چارت (Hide Volumes)
+input bool   InpHideGrid          = true;          // حذف گرید از چارت (Hide Grid)
+input bool   InpHideVolumes       = true;          // حذف نمودار حجم پایین چارت (Hide Volumes)
 
-input group "=== Structure Calculation ==="
-input int    InpMaxBars           = 3000;        // حداکثر کندل‌های محاسبه (Max Bars)
+input group "=== Structure Calculation (Macro Scale) ==="
+input int    InpSwingBars         = 6;             // عمق امواج ماژور (6 تا 10 برای امواج بزرگ)
+input int    InpMaxBars           = 3000;          // حداکثر کندل‌های محاسبه (Max Bars)
 
 input group "=== Visuals & Labels ==="
-input bool   InpShowLabels        = true;        // نمایش برچسب‌های HH, LH, LL, HL
-input color  InpColorBullish      = clrDodgerBlue;// رنگ صعودی (HH / HL)
-input color  InpColorBearish      = clrCrimson;   // رنگ نزولی (LH / LL)
-input int    InpFontSize          = 9;           // اندازه فونت برچسب‌ها
-input string InpFontName          = "Trebuchet MS"; // نام فونت
+input bool   InpShowLabels        = true;          // نمایش برچسب‌های HH, LH, LL, HL
+input color  InpColorBullish      = clrDodgerBlue; // رنگ صعودی (HH / HL)
+input color  InpColorBearish      = clrCrimson;    // رنگ نزولی (LH / LL)
+input int    InpFontSize          = 10;            // اندازه فونت برچسب‌ها
+input string InpFontName          = "Trebuchet MS";// نام فونت
 
 //--- Buffers
 double BufferLine[];
@@ -81,7 +82,7 @@ int OnInit()
 
    ChartRedraw(0);
 
-   IndicatorSetString(INDICATOR_SHORTNAME, "MarketStructure v12.0");
+   IndicatorSetString(INDICATOR_SHORTNAME, "MarketStructure v18.0 (Macro)");
    return INIT_SUCCEEDED;
 }
 
@@ -133,7 +134,8 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
-   if(rates_total < 10)
+   int sBars = MathMax(2, InpSwingBars);
+   if(rates_total < sBars * 2 + 5)
       return 0;
 
    //--- Enforce chart settings
@@ -148,159 +150,270 @@ int OnCalculate(const int rates_total,
    ArrayInitialize(BufferArrow, 0.0);
    ArrayInitialize(BufferArrowColor, 0.0);
 
-   int startBar = MathMax(2, rates_total - InpMaxBars);
-   int endBar   = rates_total - 1;
+   int startBar = MathMax(sBars, rates_total - InpMaxBars);
+   int endBar   = rates_total - sBars - 1;
 
-   //--- Pure Price Action Swing State Machine
-   // +1 = UP leg (continuous rise), -1 = DOWN leg (continuous drop)
-   int dir = 1;
-   int peakBar = startBar;
-   double peakPrice = high[startBar];
-   int valleyBar = startBar;
-   double valleyPrice = low[startBar];
-
-   SPivot pivots[];
-   int pCount = 0;
+   //--- Step 1: Detect candidate fractal extremes
+   SPivot rawList[];
+   int rCount = 0;
 
    for(int i = startBar; i <= endBar; i++)
    {
-      if(dir == 1) // In Upward Leg
+      bool isH = true;
+      bool isL = true;
+
+      for(int k = 1; k <= sBars; k++)
       {
-         // If makes new high, leg extends
-         if(high[i] >= peakPrice)
-         {
-            peakPrice = high[i];
-            peakBar   = i;
-         }
-
-         // A true pullback occurs ONLY when candle makes a lower low than previous candle
-         // (and did NOT make a new peak on this candle)
-         if(low[i] < low[i - 1] && high[i] < peakPrice)
-         {
-            // Upward leg is complete: confirm Peak
-            ArrayResize(pivots, pCount + 1);
-            pivots[pCount].bar    = peakBar;
-            pivots[pCount].time   = time[peakBar];
-            pivots[pCount].price  = peakPrice;
-            pivots[pCount].isHigh = true;
-            pCount++;
-
-            // Switch to downward leg
-            dir         = -1;
-            valleyBar   = i;
-            valleyPrice = low[i];
-         }
+         if(high[i - k] > high[i] || high[i + k] > high[i])
+            isH = false;
+         if(low[i - k] < low[i] || low[i + k] < low[i])
+            isL = false;
       }
-      else // In Downward Leg
+
+      if(isH && !isL)
       {
-         // If makes new low, leg extends
-         if(low[i] <= valleyPrice)
-         {
-            valleyPrice = low[i];
-            valleyBar   = i;
-         }
-
-         // A true bounce occurs ONLY when candle makes a higher high than previous candle
-         // (and did NOT make a new valley on this candle)
-         if(high[i] > high[i - 1] && low[i] > valleyPrice)
-         {
-            // Downward leg is complete: confirm Valley
-            ArrayResize(pivots, pCount + 1);
-            pivots[pCount].bar    = valleyBar;
-            pivots[pCount].time   = time[valleyBar];
-            pivots[pCount].price  = valleyPrice;
-            pivots[pCount].isHigh = false;
-            pCount++;
-
-            // Switch to upward leg
-            dir       = 1;
-            peakBar   = i;
-            peakPrice = high[i];
-         }
+         ArrayResize(rawList, rCount + 1);
+         rawList[rCount].bar    = i;
+         rawList[rCount].time   = time[i];
+         rawList[rCount].price  = high[i];
+         rawList[rCount].isHigh = true;
+         rCount++;
       }
-   }
-
-   // Add active forming leg point at end of chart
-   if(pCount > 0)
-   {
-      int lastBar = (dir == 1) ? peakBar : valleyBar;
-      double lastPrice = (dir == 1) ? peakPrice : valleyPrice;
-      if(lastBar != pivots[pCount - 1].bar)
+      else if(isL && !isH)
       {
-         ArrayResize(pivots, pCount + 1);
-         pivots[pCount].bar    = lastBar;
-         pivots[pCount].time   = time[lastBar];
-         pivots[pCount].price  = lastPrice;
-         pivots[pCount].isHigh = (dir == 1);
-         pCount++;
+         ArrayResize(rawList, rCount + 1);
+         rawList[rCount].bar    = i;
+         rawList[rCount].time   = time[i];
+         rawList[rCount].price  = low[i];
+         rawList[rCount].isHigh = false;
+         rCount++;
       }
-   }
-
-   if(pCount < 2)
-      return rates_total;
-
-   //--- Step 2: Classify HH / LH / LL / HL
-   for(int i = 0; i < pCount; i++)
-   {
-      if(i >= 2)
+      else if(isH && isL)
       {
-         SPivot prevSame = pivots[i - 2];
-         if(pivots[i].isHigh)
+         ArrayResize(rawList, rCount + 1);
+         rawList[rCount].bar    = i;
+         rawList[rCount].time   = time[i];
+         if(close[i] >= open[i])
          {
-            if(pivots[i].price >= prevSame.price)
-            {
-               pivots[i].label = "HH";
-               pivots[i].clr   = InpColorBullish;
-            }
-            else
-            {
-               pivots[i].label = "LH";
-               pivots[i].clr   = InpColorBearish;
-            }
+            rawList[rCount].price  = high[i];
+            rawList[rCount].isHigh = true;
          }
          else
          {
-            if(pivots[i].price <= prevSame.price)
+            rawList[rCount].price  = low[i];
+            rawList[rCount].isHigh = false;
+         }
+         rCount++;
+      }
+   }
+
+   if(rCount < 2)
+      return rates_total;
+
+   //--- Step 2: Build Alternating Swings Sequence
+   SPivot swings[];
+   int sCount = 0;
+
+   for(int i = 0; i < rCount; i++)
+   {
+      SPivot cur = rawList[i];
+
+      if(sCount == 0)
+      {
+         ArrayResize(swings, 1);
+         swings[0] = cur;
+         sCount = 1;
+         continue;
+      }
+
+      SPivot last = swings[sCount - 1];
+
+      if(cur.bar == last.bar)
+         continue;
+
+      if(cur.isHigh == last.isHigh)
+      {
+         if(cur.isHigh)
+         {
+            // Check if there was a real valley between the two highs
+            int minB = last.bar;
+            double minP = low[last.bar];
+            for(int b = last.bar + 1; b < cur.bar; b++)
             {
-               pivots[i].label = "LL";
-               pivots[i].clr   = InpColorBearish;
+               if(low[b] < minP)
+               {
+                  minP = low[b];
+                  minB = b;
+               }
             }
-            else
+
+            if(minB > last.bar && (cur.bar - last.bar >= sBars + 2) && minP < last.price && cur.price > minP)
             {
-               pivots[i].label = "HL";
-               pivots[i].clr   = InpColorBullish;
+               ArrayResize(swings, sCount + 2);
+               swings[sCount].bar    = minB;
+               swings[sCount].time   = time[minB];
+               swings[sCount].price  = minP;
+               swings[sCount].isHigh = false;
+
+               swings[sCount + 1]    = cur;
+               sCount += 2;
+            }
+            else if(cur.price >= last.price)
+            {
+               swings[sCount - 1] = cur;
+            }
+         }
+         else // Two consecutive Lows
+         {
+            int maxB = last.bar;
+            double maxP = high[last.bar];
+            for(int b = last.bar + 1; b < cur.bar; b++)
+            {
+               if(high[b] > maxP)
+               {
+                  maxP = high[b];
+                  maxB = b;
+               }
+            }
+
+            if(maxB > last.bar && (cur.bar - last.bar >= sBars + 2) && maxP > last.price && cur.price < maxP)
+            {
+               ArrayResize(swings, sCount + 2);
+               swings[sCount].bar    = maxB;
+               swings[sCount].time   = time[maxB];
+               swings[sCount].price  = maxP;
+               swings[sCount].isHigh = true;
+
+               swings[sCount + 1]    = cur;
+               sCount += 2;
+            }
+            else if(cur.price <= last.price)
+            {
+               swings[sCount - 1] = cur;
             }
          }
       }
       else
       {
-         if(pivots[i].isHigh)
+         if(cur.isHigh && cur.price <= last.price)
+            continue;
+         if(!cur.isHigh && cur.price >= last.price)
+            continue;
+
+         ArrayResize(swings, sCount + 1);
+         swings[sCount] = cur;
+         sCount++;
+      }
+   }
+
+   if(sCount < 2)
+      return rates_total;
+
+   //--- Step 3: GUARANTEED ABSOLUTE EXTREME LOCK
+   // Between any two consecutive peaks, the Low MUST be the absolute lowest wick!
+   // Between any two consecutive valleys, the High MUST be the absolute highest wick!
+   for(int i = 1; i < sCount - 1; i++)
+   {
+      int bPrev = swings[i - 1].bar;
+      int bNext = swings[i + 1].bar;
+      if(bPrev >= bNext) continue;
+
+      if(!swings[i].isHigh) // This is a Low between two Highs
+      {
+         int minB = swings[i].bar;
+         double minP = swings[i].price;
+         for(int b = bPrev + 1; b < bNext; b++)
          {
-            pivots[i].label = "H";
-            pivots[i].clr   = InpColorBullish;
+            if(low[b] < minP)
+            {
+               minP = low[b];
+               minB = b;
+            }
+         }
+         swings[i].bar   = minB;
+         swings[i].time  = time[minB];
+         swings[i].price = minP;
+      }
+      else // This is a High between two Lows
+      {
+         int maxB = swings[i].bar;
+         double maxP = swings[i].price;
+         for(int b = bPrev + 1; b < bNext; b++)
+         {
+            if(high[b] > maxP)
+            {
+               maxP = high[b];
+               maxB = b;
+            }
+         }
+         swings[i].bar   = maxB;
+         swings[i].time  = time[maxB];
+         swings[i].price = maxP;
+      }
+   }
+
+   //--- Step 4: Classify HH / LH / LL / HL
+   for(int i = 0; i < sCount; i++)
+   {
+      if(i >= 2)
+      {
+         SPivot prevSame = swings[i - 2];
+         if(swings[i].isHigh)
+         {
+            if(swings[i].price >= prevSame.price)
+            {
+               swings[i].label = "HH";
+               swings[i].clr   = InpColorBullish;
+            }
+            else
+            {
+               swings[i].label = "LH";
+               swings[i].clr   = InpColorBearish;
+            }
          }
          else
          {
-            pivots[i].label = "L";
-            pivots[i].clr   = InpColorBearish;
+            if(swings[i].price <= prevSame.price)
+            {
+               swings[i].label = "LL";
+               swings[i].clr   = InpColorBearish;
+            }
+            else
+            {
+               swings[i].label = "HL";
+               swings[i].clr   = InpColorBullish;
+            }
+         }
+      }
+      else
+      {
+         if(swings[i].isHigh)
+         {
+            swings[i].label = "H";
+            swings[i].clr   = InpColorBullish;
+         }
+         else
+         {
+            swings[i].label = "L";
+            swings[i].clr   = InpColorBearish;
          }
       }
    }
 
-   //--- Step 3: Render Buffers & Labels
+   //--- Step 5: Render Buffers & Labels
    ObjectsDeleteAll(0, OBJ_PREFIX);
 
-   for(int i = 0; i < pCount; i++)
+   for(int i = 0; i < sCount; i++)
    {
-      int b = pivots[i].bar;
-      double pr = pivots[i].price;
+      int b = swings[i].bar;
+      double pr = swings[i].price;
 
       // Leg color: Upward leg (0 = Blue), Downward leg (1 = Red)
       int legColor = 0;
       if(i > 0)
-         legColor = pivots[i].isHigh ? 0 : 1;
+         legColor = swings[i].isHigh ? 0 : 1;
       else
-         legColor = pivots[i].isHigh ? 1 : 0;
+         legColor = swings[i].isHigh ? 1 : 0;
 
       // Section line vertex
       BufferLine[b]      = pr;
@@ -308,13 +421,13 @@ int OnCalculate(const int rates_total,
 
       // Arrow / Dot at pivot
       BufferArrow[b]      = pr;
-      BufferArrowColor[b] = (pivots[i].clr == InpColorBullish) ? 0 : 1;
+      BufferArrowColor[b] = (swings[i].clr == InpColorBullish) ? 0 : 1;
 
       // Draw Text Label if enabled
       if(InpShowLabels)
       {
          string objName = OBJ_PREFIX + "Lbl_" + IntegerToString(i);
-         DrawLabel(objName, pivots[i].time, pr, pivots[i].label, pivots[i].clr, pivots[i].isHigh);
+         DrawLabel(objName, swings[i].time, pr, swings[i].label, swings[i].clr, swings[i].isHigh);
       }
    }
 
