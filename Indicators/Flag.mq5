@@ -703,14 +703,17 @@ int FindNearestBox(datetime clickTime, double clickPrice)
       double top = g_drawnBoxes[i].top;
       double bottom = g_drawnBoxes[i].bottom;
 
-      if(clickTime >= t1 - PeriodSeconds(_Period)*3 && clickTime <= t2 + PeriodSeconds(_Period)*3)
+      if(clickTime >= t1 - PeriodSeconds(_Period)*3 && clickTime <= t2 + PeriodSeconds(_Period)*100)
       {
-         double midPrice = (top + bottom) / 2.0;
-         double dist = MathAbs(clickPrice - midPrice);
-         if(dist < minDistance)
+         if(clickPrice >= bottom - (top - bottom) * 0.5 && clickPrice <= top + (top - bottom) * 0.5)
          {
-            minDistance = dist;
-            bestIdx = i;
+            double midPrice = (top + bottom) / 2.0;
+            double dist = MathAbs(clickPrice - midPrice);
+            if(dist < minDistance)
+            {
+               minDistance = dist;
+               bestIdx = i;
+            }
          }
       }
    }
@@ -1566,6 +1569,91 @@ int OnCalculate(const int rates_total,
    return rates_total;
 }
 
+// Global variables to track highlighted box state
+string g_selectedBoxName    = "";
+string g_selectedExtBoxName = "";
+color  g_origBoxColor       = clrNONE;
+int    g_origBoxWidth       = 1;
+ENUM_LINE_STYLE g_origBoxStyle = STYLE_SOLID;
+
+//+------------------------------------------------------------------+
+//| Clear Box Highlight and Restore Original Styles                  |
+//+------------------------------------------------------------------+
+void ClearBoxHighlight()
+{
+   if(g_selectedBoxName != "" && ObjectFind(0, g_selectedBoxName) >= 0)
+   {
+      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_COLOR, g_origBoxColor);
+      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_WIDTH, g_origBoxWidth);
+      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_STYLE, g_origBoxStyle);
+      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_FILL,  false);
+      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_BACK,  false);
+   }
+   if(g_selectedExtBoxName != "" && ObjectFind(0, g_selectedExtBoxName) >= 0)
+   {
+      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_FILL, false);
+      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_BACK, false);
+      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_WIDTH, InpSwapBoxWidth);
+   }
+   g_selectedBoxName = "";
+   g_selectedExtBoxName = "";
+   Comment("");
+}
+
+//+------------------------------------------------------------------+
+//| Highlight Box on Click with Glowing Illumination & Fill          |
+//+------------------------------------------------------------------+
+void HighlightBox(int boxIdx)
+{
+   if(boxIdx < 0 || boxIdx >= g_boxCount) return;
+
+   string boxName = g_drawnBoxes[boxIdx].boxName;
+   if(boxName == g_selectedBoxName)
+   {
+      // کلیک مجدد روی همان باکس -> خاموش کردن هایلایت
+      ClearBoxHighlight();
+      ChartRedraw(0);
+      return;
+   }
+
+   // پاکسازی هایلایت قبلی
+   ClearBoxHighlight();
+
+   if(ObjectFind(0, boxName) >= 0)
+   {
+      g_selectedBoxName = boxName;
+      g_origBoxColor    = (color)ObjectGetInteger(0, boxName, OBJPROP_COLOR);
+      g_origBoxWidth    = (int)ObjectGetInteger(0, boxName, OBJPROP_WIDTH);
+      g_origBoxStyle    = (ENUM_LINE_STYLE)ObjectGetInteger(0, boxName, OBJPROP_STYLE);
+
+      // روشن و هایلایت کردن باکس با خط ضخیم درخشان و پس‌زمینه روشن
+      ObjectSetInteger(0, boxName, OBJPROP_COLOR, clrWhite);
+      ObjectSetInteger(0, boxName, OBJPROP_WIDTH, 3);
+      ObjectSetInteger(0, boxName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, boxName, OBJPROP_FILL,  true);
+      ObjectSetInteger(0, boxName, OBJPROP_BACK,  true);
+
+      // هایلایت کردن باکس امتدادیافته متناظر
+      string extBoxName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[boxIdx].tfTag + "_" + IntegerToString((int)g_drawnBoxes[boxIdx].t1);
+      if(ObjectFind(0, extBoxName) >= 0)
+      {
+         g_selectedExtBoxName = extBoxName;
+         ObjectSetInteger(0, extBoxName, OBJPROP_COLOR, clrWhite);
+         ObjectSetInteger(0, extBoxName, OBJPROP_WIDTH, 2);
+         ObjectSetInteger(0, extBoxName, OBJPROP_FILL,  true);
+         ObjectSetInteger(0, extBoxName, OBJPROP_BACK,  true);
+      }
+
+      string info = "⚡ Box Selected: " + g_drawnBoxes[boxIdx].tfTag +
+                    " | Top: " + DoubleToString(g_drawnBoxes[boxIdx].top, _Digits) +
+                    " | Bottom: " + DoubleToString(g_drawnBoxes[boxIdx].bottom, _Digits) +
+                    " | Start: " + TimeToString(g_drawnBoxes[boxIdx].t1);
+      Comment(info);
+   }
+
+   ChartRedraw(0);
+}
+
 //+------------------------------------------------------------------+
 //| ChartEvent: Handle User Click on Box                             |
 //+------------------------------------------------------------------+
@@ -1588,7 +1676,29 @@ void OnChartEvent(const int id,
          int boxIdx = FindNearestBox(dt, price);
          if(boxIdx >= 0)
          {
+            HighlightBox(boxIdx);
             PrintBoxRemovalInfo(boxIdx);
+         }
+         else
+         {
+            ClearBoxHighlight();
+            ChartRedraw(0);
+         }
+      }
+   }
+   else if(id == CHARTEVENT_OBJECT_CLICK)
+   {
+      if(StringFind(sparam, "FLAG_BOX_") == 0 || StringFind(sparam, "FLAG_SWAP_EXTBOX_") == 0)
+      {
+         for(int b = 0; b < g_boxCount; b++)
+         {
+            string extName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)g_drawnBoxes[b].t1);
+            if(g_drawnBoxes[b].boxName == sparam || extName == sparam)
+            {
+               HighlightBox(b);
+               PrintBoxRemovalInfo(b);
+               break;
+            }
          }
       }
    }
