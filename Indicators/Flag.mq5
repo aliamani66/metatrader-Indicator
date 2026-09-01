@@ -120,7 +120,7 @@ input color            InpOInnerColorBear       = clrGold;      // رنگ OInner
 input int              InpOInnerWidth           = 2;            // ضخامت باکس OInner
 
 input group "=== Universal Box Swap System (سیستم جامع سواپ باکس‌ها) ==="
-input bool             InpEnableSwapLines       = false;        // فعال‌سازی رسم امتداد باکس‌های سواپ (پیش‌فرض: غیرفعال)
+input bool             InpEnableSwapLines       = true;         // فعال‌سازی رسم امتداد باکس‌های سواپ (پیش‌فرض: فعال)
 input bool             InpSwapOnlyKeyBoxes      = true;         // فقط امتداد باکس‌های کلیدی (OInner, RS, LS) جهت خلوت بودن چارت
 input color            InpSwapColorBull         = clrDodgerBlue;// رنگ سواپ صعودی (شکست به بالا)
 input color            InpSwapColorBear         = clrOrangeRed; // رنگ سواپ نزولی (شکست به پایین)
@@ -713,14 +713,14 @@ void PrintBoxRemovalInfo(int bIdx)
 }
 
 //+------------------------------------------------------------------+
-//| Find Nearest Drawn Box to Click                                  |
+//| Find Nearest Drawn Box to Click (Supports Nested Boxes & Cycling) |
 //+------------------------------------------------------------------+
 int FindNearestBox(datetime clickTime, double clickPrice)
 {
    if(g_boxCount <= 0) return -1;
 
-   int bestIdx = -1;
-   double minDistance = DBL_MAX;
+   int matchedIndices[];
+   int matchCount = 0;
 
    for(int i = 0; i < g_boxCount; i++)
    {
@@ -729,18 +729,54 @@ int FindNearestBox(datetime clickTime, double clickPrice)
       double top = g_drawnBoxes[i].top;
       double bottom = g_drawnBoxes[i].bottom;
 
-      if(clickTime >= t1 - PeriodSeconds(_Period)*3 && clickTime <= t2 + PeriodSeconds(_Period)*100)
+      // بررسی محدوده زمانی و قیمتی باکس و امتداد آن
+      if(clickTime >= t1 - PeriodSeconds(_Period)*2 && clickTime <= t2 + PeriodSeconds(_Period)*150)
       {
-         if(clickPrice >= bottom - (top - bottom) * 0.5 && clickPrice <= top + (top - bottom) * 0.5)
+         if(clickPrice >= bottom - (top - bottom) * 0.4 && clickPrice <= top + (top - bottom) * 0.4)
          {
-            double midPrice = (top + bottom) / 2.0;
-            double dist = MathAbs(clickPrice - midPrice);
-            if(dist < minDistance)
-            {
-               minDistance = dist;
-               bestIdx = i;
-            }
+            ArrayResize(matchedIndices, matchCount + 1);
+            matchedIndices[matchCount] = i;
+            matchCount++;
          }
+      }
+   }
+
+   if(matchCount == 0) return -1;
+   if(matchCount == 1) return matchedIndices[0];
+
+   // اگر چند باکس همپوشان (باکس داخل باکس دیگر) وجود داشت:
+   // ۱. اگر یکی از این باکس‌ها در حال حاضر انتخاب است، با کلیک مجدد به باکس همپوشان بعدی چرخش کن (Cycle)
+   int currentMatchPos = -1;
+   for(int m = 0; m < matchCount; m++)
+   {
+      if(g_drawnBoxes[matchedIndices[m]].boxName == g_selectedBoxName)
+      {
+         currentMatchPos = m;
+         break;
+      }
+   }
+
+   if(currentMatchPos >= 0)
+   {
+      int nextPos = (currentMatchPos + 1) % matchCount;
+      return matchedIndices[nextPos];
+   }
+
+   // ۲. در اولین کلیک، اولویت با باکس کوچکتر داخلی (Inner / Lower TF Box) است
+   int bestIdx = matchedIndices[0];
+   double minArea = DBL_MAX;
+
+   for(int m = 0; m < matchCount; m++)
+   {
+      int idx = matchedIndices[m];
+      double h = MathAbs(g_drawnBoxes[idx].top - g_drawnBoxes[idx].bottom);
+      double w = (double)(g_drawnBoxes[idx].t2 - g_drawnBoxes[idx].t1);
+      if(w <= 0) w = PeriodSeconds(_Period);
+      double area = h * w;
+      if(area < minArea)
+      {
+         minArea = area;
+         bestIdx = idx;
       }
    }
 
