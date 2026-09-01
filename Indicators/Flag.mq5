@@ -1287,6 +1287,27 @@ void RenderFinalBoxes()
                isSwap = true;
                swapTag += (swapTag == "" ? "" : "+") + tg;
             }
+      ENUM_LINE_STYLE drawStyle = g_drawnBoxes[b].baseStyle;
+
+      if(hasRSTags)
+      {
+         bool isLS = false;
+         bool isRS = false;
+         bool isOI = false;
+         bool isSwap = false;
+         string swapTag = "";
+
+         for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
+         {
+            string tg = g_drawnBoxes[b].rsTags[t];
+            if(tg == "LS") isLS = true;
+            else if(tg == "RS") isRS = true;
+            else if(tg == "OInner") isOI = true;
+            else if(StringFind(tg, "S-") == 0)
+            {
+               isSwap = true;
+               swapTag += (swapTag == "" ? "" : "+") + tg;
+            }
          }
 
          string tagCombo = "";
@@ -1306,33 +1327,47 @@ void RenderFinalBoxes()
 
          if(isSwap)
          {
-            drawClr   = isBull ? InpSwapColorBull : InpSwapColorBear;
+            if(StringFind(swapTag, "S-OInner") >= 0)
+               drawClr = isBull ? clrMediumSpringGreen : clrTomato;
+            else if(StringFind(swapTag, "S-RS") >= 0)
+               drawClr = isBull ? clrCyan : clrCoral;
+            else if(StringFind(swapTag, "S-LS") >= 0)
+               drawClr = isBull ? clrSpringGreen : clrHotPink;
+            else
+               drawClr = isBull ? InpSwapColorBull : InpSwapColorBear;
+
             drawWidth = InpSwapBoxWidth;
+            drawStyle = STYLE_DOT; // خط نقطه‌چین شیک برای سواپ‌ها
          }
          else if(isLS && isRS)
          {
             drawClr   = isBull ? InpComboColorBull : InpComboColorBear;
             drawWidth = 3;
+            drawStyle = STYLE_SOLID;
          }
          else if(isOI && isRS)
          {
             drawClr   = isBull ? InpRSColorBull : InpRSColorBear;
             drawWidth = InpBreakoutFlagWidth;
+            drawStyle = STYLE_DASHDOT;
          }
          else if(isLS)
          {
             drawClr   = isBull ? InpLSColorBull : InpLSColorBear;
             drawWidth = InpPreIPWidth;
+            drawStyle = STYLE_DASH; // خط‌چین برای LS
          }
          else if(isOI)
          {
             drawClr   = isBull ? InpOInnerColorBull : InpOInnerColorBear;
             drawWidth = InpOInnerWidth;
+            drawStyle = STYLE_DASH; // خط‌چین برای OInner
          }
          else if(isRS)
          {
             drawClr   = isBull ? InpRSColorBull : InpRSColorBear;
             drawWidth = InpBreakoutFlagWidth;
+            drawStyle = STYLE_DASHDOT; // خط و نقطه برای RS
          }
       }
 
@@ -1343,7 +1378,7 @@ void RenderFinalBoxes()
                     g_drawnBoxes[b].bottom,
                     drawClr,
                     drawWidth,
-                    g_drawnBoxes[b].baseStyle);
+                    drawStyle);
 
       // برچسب هوشمند متصل به بالای باکس
       if(InpShowLabel)
