@@ -1153,7 +1153,6 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
                     g_drawnBoxes[b].bottom,
                     lineColor,
                     InpSwapBoxWidth,
-                    false,
                     InpSwapLineStyle);
 
       if(InpOriginLabelStyle != LABEL_TOOLTIP)
