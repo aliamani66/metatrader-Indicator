@@ -33,27 +33,27 @@ input color            InpColorTF4 = clrYellow;
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 2;           // تاریخچه ۱۵ دقیقه (۲ روز)
+input int              InpM15DaysBack = 10;          // تاریخچه ۱۵ دقیقه (۱۰ روز)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 2;           // تاریخچه ۵ دقیقه (۲ روز)
+input int              InpM5DaysBack = 10;          // تاریخچه ۵ دقیقه (۱۰ روز)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 2;           // تاریخچه ۱ دقیقه (۲ روز)
+input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
 
 input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
 input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
-input bool             InpShowOnlyRSMicroBoxes  = false; // نمایش همه باکس‌ها در ۲ روز گذشته (نه فقط RS)
-input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۲ روز گذشته
+input bool             InpShowOnlyRSMicroBoxes  = false; // نمایش همه باکس‌ها در ۱۰ روز گذشته (نه فقط RS)
+input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۱۰ روز گذشته
 input string           InpRSTagPrefix           = "RS";  // پیشوند تگ‌های هوشمند (RS)
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (Max Bars)
+input int              InpMaxBarsTF   = 20000;       // حداکثر کندل‌های محاسبه (Max Bars)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -1535,9 +1535,9 @@ void ShowTradeSetupForBox(int boxIdx)
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
 
-   int copied = CopyTime(_Symbol, _Period, 0, 5000, chartTime);
-   CopyHigh(_Symbol, _Period, 0, 5000, chartHigh);
-   CopyLow(_Symbol, _Period, 0, 5000, chartLow);
+   int copied = CopyTime(_Symbol, _Period, 0, 30000, chartTime);
+   CopyHigh(_Symbol, _Period, 0, 30000, chartHigh);
+   CopyLow(_Symbol, _Period, 0, 30000, chartLow);
    if(copied < 10) return;
 
    string role = "Flag";
@@ -1812,9 +1812,9 @@ void ExportAllTradesToCSV()
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
 
-   int copied = CopyTime(_Symbol, _Period, 0, 5000, chartTime);
-   CopyHigh(_Symbol, _Period, 0, 5000, chartHigh);
-   CopyLow(_Symbol, _Period, 0, 5000, chartLow);
+   int copied = CopyTime(_Symbol, _Period, 0, 30000, chartTime);
+   CopyHigh(_Symbol, _Period, 0, 30000, chartHigh);
+   CopyLow(_Symbol, _Period, 0, 30000, chartLow);
    if(copied < 10) { FileClose(fileHandle); return; }
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
