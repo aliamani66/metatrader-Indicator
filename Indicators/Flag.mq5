@@ -1540,12 +1540,6 @@ void ShowTradeSetupForBox(int boxIdx)
    CopyLow(_Symbol, _Period, 0, 5000, chartLow);
    if(copied < 10) return;
 
-   bool isBull = g_drawnBoxes[boxIdx].isBullish;
-   if(g_drawnBoxes[boxIdx].isPreIP) isBull = g_drawnBoxes[boxIdx].isLSBull;
-   else if(g_drawnBoxes[boxIdx].isOInner) isBull = g_drawnBoxes[boxIdx].isOInnerBull;
-   else if(g_drawnBoxes[boxIdx].isBOFlag) isBull = g_drawnBoxes[boxIdx].isRSBull;
-   else if(g_drawnBoxes[boxIdx].isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
-
    string role = "Flag";
    for(int tg = 0; tg < ArraySize(g_drawnBoxes[boxIdx].rsTags); tg++)
    {
