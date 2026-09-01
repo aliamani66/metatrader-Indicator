@@ -21,8 +21,11 @@ input bool  InpUseM5 = true;                 // نمایش باکس‌های M5
 input bool  InpUseM1 = true;                 // نمایش باکس‌های M1
 input color InpBullishColor = clrOrange;     // رنگ باکس صعودی
 input color InpBearishColor = clrCyan;       // رنگ باکس نزولی
-input int   InpLineWidth    = 1;             // ضخامت خط (1 = نازک و ظریف)
+input int   InpLineWidth      = 1;           // ضخامت خط باکس
 input bool  InpShowShortBoxes = true;        // نمایش باکس‌های کوتاه (شکسته سریع)
+input bool  InpShowLabel      = true;        // نمایش برچسب‌ها
+input int   InpLabelFontSize  = 8;           // سایز فونت برچسب‌ها
+input int   InpMaxBoxes       = 100;         // حداکثر باکس‌های محاسباتی
 
 input group "=== Pre-IP Box Highlight ==="
 input bool  InpHighlightPreIP = true;        // برجسته‌سازی باکس ماقبل پیووت مستقل
