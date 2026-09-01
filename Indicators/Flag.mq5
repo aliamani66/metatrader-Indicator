@@ -1626,22 +1626,22 @@ void HighlightBox(int boxIdx)
       g_origBoxWidth    = (int)ObjectGetInteger(0, boxName, OBJPROP_WIDTH);
       g_origBoxStyle    = (ENUM_LINE_STYLE)ObjectGetInteger(0, boxName, OBJPROP_STYLE);
 
-      // روشن و هایلایت کردن باکس با خط ضخیم درخشان و پس‌زمینه روشن
-      ObjectSetInteger(0, boxName, OBJPROP_COLOR, clrWhite);
+      // روشن و طلایی کردن خطوط کادر باکس بدون تغییر پس‌زمینه
+      ObjectSetInteger(0, boxName, OBJPROP_COLOR, clrGold);
       ObjectSetInteger(0, boxName, OBJPROP_WIDTH, 3);
       ObjectSetInteger(0, boxName, OBJPROP_STYLE, STYLE_SOLID);
-      ObjectSetInteger(0, boxName, OBJPROP_FILL,  true);
-      ObjectSetInteger(0, boxName, OBJPROP_BACK,  true);
+      ObjectSetInteger(0, boxName, OBJPROP_FILL,  false);
+      ObjectSetInteger(0, boxName, OBJPROP_BACK,  false);
 
-      // هایلایت کردن باکس امتدادیافته متناظر
+      // هایلایت کردن باکس امتدادیافته متناظر به رنگ طلایی
       string extBoxName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[boxIdx].tfTag + "_" + IntegerToString((int)g_drawnBoxes[boxIdx].t1);
       if(ObjectFind(0, extBoxName) >= 0)
       {
          g_selectedExtBoxName = extBoxName;
-         ObjectSetInteger(0, extBoxName, OBJPROP_COLOR, clrWhite);
+         ObjectSetInteger(0, extBoxName, OBJPROP_COLOR, clrGold);
          ObjectSetInteger(0, extBoxName, OBJPROP_WIDTH, 2);
-         ObjectSetInteger(0, extBoxName, OBJPROP_FILL,  true);
-         ObjectSetInteger(0, extBoxName, OBJPROP_BACK,  true);
+         ObjectSetInteger(0, extBoxName, OBJPROP_FILL,  false);
+         ObjectSetInteger(0, extBoxName, OBJPROP_BACK,  false);
       }
 
       string info = "⚡ Box Selected: " + g_drawnBoxes[boxIdx].tfTag +
