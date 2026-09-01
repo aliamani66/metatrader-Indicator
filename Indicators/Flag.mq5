@@ -839,6 +839,177 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
                g_drawnBoxes[matchedBoxIdx].rsTags[tagLen] = "RS";
             }
          }
+   }
+
+   // ۲. رسم خطوط منشأ تایم‌های بالاتر (M15, M5, H1) برای پیووت‌های مستقل چند‌تایم‌فریمه
+   ENUM_TIMEFRAMES checkTFs[3] = {PERIOD_H1, PERIOD_M15, PERIOD_M5};
+   for(int k = 0; k < g_indepCount; k++)
+   {
+      bool isHigh        = g_indepPivots[k].isHigh;
+      datetime pivotTime = g_indepPivots[k].time;
+
+      for(int s = 0; s < 3; s++)
+      {
+         ENUM_TIMEFRAMES srcTF = checkTFs[s];
+         string tfStr = TFName(srcTF);
+
+         // بررسی اینکه آیا این تایم جزو تگ‌های این پیووت مستقل است یا خیر
+         bool tfInPivot = false;
+         for(int tg = 0; tg < ArraySize(g_indepPivots[k].tfTags); tg++)
+         {
+            if(g_indepPivots[k].tfTags[tg] == tfStr) { tfInPivot = true; break; }
+         }
+         if(!tfInPivot) continue;
+
+         // بررسی اینکه آیا قبلاً باکسی از این تایم خط کشیده است یا خیر
+         bool boxAlreadyDrew = false;
+         for(int b = 0; b < g_boxCount; b++)
+         {
+            if(g_drawnBoxes[b].tf == srcTF && g_drawnBoxes[b].isPreIP && g_drawnBoxes[b].targetIPTime == pivotTime)
+            {
+               boxAlreadyDrew = true;
+               break;
+            }
+         }
+         if(boxAlreadyDrew) continue;
+
+         // پیدا کردن آخرین سوینگ منشأ در آن تایم‌فریم قبل از پیووت
+         SPivot srcPivots[];
+         if(!BuildAlternatingPivots(srcTF, InpSwingBars, InpMaxBarsTF, srcPivots)) continue;
+         int nP = ArraySize(srcPivots);
+         datetime originStartTime = 0;
+         double   originPrice     = 0;
+
+         for(int sp = nP - 1; sp >= 0; sp--)
+         {
+            if(srcPivots[sp].time < pivotTime && srcPivots[sp].isHigh != isHigh)
+            {
+               originStartTime = srcPivots[sp].time;
+               originPrice     = srcPivots[sp].price;
+               break;
+            }
+         }
+
+         if(originStartTime == 0 || originPrice == 0) continue;
+
+         // محاسبه نقطه شکست بعد از پیووت
+         int pivotBarIdx = FindBarIndex(chartTime, ratesTotal, pivotTime);
+         if(pivotBarIdx < 0) continue;
+
+         int breakIdx = ratesTotal - 1;
+         for(int bar = pivotBarIdx + 1; bar < ratesTotal; bar++)
+         {
+            if(isHigh)
+            {
+               if(chartLow[bar] < originPrice)
+               {
+                  breakIdx = bar;
+                  break;
+               }
+            }
+            else
+            {
+               if(chartHigh[bar] > originPrice)
+               {
+                  breakIdx = bar;
+                  break;
+               }
+            }
+         }
+
+         datetime endTime = chartTime[breakIdx];
+         if(endTime <= originStartTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
+
+         string lineName = "FLAG_RS_LINE_" + tfStr + "_" + IntegerToString((int)originStartTime);
+         color lineColor = isHigh ? InpOriginColorLow : InpOriginColorHigh;
+         ENUM_LINE_STYLE lineStyle = GetTFLineStyle(srcTF);
+
+         if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
+         ObjectCreate(0, lineName, OBJ_TREND, 0, originStartTime, originPrice, endTime, originPrice);
+         ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
+         ObjectSetInteger(0, lineName, OBJPROP_STYLE, lineStyle);
+         ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
+         ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
+         ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
+
+         string tooltip = "RS Line " + tfStr + (isHigh ? " Low" : " High") +
+                          "\nPrice: " + DoubleToString(originPrice, _Digits) +
+                          "\nStart: " + TimeToString(originStartTime);
+         ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
+
+         if(InpOriginLabelStyle != LABEL_TOOLTIP)
+         {
+            string lblName = lineName + "_LBL";
+            string lblText = "RS " + tfStr;
+            
+            if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+            
+            double posRatio = 0.50;
+            if(srcTF == PERIOD_H1)  posRatio = 0.25;
+            if(srcTF == PERIOD_M15) posRatio = 0.45;
+            if(srcTF == PERIOD_M5)  posRatio = 0.65;
+
+            datetime lblTime = (datetime)(originStartTime + (endTime - originStartTime) * posRatio);
+            ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, originPrice);
+            ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+            ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
+            ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+            ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
+            ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+         }
+
+         // هایلایت و ثبت تگ RS برای اولین گره در محل شکست یا بعد از شکست
+         if(InpHighlightBreakoutFlags && breakIdx < ratesTotal - 1)
+         {
+            int matchedBoxIdx = -1;
+            for(int ob = 0; ob < g_boxCount; ob++)
+            {
+               if(g_drawnBoxes[ob].t1 >= pivotTime - 60)
+               {
+                  if(endTime >= g_drawnBoxes[ob].t1 && endTime <= g_drawnBoxes[ob].t2)
+                  {
+                     if(originPrice >= g_drawnBoxes[ob].bottom && originPrice <= g_drawnBoxes[ob].top)
+                     {
+                        matchedBoxIdx = ob;
+                        break;
+                     }
+                  }
+               }
+            }
+
+            if(matchedBoxIdx < 0)
+            {
+               datetime minNextTime = 0;
+               for(int ob = 0; ob < g_boxCount; ob++)
+               {
+                  if(g_drawnBoxes[ob].t1 >= endTime)
+                  {
+                     if(matchedBoxIdx < 0 || g_drawnBoxes[ob].t1 < minNextTime)
+                     {
+                        minNextTime = g_drawnBoxes[ob].t1;
+                        matchedBoxIdx = ob;
+                     }
+                  }
+               }
+            }
+
+            if(matchedBoxIdx >= 0)
+            {
+               g_drawnBoxes[matchedBoxIdx].isBOFlag = true;
+               g_drawnBoxes[matchedBoxIdx].isRSBull = !isHigh;
+               bool alreadyTagged = false;
+               for(int tg = 0; tg < ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags); tg++)
+               {
+                  if(g_drawnBoxes[matchedBoxIdx].rsTags[tg] == "RS") { alreadyTagged = true; break; }
+               }
+               if(!alreadyTagged)
+               {
+                  int tagLen = ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags);
+                  ArrayResize(g_drawnBoxes[matchedBoxIdx].rsTags, tagLen + 1);
+                  g_drawnBoxes[matchedBoxIdx].rsTags[tagLen] = "RS";
+               }
+            }
+         }
       }
    }
 }
