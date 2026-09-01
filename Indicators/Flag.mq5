@@ -45,20 +45,11 @@ input bool             InpUseTF7  = true;           // محاسبه ۱ دقیق�
 input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
 
-enum ENUM_DISPLAY_FILTER
-{
-   FILTER_ALL,               // نمایش کامل تمام باکس‌ها (همه الگوها)
-   FILTER_ONLY_SRS,          // فقط باکس‌های S-RS (وین‌ریت بالای ۸۳٪)
-   FILTER_HIGH_WINRATE,      // باکس‌های طلایی با وین‌ریت بالا (S-RS + OInner + RS)
-   FILTER_ALL_SWAPS          // فقط باکس‌های سواپ (S-RS, S-OInner, S-LS)
-};
-
-input group "=== Smart Visibility & Box Filter (فیلتر نمایش هوشمند) ==="
-input ENUM_DISPLAY_FILTER InpDisplayFilter          = FILTER_ALL;      // فیلتر نمایش باکس‌ها روی چارت
-input bool             InpShowMacroAlways       = false; // نمایش باکس‌های ماکرو روی تایم‌های ریز (پیش‌فرض: خاموش جهت اسکیل تمیز چارت)
-input bool             InpShowOnlyRSMicroBoxes  = false; // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
-input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۱۰ روز گذشته
-input string           InpRSTagPrefix           = "RS";  // پیشوند تگ‌های هوشمند (RS)
+input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
+input bool             InpShowMacroAlways       = true;   // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
+input bool             InpShowOnlyRSMicroBoxes  = false;  // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
+input bool             InpShowNormalMicroBoxes  = true;   // رسم کامل همه باکس‌های ۱۰ روز گذشته
+input string           InpRSTagPrefix           = "RS";   // پیشوند تگ‌های هوشمند (RS)
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
@@ -1309,59 +1300,26 @@ void RenderFinalBoxes()
 {
    for(int b = 0; b < g_boxCount; b++)
    {
-      // جلوگیری از فشردگی و به‌هم‌ریختگی اسکیل چارت در تایم‌های ریز توسط باکس‌های غول‌پیکر ماکرو
-      if(g_drawnBoxes[b].tf > _Period * 12 && !InpShowMacroAlways)
-         continue;
-
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
-      bool isSRS     = (g_drawnBoxes[b].isSwap && g_drawnBoxes[b].swapSourceRole == "RS");
-      bool isOI      = g_drawnBoxes[b].isOInner;
-      bool isRS      = g_drawnBoxes[b].isBOFlag;
-      bool isAnySwap = g_drawnBoxes[b].isSwap;
-
-      for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
+      bool shouldDraw = false;
+      if(isMacro)
       {
-         string tg = g_drawnBoxes[b].rsTags[t];
-         if(StringFind(tg, "S-RS") >= 0) isSRS = true;
-         if(tg == "OInner") isOI = true;
-         if(tg == "RS") isRS = true;
-         if(StringFind(tg, "S-") == 0) isAnySwap = true;
+         if(InpShowMacroAlways)
+            shouldDraw = true;
+      }
+      else
+      {
+         // برای تایم‌های میکرو (H1, M15, M5, M1)
+         if(hasRSTags && InpShowOnlyRSMicroBoxes)
+            shouldDraw = true;
+         else if(InpShowNormalMicroBoxes)
+            shouldDraw = true;
       }
 
-      if(InpDisplayFilter == FILTER_ONLY_SRS)
-      {
-         if(!isSRS) continue;
-      }
-      else if(InpDisplayFilter == FILTER_HIGH_WINRATE)
-      {
-         if(!isSRS && !isOI && !isRS) continue;
-      }
-      else if(InpDisplayFilter == FILTER_ALL_SWAPS)
-      {
-         if(!isAnySwap) continue;
-      }
-      else // FILTER_ALL
-      {
-         bool shouldDraw = false;
-         if(isMacro)
-         {
-            if(InpShowMacroAlways)
-               shouldDraw = true;
-         }
-         else
-         {
-            // برای تایم‌های میکرو (H1, M15, M5, M1)
-            if(hasRSTags && InpShowOnlyRSMicroBoxes)
-               shouldDraw = true;
-            else if(InpShowNormalMicroBoxes)
-               shouldDraw = true;
-         }
-
-         if(!shouldDraw)
-            continue;
-      }
+      if(!shouldDraw)
+         continue;
 
       // تعیین رنگ، ضخامت و برچسب تفکیک‌شده برای صعودی و نزولی
       color drawClr = g_drawnBoxes[b].baseColor;
