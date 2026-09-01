@@ -1212,42 +1212,25 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          if(g_drawnBoxes[b].rsTags[tg] == "LS")     { srcRole = "LS";     break; }
       }
 
-      // پیدا کردن و ثبت باکس سواپ متناظر
+      // فقط باکس‌های کلیدی منشأ سواپ می‌شوند
+      if(InpSwapOnlyKeyBoxes && srcRole == "Flag") continue;
+
+      // پیدا کردن و ثبت باکس سواپ متناظر (گره واقعی تشکیل‌شده در سطح و زمان شکست)
       if(breakIdx < ratesTotal - 1)
       {
          int matchedBoxIdx = -1;
 
-         // حالت ۱: شکست داخل یک گره رخ داده باشد (اعتبارسنجی دوگانه)
          for(int ob = 0; ob < initialBoxCount; ob++)
          {
             if(ob == b) continue;
-            if(g_drawnBoxes[ob].t1 >= g_drawnBoxes[b].t2 - 60)
+            // گره باید همپوشانی زمانی با شکست داشته باشد و قیمت خط شکست را شامل شود
+            if(endTime >= g_drawnBoxes[ob].t1 - PeriodSeconds(g_drawnBoxes[ob].tf) * 2 &&
+               endTime <= g_drawnBoxes[ob].t2 + PeriodSeconds(g_drawnBoxes[ob].tf) * 2)
             {
-               if(endTime >= g_drawnBoxes[ob].t1 && endTime <= g_drawnBoxes[ob].t2)
+               if(linePrice >= g_drawnBoxes[ob].bottom - 2 * pipSize && linePrice <= g_drawnBoxes[ob].top + 2 * pipSize)
                {
-                  if(linePrice >= g_drawnBoxes[ob].bottom && linePrice <= g_drawnBoxes[ob].top)
-                  {
-                     matchedBoxIdx = ob;
-                     break;
-                  }
-               }
-            }
-         }
-
-         // حالت ۲: اگر در گره نبود، اولین گره بعدی بعد از زمان شکست
-         if(matchedBoxIdx < 0)
-         {
-            datetime minNextTime = 0;
-            for(int ob = 0; ob < initialBoxCount; ob++)
-            {
-               if(ob == b) continue;
-               if(g_drawnBoxes[ob].t1 >= endTime)
-               {
-                  if(matchedBoxIdx < 0 || g_drawnBoxes[ob].t1 < minNextTime)
-                  {
-                     minNextTime = g_drawnBoxes[ob].t1;
-                     matchedBoxIdx = ob;
-                  }
+                  matchedBoxIdx = ob;
+                  break;
                }
             }
          }
