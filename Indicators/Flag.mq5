@@ -1212,14 +1212,16 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       {
          int matchedBoxIdx = -1;
 
+         double swapTolerance = (_Digits <= 3) ? (20 * pipSize) : (5 * pipSize);
+
          for(int ob = 0; ob < initialBoxCount; ob++)
          {
             if(ob == b) continue;
             // گره باید همپوشانی زمانی با شکست داشته باشد و قیمت خط شکست را شامل شود
-            if(endTime >= g_drawnBoxes[ob].t1 - PeriodSeconds(g_drawnBoxes[ob].tf) * 2 &&
-               endTime <= g_drawnBoxes[ob].t2 + PeriodSeconds(g_drawnBoxes[ob].tf) * 2)
+            if(endTime >= g_drawnBoxes[ob].t1 - PeriodSeconds(g_drawnBoxes[ob].tf) * 5 &&
+               endTime <= g_drawnBoxes[ob].t2 + PeriodSeconds(g_drawnBoxes[ob].tf) * 5)
             {
-               if(linePrice >= g_drawnBoxes[ob].bottom - 2 * pipSize && linePrice <= g_drawnBoxes[ob].top + 2 * pipSize)
+               if(linePrice >= g_drawnBoxes[ob].bottom - swapTolerance && linePrice <= g_drawnBoxes[ob].top + swapTolerance)
                {
                   matchedBoxIdx = ob;
                   break;
@@ -1525,12 +1527,19 @@ void ShowTradeSetupForBox(int boxIdx)
    if(copied < 10) return;
 
    string role = "Flag";
-   for(int tg = 0; tg < ArraySize(g_drawnBoxes[boxIdx].rsTags); tg++)
+   if(g_drawnBoxes[boxIdx].isSwap)
    {
-      if(g_drawnBoxes[boxIdx].rsTags[tg] == "OInner") { role = "OInner"; break; }
-      if(g_drawnBoxes[boxIdx].rsTags[tg] == "RS")     { role = "RS";     break; }
-      if(g_drawnBoxes[boxIdx].rsTags[tg] == "LS")     { role = "LS";     break; }
-      if(StringFind(g_drawnBoxes[boxIdx].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[boxIdx].rsTags[tg]; break; }
+      role = "S-" + g_drawnBoxes[boxIdx].swapSourceRole;
+   }
+   else
+   {
+      for(int tg = 0; tg < ArraySize(g_drawnBoxes[boxIdx].rsTags); tg++)
+      {
+         if(StringFind(g_drawnBoxes[boxIdx].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[boxIdx].rsTags[tg]; break; }
+         if(g_drawnBoxes[boxIdx].rsTags[tg] == "OInner") { role = "OInner"; break; }
+         if(g_drawnBoxes[boxIdx].rsTags[tg] == "RS")     { role = "RS";     break; }
+         if(g_drawnBoxes[boxIdx].rsTags[tg] == "LS")     { role = "LS";     break; }
+      }
    }
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
@@ -1807,12 +1816,19 @@ void ExportAllTradesToCSV()
    for(int b = 0; b < g_boxCount; b++)
    {
       string role = "Flag";
-      for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+      if(g_drawnBoxes[b].isSwap)
       {
-         if(g_drawnBoxes[b].rsTags[tg] == "OInner") { role = "OInner"; break; }
-         if(g_drawnBoxes[b].rsTags[tg] == "RS")     { role = "RS";     break; }
-         if(g_drawnBoxes[b].rsTags[tg] == "LS")     { role = "LS";     break; }
-         if(StringFind(g_drawnBoxes[b].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[b].rsTags[tg]; break; }
+         role = "S-" + g_drawnBoxes[b].swapSourceRole;
+      }
+      else
+      {
+         for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+         {
+            if(StringFind(g_drawnBoxes[b].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[b].rsTags[tg]; break; }
+            if(g_drawnBoxes[b].rsTags[tg] == "OInner") { role = "OInner"; break; }
+            if(g_drawnBoxes[b].rsTags[tg] == "RS")     { role = "RS";     break; }
+            if(g_drawnBoxes[b].rsTags[tg] == "LS")     { role = "LS";     break; }
+         }
       }
 
       bool isBull = true;
