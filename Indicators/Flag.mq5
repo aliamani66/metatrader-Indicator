@@ -713,7 +713,7 @@ void PrintBoxRemovalInfo(int bIdx)
 }
 
 //+------------------------------------------------------------------+
-//| Find Nearest Drawn Box to Click (Supports Nested Boxes & Cycling) |
+//| Find Nearest Drawn Box to Click (Strict Inner Box Priority)      |
 //+------------------------------------------------------------------+
 int FindNearestBox(datetime clickTime, double clickPrice)
 {
@@ -729,10 +729,10 @@ int FindNearestBox(datetime clickTime, double clickPrice)
       double top = g_drawnBoxes[i].top;
       double bottom = g_drawnBoxes[i].bottom;
 
-      // بررسی محدوده زمانی و قیمتی باکس و امتداد آن
+      // بررسی محدوده زمانی و قیمتی باکس
       if(clickTime >= t1 - PeriodSeconds(_Period)*2 && clickTime <= t2 + PeriodSeconds(_Period)*150)
       {
-         if(clickPrice >= bottom - (top - bottom) * 0.4 && clickPrice <= top + (top - bottom) * 0.4)
+         if(clickPrice >= bottom - (top - bottom) * 0.3 && clickPrice <= top + (top - bottom) * 0.3)
          {
             ArrayResize(matchedIndices, matchCount + 1);
             matchedIndices[matchCount] = i;
@@ -744,43 +744,25 @@ int FindNearestBox(datetime clickTime, double clickPrice)
    if(matchCount == 0) return -1;
    if(matchCount == 1) return matchedIndices[0];
 
-   // اگر چند باکس همپوشان (باکس داخل باکس دیگر) وجود داشت:
-   // ۱. اگر یکی از این باکس‌ها در حال حاضر انتخاب است، با کلیک مجدد به باکس همپوشان بعدی چرخش کن (Cycle)
-   int currentMatchPos = -1;
-   for(int m = 0; m < matchCount; m++)
+   // مرتب‌سازی باکس‌های همپوشان بر اساس مساحت (کوچکترین باکس داخلی در اولویت اول)
+   for(int i = 0; i < matchCount - 1; i++)
    {
-      if(g_drawnBoxes[matchedIndices[m]].boxName == g_selectedBoxName)
+      for(int j = i + 1; j < matchCount; j++)
       {
-         currentMatchPos = m;
-         break;
+         int idx1 = matchedIndices[i];
+         int idx2 = matchedIndices[j];
+         double area1 = MathAbs(g_drawnBoxes[idx1].top - g_drawnBoxes[idx1].bottom) * (double)(g_drawnBoxes[idx1].t2 - g_drawnBoxes[idx1].t1 + 1);
+         double area2 = MathAbs(g_drawnBoxes[idx2].top - g_drawnBoxes[idx2].bottom) * (double)(g_drawnBoxes[idx2].t2 - g_drawnBoxes[idx2].t1 + 1);
+         if(area2 < area1)
+         {
+            int temp = matchedIndices[i];
+            matchedIndices[i] = matchedIndices[j];
+            matchedIndices[j] = temp;
+         }
       }
    }
 
-   if(currentMatchPos >= 0)
-   {
-      int nextPos = (currentMatchPos + 1) % matchCount;
-      return matchedIndices[nextPos];
-   }
-
-   // ۲. در اولین کلیک، اولویت با باکس کوچکتر داخلی (Inner / Lower TF Box) است
-   int bestIdx = matchedIndices[0];
-   double minArea = DBL_MAX;
-
-   for(int m = 0; m < matchCount; m++)
-   {
-      int idx = matchedIndices[m];
-      double h = MathAbs(g_drawnBoxes[idx].top - g_drawnBoxes[idx].bottom);
-      double w = (double)(g_drawnBoxes[idx].t2 - g_drawnBoxes[idx].t1);
-      if(w <= 0) w = PeriodSeconds(_Period);
-      double area = h * w;
-      if(area < minArea)
-      {
-         minArea = area;
-         bestIdx = idx;
-      }
-   }
-
-   return bestIdx;
+   return matchedIndices[0];
 }
 
 //+------------------------------------------------------------------+
@@ -1963,6 +1945,11 @@ void OnChartEvent(const int id,
 {
    if(id == CHARTEVENT_CLICK)
    {
+      static ulong lastClickMs = 0;
+      ulong now = GetTickCount64();
+      if(now - lastClickMs < 200) return;
+      lastClickMs = now;
+
       int x = (int)lparam;
       int y = (int)dparam;
 
@@ -1982,22 +1969,6 @@ void OnChartEvent(const int id,
          {
             ClearBoxHighlight();
             ChartRedraw(0);
-         }
-      }
-   }
-   else if(id == CHARTEVENT_OBJECT_CLICK)
-   {
-      if(StringFind(sparam, "FLAG_BOX_") == 0 || StringFind(sparam, "FLAG_SWAP_EXTBOX_") == 0)
-      {
-         for(int b = 0; b < g_boxCount; b++)
-         {
-            string extName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)g_drawnBoxes[b].t1);
-            if(g_drawnBoxes[b].boxName == sparam || extName == sparam)
-            {
-               HighlightBox(b);
-               PrintBoxRemovalInfo(b);
-               break;
-            }
          }
       }
    }
