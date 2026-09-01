@@ -1751,6 +1751,31 @@ void RenderVisualTrades()
       ObjectSetInteger(0, resName, OBJPROP_ANCHOR, (g_tradeSetups[i].isBuy ? ANCHOR_LOWER : ANCHOR_UPPER));
       ObjectSetInteger(0, resName, OBJPROP_SELECTABLE, false);
    }
+
+   // چاپ گزارش آماری ستاپ‌ها در تب Experts
+   int totalTrades = g_tradeCount;
+   int winTP1 = 0, winTP2 = 0, winTP3 = 0, winTP4 = 0, totalLoss = 0;
+   for(int t = 0; t < totalTrades; t++)
+   {
+      if(g_tradeSetups[t].hitTP >= 1) winTP1++;
+      if(g_tradeSetups[t].hitTP >= 2) winTP2++;
+      if(g_tradeSetups[t].hitTP >= 3) winTP3++;
+      if(g_tradeSetups[t].hitTP >= 4) winTP4++;
+      if(g_tradeSetups[t].isClosed && g_tradeSetups[t].hitTP == 0) totalLoss++;
+   }
+
+   Print("══════════════════════════════════════════════════════════════════════");
+   Print("📊 [گزارش آماری معاملات تستی ستاپ‌های ۱:۱ تا ۱:۴ روی چارت]");
+   Print("🔢 کل موقعیت‌های معاملاتی شناسایی‌شده: ", totalTrades);
+   if(totalTrades > 0)
+   {
+      Print("🎯 نرخ موفقیت TP 1:1 : ", winTP1, " (", DoubleToString((winTP1*100.0)/totalTrades, 1), "%)");
+      Print("🎯 نرخ موفقیت TP 1:2 : ", winTP2, " (", DoubleToString((winTP2*100.0)/totalTrades, 1), "%)");
+      Print("🎯 نرخ موفقیت TP 1:3 : ", winTP3, " (", DoubleToString((winTP3*100.0)/totalTrades, 1), "%)");
+      Print("🎯 نرخ موفقیت TP 1:4 : ", winTP4, " (", DoubleToString((winTP4*100.0)/totalTrades, 1), "%)");
+      Print("❌ معاملات استاپ خورده (Loss): ", totalLoss, " (", DoubleToString((totalLoss*100.0)/totalTrades, 1), "%)");
+   }
+   Print("══════════════════════════════════════════════════════════════════════");
 }
 
 //+------------------------------------------------------------------+
