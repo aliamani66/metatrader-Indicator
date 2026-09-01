@@ -45,10 +45,18 @@ input bool             InpUseTF7  = true;           // محاسبه ۱ دقیق�
 input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
 
-input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
-input bool             InpShowOnlySRS           = false; // فقط نمایش باکس‌های S-RS (مخفی‌سازی سایر باکس‌ها بدون حذف محاسبات)
-input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
-input bool             InpShowOnlyRSMicroBoxes  = false; // نمایش همه باکس‌ها در ۱۰ روز گذشته (نه فقط RS)
+enum ENUM_DISPLAY_FILTER
+{
+   FILTER_ALL,               // نمایش کامل تمام باکس‌ها (همه الگوها)
+   FILTER_ONLY_SRS,          // فقط باکس‌های S-RS (وین‌ریت بالای ۸۳٪)
+   FILTER_HIGH_WINRATE,      // باکس‌های طلایی با وین‌ریت بالا (S-RS + OInner + RS)
+   FILTER_ALL_SWAPS          // فقط باکس‌های سواپ (S-RS, S-OInner, S-LS)
+};
+
+input group "=== Smart Visibility & Box Filter (فیلتر نمایش هوشمند) ==="
+input ENUM_DISPLAY_FILTER InpDisplayFilter          = FILTER_ONLY_SRS; // فیلتر نمایش باکس‌ها روی چارت
+input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (در حالت All)
+input bool             InpShowOnlyRSMicroBoxes  = false; // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۱۰ روز گذشته
 input string           InpRSTagPrefix           = "RS";  // پیشوند تگ‌های هوشمند (RS)
 
@@ -1320,16 +1328,33 @@ void RenderFinalBoxes()
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
-      if(InpShowOnlySRS)
+      bool isSRS     = (g_drawnBoxes[b].isSwap && g_drawnBoxes[b].swapSourceRole == "RS");
+      bool isOI      = g_drawnBoxes[b].isOInner;
+      bool isRS      = g_drawnBoxes[b].isBOFlag;
+      bool isAnySwap = g_drawnBoxes[b].isSwap;
+
+      for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
       {
-         bool isSRS = false;
-         for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
-         {
-            if(g_drawnBoxes[b].rsTags[t] == "S-RS") { isSRS = true; break; }
-         }
+         string tg = g_drawnBoxes[b].rsTags[t];
+         if(StringFind(tg, "S-RS") >= 0) isSRS = true;
+         if(tg == "OInner") isOI = true;
+         if(tg == "RS") isRS = true;
+         if(StringFind(tg, "S-") == 0) isAnySwap = true;
+      }
+
+      if(InpDisplayFilter == FILTER_ONLY_SRS)
+      {
          if(!isSRS) continue;
       }
-      else
+      else if(InpDisplayFilter == FILTER_HIGH_WINRATE)
+      {
+         if(!isSRS && !isOI && !isRS) continue;
+      }
+      else if(InpDisplayFilter == FILTER_ALL_SWAPS)
+      {
+         if(!isAnySwap) continue;
+      }
+      else // FILTER_ALL
       {
          bool shouldDraw = false;
          if(isMacro)
@@ -1473,7 +1498,7 @@ void RenderFinalBoxes()
 //+------------------------------------------------------------------+
 void RenderFinalIndependentPivots()
 {
-   if(InpShowOnlySRS || !InpShowIndependentPivots) return;
+   if(InpDisplayFilter == FILTER_ONLY_SRS || !InpShowIndependentPivots) return;
 
    for(int k = 0; k < g_indepCount; k++)
    {
