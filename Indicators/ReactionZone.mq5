@@ -14,13 +14,14 @@
 #property indicator_plots   0
 
 //--- Inputs
+input bool  InpUseH4 = true;                 // نمایش باکس‌های H4
 input bool  InpUseH1 = true;                 // نمایش باکس‌های H1
 input bool  InpUseM15 = true;                // نمایش باکس‌های M15
 input bool  InpUseM5 = true;                 // نمایش باکس‌های M5
 input bool  InpUseM1 = true;                 // نمایش باکس‌های M1
 input color InpBullishColor = clrOrange;     // رنگ باکس صعودی
 input color InpBearishColor = clrCyan;       // رنگ باکس نزولی
-input int   InpLineWidth    = 3;             // ضخامت خط
+input int   InpLineWidth    = 1;             // ضخامت خط (1 = نازک و ظریف)
 input bool  InpShowLabel    = true;          // نمایش برچسب
 input int   InpLabelFontSize = 8;            // اندازه فونت برچسب
 input int   InpMaxBoxes = 200;               // تعداد باکس‌های آخر برای امتداد
@@ -46,12 +47,13 @@ int zoneCount = 0;
 //| رسم باکس توخالی                                                  |
 //+------------------------------------------------------------------+
 void DrawHollowBox(string name, datetime t1, double top, datetime t2, double bottom,
-                   color clr, int width, bool rayRight = false)
+                   color clr, int width, bool rayRight = false, ENUM_LINE_STYLE style = STYLE_SOLID)
 {
    if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
    if(!ObjectCreate(0, name, OBJ_RECTANGLE, 0, t1, top, t2, bottom)) return;
    ObjectSetInteger(0, name, OBJPROP_COLOR,      clr);
    ObjectSetInteger(0, name, OBJPROP_WIDTH,      width);
+   ObjectSetInteger(0, name, OBJPROP_STYLE,      style);
    ObjectSetInteger(0, name, OBJPROP_FILL,       false);
    ObjectSetInteger(0, name, OBJPROP_BACK,       false);
    ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
@@ -116,7 +118,7 @@ void ReadFlagBoxes()
    STempBox tempBoxes[];
    int tempCount = 0;
    
-   // پیدا کردن تمام باکس‌های FLAG_BOX فقط برای H1, M15, M5, M1
+   // پیدا کردن تمام باکس‌های FLAG_BOX برای H4, H1, M15, M5, M1
    for(int i = ObjectsTotal(0, 0, OBJ_RECTANGLE) - 1; i >= 0; i--)
    {
       string objName = ObjectName(0, i, 0, OBJ_RECTANGLE);
@@ -124,20 +126,22 @@ void ReadFlagBoxes()
       // فقط باکس‌های FLAG_BOX را در نظر بگیر
       if(StringFind(objName, "FLAG_BOX_") != 0) continue;
       
-      // فقط باکس‌های H1, M15, M5, M1 (بر اساس تنظیمات کاربر)
+      // بررسی تایم‌فریم‌ها
+      bool isH4 = (StringFind(objName, "H4") >= 0);
       bool isH1 = (StringFind(objName, "H1") >= 0);
       bool isM15 = (StringFind(objName, "M15") >= 0);
       bool isM5 = (StringFind(objName, "M5") >= 0);
       bool isM1 = (StringFind(objName, "M1_") >= 0); // M1_ برای جلوگیری از match با M15
       
       // بررسی اینکه آیا این تایم‌فریم فعال است
+      if(isH4 && !InpUseH4) continue;
       if(isH1 && !InpUseH1) continue;
       if(isM15 && !InpUseM15) continue;
       if(isM5 && !InpUseM5) continue;
       if(isM1 && !InpUseM1) continue;
       
       // اگه هیچکدوم نبودن، skip
-      if(!isH1 && !isM15 && !isM5 && !isM1) continue;
+      if(!isH4 && !isH1 && !isM15 && !isM5 && !isM1) continue;
       
       // خواندن اطلاعات باکس
       datetime t1 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 0);
@@ -350,6 +354,11 @@ void DrawReactionZones(const datetime &time[], int rates_total)
       int seed = (int)reactionZones[i].timeStart + i;
       color boxColor = GetRandomBrightColor(seed);
       
+      ENUM_LINE_STYLE boxStyle = STYLE_SOLID;
+      if(StringFind(reactionZones[i].originalBoxName, "M15") >= 0) boxStyle = STYLE_DASH;
+      else if(StringFind(reactionZones[i].originalBoxName, "M5") >= 0) boxStyle = STYLE_DOT;
+      else if(StringFind(reactionZones[i].originalBoxName, "M1_") >= 0) boxStyle = STYLE_DASHDOT;
+      
       DrawHollowBox(zoneName,
                     startTime,
                     reactionZones[i].priceTop,
@@ -357,7 +366,8 @@ void DrawReactionZones(const datetime &time[], int rates_total)
                     reactionZones[i].priceBottom,
                     boxColor,
                     InpLineWidth,
-                    false);
+                    false,
+                    boxStyle);
       
       string labelName = zoneName + "_LBL";
       double labelPrice = (reactionZones[i].priceTop + reactionZones[i].priceBottom) / 2;

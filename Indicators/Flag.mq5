@@ -49,7 +49,7 @@ input int              InpSwingBars   = 6;           // عمق امواج ماژ
 input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (Max Bars)
 
 input group "=== Visuals ==="
-input int              InpLineWidth   = 2;           // ضخامت خط باکس‌ها
+input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
 input bool             InpShowLabel   = true;        // نمایش برچسب تایم‌فریم
 
 input group "=== Independent Pivots (پیووت‌های مستقل) ==="
@@ -57,7 +57,7 @@ input bool             InpShowIndependentPivots = true;        // نمایش پ�
 input color            InpIndepColorHigh        = clrMagenta;    // رنگ سقف مستقل
 input color            InpIndepColorLow         = clrAqua;       // رنگ کف مستقل
 input int              InpIndepMarkCode         = 159;          // کد علامت (159 = دایره، 168 = دایره باز)
-input int              InpIndepMarkWidth        = 4;            // اندازه علامت پیووت مستقل
+input int              InpIndepMarkWidth        = 3;            // اندازه علامت پیووت مستقل
 input bool             InpIndepShowLabel        = true;         // نمایش برچسب IP روی چارت
 
 input group "=== Chart Display Settings ==="
@@ -82,6 +82,24 @@ int      g_boxCount = 0;
 int      g_clickCounter = 0;
 
 //+------------------------------------------------------------------+
+//| Get distinct Line Style per Timeframe                            |
+//+------------------------------------------------------------------+
+ENUM_LINE_STYLE GetTFLineStyle(ENUM_TIMEFRAMES tf)
+{
+   switch(tf)
+   {
+      case PERIOD_D1:  return STYLE_SOLID;       // روزانه: خط ممتد
+      case PERIOD_W1:  return STYLE_SOLID;       // هفتگی: خط ممتد
+      case PERIOD_H4:  return STYLE_SOLID;       // چهارساعته: خط ممتد
+      case PERIOD_H1:  return STYLE_SOLID;       // یک‌ساعته: خط ممتد
+      case PERIOD_M15: return STYLE_DASH;        // ۱۵ دقیقه: خط‌چین
+      case PERIOD_M5:  return STYLE_DOT;         // ۵ دقیقه: نقطه‌چین
+      case PERIOD_M1:  return STYLE_DASHDOT;     // ۱ دقیقه: خط و نقطه
+      default:         return STYLE_SOLID;
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Find Bar Index in non-series chartTime array                     |
 //+------------------------------------------------------------------+
 int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
@@ -101,19 +119,19 @@ int FindBarIndex(const datetime &chartTime[], int ratesTotal, datetime t)
 }
 
 //+------------------------------------------------------------------+
-//| Helper: Draw Hollow Box on Chart                                 |
+//| Helper: Draw Hollow Box on Chart with Custom Style               |
 //+------------------------------------------------------------------+
 void DrawHollowBox(string name, datetime t1, double top, datetime t2, double bottom,
-                   color clr, int width)
+                   color clr, int width, ENUM_LINE_STYLE style = STYLE_SOLID)
 {
    if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
    ObjectCreate(0, name, OBJ_RECTANGLE, 0, t1, top, t2, bottom);
    ObjectSetInteger(0, name, OBJPROP_COLOR,      clr);
    ObjectSetInteger(0, name, OBJPROP_WIDTH,      width);
+   ObjectSetInteger(0, name, OBJPROP_STYLE,      style);
    ObjectSetInteger(0, name, OBJPROP_FILL,       false);
    ObjectSetInteger(0, name, OBJPROP_BACK,       false);
    ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-   ObjectSetInteger(0, name, OBJPROP_RAY_RIGHT,  false);
 }
 
 //+------------------------------------------------------------------+
@@ -159,17 +177,28 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
    {
       if(prevL > 0 && p2.price > prevL)
       {
-         // اگر سقف بعد و کف بعد هر دو پایین‌تر بیایند -> چرخش روند
+         // شرط ۱: اگر سقف بعد و کف بعد هر دو پایین‌تر بیایند -> چرخش روند
          if(nextH > 0 && nextH < p1.price && nextL > 0 && nextL < p2.price)
             return false;
 
-         // اگر شروع یال (P1) مستقیماً از یک کف پایین‌تر (LL) آمده باشد (اسپایک چرخش از نزولی)
-         // برای تأیید پرچم صعودی، سقف‌های بعدی حتماً باید سقف P1 را بشکنند
-         if(idx >= 3 && pivots[idx - 1].price < pivots[idx - 3].price)
+         // شرط ۲: تأیید ادامه روند صعودی (شکست سقف P1 در سوینگ‌های بعد)
+         bool brokeAboveP1 = false;
+         bool hasFutureHighs = false;
+         for(int j = idx + 2; j < totalCount && j <= idx + 8; j++)
          {
-            if(nextH > 0 && nextH <= p1.price)
-               return false;
+            if(pivots[j].isHigh)
+            {
+               hasFutureHighs = true;
+               if(pivots[j].price > p1.price)
+               {
+                  brokeAboveP1 = true;
+                  break;
+               }
+            }
          }
+         // اگر سوینگ‌های بعدی شکل گرفته‌اند ولی هیچ‌کدام نتوانسته‌اند بالای P1 بروند -> سقف مستقل
+         if(hasFutureHighs && !brokeAboveP1)
+            return false;
 
          return true;
       }
@@ -179,17 +208,28 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
    {
       if(prevH > 0 && p2.price < prevH)
       {
-         // اگر کف بعد و سقف بعد هر دو بالاتر بیایند -> چرخش روند
+         // شرط ۱: اگر کف بعد و سقف بعد هر دو بالاتر بیایند -> چرخش روند
          if(nextL > 0 && nextL > p1.price && nextH > 0 && nextH > p2.price)
             return false;
 
-         // اگر شروع یال (P1) مستقیماً از یک سقف بالاتر (HH) آمده باشد (اسپایک چرخش از صعودی)
-         // برای تأیید پرچم نزولی، کف‌های بعدی حتماً باید کف P1 را بشکنند
-         if(idx >= 3 && pivots[idx - 1].price > pivots[idx - 3].price)
+         // شرط ۲: تأیید ادامه روند نزولی (شکست کف P1 در سوینگ‌های بعد)
+         bool brokeBelowP1 = false;
+         bool hasFutureLows = false;
+         for(int j = idx + 2; j < totalCount && j <= idx + 8; j++)
          {
-            if(nextL > 0 && nextL >= p1.price)
-               return false;
+            if(!pivots[j].isHigh)
+            {
+               hasFutureLows = true;
+               if(pivots[j].price < p1.price)
+               {
+                  brokeBelowP1 = true;
+                  break;
+               }
+            }
          }
+         // اگر سوینگ‌های بعدی شکل گرفته‌اند ولی هیچ‌کدام نتوانسته‌اند زیر P1 بروند -> کف مستقل
+         if(hasFutureLows && !brokeBelowP1)
+            return false;
 
          return true;
       }
@@ -344,8 +384,10 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       datetime t2 = chartTime[rightIdx];
 
       string boxKey = IntegerToString((int)p1.time) + "_" + IntegerToString((int)p2.time);
-      string boxName = "FLAG_BOX_" + tfTag + "_" + boxKey;
-      DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth);
+      string boxType = (p1.isHigh ? "B" : "R");
+      string boxName = "FLAG_BOX_" + tfTag + "_" + boxType + "_" + boxKey;
+      ENUM_LINE_STYLE tfStyle = GetTFLineStyle(tf);
+      DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth, tfStyle);
 
       // Register box for click inspection
       if(tf == PERIOD_H1)
