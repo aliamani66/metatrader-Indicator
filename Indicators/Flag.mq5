@@ -1153,6 +1153,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
 {
    if(!InpEnableSwapLines) return;
 
+   double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    int initialBoxCount = g_boxCount;
    for(int b = 0; b < initialBoxCount; b++)
    {
