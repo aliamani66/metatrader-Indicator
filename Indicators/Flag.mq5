@@ -1189,7 +1189,10 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
 
       datetime liveTime = (ratesTotal > 0) ? chartTime[ratesTotal - 1] : 0;
       datetime endTime = isBroken ? chartTime[breakIdx] : liveTime;
-      if(endTime <= startTime && ratesTotal > 0) endTime = liveTime;
+      if(endTime <= g_drawnBoxes[b].t1 && ratesTotal > 0) endTime = liveTime;
+
+      // امتداد باکس به صورت مستطیل یکپارچه تا زمان شکست یا تا لایو بازار
+      g_drawnBoxes[b].t2 = endTime;
 
       // نام و نقش باکس مبدأ جهت تولید پیشوند S-
       string srcRole = "Flag";
@@ -1198,52 +1201,6 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          if(g_drawnBoxes[b].rsTags[tg] == "OInner") { srcRole = "OInner"; break; }
          if(g_drawnBoxes[b].rsTags[tg] == "RS")     { srcRole = "RS";     break; }
          if(g_drawnBoxes[b].rsTags[tg] == "LS")     { srcRole = "LS";     break; }
-      }
-
-      // انتخاب استایل ترکیبی شیک: خط‌چین و نقطه‌چین
-      ENUM_LINE_STYLE extStyle = STYLE_DOT;
-      color boxExtColor = isBull ? InpSwapColorBear : InpSwapColorBull;
-
-      if(srcRole == "OInner")
-      {
-         extStyle = STYLE_DASH;
-         boxExtColor = isBull ? clrDeepSkyBlue : clrGold;
-      }
-      else if(srcRole == "LS")
-      {
-         extStyle = STYLE_DASH;
-         boxExtColor = isBull ? clrLimeGreen : clrDeepPink;
-      }
-      else if(srcRole == "RS")
-      {
-         extStyle = STYLE_DOT;
-         boxExtColor = isBull ? clrDodgerBlue : clrOrangeRed;
-      }
-
-      string lineName = "FLAG_SWAP_LINE_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
-
-      if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
-      ObjectCreate(0, lineName, OBJ_TREND, 0, startTime, linePrice, endTime, linePrice);
-      ObjectSetInteger(0, lineName, OBJPROP_COLOR, boxExtColor);
-      ObjectSetInteger(0, lineName, OBJPROP_STYLE, extStyle);
-      ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpSwapLineWidth);
-      ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
-      ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
-
-      if(InpOriginLabelStyle != LABEL_TOOLTIP)
-      {
-         string lblName = lineName + "_LBL";
-         string lblText = (srcRole != "Flag" ? ("S-" + srcRole) : "Swap") + " [" + g_drawnBoxes[b].tfTag + "]";
-         
-         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-         datetime lblTime = (datetime)((startTime + endTime) / 2);
-
-         ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, linePrice);
-         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
-         ObjectSetInteger(0, lblName, OBJPROP_COLOR, boxExtColor);
-         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isBull ? ANCHOR_UPPER : ANCHOR_LOWER));
-         ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
       }
 
       // پیدا کردن و ثبت باکس سواپ متناظر
