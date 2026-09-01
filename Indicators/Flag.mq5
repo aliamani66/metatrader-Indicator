@@ -1317,6 +1317,9 @@ void RenderFinalBoxes()
 {
    for(int b = 0; b < g_boxCount; b++)
    {
+      bool isMacro = g_drawnBoxes[b].isMacro;
+      bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
+
       if(InpShowOnlySRS)
       {
          bool isSRS = false;
@@ -1328,9 +1331,6 @@ void RenderFinalBoxes()
       }
       else
       {
-         bool isMacro = g_drawnBoxes[b].isMacro;
-         bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
-
          bool shouldDraw = false;
          if(isMacro)
          {
