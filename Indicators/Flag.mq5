@@ -52,6 +52,14 @@ input group "=== Visuals ==="
 input int              InpLineWidth   = 2;           // ضخامت خط باکس‌ها
 input bool             InpShowLabel   = true;        // نمایش برچسب تایم‌فریم
 
+input group "=== Independent Pivots (پیووت‌های مستقل) ==="
+input bool             InpShowIndependentPivots = true;        // نمایش پیووت‌های مستقل (چرخش ساختار)
+input color            InpIndepColorHigh        = clrMagenta;    // رنگ سقف مستقل
+input color            InpIndepColorLow         = clrAqua;       // رنگ کف مستقل
+input int              InpIndepMarkCode         = 159;          // کد علامت (159 = دایره، 168 = دایره باز)
+input int              InpIndepMarkWidth        = 4;            // اندازه علامت پیووت مستقل
+input bool             InpIndepShowLabel        = true;         // نمایش برچسب IP روی چارت
+
 input group "=== Chart Display Settings ==="
 input bool             InpHideGrid    = true;        // حذف گرید از چارت
 input bool             InpHideVolumes = true;        // حذف نمودار حجم
@@ -191,6 +199,31 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
 }
 
 //+------------------------------------------------------------------+
+//| Helper: Draw Independent Pivot Marker                            |
+//+------------------------------------------------------------------+
+void DrawIndependentPivot(string name, datetime t, double price, bool isHigh, color clr, string tfTag)
+{
+   if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
+   ObjectCreate(0, name, OBJ_ARROW, 0, t, price);
+   ObjectSetInteger(0, name, OBJPROP_ARROWCODE, InpIndepMarkCode);
+   ObjectSetInteger(0, name, OBJPROP_COLOR,      clr);
+   ObjectSetInteger(0, name, OBJPROP_WIDTH,      InpIndepMarkWidth);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, name, OBJPROP_ANCHOR, (isHigh ? ANCHOR_BOTTOM : ANCHOR_TOP));
+
+   if(InpIndepShowLabel)
+   {
+      string lblName = name + "_LBL";
+      if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+      ObjectCreate(0, lblName, OBJ_TEXT, 0, t, price);
+      ObjectSetString(0, lblName, OBJPROP_TEXT, "IP " + tfTag);
+      ObjectSetInteger(0, lblName, OBJPROP_COLOR, clr);
+      ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Process Timeframe Swings & Draw Flag Boxes                       |
 //+------------------------------------------------------------------+
 void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
@@ -200,14 +233,11 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    SPivot pivots[];
    if(!BuildAlternatingPivots(tf, sBars, InpMaxBarsTF, pivots))
    {
-      Print("⚠️ [Flag] اطلاعات تایم‌فریم ", EnumToString(tf), " هنوز کامل لود نشده یا پیووتی نیافت.");
       return;
    }
 
    int count = ArraySize(pivots);
    if(count < 2) return;
-
-   Print("✅ [Flag] تایم‌فریم ", EnumToString(tf), " با موفقیت ", count, " پیووت ماژور شناسایی کرد.");
 
    if(tf == PERIOD_H1)
    {
@@ -223,15 +253,53 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    if(daysBack > 0)
       limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
 
+   //--- مرحله ۱: مشخص کردن اینکه کدام یال‌ها و پیووت‌ها متعلق به باکس‌های پرچم هستند
+   bool isLegBox[];
+   ArrayResize(isLegBox, count);
+   ArrayInitialize(isLegBox, false);
+
+   bool pivotInBox[];
+   ArrayResize(pivotInBox, count);
+   ArrayInitialize(pivotInBox, false);
+
    for(int i = 0; i < count - 1; i++)
    {
+      if(IsValidFlagLeg(i, pivots, count))
+      {
+         isLegBox[i] = true;
+         pivotInBox[i] = true;
+         pivotInBox[i + 1] = true;
+      }
+   }
+
+   //--- مرحله ۲: علامت‌گذاری اختصاصی پیووت‌های مستقل (پیووت‌هایی که هیچ باکسی ندارند)
+   if(InpShowIndependentPivots)
+   {
+      for(int p = 0; p < count; p++)
+      {
+         if(daysBack > 0 && pivots[p].time < limitTime)
+            continue;
+
+         // اگر این پیووت در هیچ باکسی قرار نگرفته باشد -> پیووت مستقل است
+         if(!pivotInBox[p])
+         {
+            string ipName = "FLAG_IP_" + tfTag + "_" + IntegerToString((int)pivots[p].time);
+            color ipColor = pivots[p].isHigh ? InpIndepColorHigh : InpIndepColorLow;
+            DrawIndependentPivot(ipName, pivots[p].time, pivots[p].price, pivots[p].isHigh, ipColor, tfSymbol);
+         }
+      }
+   }
+
+   //--- مرحله ۳: رسم باکس‌های پرچم
+   for(int i = 0; i < count - 1; i++)
+   {
+      if(!isLegBox[i])
+         continue;
+
       SPivot p1 = pivots[i];
       SPivot p2 = pivots[i + 1];
 
       if(daysBack > 0 && p1.time < limitTime)
-         continue;
-
-      if(!IsValidFlagLeg(i, pivots, count))
          continue;
 
       double boxTop    = MathMax(p1.price, p2.price);
@@ -432,6 +500,15 @@ int OnCalculate(const int rates_total,
                 const int &spread[])
 {
    if(rates_total < 10) return 0;
+
+   //--- Only recalculate on a new bar or initial load to prevent chart flickering and high CPU usage
+   static datetime lastBarTime = 0;
+   datetime currentBarTime = time[rates_total - 1];
+   if(prev_calculated > 0 && currentBarTime == lastBarTime)
+   {
+      return rates_total;
+   }
+   lastBarTime = currentBarTime;
 
    if(InpHideGrid)
       ChartSetInteger(0, CHART_SHOW_GRID, false);

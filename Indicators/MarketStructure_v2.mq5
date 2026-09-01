@@ -117,6 +117,15 @@ int OnCalculate(const int rates_total,
    if(rates_total < sBars * 2 + 5)
       return 0;
 
+   //--- Only recalculate on a new bar or initial load to prevent line flickering and high CPU usage
+   static datetime lastBarTime = 0;
+   datetime currentBarTime = time[rates_total - 1];
+   if(prev_calculated > 0 && currentBarTime == lastBarTime)
+   {
+      return rates_total;
+   }
+   lastBarTime = currentBarTime;
+
    if(InpHideGrid)
       ChartSetInteger(0, CHART_SHOW_GRID, false);
    if(InpHideVolumes)
