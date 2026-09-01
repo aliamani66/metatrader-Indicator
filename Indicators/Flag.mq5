@@ -1841,7 +1841,13 @@ int OnCalculate(const int rates_total,
 
    ApplyProChartTheme();
 
-   ObjectsDeleteAll(0, "FLAG_");
+   ObjectsDeleteAll(0, "FLAG_BOX_");
+   ObjectsDeleteAll(0, "FLAG_IP_");
+   ObjectsDeleteAll(0, "FLAG_RS_");
+   ObjectsDeleteAll(0, "FLAG_SWAP_");
+   ObjectsDeleteAll(0, "FLAG_STRUCT_");
+   ObjectsDeleteAll(0, "FLAG_PIVOT_");
+
    ArrayResize(g_drawnBoxes, 0);
    g_boxCount = 0;
    ArrayResize(g_indepPivots, 0);
@@ -1877,6 +1883,23 @@ int OnCalculate(const int rates_total,
 
    //--- Render Final Merged Independent Pivot Markers (No Overlapping)
    RenderFinalIndependentPivots();
+
+   //--- بازنشانی هایلایت و ستاپ معامله برای باکس انتخابی در صورت وجود
+   if(g_selectedBoxName != "")
+   {
+      for(int b = 0; b < g_boxCount; b++)
+      {
+         if(g_drawnBoxes[b].boxName == g_selectedBoxName)
+         {
+            ObjectSetInteger(0, g_selectedBoxName, OBJPROP_COLOR, clrGold);
+            ObjectSetInteger(0, g_selectedBoxName, OBJPROP_WIDTH, 3);
+            ObjectSetInteger(0, g_selectedBoxName, OBJPROP_STYLE, STYLE_SOLID);
+            ObjectSetInteger(0, g_selectedBoxName, OBJPROP_FILL,  false);
+            ShowTradeSetupForBox(b);
+            break;
+         }
+      }
+   }
 
    ChartRedraw(0);
    return rates_total;
