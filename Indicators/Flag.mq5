@@ -1618,51 +1618,51 @@ void ShowTradeSetupForBox(int boxIdx)
       }
    }
 
+   datetime entryTime = 0;
+   datetime exitTime  = chartTime[copied - 1];
+   int      hitTP     = 0;
+   bool     isClosed  = false;
+   bool     isPending = false;
+
    if(entryBar < 0)
    {
-      Print("ℹ️ [باکس انتخاب‌شده هنوز در گذشته تست و لمس نشده است]");
-      return;
+      // ستاپ معلق برای لایو / هنوز لمس نشده (طرح معامله پیش‌رو)
+      isPending = true;
+      entryTime = g_drawnBoxes[boxIdx].t2;
+      exitTime  = chartTime[copied - 1] + PeriodSeconds(_Period) * 20;
    }
-
-   datetime entryTime = chartTime[entryBar];
-
-   // ۳. محاسبه دقیق تارگت‌های ۱:۱ تا ۱:۴ بر اساس نسبت ریسک
-   double tp1 = isBull ? (entryPrice + 1.0 * risk) : (entryPrice - 1.0 * risk);
-   double tp2 = isBull ? (entryPrice + 2.0 * risk) : (entryPrice - 2.0 * risk);
-   double tp3 = isBull ? (entryPrice + 3.0 * risk) : (entryPrice - 3.0 * risk);
-   double tp4 = isBull ? (entryPrice + 4.0 * risk) : (entryPrice - 4.0 * risk);
-
-   int hitTP = 0;
-   bool isClosed = false;
-   datetime exitTime = chartTime[copied - 1];
-
-   for(int k = entryBar + 1; k < copied; k++)
+   else
    {
-      if(isBull)
+      entryTime = chartTime[entryBar];
+
+      for(int k = entryBar + 1; k < copied; k++)
       {
-         if(chartLow[k] <= slPrice)
+         if(isBull)
          {
-            isClosed = true;
-            exitTime = chartTime[k];
-            break;
+            if(chartLow[k] <= slPrice)
+            {
+               isClosed = true;
+               exitTime = chartTime[k];
+               break;
+            }
+            if(chartHigh[k] >= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
+            else if(chartHigh[k] >= tp3 && hitTP < 3) { hitTP = 3; }
+            else if(chartHigh[k] >= tp2 && hitTP < 2) { hitTP = 2; }
+            else if(chartHigh[k] >= tp1 && hitTP < 1) { hitTP = 1; }
          }
-         if(chartHigh[k] >= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
-         else if(chartHigh[k] >= tp3 && hitTP < 3) { hitTP = 3; }
-         else if(chartHigh[k] >= tp2 && hitTP < 2) { hitTP = 2; }
-         else if(chartHigh[k] >= tp1 && hitTP < 1) { hitTP = 1; }
-      }
-      else
-      {
-         if(chartHigh[k] >= slPrice)
+         else
          {
-            isClosed = true;
-            exitTime = chartTime[k];
-            break;
+            if(chartHigh[k] >= slPrice)
+            {
+               isClosed = true;
+               exitTime = chartTime[k];
+               break;
+            }
+            if(chartLow[k] <= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
+            else if(chartLow[k] <= tp3 && hitTP < 3) { hitTP = 3; }
+            else if(chartLow[k] <= tp2 && hitTP < 2) { hitTP = 2; }
+            else if(chartLow[k] <= tp1 && hitTP < 1) { hitTP = 1; }
          }
-         if(chartLow[k] <= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
-         else if(chartLow[k] <= tp3 && hitTP < 3) { hitTP = 3; }
-         else if(chartLow[k] <= tp2 && hitTP < 2) { hitTP = 2; }
-         else if(chartLow[k] <= tp1 && hitTP < 1) { hitTP = 1; }
       }
    }
 
@@ -1718,12 +1718,13 @@ void ShowTradeSetupForBox(int boxIdx)
    string resText = "";
    color  resColor = clrGray;
 
-   if(hitTP == 4)      { resText = "WIN 1:4 🎯"; resColor = clrLime; }
-   else if(hitTP == 3) { resText = "WIN 1:3 🚀"; resColor = clrMediumSpringGreen; }
-   else if(hitTP == 2) { resText = "WIN 1:2 ✅"; resColor = clrDodgerBlue; }
-   else if(hitTP == 1) { resText = "WIN 1:1 👍"; resColor = clrCyan; }
-   else if(isClosed)   { resText = "LOSS ❌";   resColor = clrRed; }
-   else                { resText = "OPEN ⏳";   resColor = clrYellow; }
+   if(hitTP == 4)        { resText = "WIN 1:4 🎯"; resColor = clrLime; }
+   else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = clrMediumSpringGreen; }
+   else if(hitTP == 2)   { resText = "WIN 1:2 ✅"; resColor = clrDodgerBlue; }
+   else if(hitTP == 1)   { resText = "WIN 1:1 👍"; resColor = clrCyan; }
+   else if(isClosed)     { resText = "LOSS ❌";   resColor = clrRed; }
+   else if(isPending)    { resText = "PENDING ⏳"; resColor = clrYellow; }
+   else                  { resText = "OPEN ⏳";   resColor = clrGold; }
 
    string fullBadge = (isBull ? "🟢 BUY " : "🔴 SELL ") + role + " -> " + resText;
    ObjectCreate(0, resName, OBJ_TEXT, 0, t1, entryPrice);
