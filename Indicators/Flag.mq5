@@ -1220,31 +1220,29 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          boxExtColor = isBull ? clrDodgerBlue : clrOrangeRed;
       }
 
-      string boxExtName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
+      string lineName = "FLAG_SWAP_LINE_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
 
-      DrawHollowBox(boxExtName,
-                    startTime,
-                    g_drawnBoxes[b].top,
-                    endTime,
-                    g_drawnBoxes[b].bottom,
-                    boxExtColor,
-                    InpSwapBoxWidth,
-                    extStyle);
+      if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
+      ObjectCreate(0, lineName, OBJ_TREND, 0, startTime, linePrice, endTime, linePrice);
+      ObjectSetInteger(0, lineName, OBJPROP_COLOR, boxExtColor);
+      ObjectSetInteger(0, lineName, OBJPROP_STYLE, extStyle);
+      ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpSwapLineWidth);
+      ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
 
       if(InpOriginLabelStyle != LABEL_TOOLTIP)
       {
-         string lblName = boxExtName + "_LBL";
+         string lblName = lineName + "_LBL";
          string lblText = (srcRole != "Flag" ? ("S-" + srcRole) : "Swap") + " [" + g_drawnBoxes[b].tfTag + "]";
          
          if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
          datetime lblTime = (datetime)((startTime + endTime) / 2);
-         double lblPrice = g_drawnBoxes[b].top + (g_drawnBoxes[b].top - g_drawnBoxes[b].bottom) * 0.05;
 
-         ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, lblPrice);
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, linePrice);
          ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
          ObjectSetInteger(0, lblName, OBJPROP_COLOR, boxExtColor);
          ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isBull ? ANCHOR_UPPER : ANCHOR_LOWER));
          ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
       }
 
