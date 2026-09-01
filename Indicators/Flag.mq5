@@ -33,22 +33,22 @@ input color            InpColorTF4 = clrYellow;
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 50;
+input int              InpM15DaysBack = 2;           // تاریخچه ۱۵ دقیقه (۲ روز)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 30;
+input int              InpM5DaysBack = 2;           // تاریخچه ۵ دقیقه (۲ روز)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 10;
+input int              InpM1DaysBack = 2;           // تاریخچه ۱ دقیقه (۲ روز)
 
 input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
 input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
-input bool             InpShowOnlyRSMicroBoxes  = true;  // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
-input bool             InpShowNormalMicroBoxes  = false; // نمایش تمام باکس‌های عادی تایم‌های ریز (خاموش = چارت کاملاً خلوت)
+input bool             InpShowOnlyRSMicroBoxes  = false; // نمایش همه باکس‌ها در ۲ روز گذشته (نه فقط RS)
+input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۲ روز گذشته
 input string           InpRSTagPrefix           = "RS";  // پیشوند تگ‌های هوشمند (RS)
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
@@ -1796,6 +1796,227 @@ void ShowTradeSetupForBox(int boxIdx)
 }
 
 //+------------------------------------------------------------------+
+//| Export All Simulated Trades for All Boxes to CSV for Python      |
+//+------------------------------------------------------------------+
+void ExportAllTradesToCSV()
+{
+   string filename = "flag_trades_export.csv";
+   int fileHandle = FileOpen(filename, FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
+   if(fileHandle == INVALID_HANDLE) return;
+
+   FileWrite(fileHandle, "BoxID", "Timeframe", "Role", "Direction", "StartTime", "EndTime", "TopPrice", "BottomPrice", "EntryTime", "EntryPrice", "SLPrice", "RiskPips", "TP1", "TP2", "TP3", "TP4", "ExitTime", "HitTP", "IsClosed", "Result");
+
+   datetime chartTime[];
+   double chartHigh[], chartLow[];
+   ArraySetAsSeries(chartTime, false);
+   ArraySetAsSeries(chartHigh, false);
+   ArraySetAsSeries(chartLow, false);
+
+   int copied = CopyTime(_Symbol, _Period, 0, 5000, chartTime);
+   CopyHigh(_Symbol, _Period, 0, 5000, chartHigh);
+   CopyLow(_Symbol, _Period, 0, 5000, chartLow);
+   if(copied < 10) { FileClose(fileHandle); return; }
+
+   double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
+   int exportedCount = 0;
+
+   for(int b = 0; b < g_boxCount; b++)
+   {
+      string role = "Flag";
+      for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+      {
+         if(g_drawnBoxes[b].rsTags[tg] == "OInner") { role = "OInner"; break; }
+         if(g_drawnBoxes[b].rsTags[tg] == "RS")     { role = "RS";     break; }
+         if(g_drawnBoxes[b].rsTags[tg] == "LS")     { role = "LS";     break; }
+         if(StringFind(g_drawnBoxes[b].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[b].rsTags[tg]; break; }
+      }
+
+      bool isBull = true;
+      double entryPrice = 0;
+      double slPrice = 0;
+
+      if(role == "OInner")
+      {
+         double pivotP = 0;
+         datetime closestPivotTime = 0;
+         bool pivotIsHigh = false;
+
+         for(int ip = 0; ip < g_indepCount; ip++)
+         {
+            if(g_indepPivots[ip].time <= g_drawnBoxes[b].t1 + 60)
+            {
+               if(g_indepPivots[ip].time > closestPivotTime)
+               {
+                  closestPivotTime = g_indepPivots[ip].time;
+                  pivotP = g_indepPivots[ip].price;
+                  pivotIsHigh = g_indepPivots[ip].isHigh;
+               }
+            }
+         }
+
+         if(pivotP == 0)
+         {
+            pivotIsHigh = !g_drawnBoxes[b].isOInnerBull;
+            pivotP = pivotIsHigh ? g_drawnBoxes[b].top : g_drawnBoxes[b].bottom;
+         }
+
+         if(pivotIsHigh)
+         {
+            isBull = false;
+            entryPrice = g_drawnBoxes[b].bottom;
+            slPrice = pivotP + 2 * pipSize;
+         }
+         else
+         {
+            isBull = true;
+            entryPrice = g_drawnBoxes[b].top;
+            slPrice = pivotP - 2 * pipSize;
+         }
+      }
+      else
+      {
+         isBull = g_drawnBoxes[b].isBullish;
+         if(g_drawnBoxes[b].isPreIP) isBull = g_drawnBoxes[b].isLSBull;
+         else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
+         else if(g_drawnBoxes[b].isSwap) isBull = g_drawnBoxes[b].isSwapBull;
+
+         if(isBull)
+         {
+            entryPrice = g_drawnBoxes[b].top;
+            slPrice = g_drawnBoxes[b].bottom - InpRSPipBuffer * pipSize;
+         }
+         else
+         {
+            entryPrice = g_drawnBoxes[b].bottom;
+            slPrice = g_drawnBoxes[b].top + InpRSPipBuffer * pipSize;
+         }
+      }
+
+      double risk = MathAbs(entryPrice - slPrice);
+      if(risk <= 0) continue;
+
+      int boxEndIdx = -1;
+      for(int i = 0; i < copied; i++)
+      {
+         if(chartTime[i] >= g_drawnBoxes[b].t1) { boxEndIdx = i; break; }
+      }
+      if(boxEndIdx < 0) continue;
+
+      int entryBar = -1;
+      bool hasDeparted = false;
+
+      for(int k = boxEndIdx + 1; k < copied; k++)
+      {
+         if(!hasDeparted)
+         {
+            if(isBull && chartHigh[k] > g_drawnBoxes[b].top + 1 * pipSize) hasDeparted = true;
+            else if(!isBull && chartLow[k] < g_drawnBoxes[b].bottom - 1 * pipSize) hasDeparted = true;
+            else if(k > boxEndIdx + 2) hasDeparted = true;
+         }
+
+         if(hasDeparted)
+         {
+            if(isBull)
+            {
+               if(chartLow[k] <= g_drawnBoxes[b].top && chartHigh[k] >= g_drawnBoxes[b].bottom)
+               {
+                  entryBar = k;
+                  break;
+               }
+            }
+            else
+            {
+               if(chartHigh[k] >= g_drawnBoxes[b].bottom && chartLow[k] <= g_drawnBoxes[b].top)
+               {
+                  entryBar = k;
+                  break;
+               }
+            }
+         }
+      }
+
+      double tp1 = isBull ? (entryPrice + 1.0 * risk) : (entryPrice - 1.0 * risk);
+      double tp2 = isBull ? (entryPrice + 2.0 * risk) : (entryPrice - 2.0 * risk);
+      double tp3 = isBull ? (entryPrice + 3.0 * risk) : (entryPrice - 3.0 * risk);
+      double tp4 = isBull ? (entryPrice + 4.0 * risk) : (entryPrice - 4.0 * risk);
+
+      datetime entryTime = 0;
+      datetime exitTime  = chartTime[copied - 1];
+      int      hitTP     = 0;
+      bool     isClosed  = false;
+      string   resText   = "PENDING";
+
+      if(entryBar >= 0)
+      {
+         entryTime = chartTime[entryBar];
+
+         for(int k = entryBar + 1; k < copied; k++)
+         {
+            if(isBull)
+            {
+               if(chartLow[k] <= slPrice)
+               {
+                  isClosed = true;
+                  exitTime = chartTime[k];
+                  break;
+               }
+               if(chartHigh[k] >= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
+               else if(chartHigh[k] >= tp3 && hitTP < 3) { hitTP = 3; }
+               else if(chartHigh[k] >= tp2 && hitTP < 2) { hitTP = 2; }
+               else if(chartHigh[k] >= tp1 && hitTP < 1) { hitTP = 1; }
+            }
+            else
+            {
+               if(chartHigh[k] >= slPrice)
+               {
+                  isClosed = true;
+                  exitTime = chartTime[k];
+                  break;
+               }
+               if(chartLow[k] <= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
+               else if(chartLow[k] <= tp3 && hitTP < 3) { hitTP = 3; }
+               else if(chartLow[k] <= tp2 && hitTP < 2) { hitTP = 2; }
+               else if(chartLow[k] <= tp1 && hitTP < 1) { hitTP = 1; }
+            }
+         }
+
+         if(hitTP == 4)      resText = "WIN 1:4";
+         else if(hitTP == 3) resText = "WIN 1:3";
+         else if(hitTP == 2) resText = "WIN 1:2";
+         else if(hitTP == 1) resText = "WIN 1:1";
+         else if(isClosed)   resText = "LOSS";
+         else                resText = "OPEN";
+      }
+
+      FileWrite(fileHandle,
+                g_drawnBoxes[b].boxName,
+                g_drawnBoxes[b].tfTag,
+                role,
+                (isBull ? "BUY" : "SELL"),
+                TimeToString(g_drawnBoxes[b].t1),
+                TimeToString(g_drawnBoxes[b].t2),
+                DoubleToString(g_drawnBoxes[b].top, _Digits),
+                DoubleToString(g_drawnBoxes[b].bottom, _Digits),
+                (entryTime > 0 ? TimeToString(entryTime) : "-"),
+                DoubleToString(entryPrice, _Digits),
+                DoubleToString(slPrice, _Digits),
+                DoubleToString(risk / pipSize, 1),
+                DoubleToString(tp1, _Digits),
+                DoubleToString(tp2, _Digits),
+                DoubleToString(tp3, _Digits),
+                DoubleToString(tp4, _Digits),
+                TimeToString(exitTime),
+                IntegerToString(hitTP),
+                (isClosed ? "TRUE" : "FALSE"),
+                resText);
+      exportedCount++;
+   }
+
+   FileClose(fileHandle);
+   Print("📁 تعداد ", exportedCount, " موقعیت معاملاتی با موفقیت در فایل MQL5/Files/flag_trades_export.csv ذخیره شد.");
+}
+
+//+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
 int OnInit()
@@ -1890,6 +2111,9 @@ int OnCalculate(const int rates_total,
 
    //--- Render Final Merged Independent Pivot Markers (No Overlapping)
    RenderFinalIndependentPivots();
+
+   //--- ذخیره خودکار کل اطلاعات معاملات ۲ روز در فایل CSV برای آنالیزور پایتون
+   ExportAllTradesToCSV();
 
    //--- بازنشانی هایلایت و ستاپ معامله برای باکس انتخابی در صورت وجود
    if(g_selectedBoxName != "")
