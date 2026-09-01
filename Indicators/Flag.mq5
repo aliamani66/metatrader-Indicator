@@ -1557,7 +1557,76 @@ void ShowTradeSetupForBox(int boxIdx)
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
 
-   // پیدا کردن اولین بازگشت و لمس به باکس در گذشته (First Touch)
+   // ۱. جهت معامله و استاپ لاس بر اساس نوع باکس
+   bool   isBull     = true;
+   double entryPrice = 0;
+   double slPrice    = 0;
+
+   if(role == "OInner")
+   {
+      // پیدا کردن نزدیک‌ترین پیووت مستقل قبل از این باکس OInner
+      double   pivotP = 0;
+      datetime closestPivotTime = 0;
+      bool     pivotIsHigh = false;
+
+      for(int ip = 0; ip < g_indepCount; ip++)
+      {
+         if(g_indepPivots[ip].time <= g_drawnBoxes[boxIdx].t1 + 60)
+         {
+            if(g_indepPivots[ip].time > closestPivotTime)
+            {
+               closestPivotTime = g_indepPivots[ip].time;
+               pivotP           = g_indepPivots[ip].price;
+               pivotIsHigh      = g_indepPivots[ip].isHigh;
+            }
+         }
+      }
+
+      if(pivotP == 0)
+      {
+         // در صورت عدم یافتن، از سقف/کف خود باکس با بافر استفاده می‌شود
+         pivotIsHigh = !g_drawnBoxes[boxIdx].isOInnerBull;
+         pivotP      = pivotIsHigh ? g_drawnBoxes[boxIdx].top : g_drawnBoxes[boxIdx].bottom;
+      }
+
+      if(pivotIsHigh)
+      {
+         // حرکت رو به پایین از قله -> معامله فروش (SELL)
+         isBull     = false;
+         entryPrice = g_drawnBoxes[boxIdx].bottom;
+         slPrice    = pivotP + 2 * pipSize; // استاپ دقیقاً بالای قله پیووت مستقل
+      }
+      else
+      {
+         // حرکت رو به بالا از کف -> معامله خرید (BUY)
+         isBull     = true;
+         entryPrice = g_drawnBoxes[boxIdx].top;
+         slPrice    = pivotP - 2 * pipSize; // استاپ دقیقاً پایین دره پیووت مستقل
+      }
+   }
+   else
+   {
+      isBull = g_drawnBoxes[boxIdx].isBullish;
+      if(g_drawnBoxes[boxIdx].isPreIP) isBull = g_drawnBoxes[boxIdx].isLSBull;
+      else if(g_drawnBoxes[boxIdx].isBOFlag) isBull = g_drawnBoxes[boxIdx].isRSBull;
+      else if(g_drawnBoxes[boxIdx].isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
+
+      if(isBull)
+      {
+         entryPrice = g_drawnBoxes[boxIdx].top;
+         slPrice    = g_drawnBoxes[boxIdx].bottom - InpRSPipBuffer * pipSize; // ۱۰ پیپ زیر کف
+      }
+      else
+      {
+         entryPrice = g_drawnBoxes[boxIdx].bottom;
+         slPrice    = g_drawnBoxes[boxIdx].top + InpRSPipBuffer * pipSize; // ۱۰ پیپ بالای سقف
+      }
+   }
+
+   double risk = MathAbs(entryPrice - slPrice);
+   if(risk <= 0) return;
+
+   // ۲. پیدا کردن اولین بازگشت و لمس به باکس در گذشته (First Touch)
    int boxEndIdx = -1;
    for(int i = 0; i < copied; i++)
    {
@@ -1604,32 +1673,9 @@ void ShowTradeSetupForBox(int boxIdx)
       return;
    }
 
-   datetime entryTime  = chartTime[entryBar];
-   double   entryPrice = isBull ? g_drawnBoxes[boxIdx].top : g_drawnBoxes[boxIdx].bottom;
-   double   slPrice    = 0;
+   datetime entryTime = chartTime[entryBar];
 
-   if(role == "OInner")
-   {
-      double pivotP = 0;
-      for(int ip = 0; ip < g_indepCount; ip++)
-      {
-         if(g_indepPivots[ip].time <= g_drawnBoxes[boxIdx].t1 + 60 && g_indepPivots[ip].time >= g_drawnBoxes[boxIdx].t1 - 86400*2)
-         {
-            pivotP = g_indepPivots[ip].price;
-            break;
-         }
-      }
-      if(pivotP == 0) pivotP = isBull ? g_drawnBoxes[boxIdx].bottom : g_drawnBoxes[boxIdx].top;
-      slPrice = isBull ? (pivotP - 2 * pipSize) : (pivotP + 2 * pipSize);
-   }
-   else
-   {
-      slPrice = isBull ? (g_drawnBoxes[boxIdx].bottom - InpRSPipBuffer * pipSize) : (g_drawnBoxes[boxIdx].top + InpRSPipBuffer * pipSize);
-   }
-
-   double risk = MathAbs(entryPrice - slPrice);
-   if(risk <= 0) return;
-
+   // ۳. محاسبه دقیق تارگت‌های ۱:۱ تا ۱:۴ بر اساس نسبت ریسک
    double tp1 = isBull ? (entryPrice + 1.0 * risk) : (entryPrice - 1.0 * risk);
    double tp2 = isBull ? (entryPrice + 2.0 * risk) : (entryPrice - 2.0 * risk);
    double tp3 = isBull ? (entryPrice + 3.0 * risk) : (entryPrice - 3.0 * risk);
