@@ -66,6 +66,35 @@ input color            InpPreIPColor            = clrGold;      // رنگ اخت
 input int              InpPreIPWidth            = 2;            // ضخامت باکس ماقبل پیووت مستقل
 input bool             InpPreIPShowLabel        = true;         // نمایش برچسب Pre-IP روی باکس
 
+enum ENUM_LABEL_STYLE
+{
+   LABEL_COMPACT,   // کوتاه و تمیز (مانند M15➔H1)
+   LABEL_FULL,      // متن کامل
+   LABEL_TOOLTIP    // فقط هنگام بردن موس روی خط (چارت کاملاً خلوت و بدون متن)
+};
+
+input group "=== Multi-Timeframe Origin Lines (خطوط پیووت منشأ چندگانه) ==="
+input bool              InpEnableOriginLines     = true;         // فعال‌سازی رسم خطوط پیووت منشأ
+input bool              InpOriginRequireIndep    = false;        // فقط پیووت‌های مستقل منشأ باشند (false = هر کف/سقف ماقبل)
+input int               InpOriginDaysBack        = 0;            // روزهای محاسبه خطوط منشأ (0 = همه تاریخچه)
+
+// تایم‌فریم‌های هدف (Target HTF)
+input bool              InpTargetD1              = true;         // بررسی پیووت‌های مستقل روزانه (D1)
+input bool              InpTargetH4              = true;         // بررسی پیووت‌های مستقل چهارساعته (H4)
+input bool              InpTargetH1              = true;         // بررسی پیووت‌های مستقل یک‌ساعته (H1)
+
+// تایم‌فریم‌های منشأ (Source LTF)
+input bool              InpSourceH1              = true;         // رسم منشأ یک‌ساعته (H1) برای D1 و H4
+input bool              InpSourceM15             = true;         // رسم منشأ ۱۵ دقیقه (M15) برای D1, H4, H1
+input bool              InpSourceM5              = true;         // رسم منشأ ۵ دقیقه (M5) برای D1, H4, H1
+input bool              InpSourceM1              = true;         // رسم منشأ ۱ دقیقه (M1) برای D1, H4, H1
+
+// استایل و برچسب
+input color             InpOriginColorLow        = clrAqua;      // رنگ خط کف منشأ (صعودی)
+input color             InpOriginColorHigh       = clrMagenta;   // رنگ خط سقف منشأ (نزولی)
+input int               InpOriginLineWidth       = 1;            // ضخامت خط افقی
+input ENUM_LABEL_STYLE  InpOriginLabelStyle      = LABEL_COMPACT;// نحوه نمایش برچسب روی خطوط منشأ
+
 input group "=== Chart Display Settings ==="
 input bool             InpHideGrid    = true;        // حذف گرید از چارت
 input bool             InpHideVolumes = true;        // حذف نمودار حجم
@@ -540,6 +569,202 @@ int FindNearestBox(datetime clickTime, double clickPrice)
 }
 
 //+------------------------------------------------------------------+
+//| Helper: Process Origin Pivot Breakout Lines for a TF Pair        |
+//+------------------------------------------------------------------+
+void ProcessOriginFromPivots(const SPivot &targetPivots[], ENUM_TIMEFRAMES targetTF,
+                             const SPivot &sourcePivots[], ENUM_TIMEFRAMES sourceTF,
+                             const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
+                             int ratesTotal, int daysBack)
+{
+   int targetCount = ArraySize(targetPivots);
+   int sourceCount = ArraySize(sourcePivots);
+   if(targetCount < 2 || sourceCount < 2) return;
+
+   // تشخیص پیووت‌های مستقل تایم هدف
+   bool targetPivotInBox[];
+   ArrayResize(targetPivotInBox, targetCount);
+   ArrayInitialize(targetPivotInBox, false);
+   for(int i = 0; i < targetCount - 1; i++)
+   {
+      if(IsValidFlagLeg(i, targetPivots, targetCount))
+      {
+         targetPivotInBox[i] = true;
+         targetPivotInBox[i + 1] = true;
+      }
+   }
+
+   // تشخیص پیووت‌های مستقل تایم منشأ
+   bool sourcePivotInBox[];
+   ArrayResize(sourcePivotInBox, sourceCount);
+   ArrayInitialize(sourcePivotInBox, false);
+   for(int i = 0; i < sourceCount - 1; i++)
+   {
+      if(IsValidFlagLeg(i, sourcePivots, sourceCount))
+      {
+         sourcePivotInBox[i] = true;
+         sourcePivotInBox[i + 1] = true;
+      }
+   }
+
+   datetime limitTime = 0;
+   if(daysBack > 0)
+      limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
+
+   string targetTFStr = TFName(targetTF);
+   string sourceTFStr = TFName(sourceTF);
+   ENUM_LINE_STYLE sourceStyle = GetTFLineStyle(sourceTF);
+
+   for(int p = 0; p < targetCount; p++)
+   {
+      if(daysBack > 0 && targetPivots[p].time < limitTime)
+         continue;
+
+      // فقط پیووت‌های مستقل تایم هدف
+      if(targetPivotInBox[p])
+         continue;
+
+      bool targetIsHigh = targetPivots[p].isHigh;
+      datetime targetTime = targetPivots[p].time;
+
+      int foundSourceIdx = -1;
+      for(int s = sourceCount - 1; s >= 0; s--)
+      {
+         if(sourcePivots[s].time < targetTime)
+         {
+            if(sourcePivots[s].isHigh != targetIsHigh)
+            {
+               if(!InpOriginRequireIndep || !sourcePivotInBox[s])
+               {
+                  foundSourceIdx = s;
+                  break;
+               }
+            }
+         }
+      }
+
+      if(foundSourceIdx < 0)
+         continue;
+
+      SPivot originP = sourcePivots[foundSourceIdx];
+      datetime originTime = originP.time;
+      double originPrice = originP.price;
+      bool originIsHigh = originP.isHigh;
+
+      int startIdx = FindBarIndex(chartTime, ratesTotal, originTime);
+      if(startIdx < 0) continue;
+
+      int breakIdx = ratesTotal - 1;
+      for(int k = startIdx + 1; k < ratesTotal; k++)
+      {
+         if(originIsHigh)
+         {
+            if(chartHigh[k] > originPrice)
+            {
+               breakIdx = k;
+               break;
+            }
+         }
+         else
+         {
+            if(chartLow[k] < originPrice)
+            {
+               breakIdx = k;
+               break;
+            }
+         }
+      }
+
+      datetime endTime = chartTime[breakIdx];
+      string lineName = "FLAG_ORIGIN_" + targetTFStr + "_" + sourceTFStr + "_" + IntegerToString((int)originTime);
+      color lineColor = originIsHigh ? InpOriginColorHigh : InpOriginColorLow;
+
+      if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
+      ObjectCreate(0, lineName, OBJ_TREND, 0, originTime, originPrice, endTime, originPrice);
+      ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
+      ObjectSetInteger(0, lineName, OBJPROP_STYLE, sourceStyle);
+      ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
+      ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
+
+      string tooltip = "Origin " + sourceTFStr + (originIsHigh ? " High" : " Low") + " -> Target IP " + targetTFStr +
+                       "\nPrice: " + DoubleToString(originPrice, _Digits) +
+                       "\nTime: " + TimeToString(originTime);
+      ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
+
+      if(InpOriginLabelStyle != LABEL_TOOLTIP)
+      {
+         string lblName = lineName + "_LBL";
+         string lblText = (InpOriginLabelStyle == LABEL_COMPACT) ? (sourceTFStr + "->" + targetTFStr) : ("Origin " + sourceTFStr + (originIsHigh ? " H" : " L") + " -> " + targetTFStr);
+         
+         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+         // قرار دادن برچسب در انتهای سمت راست خط (endTime) تا با پیووت و خطوط دیگر تداخل نداشته باشد
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, endTime, originPrice);
+         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 7);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (originIsHigh ? ANCHOR_LEFT_LOWER : ANCHOR_LEFT_UPPER));
+         ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Process Multi-Timeframe Origin Lines                             |
+//+------------------------------------------------------------------+
+void ProcessMultiOriginLines(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
+                             int ratesTotal, int daysBack)
+{
+   if(!InpEnableOriginLines) return;
+
+   // کش کردن پیووت‌های تایم‌فریم‌های مورد نیاز
+   SPivot pivotsD1[], pivotsH4[], pivotsH1[], pivotsM15[], pivotsM5[], pivotsM1[];
+
+   if(InpTargetD1)
+      BuildAlternatingPivots(PERIOD_D1, InpSwingBars, InpMaxBarsTF, pivotsD1);
+
+   if(InpTargetH4)
+      BuildAlternatingPivots(PERIOD_H4, InpSwingBars, InpMaxBarsTF, pivotsH4);
+
+   if(InpTargetH1 || InpSourceH1)
+      BuildAlternatingPivots(PERIOD_H1, InpSwingBars, InpMaxBarsTF, pivotsH1);
+
+   if(InpSourceM15)
+      BuildAlternatingPivots(PERIOD_M15, InpSwingBars, MathMax(InpMaxBarsTF, 15000), pivotsM15);
+
+   if(InpSourceM5)
+      BuildAlternatingPivots(PERIOD_M5, InpSwingBars, MathMax(InpMaxBarsTF, 20000), pivotsM5);
+
+   if(InpSourceM1)
+      BuildAlternatingPivots(PERIOD_M1, InpSwingBars, MathMax(InpMaxBarsTF, 30000), pivotsM1);
+
+   // 1. پردازش منشأها برای پیووت‌های مستقل D1
+   if(InpTargetD1)
+   {
+      if(InpSourceH1)  ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsH1,  PERIOD_H1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM15) ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsM15, PERIOD_M15, chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM5)  ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsM5,  PERIOD_M5,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM1)  ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsM1,  PERIOD_M1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+   }
+
+   // 2. پردازش منشأها برای پیووت‌های مستقل H4
+   if(InpTargetH4)
+   {
+      if(InpSourceH1)  ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsH1,  PERIOD_H1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM15) ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsM15, PERIOD_M15, chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM5)  ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsM5,  PERIOD_M5,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM1)  ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsM1,  PERIOD_M1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+   }
+
+   // 3. پردازش منشأها برای پیووت‌های مستقل H1
+   if(InpTargetH1)
+   {
+      if(InpSourceM15) ProcessOriginFromPivots(pivotsH1, PERIOD_H1, pivotsM15, PERIOD_M15, chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM5)  ProcessOriginFromPivots(pivotsH1, PERIOD_H1, pivotsM5,  PERIOD_M5,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      if(InpSourceM1)  ProcessOriginFromPivots(pivotsH1, PERIOD_H1, pivotsM1,  PERIOD_M1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
 int OnInit()
@@ -617,6 +842,9 @@ int OnCalculate(const int rates_total,
 
       ProcessTF(currentTF, InpSwingBars, currentColor, time, high, low, rates_total, daysBack);
    }
+
+   //--- Process and draw Multi-Timeframe Origin Pivot Breakout Lines
+   ProcessMultiOriginLines(time, high, low, rates_total, InpOriginDaysBack);
 
    ChartRedraw(0);
    return rates_total;
