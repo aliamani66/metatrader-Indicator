@@ -1264,6 +1264,49 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          }
       }
    }
+
+   // مرحله ۲: امتداد تمامی باکس‌های سواپ (S-OInner, S-RS, S-LS) تا زمان شکست یا تا لایو بازار
+   for(int sb = 0; sb < g_boxCount; sb++)
+   {
+      if(!g_drawnBoxes[sb].isSwap) continue;
+
+      bool isBull = g_drawnBoxes[sb].isSwapBull;
+      double linePrice = isBull ? g_drawnBoxes[sb].bottom : g_drawnBoxes[sb].top;
+      datetime origT2  = g_drawnBoxes[sb].t2;
+
+      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, origT2);
+      if(startSearchIdx < 0) startSearchIdx = 0;
+
+      bool isBroken = false;
+      int breakIdx = ratesTotal - 1;
+      for(int k = startSearchIdx + 1; k < ratesTotal; k++)
+      {
+         if(isBull)
+         {
+            if(chartLow[k] < linePrice)
+            {
+               isBroken = true;
+               breakIdx = k;
+               break;
+            }
+         }
+         else
+         {
+            if(chartHigh[k] > linePrice)
+            {
+               isBroken = true;
+               breakIdx = k;
+               break;
+            }
+         }
+      }
+
+      datetime liveTime = (ratesTotal > 0) ? chartTime[ratesTotal - 1] : 0;
+      datetime endTime = isBroken ? chartTime[breakIdx] : liveTime;
+      if(endTime <= g_drawnBoxes[sb].t1 && ratesTotal > 0) endTime = liveTime;
+
+      g_drawnBoxes[sb].t2 = endTime;
+   }
 }
 
 //+------------------------------------------------------------------+
