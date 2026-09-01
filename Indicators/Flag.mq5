@@ -1618,6 +1618,12 @@ void ShowTradeSetupForBox(int boxIdx)
       }
    }
 
+   // ۳. محاسبه دقیق تارگت‌های ۱:۱ تا ۱:۴ بر اساس نسبت ریسک
+   double tp1 = isBull ? (entryPrice + 1.0 * risk) : (entryPrice - 1.0 * risk);
+   double tp2 = isBull ? (entryPrice + 2.0 * risk) : (entryPrice - 2.0 * risk);
+   double tp3 = isBull ? (entryPrice + 3.0 * risk) : (entryPrice - 3.0 * risk);
+   double tp4 = isBull ? (entryPrice + 4.0 * risk) : (entryPrice - 4.0 * risk);
+
    datetime entryTime = 0;
    datetime exitTime  = chartTime[copied - 1];
    int      hitTP     = 0;
