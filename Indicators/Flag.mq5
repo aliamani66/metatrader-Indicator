@@ -54,8 +54,8 @@ enum ENUM_DISPLAY_FILTER
 };
 
 input group "=== Smart Visibility & Box Filter (فیلتر نمایش هوشمند) ==="
-input ENUM_DISPLAY_FILTER InpDisplayFilter          = FILTER_ALL;      // فیلتر نمایش باکس‌ها روی چارت (پیش‌فرض: همه باکس‌ها)
-input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (در حالت All)
+input ENUM_DISPLAY_FILTER InpDisplayFilter          = FILTER_ALL;      // فیلتر نمایش باکس‌ها روی چارت
+input bool             InpShowMacroAlways       = false; // نمایش باکس‌های ماکرو روی تایم‌های ریز (پیش‌فرض: خاموش جهت اسکیل تمیز چارت)
 input bool             InpShowOnlyRSMicroBoxes  = false; // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۱۰ روز گذشته
 input string           InpRSTagPrefix           = "RS";  // پیشوند تگ‌های هوشمند (RS)
@@ -1309,6 +1309,10 @@ void RenderFinalBoxes()
 {
    for(int b = 0; b < g_boxCount; b++)
    {
+      // جلوگیری از فشردگی و به‌هم‌ریختگی اسکیل چارت در تایم‌های ریز توسط باکس‌های غول‌پیکر ماکرو
+      if(g_drawnBoxes[b].tf > _Period * 12 && !InpShowMacroAlways)
+         continue;
+
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
