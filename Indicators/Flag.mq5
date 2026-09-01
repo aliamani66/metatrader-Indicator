@@ -12,37 +12,44 @@
 #include <MarketStructureEngine.mqh>
 
 //--- Inputs : source structure timeframes
-input group "=== Timeframes to Display ==="
+//--- Inputs : source structure timeframes
+input group "=== Background Timeframes Calculation ==="
 input ENUM_TIMEFRAMES InpTF1      = PERIOD_D1;
-input bool             InpUseTF1  = false;
+input bool             InpUseTF1  = true;           // محاسبه روزانه (D1)
 input color            InpColorTF1 = clrMagenta;
 
 input ENUM_TIMEFRAMES InpTF2      = PERIOD_W1;
-input bool             InpUseTF2  = false;
+input bool             InpUseTF2  = true;           // محاسبه هفتگی (W1)
 input color            InpColorTF2 = clrDodgerBlue;
 
 input ENUM_TIMEFRAMES InpTF3      = PERIOD_H4;
-input bool             InpUseTF3  = true;           // چهارساعته (H4) فعال شد
+input bool             InpUseTF3  = true;           // محاسبه چهارساعته (H4)
 input color            InpColorTF3 = clrWhite;
 
 input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
-input bool             InpUseTF4  = true;          // فقط H1 به صورت پیش‌فرض فعال است
+input bool             InpUseTF4  = true;           // محاسبه یک‌ساعته (H1)
 input color            InpColorTF4 = clrYellow;
 
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
-input bool             InpUseTF5  = false;
+input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
 input int              InpM15DaysBack = 50;
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
-input bool             InpUseTF6  = false;
+input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
 input int              InpM5DaysBack = 30;
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
-input bool             InpUseTF7  = false;
+input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 10;
+
+input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
+input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
+input bool             InpShowOnlyRSMicroBoxes  = true;  // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
+input bool             InpShowNormalMicroBoxes  = false; // نمایش تمام باکس‌های عادی تایم‌های ریز (خاموش = چارت کاملاً خلوت)
+input string           InpRSTagPrefix           = "RS";  // پیشوند تگ‌های هوشمند (RS)
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
@@ -53,16 +60,18 @@ input int              InpLineWidth   = 1;           // ضخامت خط باکس
 input bool             InpShowLabel   = true;        // نمایش برچسب تایم‌فریم
 
 input group "=== Independent Pivots (پیووت‌های مستقل) ==="
-input bool             InpShowIndependentPivots = true;        // نمایش پیووت‌های مستقل (چرخش ساختار)
-input color            InpIndepColorHigh        = clrMagenta;    // رنگ سقف مستقل
-input color            InpIndepColorLow         = clrAqua;       // رنگ کف مستقل
-input int              InpIndepMarkCode         = 159;          // کد علامت (159 = دایره، 168 = دایره باز)
-input int              InpIndepMarkWidth        = 3;            // اندازه علامت پیووت مستقل
-input bool             InpIndepShowLabel        = true;         // نمایش برچسب IP روی چارت
+input bool             InpShowIndependentPivots = true;        // نمایش پیووت‌های مستقل روی چارت
+input bool             InpLabelAllPivots        = false;       // نمایش تمام سوینگ‌ها (false = فقط پیووت‌های مستقل هدفمند)
+input color            InpIndepColorHigh        = clrMagenta;  // رنگ سقف مستقل
+input color            InpIndepColorLow         = clrAqua;     // رنگ کف مستقل
+input int              InpIndepMarkCode         = 159;         // کد علامت (159 = دایره، 168 = دایره باز)
+input int              InpIndepMarkWidth        = 3;           // اندازه علامت پیووت مستقل
+input bool             InpIndepShowLabel        = true;        // نمایش برچسب IP روی چارت
 
-input group "=== Pre-IP Box (باکس ماقبل پیووت مستقل) ==="
+input group "=== Pre-IP / LS Box (باکس ماقبل پیووت مستقل) ==="
 input bool             InpHighlightPreIP        = true;         // مشخص کردن باکس قبل از پیووت مستقل
-input color            InpPreIPColor            = clrGold;      // رنگ اختصاصی باکس ماقبل پیووت مستقل
+input color            InpLSColorBull           = clrLimeGreen; // رنگ LS صعودی (منتهی به سقف)
+input color            InpLSColorBear           = clrDeepPink;  // رنگ LS نزولی (منتهی به کف)
 input int              InpPreIPWidth            = 2;            // ضخامت باکس ماقبل پیووت مستقل
 input bool             InpPreIPShowLabel        = true;         // نمایش برچسب Pre-IP روی باکس
 
@@ -95,19 +104,51 @@ input color             InpOriginColorHigh       = clrMagenta;   // رنگ خط 
 input int               InpOriginLineWidth       = 1;            // ضخامت خط افقی
 input ENUM_LABEL_STYLE  InpOriginLabelStyle      = LABEL_COMPACT;// نحوه نمایش برچسب روی خطوط منشأ
 
-input group "=== Chart Display Settings ==="
-input bool             InpHideGrid    = true;        // حذف گرید از چارت
-input bool             InpHideVolumes = true;        // حذف نمودار حجم
+input group "=== Breakout Flags / RS Boxes (فلگ‌های واکنش و شکست) ==="
+input bool              InpHighlightBreakoutFlags = true;        // هایلایت فلگ‌های نقطه شکست
+input color             InpRSColorBull           = clrDodgerBlue;// رنگ RS صعودی (شکست و واکنش رو به بالا)
+input color             InpRSColorBear           = clrOrangeRed; // رنگ RS نزولی (شکست و واکنش رو به پایین)
+input color             InpComboColorBull        = clrYellow;    // رنگ اشتراک LS+RS صعودی
+input color             InpComboColorBear        = clrMagenta;   // رنگ اشتراک LS+RS نزولی
+input int               InpBreakoutFlagWidth     = 3;           // ضخامت خط فلگ‌های نقطه شکست
+input bool              InpBreakoutFlagShowLabel = true;        // نمایش برچسب BO-Flag روی باکس
+
+input group "=== OInner Box (اولین گره مابعد پیووت مستقل) ==="
+input bool             InpHighlightOInner       = true;         // هایلایت اولین گره بعد از پیووت مستقل (OInner)
+input color            InpOInnerColorBull       = clrDeepSkyBlue;// رنگ OInner صعودی (حرکت رو به بالا از کف)
+input color            InpOInnerColorBear       = clrGold;      // رنگ OInner نزولی (حرکت رو به پایین از سقف)
+input int              InpOInnerWidth           = 2;            // ضخامت باکس OInner
+
+input group "=== Chart Theme & Display (تم فوق‌حرفه‌ای چارت) ==="
+input bool             InpApplyProTheme = true;        // اعمال تم حرفه‌ای خنثی (کندل‌های نقره‌ای/دودی با کنتراست حداکثری باکس‌ها)
+input bool             InpHideGrid      = true;        // حذف گرید از چارت
+input bool             InpHideVolumes   = true;        // حذف نمودار حجم
 
 // Storage for drawn boxes and pivots
 struct SBoxInfo
 {
-   string   boxName;
-   int      swingIdx;
-   datetime t1;
-   datetime t2;
-   double   top;
-   double   bottom;
+   string          boxName;
+   string          boxKey;
+   ENUM_TIMEFRAMES tf;
+   string          tfTag;
+   int             swingIdx;
+   datetime        t1;
+   datetime        t2;
+   double          top;
+   double          bottom;
+   color           baseColor;
+   int             baseWidth;
+   ENUM_LINE_STYLE baseStyle;
+   bool            isPreIP;
+   bool            isLSBull;
+   bool            isBOFlag;
+   bool            isRSBull;
+   bool            isOInner;
+   bool            isOInnerBull;
+   string          rsTags[];
+   bool            isMacro;
+   datetime        targetIPTime;
+   bool            targetIPIsHigh;
 };
 
 SPivot   g_pivotsH1[];
@@ -115,6 +156,50 @@ int      g_pivotCountH1 = 0;
 SBoxInfo g_drawnBoxes[];
 int      g_boxCount = 0;
 int      g_clickCounter = 0;
+
+struct SIndepPivot
+{
+   datetime time;
+   double   price;
+   bool     isHigh;
+   bool     hasIP;
+   string   tfTags[];
+   color    clr;
+};
+
+SIndepPivot g_indepPivots[];
+int         g_indepCount = 0;
+
+//+------------------------------------------------------------------+
+//| Find Exact Candle Time on Chart matching Peak/Valley             |
+//+------------------------------------------------------------------+
+datetime GetExactPivotChartTime(datetime srcBarTime, ENUM_TIMEFRAMES srcTF, double price, bool isHigh,
+                                const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], int ratesTotal)
+{
+   int sec = PeriodSeconds(srcTF);
+   datetime srcEndTime = srcBarTime + sec;
+
+   int startIdx = FindBarIndex(chartTime, ratesTotal, srcBarTime);
+   int endIdx   = FindBarIndex(chartTime, ratesTotal, srcEndTime);
+   if(startIdx < 0) return srcBarTime;
+   if(endIdx < 0) endIdx = ratesTotal - 1;
+
+   datetime bestTime = srcBarTime;
+   double bestDiff = 1e10;
+
+   for(int k = startIdx; k <= endIdx && k < ratesTotal; k++)
+   {
+      double candlePrice = isHigh ? chartHigh[k] : chartLow[k];
+      double diff = MathAbs(candlePrice - price);
+      if(diff < bestDiff)
+      {
+         bestDiff = diff;
+         bestTime = chartTime[k];
+         if(diff < _Point * 0.5) break;
+      }
+   }
+   return bestTime;
+}
 
 //+------------------------------------------------------------------+
 //| Get distinct Line Style per Timeframe                            |
@@ -349,8 +434,14 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
 
    //--- مرحله ۲: مشخص کردن باکس‌های ماقبل پیووت مستقل (Pre-IP Boxes)
    bool isPreIPBox[];
+   datetime targetIPTimeArr[];
+   bool targetIPIsHighArr[];
    ArrayResize(isPreIPBox, count);
    ArrayInitialize(isPreIPBox, false);
+   ArrayResize(targetIPTimeArr, count);
+   ArrayInitialize(targetIPTimeArr, 0);
+   ArrayResize(targetIPIsHighArr, count);
+   ArrayInitialize(targetIPIsHighArr, false);
 
    if(InpHighlightPreIP)
    {
@@ -359,19 +450,24 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
          if(!pivotInBox[p]) // این یک پیووت مستقل است
          {
             // جستجوی نزدیک‌ترین باکس قبل از این پیووت
-            for(int j = p - 1; j >= 0; j--)
+            for(int j = p - 1; j >= MathMax(0, p - 8); j--)
             {
                if(isLegBox[j])
                {
-                  isPreIPBox[j] = true;
-                  break; // فقط آخرین باکس قبل از پیووت مستقل
+                  if(!isPreIPBox[j])
+                  {
+                     isPreIPBox[j] = true;
+                     targetIPTimeArr[j]   = pivots[p].time;
+                     targetIPIsHighArr[j] = pivots[p].isHigh;
+                  }
+                  break; // فقط نزدیک‌ترین باکس قبل از این پیووت مستقل
                }
             }
          }
       }
    }
 
-   //--- مرحله ۳: علامت‌گذاری اختصاصی پیووت‌های مستقل (پیووت‌هایی که هیچ باکسی ندارند)
+   //--- مرحله ۳: ثبت و ادغام پیووت‌ها
    if(InpShowIndependentPivots)
    {
       for(int p = 0; p < count; p++)
@@ -379,12 +475,55 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
          if(daysBack > 0 && pivots[p].time < limitTime)
             continue;
 
-         // اگر این پیووت در هیچ باکسی قرار نگرفته باشد -> پیووت مستقل است
-         if(!pivotInBox[p])
+         bool isIndependent = !pivotInBox[p];
+         if(!isIndependent && !InpLabelAllPivots)
+            continue;
+
+         // پیدا کردن زمان دقیق کندل در تایم‌فریم جاری چارت
+         datetime exactTime = GetExactPivotChartTime(pivots[p].time, tf, pivots[p].price, pivots[p].isHigh,
+                                                    chartTime, chartHigh, chartLow, ratesTotal);
+
+         // جستجو در لیست پیووت‌های ثبت‌شده برای ادغام پیووت‌های واقعاً یکسان
+         int foundIdx = -1;
+         for(int k = 0; k < g_indepCount; k++)
          {
-            string ipName = "FLAG_IP_" + tfTag + "_" + IntegerToString((int)pivots[p].time);
-            color ipColor = pivots[p].isHigh ? InpIndepColorHigh : InpIndepColorLow;
-            DrawIndependentPivot(ipName, pivots[p].time, pivots[p].price, pivots[p].isHigh, ipColor, tfSymbol);
+            if(g_indepPivots[k].isHigh == pivots[p].isHigh)
+            {
+               if(MathAbs(g_indepPivots[k].time - exactTime) <= 7200 &&
+                  MathAbs(g_indepPivots[k].price - pivots[p].price) <= 10 * _Point)
+               {
+                  foundIdx = k;
+                  break;
+               }
+            }
+         }
+
+         if(foundIdx >= 0)
+         {
+            if(isIndependent) g_indepPivots[foundIdx].hasIP = true;
+            bool exists = false;
+            for(int t = 0; t < ArraySize(g_indepPivots[foundIdx].tfTags); t++)
+            {
+               if(g_indepPivots[foundIdx].tfTags[t] == tfSymbol) { exists = true; break; }
+            }
+            if(!exists)
+            {
+               int len = ArraySize(g_indepPivots[foundIdx].tfTags);
+               ArrayResize(g_indepPivots[foundIdx].tfTags, len + 1);
+               g_indepPivots[foundIdx].tfTags[len] = tfSymbol;
+            }
+         }
+         else
+         {
+            ArrayResize(g_indepPivots, g_indepCount + 1);
+            g_indepPivots[g_indepCount].time   = exactTime;
+            g_indepPivots[g_indepCount].price  = pivots[p].price;
+            g_indepPivots[g_indepCount].isHigh = pivots[p].isHigh;
+            g_indepPivots[g_indepCount].hasIP  = isIndependent;
+            g_indepPivots[g_indepCount].clr    = pivots[p].isHigh ? InpIndepColorHigh : InpIndepColorLow;
+            ArrayResize(g_indepPivots[g_indepCount].tfTags, 1);
+            g_indepPivots[g_indepCount].tfTags[0] = tfSymbol;
+            g_indepCount++;
          }
       }
    }
@@ -447,44 +586,35 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       string preTag = (isPreIPBox[i] && InpHighlightPreIP) ? "_PREIP_" : "_";
       string boxName = "FLAG_BOX_" + tfTag + preTag + boxType + "_" + boxKey;
       
-      color drawClr = clr;
-      int drawWidth = InpLineWidth;
+      // Register box for multi-tagging, filtering, and final rendering
+      ArrayResize(g_drawnBoxes, g_boxCount + 1);
+      g_drawnBoxes[g_boxCount].boxName   = boxName;
+      g_drawnBoxes[g_boxCount].boxKey    = boxKey;
+      g_drawnBoxes[g_boxCount].tf        = tf;
+      g_drawnBoxes[g_boxCount].tfTag     = tfSymbol;
+      g_drawnBoxes[g_boxCount].swingIdx  = i;
+      g_drawnBoxes[g_boxCount].t1        = t1;
+      g_drawnBoxes[g_boxCount].t2        = t2;
+      g_drawnBoxes[g_boxCount].top       = boxTop;
+      g_drawnBoxes[g_boxCount].bottom    = boxBottom;
+      g_drawnBoxes[g_boxCount].baseColor      = clr;
+      g_drawnBoxes[g_boxCount].baseWidth      = InpLineWidth;
+      g_drawnBoxes[g_boxCount].baseStyle      = GetTFLineStyle(tf);
+      g_drawnBoxes[g_boxCount].isPreIP        = isPreIPBox[i];
+      g_drawnBoxes[g_boxCount].isLSBull       = targetIPIsHighArr[i];
+      g_drawnBoxes[g_boxCount].targetIPTime   = targetIPTimeArr[i];
+      g_drawnBoxes[g_boxCount].targetIPIsHigh = targetIPIsHighArr[i];
+      g_drawnBoxes[g_boxCount].isBOFlag       = false;
+      g_drawnBoxes[g_boxCount].isRSBull       = false;
+      ArrayResize(g_drawnBoxes[g_boxCount].rsTags, 0);
       if(isPreIPBox[i] && InpHighlightPreIP)
       {
-         drawClr = InpPreIPColor;
-         drawWidth = InpPreIPWidth;
+         int tagLen = ArraySize(g_drawnBoxes[g_boxCount].rsTags);
+         ArrayResize(g_drawnBoxes[g_boxCount].rsTags, tagLen + 1);
+         g_drawnBoxes[g_boxCount].rsTags[tagLen] = "LS";
       }
-
-      ENUM_LINE_STYLE tfStyle = GetTFLineStyle(tf);
-      DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, drawClr, drawWidth, tfStyle);
-
-      // Register box for click inspection
-      if(tf == PERIOD_H1)
-      {
-         ArrayResize(g_drawnBoxes, g_boxCount + 1);
-         g_drawnBoxes[g_boxCount].boxName  = boxName;
-         g_drawnBoxes[g_boxCount].swingIdx = i;
-         g_drawnBoxes[g_boxCount].t1       = t1;
-         g_drawnBoxes[g_boxCount].t2       = t2;
-         g_drawnBoxes[g_boxCount].top      = boxTop;
-         g_drawnBoxes[g_boxCount].bottom   = boxBottom;
-         g_boxCount++;
-      }
-
-      // Draw Label directly
-      if(InpShowLabel)
-      {
-         double labelPrice = boxTop + (boxTop - boxBottom) * 0.08;
-         datetime labelTime = (datetime)((t1 + t2) / 2);
-         string lblName = "FLAG_LBL_" + tfTag + "_" + boxKey;
-         string lblText = (isPreIPBox[i] && InpHighlightPreIP && InpPreIPShowLabel) ? ("Pre-IP " + tfSymbol) : tfSymbol;
-         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-         ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
-         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
-         ObjectSetInteger(0, lblName, OBJPROP_COLOR, drawClr);
-         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 9);
-         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
-      }
+      g_drawnBoxes[g_boxCount].isMacro        = (tf == PERIOD_W1 || tf == PERIOD_D1 || tf == PERIOD_H4);
+      g_boxCount++;
    }
 }
 
@@ -569,96 +699,35 @@ int FindNearestBox(datetime clickTime, double clickPrice)
 }
 
 //+------------------------------------------------------------------+
-//| Helper: Process Origin Pivot Breakout Lines for a TF Pair        |
+//| Draw RS Breakout Lines directly from LS Launch Boxes             |
 //+------------------------------------------------------------------+
-void ProcessOriginFromPivots(const SPivot &targetPivots[], ENUM_TIMEFRAMES targetTF,
-                             const SPivot &sourcePivots[], ENUM_TIMEFRAMES sourceTF,
-                             const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
-                             int ratesTotal, int daysBack)
+void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], int ratesTotal)
 {
-   int targetCount = ArraySize(targetPivots);
-   int sourceCount = ArraySize(sourcePivots);
-   if(targetCount < 2 || sourceCount < 2) return;
+   if(!InpEnableOriginLines) return;
 
-   // تشخیص پیووت‌های مستقل تایم هدف
-   bool targetPivotInBox[];
-   ArrayResize(targetPivotInBox, targetCount);
-   ArrayInitialize(targetPivotInBox, false);
-   for(int i = 0; i < targetCount - 1; i++)
+   for(int b = 0; b < g_boxCount; b++)
    {
-      if(IsValidFlagLeg(i, targetPivots, targetCount))
-      {
-         targetPivotInBox[i] = true;
-         targetPivotInBox[i + 1] = true;
-      }
-   }
+      if(!g_drawnBoxes[b].isPreIP) continue;
 
-   // تشخیص پیووت‌های مستقل تایم منشأ
-   bool sourcePivotInBox[];
-   ArrayResize(sourcePivotInBox, sourceCount);
-   ArrayInitialize(sourcePivotInBox, false);
-   for(int i = 0; i < sourceCount - 1; i++)
-   {
-      if(IsValidFlagLeg(i, sourcePivots, sourceCount))
-      {
-         sourcePivotInBox[i] = true;
-         sourcePivotInBox[i + 1] = true;
-      }
-   }
+      bool targetIsHigh   = g_drawnBoxes[b].targetIPIsHigh;
+      datetime targetTime = g_drawnBoxes[b].targetIPTime;
+      datetime startTime  = g_drawnBoxes[b].t1;
 
-   datetime limitTime = 0;
-   if(daysBack > 0)
-      limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
+      // اگر برای سقف مستقل است -> خط RS از کف باکس LS شروع می‌شود
+      // اگر برای کف مستقل است -> خط RS از سقف باکس LS شروع می‌شود
+      double linePrice = targetIsHigh ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
+      color lineColor  = targetIsHigh ? InpOriginColorLow : InpOriginColorHigh;
 
-   string targetTFStr = TFName(targetTF);
-   string sourceTFStr = TFName(sourceTF);
-   ENUM_LINE_STYLE sourceStyle = GetTFLineStyle(sourceTF);
-
-   for(int p = 0; p < targetCount; p++)
-   {
-      if(daysBack > 0 && targetPivots[p].time < limitTime)
-         continue;
-
-      // فقط پیووت‌های مستقل تایم هدف
-      if(targetPivotInBox[p])
-         continue;
-
-      bool targetIsHigh = targetPivots[p].isHigh;
-      datetime targetTime = targetPivots[p].time;
-
-      int foundSourceIdx = -1;
-      for(int s = sourceCount - 1; s >= 0; s--)
-      {
-         if(sourcePivots[s].time < targetTime)
-         {
-            if(sourcePivots[s].isHigh != targetIsHigh)
-            {
-               if(!InpOriginRequireIndep || !sourcePivotInBox[s])
-               {
-                  foundSourceIdx = s;
-                  break;
-               }
-            }
-         }
-      }
-
-      if(foundSourceIdx < 0)
-         continue;
-
-      SPivot originP = sourcePivots[foundSourceIdx];
-      datetime originTime = originP.time;
-      double originPrice = originP.price;
-      bool originIsHigh = originP.isHigh;
-
-      int startIdx = FindBarIndex(chartTime, ratesTotal, originTime);
-      if(startIdx < 0) continue;
+      int targetBarIdx = FindBarIndex(chartTime, ratesTotal, targetTime);
+      int searchStart  = targetBarIdx >= 0 ? targetBarIdx : FindBarIndex(chartTime, ratesTotal, startTime);
+      if(searchStart < 0) searchStart = 0;
 
       int breakIdx = ratesTotal - 1;
-      for(int k = startIdx + 1; k < ratesTotal; k++)
+      for(int k = searchStart + 1; k < ratesTotal; k++)
       {
-         if(originIsHigh)
+         if(targetIsHigh)
          {
-            if(chartHigh[k] > originPrice)
+            if(chartLow[k] < linePrice)
             {
                breakIdx = k;
                break;
@@ -666,7 +735,7 @@ void ProcessOriginFromPivots(const SPivot &targetPivots[], ENUM_TIMEFRAMES targe
          }
          else
          {
-            if(chartLow[k] < originPrice)
+            if(chartHigh[k] > linePrice)
             {
                breakIdx = k;
                break;
@@ -675,93 +744,333 @@ void ProcessOriginFromPivots(const SPivot &targetPivots[], ENUM_TIMEFRAMES targe
       }
 
       datetime endTime = chartTime[breakIdx];
-      string lineName = "FLAG_ORIGIN_" + targetTFStr + "_" + sourceTFStr + "_" + IntegerToString((int)originTime);
-      color lineColor = originIsHigh ? InpOriginColorHigh : InpOriginColorLow;
+      if(endTime <= startTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
+
+      string lineName = "FLAG_RS_LINE_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
 
       if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
-      ObjectCreate(0, lineName, OBJ_TREND, 0, originTime, originPrice, endTime, originPrice);
+      ObjectCreate(0, lineName, OBJ_TREND, 0, startTime, linePrice, endTime, linePrice);
       ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
-      ObjectSetInteger(0, lineName, OBJPROP_STYLE, sourceStyle);
+      ObjectSetInteger(0, lineName, OBJPROP_STYLE, g_drawnBoxes[b].baseStyle);
       ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
       ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
 
-      string tooltip = "Origin " + sourceTFStr + (originIsHigh ? " High" : " Low") + " -> Target IP " + targetTFStr +
-                       "\nPrice: " + DoubleToString(originPrice, _Digits) +
-                       "\nTime: " + TimeToString(originTime);
+      string tooltip = "RS Line " + g_drawnBoxes[b].tfTag + (targetIsHigh ? " Low" : " High") +
+                       "\nPrice: " + DoubleToString(linePrice, _Digits) +
+                       "\nStart: " + TimeToString(startTime);
       ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
 
       if(InpOriginLabelStyle != LABEL_TOOLTIP)
       {
          string lblName = lineName + "_LBL";
-         string lblText = (InpOriginLabelStyle == LABEL_COMPACT) ? (sourceTFStr + "->" + targetTFStr) : ("Origin " + sourceTFStr + (originIsHigh ? " H" : " L") + " -> " + targetTFStr);
+         string lblText = "RS " + g_drawnBoxes[b].tfTag;
          
          if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-         // قرار دادن برچسب در انتهای سمت راست خط (endTime) تا با پیووت و خطوط دیگر تداخل نداشته باشد
-         ObjectCreate(0, lblName, OBJ_TEXT, 0, endTime, originPrice);
+         
+         double posRatio = 0.50;
+         if(g_drawnBoxes[b].tf == PERIOD_H1)  posRatio = 0.25;
+         if(g_drawnBoxes[b].tf == PERIOD_M15) posRatio = 0.45;
+         if(g_drawnBoxes[b].tf == PERIOD_M5)  posRatio = 0.65;
+         if(g_drawnBoxes[b].tf == PERIOD_M1)  posRatio = 0.85;
+
+         datetime lblTime = (datetime)(startTime + (endTime - startTime) * posRatio);
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, linePrice);
          ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
          ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
-         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 7);
-         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (originIsHigh ? ANCHOR_LEFT_LOWER : ANCHOR_LEFT_UPPER));
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (targetIsHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
+         ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+      }
+
+      // هایلایت و ثبت تگ RS برای گره در لحظه شکست یا اولین گره بعد از شکست خط
+      if(InpHighlightBreakoutFlags && breakIdx < ratesTotal - 1)
+      {
+         int matchedBoxIdx = -1;
+
+         // حالت ۱: اگر شکست واقعاً داخل گره رخ داده باشد (هم زمانی و هم قیمتی)
+         for(int ob = 0; ob < g_boxCount; ob++)
+         {
+            if(g_drawnBoxes[ob].t1 >= targetTime - 60)
+            {
+               if(endTime >= g_drawnBoxes[ob].t1 && endTime <= g_drawnBoxes[ob].t2)
+               {
+                  // شرط قیمتی: خط شکست باید داخل سقف و کف باکس قرار داشته باشد
+                  if(linePrice >= g_drawnBoxes[ob].bottom && linePrice <= g_drawnBoxes[ob].top)
+                  {
+                     matchedBoxIdx = ob;
+                     break;
+                  }
+               }
+            }
+         }
+
+         // حالت ۲: اگر شکست داخل گره نبود (یا کندل از گره بیرون زده بود)، اولین گره بعدی بعد از زمان شکست
+         if(matchedBoxIdx < 0)
+         {
+            datetime minNextTime = 0;
+            for(int ob = 0; ob < g_boxCount; ob++)
+            {
+               if(g_drawnBoxes[ob].t1 >= endTime)
+               {
+                  if(matchedBoxIdx < 0 || g_drawnBoxes[ob].t1 < minNextTime)
+                  {
+                     minNextTime = g_drawnBoxes[ob].t1;
+                     matchedBoxIdx = ob;
+                  }
+               }
+            }
+         }
+
+         // ثبت تگ RS برای گره منتخب
+         if(matchedBoxIdx >= 0)
+         {
+            g_drawnBoxes[matchedBoxIdx].isBOFlag = true;
+            g_drawnBoxes[matchedBoxIdx].isRSBull = !targetIsHigh;
+            bool alreadyTagged = false;
+            for(int tg = 0; tg < ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags); tg++)
+            {
+               if(g_drawnBoxes[matchedBoxIdx].rsTags[tg] == "RS") { alreadyTagged = true; break; }
+            }
+            if(!alreadyTagged)
+            {
+               int tagLen = ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags);
+               ArrayResize(g_drawnBoxes[matchedBoxIdx].rsTags, tagLen + 1);
+               g_drawnBoxes[matchedBoxIdx].rsTags[tagLen] = "RS";
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Tag First Post-IP Flag Box as OInner                             |
+//+------------------------------------------------------------------+
+void ProcessOInnerBoxes()
+{
+   if(!InpHighlightOInner) return;
+
+   for(int k = 0; k < g_indepCount; k++)
+   {
+      datetime pivotTime = g_indepPivots[k].time;
+      bool isHigh        = g_indepPivots[k].isHigh;
+
+      for(int t = 0; t < ArraySize(g_indepPivots[k].tfTags); t++)
+      {
+         string tfStr = g_indepPivots[k].tfTags[t];
+         
+         int firstBoxIdx = -1;
+         datetime minBoxTime = 0;
+         for(int ob = 0; ob < g_boxCount; ob++)
+         {
+            if(g_drawnBoxes[ob].tfTag == tfStr && g_drawnBoxes[ob].t1 >= pivotTime - 60)
+            {
+               if(firstBoxIdx < 0 || g_drawnBoxes[ob].t1 < minBoxTime)
+               {
+                  minBoxTime = g_drawnBoxes[ob].t1;
+                  firstBoxIdx = ob;
+               }
+            }
+         }
+
+         if(firstBoxIdx >= 0)
+         {
+            g_drawnBoxes[firstBoxIdx].isOInner     = true;
+            g_drawnBoxes[firstBoxIdx].isOInnerBull = !isHigh;
+
+            bool alreadyTagged = false;
+            for(int tg = 0; tg < ArraySize(g_drawnBoxes[firstBoxIdx].rsTags); tg++)
+            {
+               if(g_drawnBoxes[firstBoxIdx].rsTags[tg] == "OInner") { alreadyTagged = true; break; }
+            }
+            if(!alreadyTagged)
+            {
+               int tagLen = ArraySize(g_drawnBoxes[firstBoxIdx].rsTags);
+               ArrayResize(g_drawnBoxes[firstBoxIdx].rsTags, tagLen + 1);
+               g_drawnBoxes[firstBoxIdx].rsTags[tagLen] = "OInner";
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Render Final Boxes with Smart Filtering and Multi-Tagging        |
+//+------------------------------------------------------------------+
+void RenderFinalBoxes()
+{
+   for(int b = 0; b < g_boxCount; b++)
+   {
+      bool isMacro = g_drawnBoxes[b].isMacro;
+      bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
+
+      bool shouldDraw = false;
+      if(isMacro)
+      {
+         if(InpShowMacroAlways)
+            shouldDraw = true;
+      }
+      else
+      {
+         // برای تایم‌های میکرو (H1, M15, M5, M1)
+         if(hasRSTags && InpShowOnlyRSMicroBoxes)
+            shouldDraw = true;
+         else if(InpShowNormalMicroBoxes)
+            shouldDraw = true;
+      }
+
+      if(!shouldDraw)
+         continue;
+
+      // تعیین رنگ، ضخامت و برچسب تفکیک‌شده برای صعودی و نزولی
+      color drawClr = g_drawnBoxes[b].baseColor;
+      int drawWidth = g_drawnBoxes[b].baseWidth;
+      string roleTag = "";
+
+      if(hasRSTags)
+      {
+         bool isLS = false;
+         bool isRS = false;
+         bool isOI = false;
+         for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
+         {
+            if(g_drawnBoxes[b].rsTags[t] == "LS") isLS = true;
+            if(g_drawnBoxes[b].rsTags[t] == "RS") isRS = true;
+            if(g_drawnBoxes[b].rsTags[t] == "OInner") isOI = true;
+         }
+
+         string tagCombo = "";
+         if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
+         if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
+         if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
+
+         bool isBull = false;
+         if(isLS) isBull = g_drawnBoxes[b].isLSBull;
+         else if(isOI) isBull = g_drawnBoxes[b].isOInnerBull;
+         else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
+
+         roleTag = tagCombo + (isBull ? " Bull" : " Bear");
+
+         if(isLS && isRS)
+         {
+            drawClr   = isBull ? InpComboColorBull : InpComboColorBear;
+            drawWidth = 3;
+         }
+         else if(isOI && isRS)
+         {
+            drawClr   = isBull ? InpRSColorBull : InpRSColorBear;
+            drawWidth = InpBreakoutFlagWidth;
+         }
+         else if(isLS)
+         {
+            drawClr   = isBull ? InpLSColorBull : InpLSColorBear;
+            drawWidth = InpPreIPWidth;
+         }
+         else if(isOI)
+         {
+            drawClr   = isBull ? InpOInnerColorBull : InpOInnerColorBear;
+            drawWidth = InpOInnerWidth;
+         }
+         else if(isRS)
+         {
+            drawClr   = isBull ? InpRSColorBull : InpRSColorBear;
+            drawWidth = InpBreakoutFlagWidth;
+         }
+      }
+
+      DrawHollowBox(g_drawnBoxes[b].boxName,
+                    g_drawnBoxes[b].t1,
+                    g_drawnBoxes[b].top,
+                    g_drawnBoxes[b].t2,
+                    g_drawnBoxes[b].bottom,
+                    drawClr,
+                    drawWidth,
+                    g_drawnBoxes[b].baseStyle);
+
+      // برچسب هوشمند متصل به بالای باکس
+      if(InpShowLabel)
+      {
+         datetime labelTime = (datetime)((g_drawnBoxes[b].t1 + g_drawnBoxes[b].t2) / 2);
+         double labelPrice = g_drawnBoxes[b].top + (g_drawnBoxes[b].top - g_drawnBoxes[b].bottom) * 0.05;
+
+         string lblName = "FLAG_LBL_" + g_drawnBoxes[b].boxName;
+         string lblText = (roleTag != "") ? (roleTag + " [" + g_drawnBoxes[b].tfTag + "]") : g_drawnBoxes[b].tfTag;
+
+         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
+         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, drawClr);
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
          ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
       }
    }
 }
 
 //+------------------------------------------------------------------+
-//| Process Multi-Timeframe Origin Lines                             |
+//| Render Final Aggregated Independent Pivots (No Overlapping)      |
 //+------------------------------------------------------------------+
-void ProcessMultiOriginLines(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[],
-                             int ratesTotal, int daysBack)
+void RenderFinalIndependentPivots()
 {
-   if(!InpEnableOriginLines) return;
+   if(!InpShowIndependentPivots) return;
 
-   // کش کردن پیووت‌های تایم‌فریم‌های مورد نیاز
-   SPivot pivotsD1[], pivotsH4[], pivotsH1[], pivotsM15[], pivotsM5[], pivotsM1[];
-
-   if(InpTargetD1)
-      BuildAlternatingPivots(PERIOD_D1, InpSwingBars, InpMaxBarsTF, pivotsD1);
-
-   if(InpTargetH4)
-      BuildAlternatingPivots(PERIOD_H4, InpSwingBars, InpMaxBarsTF, pivotsH4);
-
-   if(InpTargetH1 || InpSourceH1)
-      BuildAlternatingPivots(PERIOD_H1, InpSwingBars, InpMaxBarsTF, pivotsH1);
-
-   if(InpSourceM15)
-      BuildAlternatingPivots(PERIOD_M15, InpSwingBars, MathMax(InpMaxBarsTF, 15000), pivotsM15);
-
-   if(InpSourceM5)
-      BuildAlternatingPivots(PERIOD_M5, InpSwingBars, MathMax(InpMaxBarsTF, 20000), pivotsM5);
-
-   if(InpSourceM1)
-      BuildAlternatingPivots(PERIOD_M1, InpSwingBars, MathMax(InpMaxBarsTF, 30000), pivotsM1);
-
-   // 1. پردازش منشأها برای پیووت‌های مستقل D1
-   if(InpTargetD1)
+   for(int k = 0; k < g_indepCount; k++)
    {
-      if(InpSourceH1)  ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsH1,  PERIOD_H1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM15) ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsM15, PERIOD_M15, chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM5)  ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsM5,  PERIOD_M5,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM1)  ProcessOriginFromPivots(pivotsD1, PERIOD_D1, pivotsM1,  PERIOD_M1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-   }
+      string combinedTFs = "";
+      for(int t = 0; t < ArraySize(g_indepPivots[k].tfTags); t++)
+      {
+         combinedTFs += (t > 0 ? "/" : "") + g_indepPivots[k].tfTags[t];
+      }
 
-   // 2. پردازش منشأها برای پیووت‌های مستقل H4
-   if(InpTargetH4)
-   {
-      if(InpSourceH1)  ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsH1,  PERIOD_H1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM15) ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsM15, PERIOD_M15, chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM5)  ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsM5,  PERIOD_M5,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM1)  ProcessOriginFromPivots(pivotsH4, PERIOD_H4, pivotsM1,  PERIOD_M1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-   }
+      string lblText = (g_indepPivots[k].hasIP ? "IP " : "") + combinedTFs;
 
-   // 3. پردازش منشأها برای پیووت‌های مستقل H1
-   if(InpTargetH1)
-   {
-      if(InpSourceM15) ProcessOriginFromPivots(pivotsH1, PERIOD_H1, pivotsM15, PERIOD_M15, chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM5)  ProcessOriginFromPivots(pivotsH1, PERIOD_H1, pivotsM5,  PERIOD_M5,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
-      if(InpSourceM1)  ProcessOriginFromPivots(pivotsH1, PERIOD_H1, pivotsM1,  PERIOD_M1,  chartTime, chartHigh, chartLow, ratesTotal, daysBack);
+      string ipName = "FLAG_IP_" + IntegerToString((int)g_indepPivots[k].time) + "_" + (g_indepPivots[k].isHigh ? "H" : "L") + "_" + IntegerToString(k);
+      
+      if(ObjectFind(0, ipName) >= 0) ObjectDelete(0, ipName);
+      ObjectCreate(0, ipName, OBJ_ARROW, 0, g_indepPivots[k].time, g_indepPivots[k].price);
+      ObjectSetInteger(0, ipName, OBJPROP_ARROWCODE, InpIndepMarkCode);
+      ObjectSetInteger(0, ipName, OBJPROP_COLOR,      g_indepPivots[k].clr);
+      ObjectSetInteger(0, ipName, OBJPROP_WIDTH,      InpIndepMarkWidth);
+      ObjectSetInteger(0, ipName, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, ipName, OBJPROP_ANCHOR, (g_indepPivots[k].isHigh ? ANCHOR_BOTTOM : ANCHOR_TOP));
+
+      if(InpIndepShowLabel)
+      {
+         string lblName = ipName + "_LBL";
+         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, g_indepPivots[k].time, g_indepPivots[k].price);
+         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, g_indepPivots[k].clr);
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (g_indepPivots[k].isHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
+         ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+      }
    }
+}
+
+//+------------------------------------------------------------------+
+//| Apply High-Contrast Neutral Pro Chart Theme                      |
+//+------------------------------------------------------------------+
+void ApplyProChartTheme()
+{
+   if(!InpApplyProTheme) return;
+
+   // پس‌زمینه زغالی مدرن و ملایم (کنتراست حداکثری بدون خستگی چشم)
+   color darkCharcoal = (color)0x181512; // TradingView Deep Slate
+   
+   ChartSetInteger(0, CHART_COLOR_BACKGROUND, darkCharcoal);
+   ChartSetInteger(0, CHART_COLOR_FOREGROUND, clrSilver);
+   ChartSetInteger(0, CHART_COLOR_GRID, clrNONE);
+   ChartSetInteger(0, CHART_SHOW_GRID, false);
+   ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
+
+   // کندل‌های خنثی متالیک: صعودی نقره‌ای/سفید، نزولی دودی/خاکستری تیره
+   ChartSetInteger(0, CHART_COLOR_CHART_UP,    clrSilver);
+   ChartSetInteger(0, CHART_COLOR_CHART_DOWN,  clrDimGray);
+   ChartSetInteger(0, CHART_COLOR_CANDLE_BULL, clrWhite);
+   ChartSetInteger(0, CHART_COLOR_CANDLE_BEAR, (color)0x352B28); // دودی تیره
+   ChartSetInteger(0, CHART_COLOR_CHART_LINE,  clrLightSlateGray);
+   ChartSetInteger(0, CHART_MODE, CHART_CANDLES);
 }
 
 //+------------------------------------------------------------------+
@@ -769,10 +1078,7 @@ void ProcessMultiOriginLines(const datetime &chartTime[], const double &chartHig
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   if(InpHideGrid)
-      ChartSetInteger(0, CHART_SHOW_GRID, false);
-   if(InpHideVolumes)
-      ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
+   ApplyProChartTheme();
 
    ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
    ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
@@ -818,14 +1124,13 @@ int OnCalculate(const int rates_total,
    }
    lastBarTime = currentBarTime;
 
-   if(InpHideGrid)
-      ChartSetInteger(0, CHART_SHOW_GRID, false);
-   if(InpHideVolumes)
-      ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
+   ApplyProChartTheme();
 
    ObjectsDeleteAll(0, "FLAG_");
    ArrayResize(g_drawnBoxes, 0);
    g_boxCount = 0;
+   ArrayResize(g_indepPivots, 0);
+   g_indepCount = 0;
 
    ENUM_TIMEFRAMES tfArr[7]  = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
    bool            useArr[7] = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
@@ -843,8 +1148,17 @@ int OnCalculate(const int rates_total,
       ProcessTF(currentTF, InpSwingBars, currentColor, time, high, low, rates_total, daysBack);
    }
 
-   //--- Process and draw Multi-Timeframe Origin Pivot Breakout Lines
-   ProcessMultiOriginLines(time, high, low, rates_total, InpOriginDaysBack);
+   //--- Process and draw RS Breakout Lines directly from LS Launch Boxes
+   ProcessRSLinesFromLSBoxes(time, high, low, rates_total);
+
+   //--- Process and tag First Post-IP Nodes as OInner
+   ProcessOInnerBoxes();
+
+   //--- Render Final Filtered Boxes with RS Multi-Tag Labels
+   RenderFinalBoxes();
+
+   //--- Render Final Merged Independent Pivot Markers (No Overlapping)
+   RenderFinalIndependentPivots();
 
    ChartRedraw(0);
    return rates_total;
