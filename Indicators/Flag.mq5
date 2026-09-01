@@ -119,6 +119,14 @@ input color            InpOInnerColorBull       = clrDeepSkyBlue;// رنگ OInne
 input color            InpOInnerColorBear       = clrGold;      // رنگ OInner نزولی (حرکت رو به پایین از سقف)
 input int              InpOInnerWidth           = 2;            // ضخامت باکس OInner
 
+input group "=== Universal Box Swap System (سیستم جامع سواپ باکس‌ها) ==="
+input bool             InpEnableSwapLines       = true;         // فعال‌سازی رسم خطوط و باکس‌های سواپ (Swap)
+input color            InpSwapColorBull         = clrDodgerBlue;// رنگ سواپ صعودی (شکست به بالا)
+input color            InpSwapColorBear         = clrOrangeRed; // رنگ سواپ نزولی (شکست به پایین)
+input int              InpSwapLineWidth         = 1;            // ضخامت خطوط سواپ
+input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل خطوط سواپ
+input int              InpSwapBoxWidth          = 2;            // ضخامت خط باکس‌های سواپ
+
 input group "=== Chart Theme & Display (تم فوق‌حرفه‌ای چارت) ==="
 input bool             InpApplyProTheme = true;        // اعمال تم حرفه‌ای خنثی (کندل‌های نقره‌ای/دودی با کنتراست حداکثری باکس‌ها)
 input bool             InpHideGrid      = true;        // حذف گرید از چارت
@@ -139,12 +147,16 @@ struct SBoxInfo
    color           baseColor;
    int             baseWidth;
    ENUM_LINE_STYLE baseStyle;
+   bool            isBullish;
    bool            isPreIP;
    bool            isLSBull;
    bool            isBOFlag;
    bool            isRSBull;
    bool            isOInner;
    bool            isOInnerBull;
+   bool            isSwap;
+   bool            isSwapBull;
+   string          swapSourceRole;
    string          rsTags[];
    bool            isMacro;
    datetime        targetIPTime;
@@ -600,12 +612,19 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_drawnBoxes[g_boxCount].baseColor      = clr;
       g_drawnBoxes[g_boxCount].baseWidth      = InpLineWidth;
       g_drawnBoxes[g_boxCount].baseStyle      = GetTFLineStyle(tf);
+      bool isBullish = (!p1.isHigh && p2.isHigh);
+      g_drawnBoxes[g_boxCount].isBullish      = isBullish;
       g_drawnBoxes[g_boxCount].isPreIP        = isPreIPBox[i];
       g_drawnBoxes[g_boxCount].isLSBull       = targetIPIsHighArr[i];
       g_drawnBoxes[g_boxCount].targetIPTime   = targetIPTimeArr[i];
       g_drawnBoxes[g_boxCount].targetIPIsHigh = targetIPIsHighArr[i];
       g_drawnBoxes[g_boxCount].isBOFlag       = false;
       g_drawnBoxes[g_boxCount].isRSBull       = false;
+      g_drawnBoxes[g_boxCount].isOInner       = false;
+      g_drawnBoxes[g_boxCount].isOInnerBull   = false;
+      g_drawnBoxes[g_boxCount].isSwap         = false;
+      g_drawnBoxes[g_boxCount].isSwapBull     = false;
+      g_drawnBoxes[g_boxCount].swapSourceRole = "";
       ArrayResize(g_drawnBoxes[g_boxCount].rsTags, 0);
       if(isPreIPBox[i] && InpHighlightPreIP)
       {
@@ -1067,6 +1086,153 @@ void ProcessOInnerBoxes()
 }
 
 //+------------------------------------------------------------------+
+//| Universal Box Swap System (S-Prefix Breakout & Reaction Flags)   |
+//+------------------------------------------------------------------+
+void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], int ratesTotal)
+{
+   if(!InpEnableSwapLines) return;
+
+   int initialBoxCount = g_boxCount;
+   for(int b = 0; b < initialBoxCount; b++)
+   {
+      // مشخص کردن جهت اصلی باکس (صعودی یا نزولی)
+      bool isBull = g_drawnBoxes[b].isBullish;
+      if(g_drawnBoxes[b].isPreIP) isBull = g_drawnBoxes[b].isLSBull;
+      else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
+      else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
+
+      // ۱. اگر باکس صعودی است -> خط از کف باکس شروع شده و شکست به زیر کف بررسی می‌شود
+      // ۲. اگر باکس نزولی است -> خط از سقف باکس شروع شده و شکست به بالای سقف بررسی می‌شود
+      double linePrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
+      color lineColor  = isBull ? InpSwapColorBear : InpSwapColorBull;
+      datetime startTime = g_drawnBoxes[b].t1;
+
+      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
+      if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, startTime);
+      if(startSearchIdx < 0) startSearchIdx = 0;
+
+      int breakIdx = ratesTotal - 1;
+      for(int k = startSearchIdx + 1; k < ratesTotal; k++)
+      {
+         if(isBull)
+         {
+            if(chartLow[k] < linePrice)
+            {
+               breakIdx = k;
+               break;
+            }
+         }
+         else
+         {
+            if(chartHigh[k] > linePrice)
+            {
+               breakIdx = k;
+               break;
+            }
+         }
+      }
+
+      datetime endTime = chartTime[breakIdx];
+      if(endTime <= startTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
+
+      // نام و نقش باکس مبدأ جهت تولید پیشوند S-
+      string srcRole = "Flag";
+      for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+      {
+         if(g_drawnBoxes[b].rsTags[tg] == "OInner") { srcRole = "OInner"; break; }
+         if(g_drawnBoxes[b].rsTags[tg] == "RS")     { srcRole = "RS";     break; }
+         if(g_drawnBoxes[b].rsTags[tg] == "LS")     { srcRole = "LS";     break; }
+      }
+
+      string lineName = "FLAG_SWAP_LINE_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
+
+      if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
+      ObjectCreate(0, lineName, OBJ_TREND, 0, startTime, linePrice, endTime, linePrice);
+      ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
+      ObjectSetInteger(0, lineName, OBJPROP_STYLE, InpSwapLineStyle);
+      ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpSwapLineWidth);
+      ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
+
+      if(InpOriginLabelStyle != LABEL_TOOLTIP)
+      {
+         string lblName = lineName + "_LBL";
+         string lblText = "S-" + srcRole + " " + g_drawnBoxes[b].tfTag;
+         
+         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+         datetime lblTime = (datetime)(startTime + (endTime - startTime) * 0.50);
+         ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, linePrice);
+         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
+         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isBull ? ANCHOR_LOWER : ANCHOR_UPPER));
+         ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+      }
+
+      // پیدا کردن و ثبت باکس سواپ متناظر
+      if(breakIdx < ratesTotal - 1)
+      {
+         int matchedBoxIdx = -1;
+
+         // حالت ۱: شکست داخل یک گره رخ داده باشد (اعتبارسنجی دوگانه)
+         for(int ob = 0; ob < initialBoxCount; ob++)
+         {
+            if(ob == b) continue;
+            if(g_drawnBoxes[ob].t1 >= g_drawnBoxes[b].t2 - 60)
+            {
+               if(endTime >= g_drawnBoxes[ob].t1 && endTime <= g_drawnBoxes[ob].t2)
+               {
+                  if(linePrice >= g_drawnBoxes[ob].bottom && linePrice <= g_drawnBoxes[ob].top)
+                  {
+                     matchedBoxIdx = ob;
+                     break;
+                  }
+               }
+            }
+         }
+
+         // حالت ۲: اگر در گره نبود، اولین گره بعدی بعد از زمان شکست
+         if(matchedBoxIdx < 0)
+         {
+            datetime minNextTime = 0;
+            for(int ob = 0; ob < initialBoxCount; ob++)
+            {
+               if(ob == b) continue;
+               if(g_drawnBoxes[ob].t1 >= endTime)
+               {
+                  if(matchedBoxIdx < 0 || g_drawnBoxes[ob].t1 < minNextTime)
+                  {
+                     minNextTime = g_drawnBoxes[ob].t1;
+                     matchedBoxIdx = ob;
+                  }
+               }
+            }
+         }
+
+         if(matchedBoxIdx >= 0)
+         {
+            g_drawnBoxes[matchedBoxIdx].isSwap         = true;
+            g_drawnBoxes[matchedBoxIdx].isSwapBull     = !isBull;
+            g_drawnBoxes[matchedBoxIdx].swapSourceRole = srcRole;
+
+            string sTag = "S-" + srcRole;
+            bool alreadyTagged = false;
+            for(int tg = 0; tg < ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags); tg++)
+            {
+               if(g_drawnBoxes[matchedBoxIdx].rsTags[tg] == sTag) { alreadyTagged = true; break; }
+            }
+            if(!alreadyTagged)
+            {
+               int tagLen = ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags);
+               ArrayResize(g_drawnBoxes[matchedBoxIdx].rsTags, tagLen + 1);
+               g_drawnBoxes[matchedBoxIdx].rsTags[tagLen] = sTag;
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Render Final Boxes with Smart Filtering and Multi-Tagging        |
 //+------------------------------------------------------------------+
 void RenderFinalBoxes()
@@ -1104,26 +1270,43 @@ void RenderFinalBoxes()
          bool isLS = false;
          bool isRS = false;
          bool isOI = false;
+         bool isSwap = false;
+         string swapTag = "";
+
          for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
          {
-            if(g_drawnBoxes[b].rsTags[t] == "LS") isLS = true;
-            if(g_drawnBoxes[b].rsTags[t] == "RS") isRS = true;
-            if(g_drawnBoxes[b].rsTags[t] == "OInner") isOI = true;
+            string tg = g_drawnBoxes[b].rsTags[t];
+            if(tg == "LS") isLS = true;
+            else if(tg == "RS") isRS = true;
+            else if(tg == "OInner") isOI = true;
+            else if(StringFind(tg, "S-") == 0)
+            {
+               isSwap = true;
+               swapTag += (swapTag == "" ? "" : "+") + tg;
+            }
          }
 
          string tagCombo = "";
          if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
          if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
          if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
+         if(isSwap) tagCombo += (tagCombo == "" ? swapTag : "+" + swapTag);
 
          bool isBull = false;
-         if(isLS) isBull = g_drawnBoxes[b].isLSBull;
+         if(isSwap) isBull = g_drawnBoxes[b].isSwapBull;
+         else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
          else if(isOI) isBull = g_drawnBoxes[b].isOInnerBull;
          else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
+         else isBull = g_drawnBoxes[b].isBullish;
 
          roleTag = tagCombo + (isBull ? " Bull" : " Bear");
 
-         if(isLS && isRS)
+         if(isSwap)
+         {
+            drawClr   = isBull ? InpSwapColorBull : InpSwapColorBear;
+            drawWidth = InpSwapBoxWidth;
+         }
+         else if(isLS && isRS)
          {
             drawClr   = isBull ? InpComboColorBull : InpComboColorBear;
             drawWidth = 3;
@@ -1325,6 +1508,9 @@ int OnCalculate(const int rates_total,
 
    //--- Process and tag First Post-IP Nodes as OInner
    ProcessOInnerBoxes();
+
+   //--- Process and draw Universal Box Swap Lines and Reaction Boxes
+   ProcessUniversalSwapLines(time, high, low, rates_total);
 
    //--- Render Final Filtered Boxes with RS Multi-Tag Labels
    RenderFinalBoxes();
