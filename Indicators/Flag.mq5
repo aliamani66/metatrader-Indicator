@@ -221,14 +221,14 @@ ENUM_LINE_STYLE GetTFLineStyle(ENUM_TIMEFRAMES tf)
 {
    switch(tf)
    {
-      case PERIOD_D1:  return STYLE_SOLID;       // روزانه: خط ممتد
-      case PERIOD_W1:  return STYLE_SOLID;       // هفتگی: خط ممتد
-      case PERIOD_H4:  return STYLE_SOLID;       // چهارساعته: خط ممتد
-      case PERIOD_H1:  return STYLE_SOLID;       // یک‌ساعته: خط ممتد
-      case PERIOD_M15: return STYLE_DASH;        // ۱۵ دقیقه: خط‌چین
-      case PERIOD_M5:  return STYLE_DOT;         // ۵ دقیقه: نقطه‌چین
-      case PERIOD_M1:  return STYLE_DASHDOT;     // ۱ دقیقه: خط و نقطه
-      default:         return STYLE_SOLID;
+      case PERIOD_D1:  return STYLE_DASH;       // روزانه: خط‌چین
+      case PERIOD_W1:  return STYLE_DASH;       // هفتگی: خط‌چین
+      case PERIOD_H4:  return STYLE_DOT;        // چهارساعته: نقطه‌چین
+      case PERIOD_H1:  return STYLE_DASH;       // یک‌ساعته: خط‌چین
+      case PERIOD_M15: return STYLE_DASH;       // ۱۵ دقیقه: خط‌چین
+      case PERIOD_M5:  return STYLE_DOT;        // ۵ دقیقه: نقطه‌چین
+      case PERIOD_M1:  return STYLE_DOT;        // ۱ دقیقه: نقطه‌چین
+      default:         return STYLE_DASH;
    }
 }
 
@@ -1149,16 +1149,16 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       if(InpSwapOnlyKeyBoxes && srcRole == "Flag" && !g_drawnBoxes[b].isMacro)
          continue;
 
-      // انتخاب استایل ترکیبی شیک: خط‌چین، نقطه‌چین، و نقطه-خط
-      ENUM_LINE_STYLE extStyle = InpSwapLineStyle;
+      // انتخاب استایل ترکیبی شیک: خط‌چین و نقطه‌چین
+      ENUM_LINE_STYLE extStyle = STYLE_DOT;
       if(srcRole == "OInner")
-         extStyle = STYLE_DASH;       // خط‌چین برای امتداد OInner
-      else if(srcRole == "RS")
-         extStyle = STYLE_DASHDOT;    // نقطه-خط برای امتداد RS
+         extStyle = STYLE_DASH; // خط‌چین برای امتداد OInner
       else if(srcRole == "LS")
-         extStyle = STYLE_DOT;        // نقطه‌چین برای امتداد LS
+         extStyle = STYLE_DASH; // خط‌چین برای امتداد LS
+      else if(srcRole == "RS")
+         extStyle = STYLE_DOT;  // نقطه‌چین برای امتداد RS
       else
-         extStyle = STYLE_DASHDOTDOT; // خط و دو نقطه برای سایر باکس‌ها
+         extStyle = STYLE_DOT;  // نقطه‌چین برای سایر باکس‌ها
 
       string boxExtName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
 
@@ -1340,13 +1340,13 @@ void RenderFinalBoxes()
          {
             drawClr   = isBull ? InpComboColorBull : InpComboColorBear;
             drawWidth = 3;
-            drawStyle = STYLE_SOLID;
+            drawStyle = STYLE_DASH; // خط‌چین برای کمبو
          }
          else if(isOI && isRS)
          {
             drawClr   = isBull ? InpRSColorBull : InpRSColorBear;
             drawWidth = InpBreakoutFlagWidth;
-            drawStyle = STYLE_DASHDOT;
+            drawStyle = STYLE_DASH; // خط‌چین برای OInner+RS
          }
          else if(isLS)
          {
@@ -1364,7 +1364,7 @@ void RenderFinalBoxes()
          {
             drawClr   = isBull ? InpRSColorBull : InpRSColorBear;
             drawWidth = InpBreakoutFlagWidth;
-            drawStyle = STYLE_DASHDOT; // خط و نقطه برای RS
+            drawStyle = STYLE_DOT; // نقطه‌چین برای RS
          }
       }
 
