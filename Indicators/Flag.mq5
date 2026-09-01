@@ -1112,6 +1112,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, startTime);
       if(startSearchIdx < 0) startSearchIdx = 0;
 
+      bool isBroken = false;
       int breakIdx = ratesTotal - 1;
       for(int k = startSearchIdx + 1; k < ratesTotal; k++)
       {
@@ -1119,6 +1120,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          {
             if(chartLow[k] < linePrice)
             {
+               isBroken = true;
                breakIdx = k;
                break;
             }
@@ -1127,14 +1129,16 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          {
             if(chartHigh[k] > linePrice)
             {
+               isBroken = true;
                breakIdx = k;
                break;
             }
          }
       }
 
-      datetime endTime = chartTime[breakIdx];
-      if(endTime <= startTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
+      datetime liveTime = (ratesTotal > 0) ? chartTime[ratesTotal - 1] : 0;
+      datetime endTime = isBroken ? chartTime[breakIdx] : liveTime;
+      if(endTime <= startTime && ratesTotal > 0) endTime = liveTime;
 
       // نام و نقش باکس مبدأ جهت تولید پیشوند S-
       string srcRole = "Flag";
@@ -1145,20 +1149,25 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          if(g_drawnBoxes[b].rsTags[tg] == "LS")     { srcRole = "LS";     break; }
       }
 
-      // فیلتر هوشمند برای خلوت نگه داشتن چارت
-      if(InpSwapOnlyKeyBoxes && srcRole == "Flag" && !g_drawnBoxes[b].isMacro)
-         continue;
-
       // انتخاب استایل ترکیبی شیک: خط‌چین و نقطه‌چین
       ENUM_LINE_STYLE extStyle = STYLE_DOT;
+      color boxExtColor = isBull ? InpSwapColorBear : InpSwapColorBull;
+
       if(srcRole == "OInner")
-         extStyle = STYLE_DASH; // خط‌چین برای امتداد OInner
+      {
+         extStyle = STYLE_DASH;
+         boxExtColor = isBull ? clrDeepSkyBlue : clrGold;
+      }
       else if(srcRole == "LS")
-         extStyle = STYLE_DASH; // خط‌چین برای امتداد LS
+      {
+         extStyle = STYLE_DASH;
+         boxExtColor = isBull ? clrLimeGreen : clrDeepPink;
+      }
       else if(srcRole == "RS")
-         extStyle = STYLE_DOT;  // نقطه‌چین برای امتداد RS
-      else
-         extStyle = STYLE_DOT;  // نقطه‌چین برای سایر باکس‌ها
+      {
+         extStyle = STYLE_DOT;
+         boxExtColor = isBull ? clrDodgerBlue : clrOrangeRed;
+      }
 
       string boxExtName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
 
@@ -1167,14 +1176,14 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
                     g_drawnBoxes[b].top,
                     endTime,
                     g_drawnBoxes[b].bottom,
-                    lineColor,
+                    boxExtColor,
                     InpSwapBoxWidth,
                     extStyle);
 
       if(InpOriginLabelStyle != LABEL_TOOLTIP)
       {
          string lblName = boxExtName + "_LBL";
-         string lblText = "S-" + srcRole + " [" + g_drawnBoxes[b].tfTag + "]";
+         string lblText = (srcRole != "Flag" ? ("S-" + srcRole) : "Swap") + " [" + g_drawnBoxes[b].tfTag + "]";
          
          if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
          datetime lblTime = (datetime)((startTime + endTime) / 2);
@@ -1182,7 +1191,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
 
          ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, lblPrice);
          ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
-         ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, boxExtColor);
          ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
          ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
          ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
