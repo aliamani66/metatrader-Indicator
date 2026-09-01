@@ -30,18 +30,33 @@ input bool  InpShowShortBoxes = true;        // نمایش باکس‌های ک�
 //--- Structure to store reaction zones
 struct SReactionZone
 {
-   string  originalBoxName;   // نام باکس اصلی Flag
-   datetime timeStart;        // زمان شروع باکس اصلی
-   double  priceTop;          // قیمت بالای باکس
-   double  priceBottom;       // قیمت پایین باکس
-   bool    isBullish;         // آیا صعودی است؟
-   bool    isBroken;          // آیا شکسته شده؟
-   datetime breakTime;        // زمان شکست
-   string  label;             // برچسب (مثل 3D-5H1)
+   string   originalBoxName;   // نام باکس اصلی Flag
+   datetime timeStart;         // زمان شروع باکس Flag (t1)
+   datetime timeRight;         // زمان پایان اولیه باکس Flag (t2)
+   double   priceTop;          // قیمت بالای باکس
+   double   priceBottom;       // قیمت پایین باکس
+   bool     isBullish;         // آیا صعودی است؟
+   bool     isBroken;          // آیا شکسته شده؟
+   datetime breakTime;         // زمان شکست
+   string   label;             // برچسب (مثل 3D-5H1)
+   color    boxColor;          // رنگ هماهنگ با تایم‌فریم
 };
 
 SReactionZone reactionZones[];
 int zoneCount = 0;
+
+//+------------------------------------------------------------------+
+//| دریافت رنگ هماهنگ با تایم‌فریم                                    |
+//+------------------------------------------------------------------+
+color GetTFColor(string objName)
+{
+   if(StringFind(objName, "H4") >= 0)  return clrWhite;
+   if(StringFind(objName, "H1") >= 0)  return clrYellow;
+   if(StringFind(objName, "M15") >= 0) return clrLime;
+   if(StringFind(objName, "M5") >= 0)  return clrAqua;
+   if(StringFind(objName, "M1") >= 0)  return clrOrange;
+   return clrYellow;
+}
 
 //+------------------------------------------------------------------+
 //| رسم باکس توخالی                                                  |
@@ -65,10 +80,7 @@ void DrawHollowBox(string name, datetime t1, double top, datetime t2, double bot
 //+------------------------------------------------------------------+
 color GetRandomBrightColor(int seed)
 {
-   // استفاده از seed برای تولید رنگ ثابت برای هر باکس
    MathSrand(seed);
-   
-   // رنگ‌های روشن و متنوع برای بک‌گراند مشکی
    color colors[] = {
       clrRed, clrLime, clrYellow, clrCyan, clrMagenta,
       clrOrange, clrGold, clrAqua, clrHotPink, clrSpringGreen,
@@ -77,7 +89,6 @@ color GetRandomBrightColor(int seed)
       clrPaleVioletRed, clrLightSkyBlue, clrSalmon, clrLightSalmon,
       clrTurquoise, clrViolet, clrGreenYellow, clrLightSeaGreen
    };
-   
    int index = MathRand() % ArraySize(colors);
    return colors[index];
 }
@@ -105,7 +116,6 @@ void ReadFlagBoxes()
    ArrayResize(reactionZones, 0);
    zoneCount = 0;
    
-   // ساختار موقت برای مرتب‌سازی
    struct STempBox {
       string name;
       datetime rightTime;
@@ -118,32 +128,26 @@ void ReadFlagBoxes()
    STempBox tempBoxes[];
    int tempCount = 0;
    
-   // پیدا کردن تمام باکس‌های FLAG_BOX برای H4, H1, M15, M5, M1
    for(int i = ObjectsTotal(0, 0, OBJ_RECTANGLE) - 1; i >= 0; i--)
    {
       string objName = ObjectName(0, i, 0, OBJ_RECTANGLE);
       
-      // فقط باکس‌های FLAG_BOX را در نظر بگیر
       if(StringFind(objName, "FLAG_BOX_") != 0) continue;
       
-      // بررسی تایم‌فریم‌ها
       bool isH4 = (StringFind(objName, "H4") >= 0);
       bool isH1 = (StringFind(objName, "H1") >= 0);
       bool isM15 = (StringFind(objName, "M15") >= 0);
       bool isM5 = (StringFind(objName, "M5") >= 0);
-      bool isM1 = (StringFind(objName, "M1_") >= 0); // M1_ برای جلوگیری از match با M15
+      bool isM1 = (StringFind(objName, "M1_") >= 0);
       
-      // بررسی اینکه آیا این تایم‌فریم فعال است
       if(isH4 && !InpUseH4) continue;
       if(isH1 && !InpUseH1) continue;
       if(isM15 && !InpUseM15) continue;
       if(isM5 && !InpUseM5) continue;
       if(isM1 && !InpUseM1) continue;
       
-      // اگه هیچکدوم نبودن، skip
       if(!isH4 && !isH1 && !isM15 && !isM5 && !isM1) continue;
       
-      // خواندن اطلاعات باکس
       datetime t1 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 0);
       datetime t2 = (datetime)ObjectGetInteger(0, objName, OBJPROP_TIME, 1);
       double price1 = ObjectGetDouble(0, objName, OBJPROP_PRICE, 0);
@@ -152,20 +156,19 @@ void ReadFlagBoxes()
       double top = MathMax(price1, price2);
       double bottom = MathMin(price1, price2);
       
-      // زمان راست باکس (جدیدترین زمان)
+      datetime leftTime  = MathMin(t1, t2);
       datetime rightTime = MathMax(t1, t2);
       
       ArrayResize(tempBoxes, tempCount + 1);
       tempBoxes[tempCount].name = objName;
       tempBoxes[tempCount].rightTime = rightTime;
-      tempBoxes[tempCount].t1 = t1;
-      tempBoxes[tempCount].t2 = t2;
+      tempBoxes[tempCount].t1 = leftTime;
+      tempBoxes[tempCount].t2 = rightTime;
       tempBoxes[tempCount].top = top;
       tempBoxes[tempCount].bottom = bottom;
       tempCount++;
    }
    
-   // مرتب‌سازی بر اساس rightTime (از قدیمی به جدید)
    for(int i = 0; i < tempCount - 1; i++)
    {
       for(int j = i + 1; j < tempCount; j++)
@@ -179,17 +182,13 @@ void ReadFlagBoxes()
       }
    }
    
-   // انتخاب فقط N باکس آخر
    int startIdx = MathMax(0, tempCount - InpMaxBoxes);
    
    for(int i = startIdx; i < tempCount; i++)
    {
-      // تشخیص نوع باکس از نام باکس Flag
       string boxName = tempBoxes[i].name;
-      bool isBullish = true; // پیش‌فرض صعودی
+      bool isBullish = true;
       
-      // اگر نام باکس شامل "_B_" است → صعودی
-      // اگر نام باکس شامل "_R_" است → نزولی
       if(StringFind(boxName, "_B_") >= 0)
       {
          isBullish = true;
@@ -199,28 +198,20 @@ void ReadFlagBoxes()
          isBullish = false;
       }
       
-      // ذخیره zone
       ArrayResize(reactionZones, zoneCount + 1);
       reactionZones[zoneCount].originalBoxName = tempBoxes[i].name;
-      reactionZones[zoneCount].timeStart = tempBoxes[i].rightTime; // از سمت راست باکس
+      reactionZones[zoneCount].timeStart = tempBoxes[i].t1;        // شروع از اول باکس اصلی Flag
+      reactionZones[zoneCount].timeRight = tempBoxes[i].rightTime; // زمان شروع شکست
       reactionZones[zoneCount].priceTop = tempBoxes[i].top;
       reactionZones[zoneCount].priceBottom = tempBoxes[i].bottom;
       reactionZones[zoneCount].isBullish = isBullish;
       reactionZones[zoneCount].isBroken = false;
       reactionZones[zoneCount].breakTime = 0;
       reactionZones[zoneCount].label = ExtractLabel(tempBoxes[i].name);
+      reactionZones[zoneCount].boxColor = GetTFColor(tempBoxes[i].name);
       
       zoneCount++;
    }
-}
-
-//+------------------------------------------------------------------+
-//| تشخیص نوع باکس (صعودی یا نزولی)                                  |
-//| این تابع دیگر استفاده نمی‌شود - نوع باکس از نام باکس خوانده می‌شود |
-//+------------------------------------------------------------------+
-bool DetectBoxType(datetime afterTime, double top, double bottom)
-{
-   return true; // deprecated
 }
 
 //+------------------------------------------------------------------+
@@ -228,15 +219,10 @@ bool DetectBoxType(datetime afterTime, double top, double bottom)
 //+------------------------------------------------------------------+
 string ExtractLabel(string boxName)
 {
-   // نام باکس به این صورت است: FLAG_BOX_TF_P#_timestamp1_timestamp2
-   // مثلاً: FLAG_BOX_D1_P3_1234567890_1234567900
-   
    string parts[];
    int count = StringSplit(boxName, '_', parts);
-   
    if(count < 3) return "";
    
-   // استخراج TF و Pivot
    string tf = "";
    string pivot = "";
    
@@ -244,15 +230,14 @@ string ExtractLabel(string boxName)
    {
       if(parts[i] == "BOX" && i + 1 < count)
       {
-         tf = parts[i + 1]; // timeframe
+         tf = parts[i + 1];
       }
       if(StringFind(parts[i], "P") == 0 && StringLen(parts[i]) > 1)
       {
-         pivot = StringSubstr(parts[i], 1); // حذف P
+         pivot = StringSubstr(parts[i], 1);
       }
    }
    
-   // ساخت label
    if(pivot != "" && tf != "")
       return pivot + tf;
    
@@ -264,16 +249,12 @@ string ExtractLabel(string boxName)
 //+------------------------------------------------------------------+
 void CheckBreakouts(const double &high[], const double &low[], const datetime &time[], int rates_total)
 {
-   // تبدیل آرایه‌ها به series format (index بالا = جدیدترین)
-   // در OnCalculate، آرایه‌ها معمولاً timeseries هستند
-   
    for(int i = 0; i < zoneCount; i++)
    {
       if(reactionZones[i].isBroken) continue;
       
-      datetime startTime = reactionZones[i].timeStart;
+      datetime startTime = reactionZones[i].timeRight; // شروع بررسی شکست از انتهای اولیه باکس Flag
       
-      // پیدا کردن اولین کندل بعد از startTime
       int startIdx = -1;
       for(int bar = rates_total - 1; bar >= 0; bar--)
       {
@@ -283,13 +264,12 @@ void CheckBreakouts(const double &high[], const double &low[], const datetime &t
          }
          else
          {
-            break; // اولین کندل قبل از startTime
+            break;
          }
       }
       
       if(startIdx < 0) continue;
       
-      // بررسی کندل‌های بعد از startIdx (از startIdx به بعد)
       for(int bar = startIdx; bar < rates_total; bar++)
       {
          double barHigh = high[bar];
@@ -297,7 +277,6 @@ void CheckBreakouts(const double &high[], const double &low[], const datetime &t
          
          if(reactionZones[i].isBullish)
          {
-            // باکس صعودی: شکست از پایین
             if(barLow < reactionZones[i].priceBottom)
             {
                reactionZones[i].isBroken = true;
@@ -307,7 +286,6 @@ void CheckBreakouts(const double &high[], const double &low[], const datetime &t
          }
          else
          {
-            // باکس نزولی: شکست از بالا
             if(barHigh > reactionZones[i].priceTop)
             {
                reactionZones[i].isBroken = true;
@@ -320,7 +298,7 @@ void CheckBreakouts(const double &high[], const double &low[], const datetime &t
 }
 
 //+------------------------------------------------------------------+
-//| رسم reaction zones                                                |
+//| رسم reaction zones (یکپارچه و متصل از ابتدا تا انتها)            |
 //+------------------------------------------------------------------+
 void DrawReactionZones(const datetime &time[], int rates_total)
 {
@@ -330,7 +308,7 @@ void DrawReactionZones(const datetime &time[], int rates_total)
    {
       string zoneName = "RZ_" + reactionZones[i].originalBoxName;
       
-      datetime startTime = reactionZones[i].timeStart;
+      datetime startTime = reactionZones[i].timeStart; // شروع از ابتدای باکس پرچم
       datetime endTime;
       
       if(reactionZones[i].isBroken)
@@ -342,17 +320,11 @@ void DrawReactionZones(const datetime &time[], int rates_total)
          endTime = liveTime;
       }
       
-      int timeDiff = (int)(endTime - startTime);
-      if(timeDiff < 900)
-      {
-         if(!InpShowShortBoxes)
-         {
-            continue;
-         }
-      }
-      
-      int seed = (int)reactionZones[i].timeStart + i;
+      int seed = (int)reactionZones[i].timeStart + i * 37;
       color boxColor = GetRandomBrightColor(seed);
+      
+      // همرنگ کردن باکس اولیه Flag با رنگ رندوم تا کاملاً یکپارچه و یک‌دست شود
+      ObjectSetInteger(0, reactionZones[i].originalBoxName, OBJPROP_COLOR, boxColor);
       
       ENUM_LINE_STYLE boxStyle = STYLE_SOLID;
       if(StringFind(reactionZones[i].originalBoxName, "M15") >= 0) boxStyle = STYLE_DASH;
