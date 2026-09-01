@@ -752,8 +752,6 @@ int FindNearestBox(datetime clickTime, double clickPrice)
 //+------------------------------------------------------------------+
 void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], int ratesTotal)
 {
-   if(!InpEnableOriginLines) return;
-
    for(int b = 0; b < g_boxCount; b++)
    {
       if(!g_drawnBoxes[b].isPreIP) continue;
@@ -795,41 +793,44 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
       datetime endTime = chartTime[breakIdx];
       if(endTime <= startTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
 
-      string lineName = "FLAG_RS_LINE_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
-
-      if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
-      ObjectCreate(0, lineName, OBJ_TREND, 0, startTime, linePrice, endTime, linePrice);
-      ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
-      ObjectSetInteger(0, lineName, OBJPROP_STYLE, g_drawnBoxes[b].baseStyle);
-      ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
-      ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
-      ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
-
-      string tooltip = "RS Line " + g_drawnBoxes[b].tfTag + (targetIsHigh ? " Low" : " High") +
-                       "\nPrice: " + DoubleToString(linePrice, _Digits) +
-                       "\nStart: " + TimeToString(startTime);
-      ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
-
-      if(InpOriginLabelStyle != LABEL_TOOLTIP)
+      if(InpEnableOriginLines)
       {
-         string lblName = lineName + "_LBL";
-         string lblText = "RS " + g_drawnBoxes[b].tfTag;
-         
-         if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-         
-         double posRatio = 0.50;
-         if(g_drawnBoxes[b].tf == PERIOD_H1)  posRatio = 0.25;
-         if(g_drawnBoxes[b].tf == PERIOD_M15) posRatio = 0.45;
-         if(g_drawnBoxes[b].tf == PERIOD_M5)  posRatio = 0.65;
-         if(g_drawnBoxes[b].tf == PERIOD_M1)  posRatio = 0.85;
+         string lineName = "FLAG_RS_LINE_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
 
-         datetime lblTime = (datetime)(startTime + (endTime - startTime) * posRatio);
-         ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, linePrice);
-         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
-         ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
-         ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
-         ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (targetIsHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
-         ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+         if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
+         ObjectCreate(0, lineName, OBJ_TREND, 0, startTime, linePrice, endTime, linePrice);
+         ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
+         ObjectSetInteger(0, lineName, OBJPROP_STYLE, g_drawnBoxes[b].baseStyle);
+         ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
+         ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
+         ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
+
+         string tooltip = "RS Line " + g_drawnBoxes[b].tfTag + (targetIsHigh ? " Low" : " High") +
+                          "\nPrice: " + DoubleToString(linePrice, _Digits) +
+                          "\nStart: " + TimeToString(startTime);
+         ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
+
+         if(InpOriginLabelStyle != LABEL_TOOLTIP)
+         {
+            string lblName = lineName + "_LBL";
+            string lblText = "RS " + g_drawnBoxes[b].tfTag;
+            
+            if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+            
+            double posRatio = 0.50;
+            if(g_drawnBoxes[b].tf == PERIOD_H1)  posRatio = 0.25;
+            if(g_drawnBoxes[b].tf == PERIOD_M15) posRatio = 0.45;
+            if(g_drawnBoxes[b].tf == PERIOD_M5)  posRatio = 0.65;
+            if(g_drawnBoxes[b].tf == PERIOD_M1)  posRatio = 0.85;
+
+            datetime lblTime = (datetime)(startTime + (endTime - startTime) * posRatio);
+            ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, linePrice);
+            ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+            ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
+            ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+            ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (targetIsHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
+            ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+         }
       }
 
       // هایلایت و ثبت تگ RS برای گره در لحظه شکست یا اولین گره بعد از شکست خط
@@ -970,42 +971,45 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
          datetime endTime = chartTime[breakIdx];
          if(endTime <= pivotTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
 
-         string lineName = "FLAG_RS_LINE_" + tfStr + "_" + IntegerToString((int)pivotTime);
-         color lineColor = isHigh ? InpOriginColorLow : InpOriginColorHigh;
-         ENUM_LINE_STYLE lineStyle = GetTFLineStyle(srcTF);
-
-         if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
-         ObjectCreate(0, lineName, OBJ_TREND, 0, pivotTime, originPrice, endTime, originPrice);
-         ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
-         ObjectSetInteger(0, lineName, OBJPROP_STYLE, lineStyle);
-         ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
-         ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
-         ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
-
-         string tooltip = "RS Line " + tfStr + (isHigh ? " Low" : " High") +
-                          "\nPrice: " + DoubleToString(originPrice, _Digits) +
-                          "\nStart: " + TimeToString(pivotTime);
-         ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
-
-         if(InpOriginLabelStyle != LABEL_TOOLTIP)
+         if(InpEnableOriginLines)
          {
-            string lblName = lineName + "_LBL";
-            string lblText = "RS " + tfStr;
-            
-            if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
-            
-            double posRatio = 0.50;
-            if(srcTF == PERIOD_H1)  posRatio = 0.25;
-            if(srcTF == PERIOD_M15) posRatio = 0.45;
-            if(srcTF == PERIOD_M5)  posRatio = 0.65;
+            string lineName = "FLAG_RS_LINE_" + tfStr + "_" + IntegerToString((int)pivotTime);
+            color lineColor = isHigh ? InpOriginColorLow : InpOriginColorHigh;
+            ENUM_LINE_STYLE lineStyle = GetTFLineStyle(srcTF);
 
-            datetime lblTime = (datetime)(pivotTime + (endTime - pivotTime) * posRatio);
-            ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, originPrice);
-            ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
-            ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
-            ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
-            ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
-            ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+            if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
+            ObjectCreate(0, lineName, OBJ_TREND, 0, pivotTime, originPrice, endTime, originPrice);
+            ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
+            ObjectSetInteger(0, lineName, OBJPROP_STYLE, lineStyle);
+            ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
+            ObjectSetInteger(0, lineName, OBJPROP_RAY_RIGHT, false);
+            ObjectSetInteger(0, lineName, OBJPROP_SELECTABLE, false);
+
+            string tooltip = "RS Line " + tfStr + (isHigh ? " Low" : " High") +
+                             "\nPrice: " + DoubleToString(originPrice, _Digits) +
+                             "\nStart: " + TimeToString(pivotTime);
+            ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
+
+            if(InpOriginLabelStyle != LABEL_TOOLTIP)
+            {
+               string lblName = lineName + "_LBL";
+               string lblText = "RS " + tfStr;
+               
+               if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
+               
+               double posRatio = 0.50;
+               if(srcTF == PERIOD_H1)  posRatio = 0.25;
+               if(srcTF == PERIOD_M15) posRatio = 0.45;
+               if(srcTF == PERIOD_M5)  posRatio = 0.65;
+
+               datetime lblTime = (datetime)(pivotTime + (endTime - pivotTime) * posRatio);
+               ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, originPrice);
+               ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+               ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
+               ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 8);
+               ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, (isHigh ? ANCHOR_LOWER : ANCHOR_UPPER));
+               ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+            }
          }
 
          // هایلایت و ثبت تگ RS برای اولین گره در محل شکست یا بعد از شکست
