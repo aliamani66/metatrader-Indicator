@@ -54,7 +54,7 @@ enum ENUM_DISPLAY_FILTER
 };
 
 input group "=== Smart Visibility & Box Filter (فیلتر نمایش هوشمند) ==="
-input ENUM_DISPLAY_FILTER InpDisplayFilter          = FILTER_ONLY_SRS; // فیلتر نمایش باکس‌ها روی چارت
+input ENUM_DISPLAY_FILTER InpDisplayFilter          = FILTER_ALL;      // فیلتر نمایش باکس‌ها روی چارت (پیش‌فرض: همه باکس‌ها)
 input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (در حالت All)
 input bool             InpShowOnlyRSMicroBoxes  = false; // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۱۰ روز گذشته
