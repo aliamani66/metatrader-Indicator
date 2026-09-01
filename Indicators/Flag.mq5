@@ -654,10 +654,6 @@ void PrintBoxRemovalInfo(int bIdx)
    g_clickCounter++;
    string legType = (p1.isHigh ? "نزولی (Drop: " + p1.label + " -> " + p2.label + ")" : "صعودی (Rally: " + p1.label + " -> " + p2.label + ")");
 
-   // Highlight clicked box in Magenta to show it was selected
-   ObjectSetInteger(0, g_drawnBoxes[bIdx].boxName, OBJPROP_COLOR, clrMagenta);
-   ObjectSetInteger(0, g_drawnBoxes[bIdx].boxName, OBJPROP_WIDTH, 4);
-
    Print("══════════════════════════════════════════════════════════════════════");
    Print("❌ [باکس انتخاب‌شده جهت بررسی و حذف #", g_clickCounter, "]");
    Print("📍 جهت یال: ", legType);
