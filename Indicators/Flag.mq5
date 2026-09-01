@@ -53,7 +53,7 @@ input string           InpRSTagPrefix           = "RS";   // پیشوند تگ�
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 20000;       // حداکثر کندل‌های محاسبه (Max Bars)
+input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (Max Bars)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -1614,11 +1614,7 @@ void ShowTradeSetupForBox(int boxIdx)
    if(risk <= 0) return;
 
    // ۲. پیدا کردن اولین بازگشت و لمس به باکس در گذشته (First Touch)
-   int boxEndIdx = -1;
-   for(int i = 0; i < copied; i++)
-   {
-      if(chartTime[i] >= g_drawnBoxes[boxIdx].t2) { boxEndIdx = i; break; }
-   }
+   int boxEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t2);
    if(boxEndIdx < 0) return;
 
    int entryBar = -1;
@@ -1895,11 +1891,8 @@ void ExportAllTradesToCSV()
       double risk = MathAbs(entryPrice - slPrice);
       if(risk <= 0) continue;
 
-      int boxEndIdx = -1;
-      for(int i = 0; i < copied; i++)
-      {
-         if(chartTime[i] >= g_drawnBoxes[b].t1) { boxEndIdx = i; break; }
-      }
+      int boxEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t2);
+      if(boxEndIdx < 0) boxEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t1);
       if(boxEndIdx < 0) continue;
 
       int entryBar = -1;
