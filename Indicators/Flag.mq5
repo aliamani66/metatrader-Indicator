@@ -83,7 +83,7 @@ enum ENUM_LABEL_STYLE
 };
 
 input group "=== Multi-Timeframe Origin Lines (خطوط پیووت منشأ چندگانه) ==="
-input bool              InpEnableOriginLines     = true;         // فعال‌سازی رسم خطوط پیووت منشأ
+input bool              InpEnableOriginLines     = false;        // فعال‌سازی رسم خطوط افقی منشأ پیووت‌ها (پیش‌فرض: غیرفعال)
 input bool              InpOriginRequireIndep    = false;        // فقط پیووت‌های مستقل منشأ باشند (false = هر کف/سقف ماقبل)
 input int               InpOriginDaysBack        = 0;            // روزهای محاسبه خطوط منشأ (0 = همه تاریخچه)
 
@@ -120,7 +120,7 @@ input color            InpOInnerColorBear       = clrGold;      // رنگ OInner
 input int              InpOInnerWidth           = 2;            // ضخامت باکس OInner
 
 input group "=== Universal Box Swap System (سیستم جامع سواپ باکس‌ها) ==="
-input bool             InpEnableSwapLines       = true;         // فعال‌سازی رسم خطوط و باکس‌های سواپ (Swap)
+input bool             InpEnableSwapLines       = false;        // فعال‌سازی رسم امتداد باکس‌های سواپ (پیش‌فرض: غیرفعال)
 input bool             InpSwapOnlyKeyBoxes      = true;         // فقط امتداد باکس‌های کلیدی (OInner, RS, LS) جهت خلوت بودن چارت
 input color            InpSwapColorBull         = clrDodgerBlue;// رنگ سواپ صعودی (شکست به بالا)
 input color            InpSwapColorBear         = clrOrangeRed; // رنگ سواپ نزولی (شکست به پایین)
