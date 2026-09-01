@@ -1268,25 +1268,6 @@ void RenderFinalBoxes()
       int drawWidth = g_drawnBoxes[b].baseWidth;
       string roleTag = "";
 
-      if(hasRSTags)
-      {
-         bool isLS = false;
-         bool isRS = false;
-         bool isOI = false;
-         bool isSwap = false;
-         string swapTag = "";
-
-         for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
-         {
-            string tg = g_drawnBoxes[b].rsTags[t];
-            if(tg == "LS") isLS = true;
-            else if(tg == "RS") isRS = true;
-            else if(tg == "OInner") isOI = true;
-            else if(StringFind(tg, "S-") == 0)
-            {
-               isSwap = true;
-               swapTag += (swapTag == "" ? "" : "+") + tg;
-            }
       ENUM_LINE_STYLE drawStyle = g_drawnBoxes[b].baseStyle;
 
       if(hasRSTags)
