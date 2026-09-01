@@ -839,6 +839,7 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
                g_drawnBoxes[matchedBoxIdx].rsTags[tagLen] = "RS";
             }
          }
+      }
    }
 
    // ۲. رسم خطوط منشأ تایم‌های بالاتر (M15, M5, H1) برای پیووت‌های مستقل چند‌تایم‌فریمه
