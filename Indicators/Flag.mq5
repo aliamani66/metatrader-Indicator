@@ -46,6 +46,7 @@ input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
 
 input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
+input bool             InpShowOnlySRS           = false; // فقط نمایش باکس‌های S-RS (مخفی‌سازی سایر باکس‌ها بدون حذف محاسبات)
 input bool             InpShowMacroAlways       = true;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = false; // نمایش همه باکس‌ها در ۱۰ روز گذشته (نه فقط RS)
 input bool             InpShowNormalMicroBoxes  = true;  // رسم کامل همه باکس‌های ۱۰ روز گذشته
@@ -1336,6 +1337,16 @@ void RenderFinalBoxes()
 
       if(!shouldDraw)
          continue;
+
+      if(InpShowOnlySRS)
+      {
+         bool isSRS = false;
+         for(int t = 0; t < ArraySize(g_drawnBoxes[b].rsTags); t++)
+         {
+            if(g_drawnBoxes[b].rsTags[t] == "S-RS") { isSRS = true; break; }
+         }
+         if(!isSRS) continue;
+      }
 
       // تعیین رنگ، ضخامت و برچسب تفکیک‌شده برای صعودی و نزولی
       color drawClr = g_drawnBoxes[b].baseColor;
