@@ -1317,27 +1317,6 @@ void RenderFinalBoxes()
 {
    for(int b = 0; b < g_boxCount; b++)
    {
-      bool isMacro = g_drawnBoxes[b].isMacro;
-      bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
-
-      bool shouldDraw = false;
-      if(isMacro)
-      {
-         if(InpShowMacroAlways)
-            shouldDraw = true;
-      }
-      else
-      {
-         // برای تایم‌های میکرو (H1, M15, M5, M1)
-         if(hasRSTags && InpShowOnlyRSMicroBoxes)
-            shouldDraw = true;
-         else if(InpShowNormalMicroBoxes)
-            shouldDraw = true;
-      }
-
-      if(!shouldDraw)
-         continue;
-
       if(InpShowOnlySRS)
       {
          bool isSRS = false;
@@ -1346,6 +1325,29 @@ void RenderFinalBoxes()
             if(g_drawnBoxes[b].rsTags[t] == "S-RS") { isSRS = true; break; }
          }
          if(!isSRS) continue;
+      }
+      else
+      {
+         bool isMacro = g_drawnBoxes[b].isMacro;
+         bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
+
+         bool shouldDraw = false;
+         if(isMacro)
+         {
+            if(InpShowMacroAlways)
+               shouldDraw = true;
+         }
+         else
+         {
+            // برای تایم‌های میکرو (H1, M15, M5, M1)
+            if(hasRSTags && InpShowOnlyRSMicroBoxes)
+               shouldDraw = true;
+            else if(InpShowNormalMicroBoxes)
+               shouldDraw = true;
+         }
+
+         if(!shouldDraw)
+            continue;
       }
 
       // تعیین رنگ، ضخامت و برچسب تفکیک‌شده برای صعودی و نزولی
@@ -1471,7 +1473,7 @@ void RenderFinalBoxes()
 //+------------------------------------------------------------------+
 void RenderFinalIndependentPivots()
 {
-   if(!InpShowIndependentPivots) return;
+   if(InpShowOnlySRS || !InpShowIndependentPivots) return;
 
    for(int k = 0; k < g_indepCount; k++)
    {
@@ -2081,11 +2083,13 @@ int OnCalculate(const int rates_total,
    ApplyProChartTheme();
 
    ObjectsDeleteAll(0, "FLAG_BOX_");
+   ObjectsDeleteAll(0, "FLAG_LBL_");
    ObjectsDeleteAll(0, "FLAG_IP_");
    ObjectsDeleteAll(0, "FLAG_RS_");
    ObjectsDeleteAll(0, "FLAG_SWAP_");
    ObjectsDeleteAll(0, "FLAG_STRUCT_");
    ObjectsDeleteAll(0, "FLAG_PIVOT_");
+   ObjectsDeleteAll(0, "FLAG_ORIGIN_");
 
    ArrayResize(g_drawnBoxes, 0);
    g_boxCount = 0;
