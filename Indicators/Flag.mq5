@@ -730,7 +730,7 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
 
       bool targetIsHigh   = g_drawnBoxes[b].targetIPIsHigh;
       datetime targetTime = g_drawnBoxes[b].targetIPTime;
-      datetime startTime  = g_drawnBoxes[b].t1;
+      datetime startTime  = targetTime;
 
       // اگر برای سقف مستقل است -> خط RS از کف باکس LS شروع می‌شود
       // اگر برای کف مستقل است -> خط RS از سقف باکس LS شروع می‌شود
@@ -938,14 +938,14 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
          }
 
          datetime endTime = chartTime[breakIdx];
-         if(endTime <= originStartTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
+         if(endTime <= pivotTime && ratesTotal > 0) endTime = chartTime[ratesTotal - 1];
 
-         string lineName = "FLAG_RS_LINE_" + tfStr + "_" + IntegerToString((int)originStartTime);
+         string lineName = "FLAG_RS_LINE_" + tfStr + "_" + IntegerToString((int)pivotTime);
          color lineColor = isHigh ? InpOriginColorLow : InpOriginColorHigh;
          ENUM_LINE_STYLE lineStyle = GetTFLineStyle(srcTF);
 
          if(ObjectFind(0, lineName) >= 0) ObjectDelete(0, lineName);
-         ObjectCreate(0, lineName, OBJ_TREND, 0, originStartTime, originPrice, endTime, originPrice);
+         ObjectCreate(0, lineName, OBJ_TREND, 0, pivotTime, originPrice, endTime, originPrice);
          ObjectSetInteger(0, lineName, OBJPROP_COLOR, lineColor);
          ObjectSetInteger(0, lineName, OBJPROP_STYLE, lineStyle);
          ObjectSetInteger(0, lineName, OBJPROP_WIDTH, InpOriginLineWidth);
@@ -954,7 +954,7 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
 
          string tooltip = "RS Line " + tfStr + (isHigh ? " Low" : " High") +
                           "\nPrice: " + DoubleToString(originPrice, _Digits) +
-                          "\nStart: " + TimeToString(originStartTime);
+                          "\nStart: " + TimeToString(pivotTime);
          ObjectSetString(0, lineName, OBJPROP_TOOLTIP, tooltip);
 
          if(InpOriginLabelStyle != LABEL_TOOLTIP)
@@ -969,7 +969,7 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
             if(srcTF == PERIOD_M15) posRatio = 0.45;
             if(srcTF == PERIOD_M5)  posRatio = 0.65;
 
-            datetime lblTime = (datetime)(originStartTime + (endTime - originStartTime) * posRatio);
+            datetime lblTime = (datetime)(pivotTime + (endTime - pivotTime) * posRatio);
             ObjectCreate(0, lblName, OBJ_TEXT, 0, lblTime, originPrice);
             ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
             ObjectSetInteger(0, lblName, OBJPROP_COLOR, lineColor);
@@ -1105,7 +1105,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       // ۲. اگر باکس نزولی است -> خط از سقف باکس شروع شده و شکست به بالای سقف بررسی می‌شود
       double linePrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
       color lineColor  = isBull ? InpSwapColorBear : InpSwapColorBull;
-      datetime startTime = g_drawnBoxes[b].t1;
+      datetime startTime = g_drawnBoxes[b].t2;
 
       int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
       if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, startTime);
