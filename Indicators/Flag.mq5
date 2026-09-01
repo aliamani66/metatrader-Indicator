@@ -1444,7 +1444,7 @@ void RenderFinalBoxes()
 //+------------------------------------------------------------------+
 void RenderFinalIndependentPivots()
 {
-   if(InpDisplayFilter == FILTER_ONLY_SRS || !InpShowIndependentPivots) return;
+   if(!InpShowIndependentPivots) return;
 
    for(int k = 0; k < g_indepCount; k++)
    {
