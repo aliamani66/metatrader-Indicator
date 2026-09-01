@@ -60,6 +60,12 @@ input int              InpIndepMarkCode         = 159;          // کد علام
 input int              InpIndepMarkWidth        = 3;            // اندازه علامت پیووت مستقل
 input bool             InpIndepShowLabel        = true;         // نمایش برچسب IP روی چارت
 
+input group "=== Pre-IP Box (باکس ماقبل پیووت مستقل) ==="
+input bool             InpHighlightPreIP        = true;         // مشخص کردن باکس قبل از پیووت مستقل
+input color            InpPreIPColor            = clrGold;      // رنگ اختصاصی باکس ماقبل پیووت مستقل
+input int              InpPreIPWidth            = 2;            // ضخامت باکس ماقبل پیووت مستقل
+input bool             InpPreIPShowLabel        = true;         // نمایش برچسب Pre-IP روی باکس
+
 input group "=== Chart Display Settings ==="
 input bool             InpHideGrid    = true;        // حذف گرید از چارت
 input bool             InpHideVolumes = true;        // حذف نمودار حجم
@@ -312,7 +318,31 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       }
    }
 
-   //--- مرحله ۲: علامت‌گذاری اختصاصی پیووت‌های مستقل (پیووت‌هایی که هیچ باکسی ندارند)
+   //--- مرحله ۲: مشخص کردن باکس‌های ماقبل پیووت مستقل (Pre-IP Boxes)
+   bool isPreIPBox[];
+   ArrayResize(isPreIPBox, count);
+   ArrayInitialize(isPreIPBox, false);
+
+   if(InpHighlightPreIP)
+   {
+      for(int p = 0; p < count; p++)
+      {
+         if(!pivotInBox[p]) // این یک پیووت مستقل است
+         {
+            // جستجوی نزدیک‌ترین باکس قبل از این پیووت
+            for(int j = p - 1; j >= 0; j--)
+            {
+               if(isLegBox[j])
+               {
+                  isPreIPBox[j] = true;
+                  break; // فقط آخرین باکس قبل از پیووت مستقل
+               }
+            }
+         }
+      }
+   }
+
+   //--- مرحله ۳: علامت‌گذاری اختصاصی پیووت‌های مستقل (پیووت‌هایی که هیچ باکسی ندارند)
    if(InpShowIndependentPivots)
    {
       for(int p = 0; p < count; p++)
@@ -330,7 +360,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       }
    }
 
-   //--- مرحله ۳: رسم باکس‌های پرچم
+   //--- مرحله ۴: رسم باکس‌های پرچم
    for(int i = 0; i < count - 1; i++)
    {
       if(!isLegBox[i])
@@ -385,9 +415,19 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
 
       string boxKey = IntegerToString((int)p1.time) + "_" + IntegerToString((int)p2.time);
       string boxType = (p1.isHigh ? "B" : "R");
-      string boxName = "FLAG_BOX_" + tfTag + "_" + boxType + "_" + boxKey;
+      string preTag = (isPreIPBox[i] && InpHighlightPreIP) ? "_PREIP_" : "_";
+      string boxName = "FLAG_BOX_" + tfTag + preTag + boxType + "_" + boxKey;
+      
+      color drawClr = clr;
+      int drawWidth = InpLineWidth;
+      if(isPreIPBox[i] && InpHighlightPreIP)
+      {
+         drawClr = InpPreIPColor;
+         drawWidth = InpPreIPWidth;
+      }
+
       ENUM_LINE_STYLE tfStyle = GetTFLineStyle(tf);
-      DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, clr, InpLineWidth, tfStyle);
+      DrawHollowBox(boxName, t1, boxTop, t2, boxBottom, drawClr, drawWidth, tfStyle);
 
       // Register box for click inspection
       if(tf == PERIOD_H1)
@@ -408,10 +448,11 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
          double labelPrice = boxTop + (boxTop - boxBottom) * 0.08;
          datetime labelTime = (datetime)((t1 + t2) / 2);
          string lblName = "FLAG_LBL_" + tfTag + "_" + boxKey;
+         string lblText = (isPreIPBox[i] && InpHighlightPreIP && InpPreIPShowLabel) ? ("Pre-IP " + tfSymbol) : tfSymbol;
          if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
          ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
-         ObjectSetString(0, lblName, OBJPROP_TEXT, tfSymbol);
-         ObjectSetInteger(0, lblName, OBJPROP_COLOR, clr);
+         ObjectSetString(0, lblName, OBJPROP_TEXT, lblText);
+         ObjectSetInteger(0, lblName, OBJPROP_COLOR, drawClr);
          ObjectSetInteger(0, lblName, OBJPROP_FONTSIZE, 9);
          ObjectSetInteger(0, lblName, OBJPROP_ANCHOR, ANCHOR_CENTER);
       }

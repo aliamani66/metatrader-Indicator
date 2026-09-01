@@ -22,10 +22,12 @@ input bool  InpUseM1 = true;                 // نمایش باکس‌های M1
 input color InpBullishColor = clrOrange;     // رنگ باکس صعودی
 input color InpBearishColor = clrCyan;       // رنگ باکس نزولی
 input int   InpLineWidth    = 1;             // ضخامت خط (1 = نازک و ظریف)
-input bool  InpShowLabel    = true;          // نمایش برچسب
-input int   InpLabelFontSize = 8;            // اندازه فونت برچسب
-input int   InpMaxBoxes = 200;               // تعداد باکس‌های آخر برای امتداد
 input bool  InpShowShortBoxes = true;        // نمایش باکس‌های کوتاه (شکسته سریع)
+
+input group "=== Pre-IP Box Highlight ==="
+input bool  InpHighlightPreIP = true;        // برجسته‌سازی باکس ماقبل پیووت مستقل
+input color InpPreIPColor     = clrGold;     // رنگ اختصاصی باکس ماقبل پیووت مستقل
+input int   InpPreIPWidth     = 2;           // ضخامت باکس ماقبل پیووت مستقل
 
 //--- Structure to store reaction zones
 struct SReactionZone
@@ -37,6 +39,7 @@ struct SReactionZone
    double   priceBottom;       // قیمت پایین باکس
    bool     isBullish;         // آیا صعودی است؟
    bool     isBroken;          // آیا شکسته شده؟
+   bool     isPreIP;           // آیا باکس ماقبل پیووت مستقل است؟
    datetime breakTime;         // زمان شکست
    string   label;             // برچسب (مثل 3D-5H1)
    color    boxColor;          // رنگ هماهنگ با تایم‌فریم
@@ -198,6 +201,8 @@ void ReadFlagBoxes()
          isBullish = false;
       }
       
+      bool isPreIP = (StringFind(boxName, "_PREIP_") >= 0);
+      
       ArrayResize(reactionZones, zoneCount + 1);
       reactionZones[zoneCount].originalBoxName = tempBoxes[i].name;
       reactionZones[zoneCount].timeStart = tempBoxes[i].t1;        // شروع از اول باکس اصلی Flag
@@ -206,6 +211,7 @@ void ReadFlagBoxes()
       reactionZones[zoneCount].priceBottom = tempBoxes[i].bottom;
       reactionZones[zoneCount].isBullish = isBullish;
       reactionZones[zoneCount].isBroken = false;
+      reactionZones[zoneCount].isPreIP = isPreIP;
       reactionZones[zoneCount].breakTime = 0;
       reactionZones[zoneCount].label = ExtractLabel(tempBoxes[i].name);
       reactionZones[zoneCount].boxColor = GetTFColor(tempBoxes[i].name);
@@ -322,9 +328,17 @@ void DrawReactionZones(const datetime &time[], int rates_total)
       
       int seed = (int)reactionZones[i].timeStart + i * 37;
       color boxColor = GetRandomBrightColor(seed);
+      int boxWidth = InpLineWidth;
       
-      // همرنگ کردن باکس اولیه Flag با رنگ رندوم تا کاملاً یکپارچه و یک‌دست شود
+      if(reactionZones[i].isPreIP && InpHighlightPreIP)
+      {
+         boxColor = InpPreIPColor;
+         boxWidth = InpPreIPWidth;
+      }
+      
+      // همرنگ و هم‌ضخامت کردن باکس اولیه Flag تا کاملاً یکپارچه و برجسته شود
       ObjectSetInteger(0, reactionZones[i].originalBoxName, OBJPROP_COLOR, boxColor);
+      ObjectSetInteger(0, reactionZones[i].originalBoxName, OBJPROP_WIDTH, boxWidth);
       
       ENUM_LINE_STYLE boxStyle = STYLE_SOLID;
       if(StringFind(reactionZones[i].originalBoxName, "M15") >= 0) boxStyle = STYLE_DASH;
@@ -337,13 +351,14 @@ void DrawReactionZones(const datetime &time[], int rates_total)
                     endTime,
                     reactionZones[i].priceBottom,
                     boxColor,
-                    InpLineWidth,
+                    boxWidth,
                     false,
                     boxStyle);
       
       string labelName = zoneName + "_LBL";
       double labelPrice = (reactionZones[i].priceTop + reactionZones[i].priceBottom) / 2;
-      DrawLabel(labelName, endTime, labelPrice, reactionZones[i].label, boxColor);
+      string lblText = (reactionZones[i].isPreIP && InpHighlightPreIP) ? ("Pre-IP " + reactionZones[i].label) : reactionZones[i].label;
+      DrawLabel(labelName, endTime, labelPrice, lblText, boxColor);
    }
 }
 
