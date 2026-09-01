@@ -121,10 +121,11 @@ input int              InpOInnerWidth           = 2;            // ضخامت ب
 
 input group "=== Universal Box Swap System (سیستم جامع سواپ باکس‌ها) ==="
 input bool             InpEnableSwapLines       = true;         // فعال‌سازی رسم خطوط و باکس‌های سواپ (Swap)
+input bool             InpSwapOnlyKeyBoxes      = true;         // فقط امتداد باکس‌های کلیدی (OInner, RS, LS) جهت خلوت بودن چارت
 input color            InpSwapColorBull         = clrDodgerBlue;// رنگ سواپ صعودی (شکست به بالا)
 input color            InpSwapColorBear         = clrOrangeRed; // رنگ سواپ نزولی (شکست به پایین)
 input int              InpSwapLineWidth         = 1;            // ضخامت خطوط سواپ
-input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل خطوط سواپ
+input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل پیش‌فرض سواپ
 input int              InpSwapBoxWidth          = 2;            // ضخامت خط باکس‌های سواپ
 
 input group "=== Chart Theme & Display (تم فوق‌حرفه‌ای چارت) ==="
@@ -1144,6 +1145,21 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          if(g_drawnBoxes[b].rsTags[tg] == "LS")     { srcRole = "LS";     break; }
       }
 
+      // فیلتر هوشمند برای خلوت نگه داشتن چارت
+      if(InpSwapOnlyKeyBoxes && srcRole == "Flag" && !g_drawnBoxes[b].isMacro)
+         continue;
+
+      // انتخاب استایل ترکیبی شیک: خط‌چین، نقطه‌چین، و نقطه-خط
+      ENUM_LINE_STYLE extStyle = InpSwapLineStyle;
+      if(srcRole == "OInner")
+         extStyle = STYLE_DASH;       // خط‌چین برای امتداد OInner
+      else if(srcRole == "RS")
+         extStyle = STYLE_DASHDOT;    // نقطه-خط برای امتداد RS
+      else if(srcRole == "LS")
+         extStyle = STYLE_DOT;        // نقطه‌چین برای امتداد LS
+      else
+         extStyle = STYLE_DASHDOTDOT; // خط و دو نقطه برای سایر باکس‌ها
+
       string boxExtName = "FLAG_SWAP_EXTBOX_" + g_drawnBoxes[b].tfTag + "_" + IntegerToString((int)startTime);
 
       DrawHollowBox(boxExtName,
@@ -1153,7 +1169,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
                     g_drawnBoxes[b].bottom,
                     lineColor,
                     InpSwapBoxWidth,
-                    InpSwapLineStyle);
+                    extStyle);
 
       if(InpOriginLabelStyle != LABEL_TOOLTIP)
       {
