@@ -18,3 +18,9 @@ Indicators/Market/
 
 # Compiled files
 *.ex5
+
+# Logs and temp files
+*.log
+Indicators/comp_log.txt
+.continue/
+update_models_script.py

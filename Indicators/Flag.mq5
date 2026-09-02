@@ -1527,7 +1527,13 @@ void ShowTradeSetupForBox(int boxIdx)
    if(copied < 10) return;
 
    string role = "Flag";
-   if(g_drawnBoxes[boxIdx].isSwap)
+   bool isSwap = g_drawnBoxes[boxIdx].isSwap;
+   bool isLS   = false;
+   bool isRS   = false;
+   bool isOI   = false;
+   string swapTag = "";
+
+   if(isSwap)
    {
       role = "S-" + g_drawnBoxes[boxIdx].swapSourceRole;
    }
@@ -1535,11 +1541,23 @@ void ShowTradeSetupForBox(int boxIdx)
    {
       for(int tg = 0; tg < ArraySize(g_drawnBoxes[boxIdx].rsTags); tg++)
       {
-         if(StringFind(g_drawnBoxes[boxIdx].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[boxIdx].rsTags[tg]; break; }
-         if(g_drawnBoxes[boxIdx].rsTags[tg] == "OInner") { role = "OInner"; break; }
-         if(g_drawnBoxes[boxIdx].rsTags[tg] == "RS")     { role = "RS";     break; }
-         if(g_drawnBoxes[boxIdx].rsTags[tg] == "LS")     { role = "LS";     break; }
+         string tgName = g_drawnBoxes[boxIdx].rsTags[tg];
+         if(tgName == "LS") isLS = true;
+         else if(tgName == "RS") isRS = true;
+         else if(tgName == "OInner") isOI = true;
+         else if(StringFind(tgName, "S-") == 0)
+         {
+            isSwap = true;
+            swapTag += (swapTag == "" ? "" : "+") + tgName;
+         }
       }
+
+      string tagCombo = "";
+      if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
+      if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
+      if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
+      if(isSwap) tagCombo += (tagCombo == "" ? swapTag : "+" + swapTag);
+      if(tagCombo != "") role = tagCombo;
    }
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
@@ -1549,7 +1567,7 @@ void ShowTradeSetupForBox(int boxIdx)
    double entryPrice = 0;
    double slPrice    = 0;
 
-   if(role == "OInner")
+   if(isOI)
    {
       // پیدا کردن نزدیک‌ترین پیووت مستقل قبل از این باکس OInner
       double   pivotP = 0;
@@ -1593,10 +1611,10 @@ void ShowTradeSetupForBox(int boxIdx)
    }
    else
    {
-      isBull = g_drawnBoxes[boxIdx].isBullish;
-      if(g_drawnBoxes[boxIdx].isPreIP) isBull = g_drawnBoxes[boxIdx].isLSBull;
-      else if(g_drawnBoxes[boxIdx].isBOFlag) isBull = g_drawnBoxes[boxIdx].isRSBull;
-      else if(g_drawnBoxes[boxIdx].isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
+      if(isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
+      else if(isRS) isBull = g_drawnBoxes[boxIdx].isRSBull;
+      else if(isLS) isBull = g_drawnBoxes[boxIdx].isLSBull;
+      else isBull = g_drawnBoxes[boxIdx].isBullish;
 
       if(isBull)
       {
@@ -1812,7 +1830,13 @@ void ExportAllTradesToCSV()
    for(int b = 0; b < g_boxCount; b++)
    {
       string role = "Flag";
-      if(g_drawnBoxes[b].isSwap)
+      bool isSwap = g_drawnBoxes[b].isSwap;
+      bool isLS   = false;
+      bool isRS   = false;
+      bool isOI   = false;
+      string swapTag = "";
+
+      if(isSwap)
       {
          role = "S-" + g_drawnBoxes[b].swapSourceRole;
       }
@@ -1820,18 +1844,30 @@ void ExportAllTradesToCSV()
       {
          for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
          {
-            if(StringFind(g_drawnBoxes[b].rsTags[tg], "S-") == 0) { role = g_drawnBoxes[b].rsTags[tg]; break; }
-            if(g_drawnBoxes[b].rsTags[tg] == "OInner") { role = "OInner"; break; }
-            if(g_drawnBoxes[b].rsTags[tg] == "RS")     { role = "RS";     break; }
-            if(g_drawnBoxes[b].rsTags[tg] == "LS")     { role = "LS";     break; }
+            string tgName = g_drawnBoxes[b].rsTags[tg];
+            if(tgName == "LS") isLS = true;
+            else if(tgName == "RS") isRS = true;
+            else if(tgName == "OInner") isOI = true;
+            else if(StringFind(tgName, "S-") == 0)
+            {
+               isSwap = true;
+               swapTag += (swapTag == "" ? "" : "+") + tgName;
+            }
          }
+
+         string tagCombo = "";
+         if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
+         if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
+         if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
+         if(isSwap) tagCombo += (tagCombo == "" ? swapTag : "+" + swapTag);
+         if(tagCombo != "") role = tagCombo;
       }
 
       bool isBull = true;
       double entryPrice = 0;
       double slPrice = 0;
 
-      if(role == "OInner")
+      if(isOI)
       {
          double pivotP = 0;
          datetime closestPivotTime = 0;
@@ -1871,10 +1907,10 @@ void ExportAllTradesToCSV()
       }
       else
       {
-         isBull = g_drawnBoxes[b].isBullish;
-         if(g_drawnBoxes[b].isPreIP) isBull = g_drawnBoxes[b].isLSBull;
-         else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
-         else if(g_drawnBoxes[b].isSwap) isBull = g_drawnBoxes[b].isSwapBull;
+         if(isSwap) isBull = g_drawnBoxes[b].isSwapBull;
+         else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
+         else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
+         else isBull = g_drawnBoxes[b].isBullish;
 
          if(isBull)
          {
