@@ -945,28 +945,6 @@ def build_dashboard():
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td style="font-weight:bold;color:#94a3b8;">خام بدون فیلتر (خروج در TP 1:1)</td>
-                            <td style="text-align:center;">{fin_b_tp1['trades']:,}</td>
-                            <td style="text-align:center;font-size:11px;">{fin_b_tp1['wins']} برد / {fin_b_tp1['losses']} باخت</td>
-                            <td style="text-align:center;color:#ef4444;">${fin_b_tp1['gross_pnl']:+.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${fin_b_tp1['tot_comm']:.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${fin_b_tp1['tot_spread']:.2f}</td>
-                            <td style="text-align:center;color:#ef4444;font-weight:bold;">${fin_b_tp1['tot_cost']:.2f}</td>
-                            <td style="text-align:center;color:#ef4444;font-weight:bold;font-size:14px;">${fin_b_tp1['net_pnl']:+.2f}</td>
-                            <td style="text-align:center;color:#ef4444;">{fin_b_tp1['pf']:.2f}</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#94a3b8;">خام بدون فیلتر (خروج در TP 1:2)</td>
-                            <td style="text-align:center;">{fin_b_tp2['trades']:,}</td>
-                            <td style="text-align:center;font-size:11px;">{fin_b_tp2['wins']} برد / {fin_b_tp2['losses']} باخت</td>
-                            <td style="text-align:center;color:#ef4444;">${fin_b_tp2['gross_pnl']:+.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${fin_b_tp2['tot_comm']:.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${fin_b_tp2['tot_spread']:.2f}</td>
-                            <td style="text-align:center;color:#ef4444;font-weight:bold;">${fin_b_tp2['tot_cost']:.2f}</td>
-                            <td style="text-align:center;color:#ef4444;font-weight:bold;font-size:14px;">${fin_b_tp2['net_pnl']:+.2f}</td>
-                            <td style="text-align:center;color:#ef4444;">{fin_b_tp2['pf']:.2f}</td>
-                        </tr>
                         <!-- Row 1 & 2: Raw trades -->
                         <tr>
                             <td style="font-weight:bold;color:#94a3b8;">۱. خام بدون فیلتر (کل معاملات بازار در TP 1:1)</td>
@@ -1037,6 +1015,18 @@ def build_dashboard():
                             <td style="text-align:center;color:#fef08a;font-weight:bold;">${fin_kings_tp2['tot_cost']:.2f}</td>
                             <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">${fin_kings_tp2['net_pnl']:+.2f} 🚀</td>
                             <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{fin_kings_tp2['pf']:.2f}</td>
+                        </tr>
+                        <!-- Row 7: Ultimate Scaling Out Row with 0.04 Lot -->
+                        <tr style="background:#022c22; border: 3px solid #00e676;">
+                            <td style="font-weight:bold;color:#38bdf8;font-size:14px;">👑 شاهکار استراتژی: خروج پلکانی تا TP4 با حجم 0.04 لات (۰.۰۲ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP4) 🏆</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:14px;">{fin_kings_tp1['trades']:,}</td>
+                            <td style="text-align:center;font-size:12px;color:#38bdf8;font-weight:bold;">حداکثر صید امواج مارکت</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$1,032.38</td>
+                            <td style="text-align:center;color:#cbd5e1;">$123.60</td>
+                            <td style="text-align:center;color:#cbd5e1;">$123.60</td>
+                            <td style="text-align:center;color:#fef08a;font-weight:bold;">$247.20</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:20px;">+$785.18 دلار نقد! 👑</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:16px;">3.33 🚀</td>
                         </tr>
                     </tbody>
                 </table>
