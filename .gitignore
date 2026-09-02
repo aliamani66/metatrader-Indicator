@@ -3,6 +3,8 @@ Experts/
 Files/
 Images/
 Include/
+!Include/FlagPro/
+!Include/FlagPro/**
 Libraries/
 Logs/
 Profiles/
