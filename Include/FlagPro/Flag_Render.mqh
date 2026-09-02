@@ -58,12 +58,12 @@ void RenderFinalBoxes()
       if(g_drawnBoxes[b].top <= 0 || g_drawnBoxes[b].bottom <= 0)
          continue;
 
-      // به هیچ وجه هیچ باکسی برای تایم ۱ دقیقه (M1) روی چارت رسم نشود
-      if(g_drawnBoxes[b].tf == PERIOD_M1)
-         continue;
-
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
+
+      // در تایم ۱ دقیقه (M1) فقط باکس‌های هدفمند (LS, RS, OInner, Swap) رسم شوند و باکس‌های عادی حذف شوند
+      if(g_drawnBoxes[b].tf == PERIOD_M1 && !hasRSTags && !g_drawnBoxes[b].isSwap)
+         continue;
 
       bool shouldDraw = false;
       if(isMacro)
