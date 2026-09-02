@@ -35,6 +35,7 @@ struct SBoxInfo
    datetime        t1;
    datetime        t2;
    datetime        formationTime; // زمان تشکیل اولیه گره (بدون امتداد)
+   datetime        confirmationTime; // زمان تایید قطعی هویت گره در لایو بازار
    double          top;
    double          bottom;
    color           baseColor;

@@ -156,28 +156,34 @@ void ShowTradeSetupForBox(int boxIdx)
       else       tps[tp] = entryPrice - risk * (tp + 1);
    }
 
-   datetime startTime = g_drawnBoxes[boxIdx].formationTime;
-   if(startTime <= 0) startTime = g_drawnBoxes[boxIdx].t1;
+   datetime confirmTime = g_drawnBoxes[boxIdx].confirmationTime;
+   if(confirmTime <= 0) confirmTime = g_drawnBoxes[boxIdx].formationTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * InpSwingBars;
+   if(confirmTime <= 0) confirmTime = g_drawnBoxes[boxIdx].t1;
 
-   int boxEndIdx = FindBarIndex(chartTime, copied, startTime);
-   if(boxEndIdx < 0) boxEndIdx = 0;
+   int confirmIdx = FindBarIndex(chartTime, copied, confirmTime);
+   if(confirmIdx < 0) confirmIdx = 0;
+
+   double boxHeight = MathAbs(g_drawnBoxes[boxIdx].top - g_drawnBoxes[boxIdx].bottom);
+   double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
    bool isEntered = false;
    int  entryBarIdx = -1;
    datetime entryTime = 0;
 
-   // جستجوی پولبک برای ورود به معامله
-   // ابتدا قیمت باید از گره خارج شود و سپس به سطح ورود (entryPrice) پولبک بزند
-   bool hasExited = false;
-   for(int k = boxEndIdx; k < copied; k++)
+   // جستجوی پولبک برای ورود به معامله مطابق با لایو بازار:
+   // ۱. شروع جستجو فقط از زمان تایید قطعی استراکچر در لایو (confirmTime)
+   // ۲. قیمت باید ابتدا فاصله بگیرد (hasDeparted)
+   // ۳. ورود منحصراً روی اولین پولبک و لمس سطح ورود (First True Retest)
+   bool hasDeparted = false;
+   for(int k = confirmIdx; k < copied; k++)
    {
-      if(!hasExited)
+      if(!hasDeparted)
       {
-         if(isBull && chartHigh[k] > entryPrice) hasExited = true;
-         else if(!isBull && chartLow[k] < entryPrice) hasExited = true;
+         if(isBull && chartHigh[k] >= minDeparturePrice) hasDeparted = true;
+         else if(!isBull && chartLow[k] <= minDeparturePrice) hasDeparted = true;
       }
       
-      if(hasExited)
+      if(hasDeparted)
       {
          if(isBull)
          {
@@ -188,6 +194,8 @@ void ShowTradeSetupForBox(int boxIdx)
                entryTime = chartTime[k];
                break;
             }
+            // اگر قیمت قبل از رسیدن به نقطه ورود استاپ خورد، ستاپ باطل است
+            if(chartLow[k] <= slPrice) break;
          }
          else
          {
@@ -198,6 +206,8 @@ void ShowTradeSetupForBox(int boxIdx)
                entryTime = chartTime[k];
                break;
             }
+            // اگر قیمت قبل از رسیدن به نقطه ورود استاپ خورد، ستاپ باطل است
+            if(chartHigh[k] >= slPrice) break;
          }
       }
    }
@@ -208,7 +218,7 @@ void ShowTradeSetupForBox(int boxIdx)
 
    if(!isEntered)
    {
-      entryTime = startTime;
+      entryTime = confirmTime;
       exitTime  = chartTime[copied - 1];
    }
    else
@@ -552,26 +562,34 @@ void ExportAllTradesToCSV()
          else       tps[tp] = entryPrice - risk * (tp + 1);
       }
 
-      datetime startTime = g_drawnBoxes[b].formationTime;
-      if(startTime <= 0) startTime = g_drawnBoxes[b].t1;
+      datetime confirmTime = g_drawnBoxes[b].confirmationTime;
+      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].formationTime + PeriodSeconds(g_drawnBoxes[b].tf) * InpSwingBars;
+      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].t1;
 
-      int boxEndIdx = FindBarIndex(chartTime, copied, startTime);
-      if(boxEndIdx < 0) boxEndIdx = 0;
+      int confirmIdx = FindBarIndex(chartTime, copied, confirmTime);
+      if(confirmIdx < 0) confirmIdx = 0;
+
+      double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
+      double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
       bool isEntered = false;
       int  entryBarIdx = -1;
       datetime entryTime = 0;
 
-      bool hasExited = false;
-      for(int k = boxEndIdx; k < copied; k++)
+      // شبیه‌سازی دقیق ورود بر اساس لایو بازار:
+      // ۱. تایید هویت گره در لایو (confirmTime)
+      // ۲. پرتاب و خروج اولیه قیمت (hasDeparted)
+      // ۳. اردر لیمیت روی پولبک و ورود منحصراً در اولین بازگشت (First True Retest)
+      bool hasDeparted = false;
+      for(int k = confirmIdx; k < copied; k++)
       {
-         if(!hasExited)
+         if(!hasDeparted)
          {
-            if(isBull && chartHigh[k] > entryPrice) hasExited = true;
-            else if(!isBull && chartLow[k] < entryPrice) hasExited = true;
+            if(isBull && chartHigh[k] >= minDeparturePrice) hasDeparted = true;
+            else if(!isBull && chartLow[k] <= minDeparturePrice) hasDeparted = true;
          }
 
-         if(hasExited)
+         if(hasDeparted)
          {
             if(isBull)
             {
@@ -582,6 +600,7 @@ void ExportAllTradesToCSV()
                   entryTime = chartTime[k];
                   break;
                }
+               if(chartLow[k] <= slPrice) break;
             }
             else
             {
@@ -592,6 +611,7 @@ void ExportAllTradesToCSV()
                   entryTime = chartTime[k];
                   break;
                }
+               if(chartHigh[k] >= slPrice) break;
             }
          }
       }

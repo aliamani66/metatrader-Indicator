@@ -218,6 +218,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_drawnBoxes[g_boxCount].t1        = t1;
       g_drawnBoxes[g_boxCount].t2        = t2;
       g_drawnBoxes[g_boxCount].formationTime = chartTime[idxEnd];
+      g_drawnBoxes[g_boxCount].confirmationTime = chartTime[idxEnd] + PeriodSeconds(tf) * InpSwingBars;
       g_drawnBoxes[g_boxCount].top       = boxTop;
       g_drawnBoxes[g_boxCount].bottom    = boxBottom;
       g_drawnBoxes[g_boxCount].baseColor      = clr;
@@ -444,6 +445,8 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
          {
             g_drawnBoxes[matchedBoxIdx].isBOFlag = true;
             g_drawnBoxes[matchedBoxIdx].isRSBull = !targetIsHigh;
+            if(endTime > g_drawnBoxes[matchedBoxIdx].confirmationTime)
+               g_drawnBoxes[matchedBoxIdx].confirmationTime = endTime;
 
             bool alreadyTagged = false;
             for(int t = 0; t < ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags); t++)
@@ -496,6 +499,9 @@ void ProcessOInnerBoxes()
          {
             g_drawnBoxes[firstBoxIdx].isOInner = true;
             g_drawnBoxes[firstBoxIdx].isOInnerBull = !isHigh;
+            datetime ipConfirm = g_indepPivots[k].time + PeriodSeconds(g_drawnBoxes[firstBoxIdx].tf) * InpSwingBars;
+            if(ipConfirm > g_drawnBoxes[firstBoxIdx].confirmationTime)
+               g_drawnBoxes[firstBoxIdx].confirmationTime = ipConfirm;
 
             bool alreadyTagged = false;
             for(int tg = 0; tg < ArraySize(g_drawnBoxes[firstBoxIdx].rsTags); tg++)
@@ -604,6 +610,8 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
             g_drawnBoxes[matchedBoxIdx].isSwap = true;
             g_drawnBoxes[matchedBoxIdx].isSwapBull = !isBull;
             g_drawnBoxes[matchedBoxIdx].swapSourceRole = srcRole;
+            if(endTime > g_drawnBoxes[matchedBoxIdx].confirmationTime)
+               g_drawnBoxes[matchedBoxIdx].confirmationTime = endTime;
 
             string sTag = "S-" + srcRole;
             bool alreadyTagged = false;
