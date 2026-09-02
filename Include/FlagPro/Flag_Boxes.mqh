@@ -13,7 +13,12 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
                int ratesTotal, int daysBack)
 {
    SPivot pivots[];
-   if(!BuildAlternatingPivots(tf, sBars, InpMaxBarsTF, pivots))
+   int maxBars = InpMaxBarsTF;
+   if(tf == PERIOD_M1 && maxBars < 150000) maxBars = 150000;
+   else if(tf == PERIOD_M5 && maxBars < 45000) maxBars = 45000;
+   else if(tf == PERIOD_M15 && maxBars < 20000) maxBars = 20000;
+
+   if(!BuildAlternatingPivots(tf, sBars, maxBars, pivots))
    {
       return;
    }
@@ -92,10 +97,8 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       }
    }
 
-   //--- مرحله ۳: تجمیع پیووت‌ها در مخزن سراسری جهت رسم مارکرها و خطوط
-   if(InpHighlightIndepPivots)
-   {
-      for(int p = 0; p < count; p++)
+   //--- مرحله ۳: تجمیع پیووت‌ها در مخزن سراسری جهت شناسایی گره‌های OInner و رسم مارکرها
+   for(int p = 0; p < count; p++)
       {
          bool isIndependent = !pivotInBox[p];
          if(InpOnlyPureIndependent && !isIndependent)
@@ -146,7 +149,6 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
             g_indepCount++;
          }
       }
-   }
 
    //--- مرحله ۴: رسم باکس‌های پرچم
    for(int i = 0; i < count - 1; i++)
@@ -215,6 +217,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_drawnBoxes[g_boxCount].swingIdx  = i;
       g_drawnBoxes[g_boxCount].t1        = t1;
       g_drawnBoxes[g_boxCount].t2        = t2;
+      g_drawnBoxes[g_boxCount].formationTime = chartTime[idxEnd];
       g_drawnBoxes[g_boxCount].top       = boxTop;
       g_drawnBoxes[g_boxCount].bottom    = boxBottom;
       g_drawnBoxes[g_boxCount].baseColor      = clr;
@@ -523,25 +526,44 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
    {
       if(g_drawnBoxes[b].top <= 0) continue;
       bool isBull = g_drawnBoxes[b].isBullish;
-      if(g_drawnBoxes[b].isPreIP) isBull = g_drawnBoxes[b].isLSBull;
-      else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
+      if(g_drawnBoxes[b].isSwap)        isBull = g_drawnBoxes[b].isSwapBull;
       else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
-
-      double linePrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
-      color lineColor  = isBull ? InpSwapColorBear : InpSwapColorBull;
+      else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
+      else if(g_drawnBoxes[b].isPreIP)  isBull = g_drawnBoxes[b].isLSBull;
       datetime startTime = g_drawnBoxes[b].t2;
-
       int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
       if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, startTime);
       if(startSearchIdx < 0) startSearchIdx = 0;
+
+      double linePrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
+
+      // تشخیص جهت خروج قیمت از باکس: آیا قیمت از سقف خارج شده یا از کف؟
+      bool exitedTop = false;
+      bool exitedBottom = false;
+
+      for(int k = startSearchIdx; k < ratesTotal && k <= startSearchIdx + 3; k++)
+      {
+         if(chartHigh[k] > g_drawnBoxes[b].top + _Point) { exitedTop = true; break; }
+         if(chartLow[k] < g_drawnBoxes[b].bottom - _Point) { exitedBottom = true; break; }
+      }
+
+      bool cutFromAbove = exitedTop;
+      if(!exitedTop && !exitedBottom)
+      {
+         cutFromAbove = isBull;
+      }
+
+      // اگر قیمت از بالا خارج شده، سطح قطع شدن کف باکس است
+      // اگر قیمت از پایین خارج شده، سطح قطع شدن سقف باکس است
+      double cutPrice = cutFromAbove ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
 
       bool isBroken = false;
       int breakIdx = ratesTotal - 1;
       for(int k = startSearchIdx + 1; k < ratesTotal; k++)
       {
-         if(isBull)
+         if(cutFromAbove)
          {
-            if(chartLow[k] < linePrice)
+            if(chartLow[k] < cutPrice)
             {
                isBroken = true;
                breakIdx = k;
@@ -550,7 +572,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          }
          else
          {
-            if(chartHigh[k] > linePrice)
+            if(chartHigh[k] > cutPrice)
             {
                isBroken = true;
                breakIdx = k;
@@ -616,10 +638,11 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       }
    }
 
-   // امتداد باکس‌های سواپ جدید به سمت آینده تا زمان مصرف یا لایو بازار
-   for(int sb = initialBoxCount; sb < g_boxCount; sb++)
+   // امتداد تمام باکس‌های سواپ (S-OInner, S-Flag, S-RS, S-LS) به سمت آینده تا زمان شکست با قیمت یا تا لایو بازار
+   for(int sb = 0; sb < g_boxCount; sb++)
    {
       if(!g_drawnBoxes[sb].isSwap) continue;
+      if(g_drawnBoxes[sb].top <= 0 || g_drawnBoxes[sb].bottom <= 0) continue;
 
       bool sBull = g_drawnBoxes[sb].isSwapBull;
       double linePrice = sBull ? g_drawnBoxes[sb].bottom : g_drawnBoxes[sb].top;

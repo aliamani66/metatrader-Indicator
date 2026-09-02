@@ -34,27 +34,50 @@ input color            InpColorTF4 = clrYellow;
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 10;          // تاریخچه ۱۵ دقیقه (۱۰ روز)
+input int              InpM15DaysBack = 90;          // تاریخچه ۱۵ دقیقه (۹۰ روز - ۳ ماهه)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 10;          // تاریخچه ۵ دقیقه (۱۰ روز)
+input int              InpM5DaysBack = 90;          // تاریخچه ۵ دقیقه (۹۰ روز - ۳ ماهه)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
+input int              InpM1DaysBack = 90;          // تاریخچه ۱ دقیقه (۹۰ روز - ۳ ماهه)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
 input bool             InpShowMacroAlways       = true;   // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = false;  // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
-input bool             InpShowNormalMicroBoxes  = true;   // رسم کامل همه باکس‌های ۱۰ روز گذشته
+input bool             InpShowNormalMicroBoxes  = true;   // رسم کامل همه باکس‌های ۳۰ روز گذشته
 input string           InpRSTagPrefix           = "RS";   // پیشوند تگ‌های هوشمند (RS)
+
+input group "=== 🏆 فیلتر نمایش برترین الگوهای برنده (Top Winners Filter) ==="
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // نوع فیلتر نمایش باکس‌ها روی چارت (پیش‌فرض: فقط برترین الگوهای طلایی برنده)
+input bool InpShow_LSBU_OInnerBE = true;   // 💎 نمایش الگوی طلایی LS-BU > OInner-BE (وین‌ریت ۶۱٪)
+input bool InpShow_LSBE          = false;  // 💎 نمایش الگوی طلایی LS-BE (وین‌ریت ۵۰٪)
+input bool InpShow_OInnerBE_RSBE = false;  // 💎 نمایش الگوی طلایی OInner-BE > RS-BE (وین‌ریت ۱۰۰٪)
+input bool InpShow_SLS           = false;  // ⚡ نمایش سواپ‌های ال‌اس S-LS
+input bool InpShow_SOInner       = false;  // ⚡ نمایش سواپ‌های او‌اینر S-OInner
+input bool InpShow_OtherBoxes    = false;  // 📦 نمایش سایر باکس‌های عادی و فرعی
+
+input group "=== 🛡️ فیلترهای هوشمند ضد استاپ (Anti-SL Filters) ==="
+input bool InpFilterSingleLS     = true;   // 🛡️ فیلتر ۱: حذف باکس‌های منفرد LS (دقت: ۶۸.۶٪ | از هر ۱۰ تا، ۷ تا استاپ بود)
+input bool InpFilterNightHours   = true;   // 🛡️ فیلتر ۲: مسدودسازی بازه شب ۲۱ تا ۰۱ (دقت: ۶۵.۲٪ | از هر ۳ تا، ۲ تا استاپ بود)
+input bool InpFilterPreLondonHunt= true;   // 🛡️ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ قبل لندن (دقت: ۵۸.۷٪ | از هر ۱۰ تا، ۶ تا استاپ بود)
+input bool InpFilterToxicPatterns= true;   // 🛡️ فیلتر ۴: حذف زنجیره‌های سمی (دقت: ۷۰.۶٪ | از هر ۱۰ تا، ۷ تا استاپ بود)
+input bool InpFilterPureFlags    = true;   // 🛡️ فیلتر ۵: حذف فلگ‌های بدون تلاقی (دقت: ۶۰.۳٪ | از هر ۵ تا، ۳ تا استاپ بود)
+input bool InpHideFilteredBoxes  = false;  // مخفی‌سازی کامل باکس‌های فیلترشده از روی چارت (پیش‌فرض: خاموش)
+
+input group "=== 💰 فیلتر اقتصادی و اصطکاک کارمزد (Friction & Commission Filter) ==="
+input bool   InpFilterLowRewardVsFriction = true;   // 💰 فیلتر عدم ورود اگر سود TP1 کمتر یا سربه‌سر با کمیسیون باشد
+input double InpBrokerCommissionPerLot    = 6.0;    // کمیسیون بروکر در هر ۱ لات کامل ($)
+input double InpEstimatedSpreadPips       = 0.8;    // اسپرد تخمینی معامله (پیپ)
+input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سود TP1 به کل اصطکاک (1.0 = سود TP1 قطعا بیشتر از هزینه باشد)
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (Max Bars)
+input int              InpMaxBarsTF   = 150000;      // حداکثر کندل‌های محاسبه (پوشش کامل ۹۰ روز - ۳ ماهه)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -62,13 +85,13 @@ input bool             InpShowLabel   = true;        // نمایش برچسب ت
 input bool             InpRemoveOverlapping = true;  // حذف باکس‌های هم‌پوشان تکراری
 
 input group "=== Independent Pivots (پیووت‌های مستقل) ==="
-input bool             InpHighlightIndepPivots = true;        // هایلایت پیووت‌های مستقل خارج از پرچم
+input bool             InpHighlightIndepPivots = false;       // هایلایت پیووت‌های مستقل خارج از پرچم (غیرفعال)
 input bool             InpOnlyPureIndependent  = false;       // فقط نمایش پیووت‌های خالص و غیر وابسته
 input color            InpIndepColorHigh       = clrOrangeRed; // رنگ سقف مستقل
 input color            InpIndepColorLow        = clrLime;      // رنگ کف مستقل
 input int              InpIndepMarkCode        = 159;          // کد نماد مارکر (دایره توپر)
 input int              InpIndepMarkWidth       = 1;            // سایز مارکر
-input bool             InpIndepShowLabel       = true;         // نمایش برچسب تایم‌فریم روی پیووت مستقل
+input bool             InpIndepShowLabel       = false;       // نمایش برچسب تایم‌فریم روی پیووت مستقل (غیرفعال)
 
 input group "=== Pre-IP Box Highlight (باکس ماقبل پیووت مستقل - LS) ==="
 input bool             InpHighlightPreIP        = true;         // فعال‌سازی تگ و هایلایت باکس LS
@@ -126,6 +149,7 @@ input double           InpRSPipBuffer           = 2.0;          // بافر حد
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
 input color            InpTradeSLColor          = clrRed;       // رنگ خط حد ضرر (SL)
 input color            InpTradeTPColor          = clrLimeGreen; // رنگ خطوط تارگت (TP)
+input bool             InpTradeMacroTFs         = false;        // معامله در تایم‌های ماکرو H1, H4, D1, W1 (پیش‌فرض: غیرفعال)
 
 input group "=== Neutral Pro Chart Theme ==="
 input bool             InpApplyProTheme = true;        // اعمال تم حرفه‌ای خنثی
@@ -137,6 +161,7 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 //+------------------------------------------------------------------+
 #include <FlagPro\Flag_Pivots.mqh>
 #include <FlagPro\Flag_Boxes.mqh>
+#include <FlagPro\Flag_Filters.mqh>
 #include <FlagPro\Flag_Backtest.mqh>
 #include <FlagPro\Flag_Render.mqh>
 

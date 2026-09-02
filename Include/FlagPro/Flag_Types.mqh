@@ -17,6 +17,13 @@ enum ENUM_LABEL_STYLE
    LABEL_TOOLTIP    // فقط هنگام بردن موس روی خط (چارت کاملاً خلوت و بدون متن)
 };
 
+enum ENUM_BOX_DISPLAY_FILTER
+{
+   FILTER_SHOW_ALL = 0,               // نمایش همه باکس‌ها (بدون فیلتر)
+   FILTER_TOP_WINNERS_ONLY = 1,        // فقط برترین الگوهای طلایی برنده (Top Winners Only)
+   FILTER_CUSTOM_SELECTED_ONLY = 2     // انتخاب دستی الگوها (Custom Selection)
+};
+
 // ساختار نگهداری مشخصات باکس‌ها
 struct SBoxInfo
 {
@@ -27,6 +34,7 @@ struct SBoxInfo
    int             swingIdx;
    datetime        t1;
    datetime        t2;
+   datetime        formationTime; // زمان تشکیل اولیه گره (بدون امتداد)
    double          top;
    double          bottom;
    color           baseColor;

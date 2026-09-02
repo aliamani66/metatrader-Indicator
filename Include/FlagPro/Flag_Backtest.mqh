@@ -13,15 +13,24 @@ void ShowTradeSetupForBox(int boxIdx)
    ObjectsDeleteAll(0, FP_PREFIX + "CLICK_TRADE_");
    if(boxIdx < 0 || boxIdx >= g_boxCount) return;
 
+   // غیرفعال‌سازی معامله برای تایم‌های ماکرو H1 و بالاتر
+   if(!InpTradeMacroTFs && g_drawnBoxes[boxIdx].tf >= PERIOD_H1)
+   {
+      Comment(StringFormat("\n📦 باکس %s [%s]\n⚠️ معامله در تایم‌های ماکرو (H1 و بالاتر) غیرفعال است (فقط تایم‌های M1, M5, M15 مجازند).",
+                           g_drawnBoxes[boxIdx].tfTag, g_drawnBoxes[boxIdx].boxName));
+      PrintFormat("FlagPro: معامله برای تایم %s غیرفعال است (فقط M1, M5, M15 فعال هستند).", g_drawnBoxes[boxIdx].tfTag);
+      return;
+   }
+
    datetime chartTime[];
    double chartHigh[], chartLow[];
    ArraySetAsSeries(chartTime, false);
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
 
-   int copied = CopyTime(_Symbol, _Period, 0, 30000, chartTime);
-   CopyHigh(_Symbol, _Period, 0, 30000, chartHigh);
-   CopyLow(_Symbol, _Period, 0, 30000, chartLow);
+   int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
+   CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
+   CopyLow(_Symbol, _Period, 0, 250000, chartLow);
    if(copied < 10) return;
 
    string role = "Flag";
@@ -51,11 +60,29 @@ void ShowTradeSetupForBox(int boxIdx)
       }
 
       string tagCombo = "";
-      if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
-      if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
-      if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
-      if(isSwap) tagCombo += (tagCombo == "" ? swapTag : "+" + swapTag);
+      if(isLS)
+      {
+         string lsDir = g_drawnBoxes[boxIdx].isLSBull ? "-BU" : "-BE";
+         tagCombo += (tagCombo == "" ? "LS" + lsDir : " > LS" + lsDir);
+      }
+      if(isOI)
+      {
+         string oiDir = g_drawnBoxes[boxIdx].isOInnerBull ? "-BU" : "-BE";
+         tagCombo += (tagCombo == "" ? "OInner" + oiDir : " > OInner" + oiDir);
+      }
+      if(isRS)
+      {
+         string rsDir = g_drawnBoxes[boxIdx].isRSBull ? "-BU" : "-BE";
+         tagCombo += (tagCombo == "" ? "RS" + rsDir : " > RS" + rsDir);
+      }
+      if(isSwap)
+      {
+         string swDir = g_drawnBoxes[boxIdx].isSwapBull ? "-BU" : "-BE";
+         string fullSwap = swapTag + swDir;
+         tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
+      }
       if(tagCombo != "") role = tagCombo;
+      else role = "Flag-" + (g_drawnBoxes[boxIdx].isBullish ? "BU" : "BE");
    }
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
@@ -129,33 +156,48 @@ void ShowTradeSetupForBox(int boxIdx)
       else       tps[tp] = entryPrice - risk * (tp + 1);
    }
 
-   int boxEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t2);
+   datetime startTime = g_drawnBoxes[boxIdx].formationTime;
+   if(startTime <= 0) startTime = g_drawnBoxes[boxIdx].t1;
+
+   int boxEndIdx = FindBarIndex(chartTime, copied, startTime);
    if(boxEndIdx < 0) boxEndIdx = 0;
 
    bool isEntered = false;
    int  entryBarIdx = -1;
    datetime entryTime = 0;
 
+   // جستجوی پولبک برای ورود به معامله
+   // ابتدا قیمت باید از گره خارج شود و سپس به سطح ورود (entryPrice) پولبک بزند
+   bool hasExited = false;
    for(int k = boxEndIdx; k < copied; k++)
    {
-      if(isBull)
+      if(!hasExited)
       {
-         if(chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
-         {
-            isEntered = true;
-            entryBarIdx = k;
-            entryTime = chartTime[k];
-            break;
-         }
+         if(isBull && chartHigh[k] > entryPrice) hasExited = true;
+         else if(!isBull && chartLow[k] < entryPrice) hasExited = true;
       }
-      else
+      
+      if(hasExited)
       {
-         if(chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+         if(isBull)
          {
-            isEntered = true;
-            entryBarIdx = k;
-            entryTime = chartTime[k];
-            break;
+            if(chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+            {
+               isEntered = true;
+               entryBarIdx = k;
+               entryTime = chartTime[k];
+               break;
+            }
+         }
+         else
+         {
+            if(chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            {
+               isEntered = true;
+               entryBarIdx = k;
+               entryTime = chartTime[k];
+               break;
+            }
          }
       }
    }
@@ -166,53 +208,72 @@ void ShowTradeSetupForBox(int boxIdx)
 
    if(!isEntered)
    {
-      entryTime = g_drawnBoxes[boxIdx].t2;
+      entryTime = startTime;
       exitTime  = chartTime[copied - 1];
    }
    else
    {
       int maxHit = 0;
+      datetime hitTime = 0;
       for(int k = entryBarIdx; k < copied; k++)
       {
          if(isBull)
          {
+            // بررسی برخورد به تارگت‌های سود
+            for(int tp = maxHit; tp < 4; tp++)
+            {
+               if(chartHigh[k] >= tps[tp])
+               {
+                  maxHit = tp + 1;
+                  hitTime = chartTime[k];
+               }
+            }
+
+            // بررسی حد ضرر
             if(chartLow[k] <= slPrice)
             {
                hitTP = maxHit;
                isClosed = true;
-               exitTime = chartTime[k];
+               exitTime = (maxHit > 0) ? hitTime : chartTime[k];
                break;
             }
-            for(int tp = maxHit; tp < 4; tp++)
-            {
-               if(chartHigh[k] >= tps[tp]) maxHit = tp + 1;
-            }
+
+            // اگر به آخرین تارگت (TP4) رسید خروج کامل
             if(maxHit == 4)
             {
                hitTP = 4;
                isClosed = true;
-               exitTime = chartTime[k];
+               exitTime = hitTime;
                break;
             }
          }
-         else
+         else // SELL
          {
+            // بررسی برخورد به تارگت‌های سود
+            for(int tp = maxHit; tp < 4; tp++)
+            {
+               if(chartLow[k] <= tps[tp])
+               {
+                  maxHit = tp + 1;
+                  hitTime = chartTime[k];
+               }
+            }
+
+            // بررسی حد ضرر
             if(chartHigh[k] >= slPrice)
             {
                hitTP = maxHit;
                isClosed = true;
-               exitTime = chartTime[k];
+               exitTime = (maxHit > 0) ? hitTime : chartTime[k];
                break;
             }
-            for(int tp = maxHit; tp < 4; tp++)
-            {
-               if(chartLow[k] <= tps[tp]) maxHit = tp + 1;
-            }
+
+            // اگر به آخرین تارگت (TP4) رسید خروج کامل
             if(maxHit == 4)
             {
                hitTP = 4;
                isClosed = true;
-               exitTime = chartTime[k];
+               exitTime = hitTime;
                break;
             }
          }
@@ -221,7 +282,7 @@ void ShowTradeSetupForBox(int boxIdx)
       if(!isClosed)
       {
          hitTP = maxHit;
-         exitTime = chartTime[copied - 1];
+         exitTime = (maxHit > 0) ? hitTime : chartTime[copied - 1];
       }
    }
 
@@ -283,6 +344,47 @@ void ShowTradeSetupForBox(int boxIdx)
    ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 9);
    ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
    ObjectSetInteger(0, resLbl, OBJPROP_SELECTABLE, false);
+
+   double riskPts = (_Point > 0) ? (risk / _Point) : 0.0;
+   bool isFiltered = IsSetupFilteredOut(role, entryTime, riskPts);
+   string filterReason = isFiltered ? GetFilterRejectionReason(role, entryTime, riskPts) : "مجاز (تایید فیلترها) ✅";
+
+   string tradeType = isBull ? "BUY 🟢" : "SELL 🔴";
+   string dirFarsi  = isBull ? "خرید (گره صعودی)" : "فروش (گره نزولی)";
+   double slPips = risk / pipSize;
+
+   int smartScore = CalculateSmartSetupScore(role, entryTime, riskPts);
+   string scoreTier = GetSmartScoreTier(smartScore);
+   string exitPlan = GetRecommendedExitPlan(smartScore, role);
+
+   string logMsg = StringFormat(
+      "═══════════════════════════════════════════════════\n"
+      "🎯 [FlagPro ستاپ معامله]\n"
+      "📦 گره / باکس: %s [%s]\n"
+      "💎 امتیاز هوشمند ستاپ: %d / 100 [%s]\n"
+      "📋 برنامه خروج پیشنهادی: %s\n"
+      "🛡️ وضعیت فیلتر ضد استاپ: %s\n"
+      "⚡ سیگنال: %s | %s\n"
+      "📍 نقطه ورود (Entry): %s\n"
+      "🛑 حد ضرر (Stop Loss): %s (ریسک: %.1f پیپ)\n"
+      "🎯 تارگت ۱: %s (1:1) | تارگت ۲: %s (1:2)\n"
+      "🎯 تارگت ۳: %s (1:3) | تارگت ۴: %s (1:4)\n"
+      "📊 وضعیت: %s\n"
+      "═══════════════════════════════════════════════════",
+      g_drawnBoxes[boxIdx].tfTag, role,
+      smartScore, scoreTier,
+      exitPlan,
+      filterReason,
+      tradeType, dirFarsi,
+      DoubleToString(entryPrice, _Digits),
+      DoubleToString(slPrice, _Digits), slPips,
+      DoubleToString(tps[0], _Digits), DoubleToString(tps[1], _Digits),
+      DoubleToString(tps[2], _Digits), DoubleToString(tps[3], _Digits),
+      resText
+   );
+
+   Comment(logMsg);
+   Print(logMsg);
 }
 
 //+------------------------------------------------------------------+
@@ -290,34 +392,22 @@ void ShowTradeSetupForBox(int boxIdx)
 //+------------------------------------------------------------------+
 void ExportAllTradesToCSV()
 {
-   string filename = "flagpro_trades_export.csv";
-   int handle = FileOpen(filename, FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
-   if(handle == INVALID_HANDLE)
+   string symClean = _Symbol;
+   StringReplace(symClean, "!", "");
+   StringReplace(symClean, "#", "");
+   string symFilename = "flagpro_trades_" + symClean + ".csv";
+   int handleSym = FileOpen(symFilename, FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
+   int handle = FileOpen("flagpro_trades_export.csv", FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
+
+   if(handle == INVALID_HANDLE && handleSym == INVALID_HANDLE)
    {
       Print("❌ FlagPro: خطا در باز کردن فایل CSV: ", GetLastError());
       return;
    }
 
-   FileWrite(handle,
-             "BoxIndex",
-             "BoxName",
-             "Timeframe",
-             "Role",
-             "Direction",
-             "BoxTimeStart",
-             "BoxTimeEnd",
-             "EntryTime",
-             "ExitTime",
-             "EntryPrice",
-             "StopLoss",
-             "RiskPoints",
-             "TP1",
-             "TP2",
-             "TP3",
-             "TP4",
-             "Outcome",
-             "HitTargetRatio",
-             "IsClosed");
+   string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed";
+   if(handle != INVALID_HANDLE) FileWrite(handle, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed");
+   if(handleSym != INVALID_HANDLE) FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed");
 
    datetime chartTime[];
    double chartHigh[], chartLow[];
@@ -325,9 +415,9 @@ void ExportAllTradesToCSV()
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
 
-   int copied = CopyTime(_Symbol, _Period, 0, 50000, chartTime);
-   CopyHigh(_Symbol, _Period, 0, 50000, chartHigh);
-   CopyLow(_Symbol, _Period, 0, 50000, chartLow);
+   int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
+   CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
+   CopyLow(_Symbol, _Period, 0, 250000, chartLow);
    if(copied < 10)
    {
       FileClose(handle);
@@ -341,6 +431,7 @@ void ExportAllTradesToCSV()
    for(int b = 0; b < g_boxCount; b++)
    {
       if(g_drawnBoxes[b].top <= 0) continue;
+      if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
       string role = "Flag";
       bool isSwap = g_drawnBoxes[b].isSwap;
       bool isLS   = false;
@@ -368,11 +459,29 @@ void ExportAllTradesToCSV()
          }
 
          string tagCombo = "";
-         if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
-         if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
-         if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
-         if(isSwap) tagCombo += (tagCombo == "" ? swapTag : "+" + swapTag);
+         if(isLS)
+         {
+            string lsDir = g_drawnBoxes[b].isLSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "LS" + lsDir : " > LS" + lsDir);
+         }
+         if(isOI)
+         {
+            string oiDir = g_drawnBoxes[b].isOInnerBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "OInner" + oiDir : " > OInner" + oiDir);
+         }
+         if(isRS)
+         {
+            string rsDir = g_drawnBoxes[b].isRSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "RS" + rsDir : " > RS" + rsDir);
+         }
+         if(isSwap)
+         {
+            string swDir = g_drawnBoxes[b].isSwapBull ? "-BU" : "-BE";
+            string fullSwap = swapTag + swDir;
+            tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
+         }
          if(tagCombo != "") role = tagCombo;
+         else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
       bool isBull = true;
@@ -443,33 +552,46 @@ void ExportAllTradesToCSV()
          else       tps[tp] = entryPrice - risk * (tp + 1);
       }
 
-      int boxEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t2);
+      datetime startTime = g_drawnBoxes[b].formationTime;
+      if(startTime <= 0) startTime = g_drawnBoxes[b].t1;
+
+      int boxEndIdx = FindBarIndex(chartTime, copied, startTime);
       if(boxEndIdx < 0) boxEndIdx = 0;
 
       bool isEntered = false;
       int  entryBarIdx = -1;
       datetime entryTime = 0;
 
+      bool hasExited = false;
       for(int k = boxEndIdx; k < copied; k++)
       {
-         if(isBull)
+         if(!hasExited)
          {
-            if(chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
-            {
-               isEntered = true;
-               entryBarIdx = k;
-               entryTime = chartTime[k];
-               break;
-            }
+            if(isBull && chartHigh[k] > entryPrice) hasExited = true;
+            else if(!isBull && chartLow[k] < entryPrice) hasExited = true;
          }
-         else
+
+         if(hasExited)
          {
-            if(chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            if(isBull)
             {
-               isEntered = true;
-               entryBarIdx = k;
-               entryTime = chartTime[k];
-               break;
+               if(chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+               {
+                  isEntered = true;
+                  entryBarIdx = k;
+                  entryTime = chartTime[k];
+                  break;
+               }
+            }
+            else
+            {
+               if(chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+               {
+                  isEntered = true;
+                  entryBarIdx = k;
+                  entryTime = chartTime[k];
+                  break;
+               }
             }
          }
       }
@@ -488,47 +610,58 @@ void ExportAllTradesToCSV()
       else
       {
          int maxHit = 0;
+         datetime hitTime = 0;
          for(int k = entryBarIdx; k < copied; k++)
          {
             if(isBull)
             {
+               for(int tp = maxHit; tp < 4; tp++)
+               {
+                  if(chartHigh[k] >= tps[tp])
+                  {
+                     maxHit = tp + 1;
+                     hitTime = chartTime[k];
+                  }
+               }
+
                if(chartLow[k] <= slPrice)
                {
                   hitTP = maxHit;
                   isClosed = true;
-                  exitTime = chartTime[k];
+                  exitTime = (maxHit > 0) ? hitTime : chartTime[k];
                   break;
-               }
-               for(int tp = maxHit; tp < 4; tp++)
-               {
-                  if(chartHigh[k] >= tps[tp]) maxHit = tp + 1;
                }
                if(maxHit == 4)
                {
                   hitTP = 4;
                   isClosed = true;
-                  exitTime = chartTime[k];
+                  exitTime = hitTime;
                   break;
                }
             }
-            else
+            else // SELL
             {
+               for(int tp = maxHit; tp < 4; tp++)
+               {
+                  if(chartLow[k] <= tps[tp])
+                  {
+                     maxHit = tp + 1;
+                     hitTime = chartTime[k];
+                  }
+               }
+
                if(chartHigh[k] >= slPrice)
                {
                   hitTP = maxHit;
                   isClosed = true;
-                  exitTime = chartTime[k];
+                  exitTime = (maxHit > 0) ? hitTime : chartTime[k];
                   break;
-               }
-               for(int tp = maxHit; tp < 4; tp++)
-               {
-                  if(chartLow[k] <= tps[tp]) maxHit = tp + 1;
                }
                if(maxHit == 4)
                {
                   hitTP = 4;
                   isClosed = true;
-                  exitTime = chartTime[k];
+                  exitTime = hitTime;
                   break;
                }
             }
@@ -537,7 +670,7 @@ void ExportAllTradesToCSV()
          if(!isClosed)
          {
             hitTP = maxHit;
-            exitTime = chartTime[copied - 1];
+            exitTime = (maxHit > 0) ? hitTime : chartTime[copied - 1];
          }
       }
 
@@ -552,30 +685,60 @@ void ExportAllTradesToCSV()
          else outcomeStr = "Open_Trade";
       }
 
-      FileWrite(handle,
-                IntegerToString(b),
-                g_drawnBoxes[b].boxName,
-                g_drawnBoxes[b].tfTag,
-                role,
-                (isBull ? "BUY" : "SELL"),
-                TimeToString(g_drawnBoxes[b].t1),
-                TimeToString(g_drawnBoxes[b].t2),
-                (entryTime > 0 ? TimeToString(entryTime) : "None"),
-                (exitTime > 0 ? TimeToString(exitTime) : "None"),
-                DoubleToString(entryPrice, _Digits),
-                DoubleToString(slPrice, _Digits),
-                DoubleToString(risk / _Point, 1),
-                DoubleToString(tps[0], _Digits),
-                DoubleToString(tps[1], _Digits),
-                DoubleToString(tps[2], _Digits),
-                DoubleToString(tps[3], _Digits),
-                outcomeStr,
-                IntegerToString(hitTP),
-                (isClosed ? "True" : "False"));
+      if(handle != INVALID_HANDLE)
+      {
+         FileWrite(handle,
+                   _Symbol,
+                   IntegerToString(b),
+                   g_drawnBoxes[b].boxName,
+                   g_drawnBoxes[b].tfTag,
+                   role,
+                   (isBull ? "BUY" : "SELL"),
+                   TimeToString(g_drawnBoxes[b].t1),
+                   TimeToString(g_drawnBoxes[b].t2),
+                   (entryTime > 0 ? TimeToString(entryTime) : "None"),
+                   (exitTime > 0 ? TimeToString(exitTime) : "None"),
+                   DoubleToString(entryPrice, _Digits),
+                   DoubleToString(slPrice, _Digits),
+                   DoubleToString(risk / _Point, 1),
+                   DoubleToString(tps[0], _Digits),
+                   DoubleToString(tps[1], _Digits),
+                   DoubleToString(tps[2], _Digits),
+                   DoubleToString(tps[3], _Digits),
+                   outcomeStr,
+                   IntegerToString(hitTP),
+                   (isClosed ? "True" : "False"));
+      }
+
+      if(handleSym != INVALID_HANDLE)
+      {
+         FileWrite(handleSym,
+                   _Symbol,
+                   IntegerToString(b),
+                   g_drawnBoxes[b].boxName,
+                   g_drawnBoxes[b].tfTag,
+                   role,
+                   (isBull ? "BUY" : "SELL"),
+                   TimeToString(g_drawnBoxes[b].t1),
+                   TimeToString(g_drawnBoxes[b].t2),
+                   (entryTime > 0 ? TimeToString(entryTime) : "None"),
+                   (exitTime > 0 ? TimeToString(exitTime) : "None"),
+                   DoubleToString(entryPrice, _Digits),
+                   DoubleToString(slPrice, _Digits),
+                   DoubleToString(risk / _Point, 1),
+                   DoubleToString(tps[0], _Digits),
+                   DoubleToString(tps[1], _Digits),
+                   DoubleToString(tps[2], _Digits),
+                   DoubleToString(tps[3], _Digits),
+                   outcomeStr,
+                   IntegerToString(hitTP),
+                   (isClosed ? "True" : "False"));
+      }
 
       exportedCount++;
    }
 
-   FileClose(handle);
-   Print("📁 FlagPro: تعداد ", exportedCount, " موقعیت معاملاتی با موفقیت در فایل MQL5/Files/flagpro_trades_export.csv ذخیره شد.");
+   if(handle != INVALID_HANDLE) FileClose(handle);
+   if(handleSym != INVALID_HANDLE) FileClose(handleSym);
+   Print("📁 FlagPro: تعداد ", exportedCount, " موقعیت معاملاتی ", _Symbol, " با موفقیت در فایل‌های CSV ذخیره شد.");
 }

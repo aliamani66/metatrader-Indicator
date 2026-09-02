@@ -61,9 +61,24 @@ void RenderFinalBoxes()
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
-      // در تایم ۱ دقیقه (M1) فقط باکس‌های هدفمند (LS, RS, OInner, Swap) رسم شوند و باکس‌های عادی حذف شوند
-      if(g_drawnBoxes[b].tf == PERIOD_M1 && !hasRSTags && !g_drawnBoxes[b].isSwap)
-         continue;
+      // در تایم ۱ دقیقه (M1) فقط و فقط باکس‌های استراتژیک (LS, OInner, RS و سواپ‌های آن‌ها مثل S-LS, S-OInner, S-RS) رسم شوند
+      // فلگ‌های عادی و یا سواپ فلگ‌های معمولی (S-Flag) در ۱ دقیقه هرگز رسم نشوند
+      if(g_drawnBoxes[b].tf == PERIOD_M1)
+      {
+         bool isStrategicM1 = false;
+         for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+         {
+            string tName = g_drawnBoxes[b].rsTags[tg];
+            if(tName == "LS" || tName == "OInner" || tName == "RS" ||
+               tName == "S-LS" || tName == "S-OInner" || tName == "S-RS")
+            {
+               isStrategicM1 = true;
+               break;
+            }
+         }
+         if(!isStrategicM1)
+            continue;
+      }
 
       bool shouldDraw = false;
       if(isMacro)
@@ -88,6 +103,14 @@ void RenderFinalBoxes()
 
       ENUM_LINE_STYLE drawStyle = g_drawnBoxes[b].baseStyle;
 
+      if(!hasRSTags)
+      {
+         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
+            continue;
+         if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY && !InpShow_OtherBoxes)
+            continue;
+      }
+
       if(hasRSTags)
       {
          bool isLS = false;
@@ -110,19 +133,68 @@ void RenderFinalBoxes()
          }
 
          string tagCombo = "";
-         if(isLS) tagCombo += (tagCombo == "" ? "LS" : "+LS");
-         if(isOI) tagCombo += (tagCombo == "" ? "OInner" : "+OInner");
-         if(isRS) tagCombo += (tagCombo == "" ? "RS" : "+RS");
-         if(isSwap) tagCombo += (tagCombo == "" ? swapTag : "+" + swapTag);
+         if(isLS)
+         {
+            string lsDir = g_drawnBoxes[b].isLSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "LS" + lsDir : " > LS" + lsDir);
+         }
+         if(isOI)
+         {
+            string oiDir = g_drawnBoxes[b].isOInnerBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "OInner" + oiDir : " > OInner" + oiDir);
+         }
+         if(isRS)
+         {
+            string rsDir = g_drawnBoxes[b].isRSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "RS" + rsDir : " > RS" + rsDir);
+         }
+         if(isSwap)
+         {
+            string swDir = g_drawnBoxes[b].isSwapBull ? "-BU" : "-BE";
+            string fullSwap = swapTag + swDir;
+            tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
+         }
+
+         // ===== اعمال فیلتر برترین الگوهای برنده (فقط ۷ سلطان طلایی سودده) =====
+         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
+         {
+            bool isWinner = false;
+            if(StringFind(tagCombo, "OInner-BU > RS-BU") >= 0) isWinner = true;
+            else if(StringFind(tagCombo, "OInner-BU > RS-BE") >= 0) isWinner = true;
+            else if(StringFind(tagCombo, "OInner-BE > RS-BU") >= 0) isWinner = true;
+            else if(tagCombo == "RS-BU" || (StringFind(tagCombo, "RS-BU") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
+            else if(tagCombo == "RS-BE" || (StringFind(tagCombo, "RS-BE") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
+            else if(tagCombo == "OInner-BU" || (StringFind(tagCombo, "OInner-BU") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
+            else if(tagCombo == "OInner-BE" || (StringFind(tagCombo, "OInner-BE") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
+            if(!isWinner) continue;
+         }
+         else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
+         {
+            bool allowed = false;
+            if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS-BU > OInner-BE") >= 0) allowed = true;
+            else if(InpShow_LSBE && (tagCombo == "LS-BE" || (StringFind(tagCombo, "LS-BE") == 0 && StringFind(tagCombo, ">") < 0))) allowed = true;
+            else if(InpShow_OInnerBE_RSBE && StringFind(tagCombo, "OInner-BE > RS-BE") >= 0) allowed = true;
+            else if(InpShow_SLS && StringFind(tagCombo, "S-LS") >= 0) allowed = true;
+            else if(InpShow_SOInner && StringFind(tagCombo, "S-OInner") >= 0) allowed = true;
+            else if(InpShow_OtherBoxes) allowed = true;
+
+            if(!allowed)
+               continue;
+         }
 
          bool isBull = false;
          if(isSwap) isBull = g_drawnBoxes[b].isSwapBull;
-         else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
-         else if(isOI) isBull = g_drawnBoxes[b].isOInnerBull;
          else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
+         else if(isOI) isBull = g_drawnBoxes[b].isOInnerBull;
+         else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
          else isBull = g_drawnBoxes[b].isBullish;
 
-         roleTag = tagCombo + (isBull ? " Bull" : " Bear");
+         roleTag = tagCombo;
+
+         // مخفی‌سازی باکس‌های فیلترشده در صورتی که کاربر گزینه مخفی‌سازی را فعال کرده باشد
+         double boxRiskPts = (_Point > 0) ? (MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom) / _Point) : 0.0;
+         if(InpHideFilteredBoxes && IsSetupFilteredOut(roleTag, g_drawnBoxes[b].t1, boxRiskPts))
+            continue;
 
          if(isSwap)
          {
@@ -188,6 +260,11 @@ void RenderFinalBoxes()
          string lblText = g_drawnBoxes[b].tfTag;
          if(roleTag != "")
             lblText = g_drawnBoxes[b].tfTag + " [" + roleTag + "]";
+         else
+         {
+            string flDir = g_drawnBoxes[b].isBullish ? "BU" : "BE";
+            lblText = g_drawnBoxes[b].tfTag + " [" + flDir + "]";
+         }
 
          if(ObjectFind(0, lblName) >= 0) ObjectDelete(0, lblName);
          ObjectCreate(0, lblName, OBJ_TEXT, 0, labelTime, labelPrice);
@@ -300,12 +377,6 @@ void HighlightBox(int boxIdx)
       ObjectSetInteger(0, boxName, OBJPROP_BACK,  false);
 
       ShowTradeSetupForBox(boxIdx);
-
-      string info = "⚡ FlagPro Box: " + g_drawnBoxes[boxIdx].tfTag +
-                    " | Top: " + DoubleToString(g_drawnBoxes[boxIdx].top, _Digits) +
-                    " | Bottom: " + DoubleToString(g_drawnBoxes[boxIdx].bottom, _Digits) +
-                    " | Start: " + TimeToString(g_drawnBoxes[boxIdx].t1);
-      Comment(info);
    }
 
    ChartRedraw(0);
