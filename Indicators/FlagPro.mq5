@@ -42,7 +42,7 @@ input color            InpColorTF6 = clrAqua;
 input int              InpM5DaysBack = 10;          // تاریخچه ۵ دقیقه (۱۰ روز)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
-input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
+input bool             InpUseTF7  = false;          // محاسبه ۱ دقیقه (M1) - غیرفعال
 input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
 

@@ -54,6 +54,14 @@ void RenderFinalBoxes()
 {
    for(int b = 0; b < g_boxCount; b++)
    {
+      // نادیده گرفتن باکس‌های حذف‌شده توسط فیلتر هم‌پوشانی یا نامعتبر
+      if(g_drawnBoxes[b].top <= 0 || g_drawnBoxes[b].bottom <= 0)
+         continue;
+
+      // به هیچ وجه هیچ باکسی برای تایم ۱ دقیقه (M1) روی چارت رسم نشود
+      if(g_drawnBoxes[b].tf == PERIOD_M1)
+         continue;
+
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 

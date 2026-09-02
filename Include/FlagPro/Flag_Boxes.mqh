@@ -321,6 +321,7 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
 {
    for(int b = 0; b < g_boxCount; b++)
    {
+      if(g_drawnBoxes[b].top <= 0) continue;
       if(!g_drawnBoxes[b].isPreIP) continue;
 
       bool targetIsHigh   = g_drawnBoxes[b].targetIPIsHigh;
@@ -477,6 +478,7 @@ void ProcessOInnerBoxes()
          datetime minBoxTime = 0;
          for(int ob = 0; ob < g_boxCount; ob++)
          {
+            if(g_drawnBoxes[ob].top <= 0) continue;
             if(g_drawnBoxes[ob].tfTag == tfStr && g_drawnBoxes[ob].t1 >= pivotTime - 60)
             {
                if(firstBoxIdx < 0 || g_drawnBoxes[ob].t1 < minBoxTime)
@@ -519,6 +521,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
    int initialBoxCount = g_boxCount;
    for(int b = 0; b < initialBoxCount; b++)
    {
+      if(g_drawnBoxes[b].top <= 0) continue;
       bool isBull = g_drawnBoxes[b].isBullish;
       if(g_drawnBoxes[b].isPreIP) isBull = g_drawnBoxes[b].isLSBull;
       else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
@@ -577,6 +580,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          for(int ob = 0; ob < g_boxCount; ob++)
          {
             if(ob == b) continue;
+            if(g_drawnBoxes[ob].top <= 0) continue;
             if(g_drawnBoxes[ob].t1 >= startTime &&
                endTime >= g_drawnBoxes[ob].t1 &&
                endTime <= g_drawnBoxes[ob].t2 + PeriodSeconds(g_drawnBoxes[ob].tf) * 5)

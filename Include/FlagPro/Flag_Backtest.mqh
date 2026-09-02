@@ -340,6 +340,7 @@ void ExportAllTradesToCSV()
 
    for(int b = 0; b < g_boxCount; b++)
    {
+      if(g_drawnBoxes[b].top <= 0) continue;
       string role = "Flag";
       bool isSwap = g_drawnBoxes[b].isSwap;
       bool isLS   = false;
