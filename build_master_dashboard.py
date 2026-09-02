@@ -796,12 +796,12 @@ def build_dashboard():
             <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
-                        <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (حداقل حجم متاتریدر برای تفکیک پله‌ها)</h3>
-                        <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">چرا 0.04 لات؟ چون در متاتریدر حداقل گام تغییر حجم 0.01 است و برای خروج در ۳ پله (50% + 25% + 25%) حداقل حجم اولیه باید <b>0.04 لات</b> باشد:</p>
+                        <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
+                        <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار ۵۳۰ معامله واقعی سلاطین ۷ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
                     </div>
                     <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
                         <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
-                        <div>🧾 اصطکاک هر ترید (کمیسیون+اسپرد): <b>$0.48 دلار</b></div>
+                        <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>$254.40 دلار</b></div>
                     </div>
                 </div>
             </div>
@@ -821,7 +821,7 @@ def build_dashboard():
                 <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
                     <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله سوم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
                     <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن امواج بزرگ روندی</div>
-                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در ۳۷٪ تا ۵۴٪ معاملات!</div>
+                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در ۱۳۲ معامله!</div>
                 </div>
             </div>
 
@@ -841,27 +841,27 @@ def build_dashboard():
                     <tbody>
                         <tr>
                             <td style="color:#94a3b8;font-weight:bold;">۱. خروج ساده تک‌تارگت در TP 1:1 (بستن ۱۰۰٪ حجم 0.04)</td>
-                            <td style="text-align:center;color:#38bdf8;">+$735.08</td>
-                            <td style="text-align:center;color:#f87171;">$247.20</td>
-                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$487.88 دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;">2.67</td>
+                            <td style="text-align:center;color:#38bdf8;">+$509.08</td>
+                            <td style="text-align:center;color:#f87171;">$254.40</td>
+                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$254.68 دلار</td>
+                            <td style="text-align:center;color:#cbd5e1;">1.85</td>
                             <td style="text-align:center;color:#94a3b8;">مبنا</td>
                         </tr>
                         <tr>
                             <td style="color:#94a3b8;font-weight:bold;">۲. خروج ساده تک‌تارگت در TP 1:2 (بستن ۱۰۰٪ حجم 0.04)</td>
-                            <td style="text-align:center;color:#38bdf8;">+$828.84</td>
-                            <td style="text-align:center;color:#f87171;">$247.20</td>
-                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$581.64 دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;">2.03</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">+$93.76 (+19.2%)</td>
+                            <td style="text-align:center;color:#38bdf8;">+$527.80</td>
+                            <td style="text-align:center;color:#f87171;">$254.40</td>
+                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$273.40 دلار</td>
+                            <td style="text-align:center;color:#cbd5e1;">1.55</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">+$18.72 (+7.4%)</td>
                         </tr>
                         <tr style="background:#064e3b33;border:2px solid #10b981;">
                             <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج پلکانی شکار امواج تا TP4 (۰.۰۲ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP4) 🚀</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$1,032.38</td>
-                            <td style="text-align:center;color:#cbd5e1;">$247.20</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">+$785.18 دلار نقد خالص! 💵</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">3.33 🚀</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$297.30 سود بیشتر (+61.0%) 🚀</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$766.02</td>
+                            <td style="text-align:center;color:#cbd5e1;">$254.40</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">+$511.62 دلار نقد خالص! 💵</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">2.28 🚀</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$256.94 سود بیشتر (+100.9% دو برابر!) 🚀</td>
                         </tr>
                     </tbody>
                 </table>
@@ -871,10 +871,10 @@ def build_dashboard():
             <div style="margin-top: 24px; border-top: 1px dashed #0284c7; padding-top: 18px;">
                 <h4 style="margin:0 0 10px 0; color:#facc15; font-size:16px;">⚖️ مقایسه بریک‌ایون (ریسک‌فری) با حجم 0.04 لات: انتقال استاپ در TP1 یا در TP2؟ کدام سودده‌تر است؟</h4>
                 <p style="margin:0 0 14px 0; color:#cbd5e1; font-size:12.5px; line-height:1.6;">
-                    کالبدشکافی رفتار ۵۱۵ معامله سلاطین: <b>۱۴۴ معامله استاپ مستقیم</b> | 
-                    <b style="color:#facc15;">۱۲۰ معامله (۲۳.۳٪) فقط TP1 را تاچ کردند و برگشتند!</b> | 
-                    <b>۵۹ معامله تا TP2 رفتند</b> | 
-                    <b style="color:#00e676;">۱۹۲ معامله به TP3 و TP4 رسیدند!</b>
+                    کالبدشکافی رفتار ۵۳۰ معامله سلاطین: <b>۱۸۴ معامله استاپ مستقیم</b> | 
+                    <b style="color:#facc15;">۱۲۱ معامله (۲۲.۸٪) فقط TP1 را تاچ کردند و برگشتند!</b> | 
+                    <b>۹۳ معامله تا TP2 رفتند</b> | 
+                    <b style="color:#00e676;">۱۳۲ معامله به TP3 و TP4 رسیدند!</b>
                 </p>
 
                 <div style="overflow-x:auto;">
@@ -882,7 +882,7 @@ def build_dashboard():
                         <thead>
                             <tr style="background:#0b3353;">
                                 <th>روش انتقال استاپ به ورود (Break-Even) با حجم 0.04 لات</th>
-                                <th style="text-align:center;">سرنوشت ۱۲۰ معامله‌ای که بعد از TP1 برگشتند</th>
+                                <th style="text-align:center;">سرنوشت ۱۲۱ معامله‌ای که بعد از TP1 برگشتند</th>
                                 <th style="text-align:center;">سود ناخالص</th>
                                 <th style="text-align:center;">کل کمیسیون و اسپرد</th>
                                 <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
@@ -893,17 +893,17 @@ def build_dashboard():
                             <tr style="background:#064e3b44; border: 2px solid #10b981;">
                                 <td style="color:#00e676; font-weight:bold; font-size:13.5px;">🥇 حالت اول: انتقال استاپ به نقطه ورود (BE) در TP1</td>
                                 <td style="text-align:center; color:#a7f3d0; font-size:12px;">سود ۰.۰۲ لات در TP1 ذخیره شد + ۰.۰۲ لات باقیمانده بدون ضرر روی نقطه ورود خارج شد (سود خالص!)</td>
-                                <td style="text-align:center; color:#00e676; font-weight:bold;">+$1,032.38</td>
-                                <td style="text-align:center; color:#cbd5e1;">$247.20</td>
-                                <td style="text-align:center; color:#00e676; font-weight:bold; font-size:17px;">+$785.18 دلار نقد 🚀</td>
-                                <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (+۱۸۰.۸۲ دلار سود بیشتر)</td>
+                                <td style="text-align:center; color:#00e676; font-weight:bold;">+$766.02</td>
+                                <td style="text-align:center; color:#cbd5e1;">$254.40</td>
+                                <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">+$511.62 دلار نقد 🚀</td>
+                                <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (+۱۸۱.۲۲ دلار سود بیشتر)</td>
                             </tr>
                             <tr style="background:#450a0a22; border: 1px solid #7f1d1d;">
                                 <td style="color:#f87171; font-weight:bold; font-size:13.5px;">❌ حالت دوم: انتقال استاپ به نقطه ورود (BE) فقط در TP2</td>
                                 <td style="text-align:center; color:#fca5a5; font-size:12px;">سود ۰.۰۲ لات گرفته شد، اما چون استاپ دست نخورده بود، ۰.۰۲ لات باقیمانده برگشت و استاپ اولیه را زد!</td>
-                                <td style="text-align:center; color:#f87171; font-weight:bold;">+$851.56</td>
-                                <td style="text-align:center; color:#cbd5e1;">$247.20</td>
-                                <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">+$604.36 دلار</td>
+                                <td style="text-align:center; color:#f87171; font-weight:bold;">+$584.80</td>
+                                <td style="text-align:center; color:#cbd5e1;">$254.40</td>
+                                <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">+$330.40 دلار</td>
                                 <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (حدود ۱۸۱ دلار سود کمتر!)</td>
                             </tr>
                         </tbody>
@@ -911,7 +911,7 @@ def build_dashboard():
                 </div>
 
                 <div style="background:#09304a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-top:12px; font-size:12px; color:#e0f2fe; line-height:1.5;">
-                    💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>۲۳.۳٪ معاملات (۱۲۰ معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن ۱۸۰.۸۲ دلار سود شما می‌شود و سود کل سیستم را به <b>+$785.18 دلار نقد خالص</b> می‌رساند!
+                    💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>۲۲.۸٪ معاملات (۱۲۱ معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن ۱۸۱.۲۲ دلار سود شما می‌شود و سود کل سیستم را به <b>+$511.62 دلار نقد خالص</b> می‌رساند!
                 </div>
             </div>
         </div>
