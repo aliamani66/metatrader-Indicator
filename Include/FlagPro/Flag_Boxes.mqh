@@ -480,32 +480,53 @@ void ProcessOInnerBoxes()
       {
          string tfStr = g_indepPivots[k].tfTags[t];
          
+         // پیدا کردن زمان پیووت بعدی در این تایم‌فریم تا باکس‌های بعد از آن به اشتباه به این پیووت وصل نشوند
+         datetime nextPivotTime = 0;
+         for(int n = 0; n < g_indepCount; n++)
+         {
+            if(!g_indepPivots[n].hasIP) continue;
+            if(g_indepPivots[n].time > pivotTime)
+            {
+               for(int nt = 0; nt < ArraySize(g_indepPivots[n].tfTags); nt++)
+               {
+                  if(g_indepPivots[n].tfTags[nt] == tfStr)
+                  {
+                     if(nextPivotTime == 0 || g_indepPivots[n].time < nextPivotTime)
+                        nextPivotTime = g_indepPivots[n].time;
+                  }
+               }
+            }
+         }
+
          int firstBoxIdx = -1;
          datetime minBoxTime = 0;
          for(int ob = 0; ob < g_boxCount; ob++)
          {
             if(g_drawnBoxes[ob].top <= 0) continue;
-            // شرط قطعی هم‌راستایی لگ پرایس‌اکشن:
-            // پیووت سقف (isHigh) فقط با گره نزولی (!isBullish) جفت می‌شود
-            // پیووت کف (!isHigh) فقط با گره صعودی (isBullish) جفت می‌شود
-            bool legMatches = (isHigh ? !g_drawnBoxes[ob].isBullish : g_drawnBoxes[ob].isBullish);
-            if(!legMatches) continue;
+            if(g_drawnBoxes[ob].tfTag != tfStr) continue;
 
-            if(g_drawnBoxes[ob].tfTag == tfStr && g_drawnBoxes[ob].t1 >= pivotTime - 60)
+            // باکس باید بعد از این پیووت باشد
+            if(g_drawnBoxes[ob].t1 < pivotTime - 60) continue;
+
+            // و باکس حتما باید قبل از پیووت بعدی باشد (نباید پیووت دیگری بین آن‌ها بیفتد)
+            if(nextPivotTime > 0 && g_drawnBoxes[ob].t1 >= nextPivotTime) continue;
+
+            if(firstBoxIdx < 0 || g_drawnBoxes[ob].t1 < minBoxTime)
             {
-               if(firstBoxIdx < 0 || g_drawnBoxes[ob].t1 < minBoxTime)
-               {
-                  minBoxTime = g_drawnBoxes[ob].t1;
-                  firstBoxIdx = ob;
-               }
+               minBoxTime = g_drawnBoxes[ob].t1;
+               firstBoxIdx = ob;
             }
          }
 
          if(firstBoxIdx >= 0)
          {
             g_drawnBoxes[firstBoxIdx].isOInner = true;
-            // جهت گره او‌اینر دقیقاً منطبق بر جهت حرکت لگ خود باکس است:
-            g_drawnBoxes[firstBoxIdx].isOInnerBull = g_drawnBoxes[firstBoxIdx].isBullish;
+            // قانون اصیل پرایس‌اکشن:
+            // گره مشتق‌شده از سقف (High) ذاتاً نزولی و بیریش است (isHigh => isOInnerBull = false => OInner-BE)
+            // گره مشتق‌شده از کف (Low) ذاتاً صعودی و بولیش است (!isHigh => isOInnerBull = true => OInner-BU)
+            g_drawnBoxes[firstBoxIdx].isOInnerBull = !isHigh;
+            g_drawnBoxes[firstBoxIdx].isBullish    = !isHigh;
+
             datetime ipConfirm = g_indepPivots[k].time + PeriodSeconds(g_drawnBoxes[firstBoxIdx].tf) * InpSwingBars;
             if(ipConfirm > g_drawnBoxes[firstBoxIdx].confirmationTime)
                g_drawnBoxes[firstBoxIdx].confirmationTime = ipConfirm;
