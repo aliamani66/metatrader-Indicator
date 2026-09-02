@@ -302,6 +302,27 @@ void ShowTradeSetupForBox(int boxIdx)
 
    string pfx = FP_PREFIX + "CLICK_TRADE_";
 
+   // --- بک‌گراند رنگی ملایم و شفاف برای ناحیه سود (سبز) و ناحیه ریسک (قرمز) مشابه تریدینگ‌ویو ---
+   // ۱. ناحیه سود (Profit Zone: بین نقطه ورود و تارگت‌ها)
+   double tpTop = isBull ? tps[3] : entryPrice;
+   double tpBtm = isBull ? entryPrice : tps[3];
+   string profitZone = pfx + "PROFIT_BG";
+   ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
+   ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'6,36,20'); // سبز ملایم زمردی در پس‌زمینه
+   ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
+   ObjectSetInteger(0, profitZone, OBJPROP_BACK, true); // رسم در پس‌زمینه (پشت کندل‌ها)
+   ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+
+   // ۲. ناحیه ریسک (Risk Zone: بین نقطه ورود و حد ضرر)
+   double slTop = isBull ? entryPrice : slPrice;
+   double slBtm = isBull ? slPrice : entryPrice;
+   string lossZone = pfx + "LOSS_BG";
+   ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
+   ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'38,10,14'); // زرشکی ملایم در پس‌زمینه
+   ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
+   ObjectSetInteger(0, lossZone, OBJPROP_BACK, true); // رسم در پس‌زمینه (پشت کندل‌ها)
+   ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
    ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
