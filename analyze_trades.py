@@ -10,9 +10,13 @@ if sys.stdout.encoding != 'utf-8':
         pass
 
 MT5_FILES_DIR = r"c:\Users\USER\AppData\Roaming\MetaQuotes\Terminal\3F2C3A2F8B221C9D88E569F2FD1D3E97\MQL5\Files"
-DEFAULT_CSV = os.path.join(MT5_FILES_DIR, "flagpro_trades_export.csv")
-if not os.path.exists(DEFAULT_CSV):
-    DEFAULT_CSV = os.path.join(MT5_FILES_DIR, "flag_trades_export.csv")
+eurusd_csv = os.path.join(MT5_FILES_DIR, "flagpro_trades_EURUSD.csv")
+if os.path.exists(eurusd_csv):
+    DEFAULT_CSV = eurusd_csv
+else:
+    DEFAULT_CSV = os.path.join(MT5_FILES_DIR, "flagpro_trades_export.csv")
+    if not os.path.exists(DEFAULT_CSV):
+        DEFAULT_CSV = os.path.join(MT5_FILES_DIR, "flag_trades_export.csv")
 
 def analyze_and_rank_dashboard(csv_path=DEFAULT_CSV):
     if not os.path.exists(csv_path):
