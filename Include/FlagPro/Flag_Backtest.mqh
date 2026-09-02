@@ -94,6 +94,8 @@ void ShowTradeSetupForBox(int boxIdx)
 
    if(isOI)
    {
+      isBull = g_drawnBoxes[boxIdx].isOInnerBull; // جهت ترید حتماً جهت خود گره OInner است
+
       double   pivotP = 0;
       datetime closestPivotTime = 0;
       for(int k = 0; k < g_indepCount; k++)
@@ -101,18 +103,23 @@ void ShowTradeSetupForBox(int boxIdx)
          if(!g_indepPivots[k].hasIP) continue;
          if(g_indepPivots[k].time <= g_drawnBoxes[boxIdx].t1)
          {
-            if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
+            // پیووت مبنای استاپ باید با جهت پوزیشن همخوانی داشته باشد:
+            // برای بای (isBull): پیووت کف (!isHigh)
+            // برای سل (!isBull): پیووت سقف (isHigh)
+            bool pivotValidForTrade = (isBull ? !g_indepPivots[k].isHigh : g_indepPivots[k].isHigh);
+            if(pivotValidForTrade)
             {
-               closestPivotTime = g_indepPivots[k].time;
-               pivotP = g_indepPivots[k].price;
-               isBull = !g_indepPivots[k].isHigh;
+               if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
+               {
+                  closestPivotTime = g_indepPivots[k].time;
+                  pivotP = g_indepPivots[k].price;
+               }
             }
          }
       }
 
       if(pivotP == 0)
       {
-         isBull = g_drawnBoxes[boxIdx].isOInnerBull;
          pivotP = isBull ? g_drawnBoxes[boxIdx].bottom : g_drawnBoxes[boxIdx].top;
       }
 
@@ -521,6 +528,8 @@ void ExportAllTradesToCSV()
 
       if(isOI)
       {
+         isBull = g_drawnBoxes[b].isOInnerBull; // جهت ترید حتماً جهت خود گره OInner است
+
          double pivotP = 0;
          datetime closestPivotTime = 0;
          for(int k = 0; k < g_indepCount; k++)
@@ -528,18 +537,23 @@ void ExportAllTradesToCSV()
             if(!g_indepPivots[k].hasIP) continue;
             if(g_indepPivots[k].time <= g_drawnBoxes[b].t1)
             {
-               if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
+               // پیووت مبنای استاپ باید با جهت پوزیشن همخوانی داشته باشد:
+               // برای بای (isBull): پیووت کف (!isHigh)
+               // برای سل (!isBull): پیووت سقف (isHigh)
+               bool pivotValidForTrade = (isBull ? !g_indepPivots[k].isHigh : g_indepPivots[k].isHigh);
+               if(pivotValidForTrade)
                {
-                  closestPivotTime = g_indepPivots[k].time;
-                  pivotP = g_indepPivots[k].price;
-                  isBull = !g_indepPivots[k].isHigh;
+                  if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
+                  {
+                     closestPivotTime = g_indepPivots[k].time;
+                     pivotP = g_indepPivots[k].price;
+                  }
                }
             }
          }
 
          if(pivotP == 0)
          {
-            isBull = g_drawnBoxes[b].isOInnerBull;
             pivotP = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
          }
 

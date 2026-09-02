@@ -485,6 +485,12 @@ void ProcessOInnerBoxes()
          for(int ob = 0; ob < g_boxCount; ob++)
          {
             if(g_drawnBoxes[ob].top <= 0) continue;
+            // شرط قطعی هم‌راستایی لگ پرایس‌اکشن:
+            // پیووت سقف (isHigh) فقط با گره نزولی (!isBullish) جفت می‌شود
+            // پیووت کف (!isHigh) فقط با گره صعودی (isBullish) جفت می‌شود
+            bool legMatches = (isHigh ? !g_drawnBoxes[ob].isBullish : g_drawnBoxes[ob].isBullish);
+            if(!legMatches) continue;
+
             if(g_drawnBoxes[ob].tfTag == tfStr && g_drawnBoxes[ob].t1 >= pivotTime - 60)
             {
                if(firstBoxIdx < 0 || g_drawnBoxes[ob].t1 < minBoxTime)
@@ -498,7 +504,8 @@ void ProcessOInnerBoxes()
          if(firstBoxIdx >= 0)
          {
             g_drawnBoxes[firstBoxIdx].isOInner = true;
-            g_drawnBoxes[firstBoxIdx].isOInnerBull = !isHigh;
+            // جهت گره او‌اینر دقیقاً منطبق بر جهت حرکت لگ خود باکس است:
+            g_drawnBoxes[firstBoxIdx].isOInnerBull = g_drawnBoxes[firstBoxIdx].isBullish;
             datetime ipConfirm = g_indepPivots[k].time + PeriodSeconds(g_drawnBoxes[firstBoxIdx].tf) * InpSwingBars;
             if(ipConfirm > g_drawnBoxes[firstBoxIdx].confirmationTime)
                g_drawnBoxes[firstBoxIdx].confirmationTime = ipConfirm;
