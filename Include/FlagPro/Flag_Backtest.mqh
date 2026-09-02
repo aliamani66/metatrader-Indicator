@@ -23,14 +23,16 @@ void ShowTradeSetupForBox(int boxIdx)
    }
 
    datetime chartTime[];
-   double chartHigh[], chartLow[];
+   double chartHigh[], chartLow[], chartClose[];
    ArraySetAsSeries(chartTime, false);
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
+   ArraySetAsSeries(chartClose, false);
 
    int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
    CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
    CopyLow(_Symbol, _Period, 0, 250000, chartLow);
+   CopyClose(_Symbol, _Period, 0, 250000, chartClose);
    if(copied < 10) return;
 
    string role = "Flag";
@@ -179,18 +181,18 @@ void ShowTradeSetupForBox(int boxIdx)
 
    // جستجوی پولبک برای ورود به معامله مطابق با لایو بازار:
    // ۱. شروع جستجو فقط از زمان تایید قطعی استراکچر در لایو (confirmTime)
-   // ۲. قیمت باید ابتدا فاصله بگیرد (hasDeparted)
-   // ۳. ورود منحصراً روی اولین پولبک و لمس سطح ورود (First True Retest)
-   bool hasDeparted = false;
+   // ۲. قیمت باید ابتدا با کلوز کندل فاصله بگیرد (departedBar)
+   // ۳. ورود منحصراً در کندل‌های بعدی روی پولبک و لمس سطح ورود (k > departedBar)
+   int departedBar = -1;
    for(int k = confirmIdx; k < copied; k++)
    {
-      if(!hasDeparted)
+      if(departedBar < 0)
       {
-         if(isBull && chartHigh[k] >= minDeparturePrice) hasDeparted = true;
-         else if(!isBull && chartLow[k] <= minDeparturePrice) hasDeparted = true;
+         // تایید پرتاب و کلوز کامل کندل در بیرون از باکس
+         if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
+         else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
       }
-      
-      if(hasDeparted)
+      else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
       {
          if(isBull)
          {
@@ -308,6 +310,22 @@ void ShowTradeSetupForBox(int boxIdx)
    if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
 
    string pfx = FP_PREFIX + "CLICK_TRADE_";
+
+   // ۳. خط عمودی شفاف زمان تایید آلارم لایو (Confirmation Time Marker)
+   string confLine = pfx + "CONFIRM_VLINE";
+   ObjectCreate(0, confLine, OBJ_VLINE, 0, confirmTime, 0);
+   ObjectSetInteger(0, confLine, OBJPROP_COLOR, clrDarkTurquoise);
+   ObjectSetInteger(0, confLine, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, confLine, OBJPROP_STYLE, STYLE_DOT);
+   ObjectSetInteger(0, confLine, OBJPROP_SELECTABLE, false);
+
+   string confLbl = pfx + "CONFIRM_LBL";
+   ObjectCreate(0, confLbl, OBJ_TEXT, 0, confirmTime, isBull ? g_drawnBoxes[boxIdx].top : g_drawnBoxes[boxIdx].bottom);
+   ObjectSetString(0, confLbl, OBJPROP_TEXT, "📍 زمان تایید لایو");
+   ObjectSetInteger(0, confLbl, OBJPROP_COLOR, clrDarkTurquoise);
+   ObjectSetInteger(0, confLbl, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, confLbl, OBJPROP_ANCHOR, isBull ? ANCHOR_LOWER : ANCHOR_UPPER);
+   ObjectSetInteger(0, confLbl, OBJPROP_SELECTABLE, false);
 
    // --- بک‌گراند رنگی ملایم و شفاف برای ناحیه سود (سبز) و ناحیه ریسک (قرمز) مشابه تریدینگ‌ویو ---
    // ۱. ناحیه سود (Profit Zone: بین نقطه ورود و تارگت‌ها)
@@ -448,14 +466,16 @@ void ExportAllTradesToCSV()
    if(handleSym != INVALID_HANDLE) FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed");
 
    datetime chartTime[];
-   double chartHigh[], chartLow[];
+   double chartHigh[], chartLow[], chartClose[];
    ArraySetAsSeries(chartTime, false);
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
+   ArraySetAsSeries(chartClose, false);
 
    int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
    CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
    CopyLow(_Symbol, _Period, 0, 250000, chartLow);
+   CopyClose(_Symbol, _Period, 0, 250000, chartClose);
    if(copied < 10)
    {
       FileClose(handle);
@@ -613,18 +633,17 @@ void ExportAllTradesToCSV()
 
       // شبیه‌سازی دقیق ورود بر اساس لایو بازار:
       // ۱. تایید هویت گره در لایو (confirmTime)
-      // ۲. پرتاب و خروج اولیه قیمت (hasDeparted)
-      // ۳. اردر لیمیت روی پولبک و ورود منحصراً در اولین بازگشت (First True Retest)
-      bool hasDeparted = false;
+      // ۲. پرتاب و کلوز کامل کندل در بیرون از محدوده (departedBar)
+      // ۳. اردر لیمیت روی پولبک و ورود منحصراً در کندل‌های بعدی (k > departedBar)
+      int departedBar = -1;
       for(int k = confirmIdx; k < copied; k++)
       {
-         if(!hasDeparted)
+         if(departedBar < 0)
          {
-            if(isBull && chartHigh[k] >= minDeparturePrice) hasDeparted = true;
-            else if(!isBull && chartLow[k] <= minDeparturePrice) hasDeparted = true;
+            if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
+            else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
          }
-
-         if(hasDeparted)
+         else
          {
             if(isBull)
             {
