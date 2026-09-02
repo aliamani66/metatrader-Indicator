@@ -535,35 +535,18 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, startTime);
       if(startSearchIdx < 0) startSearchIdx = 0;
 
-      double linePrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
-
-      // تشخیص جهت خروج قیمت از باکس: آیا قیمت از سقف خارج شده یا از کف؟
-      bool exitedTop = false;
-      bool exitedBottom = false;
-
-      for(int k = startSearchIdx; k < ratesTotal && k <= startSearchIdx + 3; k++)
-      {
-         if(chartHigh[k] > g_drawnBoxes[b].top + _Point) { exitedTop = true; break; }
-         if(chartLow[k] < g_drawnBoxes[b].bottom - _Point) { exitedBottom = true; break; }
-      }
-
-      bool cutFromAbove = exitedTop;
-      if(!exitedTop && !exitedBottom)
-      {
-         cutFromAbove = isBull;
-      }
-
-      // اگر قیمت از بالا خارج شده، سطح قطع شدن کف باکس است
-      // اگر قیمت از پایین خارج شده، سطح قطع شدن سقف باکس است
-      double cutPrice = cutFromAbove ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
+      // قانون اصیل پرایس‌اکشن:
+      // باکس صعودی حمایت است و به محض شکست کف (bottom) باطل و قطع می‌شود.
+      // باکس نزولی مقاومت است و به محض شکست سقف (top) باطل و قطع می‌شود.
+      double breakPrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
 
       bool isBroken = false;
       int breakIdx = ratesTotal - 1;
       for(int k = startSearchIdx + 1; k < ratesTotal; k++)
       {
-         if(cutFromAbove)
+         if(isBull)
          {
-            if(chartLow[k] < cutPrice)
+            if(chartLow[k] < breakPrice)
             {
                isBroken = true;
                breakIdx = k;
@@ -572,7 +555,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          }
          else
          {
-            if(chartHigh[k] > cutPrice)
+            if(chartHigh[k] > breakPrice)
             {
                isBroken = true;
                breakIdx = k;
@@ -585,7 +568,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       datetime endTime = isBroken ? chartTime[breakIdx] : liveTime;
       if(endTime <= g_drawnBoxes[b].t1 && ratesTotal > 0) endTime = liveTime;
 
-      // امتداد باکس به صورت مستطیل یکپارچه تا زمان شکست یا تا لایو بازار
+      // امتداد باکس دقیقا تا لحظه شکست سطح (و توقف کامل در کندل شکست)
       g_drawnBoxes[b].t2 = endTime;
 
       string srcRole = "Flag";
@@ -608,7 +591,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
                endTime <= g_drawnBoxes[ob].t2 + PeriodSeconds(g_drawnBoxes[ob].tf) * 5)
             {
                double tolerance = MathMax(pipSize * 2.0, (g_drawnBoxes[ob].top - g_drawnBoxes[ob].bottom) * 0.50);
-               if(linePrice >= (g_drawnBoxes[ob].bottom - tolerance) && linePrice <= (g_drawnBoxes[ob].top + tolerance))
+               if(breakPrice >= (g_drawnBoxes[ob].bottom - tolerance) && breakPrice <= (g_drawnBoxes[ob].top + tolerance))
                {
                   matchedBoxIdx = ob;
                   break;
@@ -636,49 +619,5 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
             }
          }
       }
-   }
-
-   // امتداد تمام باکس‌های سواپ (S-OInner, S-Flag, S-RS, S-LS) به سمت آینده تا زمان شکست با قیمت یا تا لایو بازار
-   for(int sb = 0; sb < g_boxCount; sb++)
-   {
-      if(!g_drawnBoxes[sb].isSwap) continue;
-      if(g_drawnBoxes[sb].top <= 0 || g_drawnBoxes[sb].bottom <= 0) continue;
-
-      bool sBull = g_drawnBoxes[sb].isSwapBull;
-      double linePrice = sBull ? g_drawnBoxes[sb].bottom : g_drawnBoxes[sb].top;
-      datetime origT2  = g_drawnBoxes[sb].t2;
-
-      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, origT2);
-      if(startSearchIdx < 0) startSearchIdx = 0;
-
-      bool isBroken = false;
-      int breakIdx = ratesTotal - 1;
-      for(int k = startSearchIdx + 1; k < ratesTotal; k++)
-      {
-         if(sBull)
-         {
-            if(chartLow[k] < linePrice)
-            {
-               isBroken = true;
-               breakIdx = k;
-               break;
-            }
-         }
-         else
-         {
-            if(chartHigh[k] > linePrice)
-            {
-               isBroken = true;
-               breakIdx = k;
-               break;
-            }
-         }
-      }
-
-      datetime liveTime = (ratesTotal > 0) ? chartTime[ratesTotal - 1] : 0;
-      datetime endTime = isBroken ? chartTime[breakIdx] : liveTime;
-      if(endTime <= g_drawnBoxes[sb].t1 && ratesTotal > 0) endTime = liveTime;
-
-      g_drawnBoxes[sb].t2 = endTime;
    }
 }

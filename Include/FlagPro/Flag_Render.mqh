@@ -155,17 +155,17 @@ void RenderFinalBoxes()
             tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
          }
 
-         // ===== اعمال فیلتر برترین الگوهای برنده (فقط ۷ سلطان طلایی سودده) =====
+         // ===== اعمال فیلتر برترین الگوهای برنده (فقط و فقط ۷ سلطان طلایی سودده) =====
          if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
          {
             bool isWinner = false;
-            if(StringFind(tagCombo, "OInner-BU > RS-BU") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "OInner-BU > RS-BE") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "OInner-BE > RS-BU") >= 0) isWinner = true;
-            else if(tagCombo == "RS-BU" || (StringFind(tagCombo, "RS-BU") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
-            else if(tagCombo == "RS-BE" || (StringFind(tagCombo, "RS-BE") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
-            else if(tagCombo == "OInner-BU" || (StringFind(tagCombo, "OInner-BU") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
-            else if(tagCombo == "OInner-BE" || (StringFind(tagCombo, "OInner-BE") == 0 && StringFind(tagCombo, ">") < 0)) isWinner = true;
+            if(tagCombo == "OInner-BU > RS-BU") isWinner = true;
+            else if(tagCombo == "OInner-BU > RS-BE") isWinner = true;
+            else if(tagCombo == "OInner-BE > RS-BU") isWinner = true;
+            else if(tagCombo == "RS-BU") isWinner = true;
+            else if(tagCombo == "RS-BE") isWinner = true;
+            else if(tagCombo == "OInner-BU") isWinner = true;
+            else if(tagCombo == "OInner-BE") isWinner = true;
             if(!isWinner) continue;
          }
          else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
