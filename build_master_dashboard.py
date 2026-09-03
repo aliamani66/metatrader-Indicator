@@ -185,8 +185,8 @@ def build_dashboard():
 
         # Eligibility Criteria for Kings:
         # 1. 100% Win Rate with at least 2 trades (Zero SL)
-        # OR 2. High King Score (>=200) with at least 5 trades and Win Rate 1:1 >= 55%
-        if is_perfect or (cnt >= 5 and final_score >= 200 and w1_p >= 55.0):
+        # OR 2. High King Score (>=100) with at least 5 trades and Win Rate 1:1 >= 50% (allowing M15 high-timeframe setups)
+        if is_perfect or (cnt >= 5 and final_score >= 100 and w1_p >= 50.0):
             qualified_kings.append({
                 'tf': tf, 'role': role, 'cnt': cnt,
                 'w1': w1, 'w2': w2, 'w3': w3, 'w4': w4, 'sl': sl,
