@@ -87,6 +87,21 @@ void ShowTradeSetupForBox(int boxIdx)
       else role = "Flag-" + (g_drawnBoxes[boxIdx].isBullish ? "BU" : "BE");
    }
 
+   // بررسی شرط سلاطین ۷ گانه (فقط ۷ الگوی طلایی مجاز به معامله هستند)
+   if(!IsGoldenTradeSetup(role))
+   {
+      string noTradeMsg = StringFormat(
+         "═══════════════════════════════════════════════════\n"
+         "📦 باکس %s [%s]\n"
+         "⚠️ این ساختار جزو ۷ سلطان طلایی معامله نیست.\n"
+         "👑 معامله منحصراً فقط روی ۷ الگوی برتر استراتژی مجاز است.\n"
+         "═══════════════════════════════════════════════════",
+         g_drawnBoxes[boxIdx].tfTag, role);
+      Comment(noTradeMsg);
+      Print(noTradeMsg);
+      return;
+   }
+
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = InpRSPipBuffer * pipSize;
 
@@ -560,9 +575,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
-      // فقط باکس‌های استراتژیک (LS, OInner, RS, Swap) حق ورود به معامله دارند
-      bool isStrategic = (isLS || isOI || isRS || isSwap);
-      if(!isStrategic) continue;
+      // معامله منحصراً فقط و فقط روی ۷ سلطان طلایی استراتژی انجام می‌شود
+      if(!IsGoldenTradeSetup(role)) continue;
 
       bool isBull = true;
       double entryPrice = 0;

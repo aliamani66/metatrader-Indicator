@@ -129,6 +129,35 @@ bool IsSetupFilteredOut(const string roleTag, const datetime entryTime, double r
 }
 
 //+------------------------------------------------------------------+
+//| سلاطین ۷ گانه استراتژی (منحصراً فقط این ۷ ساختار مجاز به معامله‌اند)|
+//+------------------------------------------------------------------+
+bool IsGoldenTradeSetup(const string roleTag)
+{
+   // ۱. رتبه اول: OInner-BE > RS-BU (وین‌ریت ۸۱.۲٪)
+   if(StringFind(roleTag, "OInner-BE > RS-BU") >= 0) return true;
+
+   // ۲. رتبه دوم: OInner-BU > RS-BE (وین‌ریت ۷۰.۶٪)
+   if(StringFind(roleTag, "OInner-BU > RS-BE") >= 0) return true;
+
+   // ۳. رتبه سوم: RS-BU (وین‌ریت ۶۸.۲٪)
+   if(roleTag == "RS-BU" || (StringFind(roleTag, "RS-BU") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+
+   // ۴. رتبه چهارم: OInner-BU > RS-BU (وین‌ریت ۶۷.۵٪)
+   if(StringFind(roleTag, "OInner-BU > RS-BU") >= 0) return true;
+
+   // ۵. رتبه پنجم: OInner-BU (وین‌ریت ۶۱.۳٪)
+   if(roleTag == "OInner-BU" || (StringFind(roleTag, "OInner-BU") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+
+   // ۶. رتبه ششم: OInner-BE (وین‌ریت ۶۰.۰٪)
+   if(roleTag == "OInner-BE" || (StringFind(roleTag, "OInner-BE") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+
+   // ۷. رتبه هفتم: RS-BE (وین‌ریت ۵۸.۹٪)
+   if(roleTag == "RS-BE" || (StringFind(roleTag, "RS-BE") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+
+   return false;
+}
+
+//+------------------------------------------------------------------+
 //| دریافت دلیل فیلتر شدن به همراه درصد دقت دقیق جهت نمایش در چارت  |
 //+------------------------------------------------------------------+
 string GetFilterRejectionReason(const string roleTag, const datetime entryTime, double riskPoints = 0.0)
