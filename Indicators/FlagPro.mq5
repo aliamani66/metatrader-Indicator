@@ -252,7 +252,7 @@ int OnCalculate(const int rates_total,
    ProcessOInnerBoxes();
 
    // پردازش سیستم سراسری سواپ
-   ProcessUniversalSwapLines(time, high, low, rates_total);
+   ProcessUniversalSwapLines(time, high, low, close, rates_total);
 
    // رسم نهایی باکس‌ها و مارکرهای مستقل
    RenderFinalBoxes();
