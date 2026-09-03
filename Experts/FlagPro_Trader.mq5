@@ -2,25 +2,27 @@
 //|                                              FlagPro_Trader.mq5  |
 //|                         FlagPro Autonomous Strategy Trader EA    |
 //|            Executes Real MT5 Orders in Tester & Live Accounts    |
+//|                 Multi-Stage Scale-Out & Auto Break-Even          |
 //+------------------------------------------------------------------+
 #property copyright   "FlagPro Quantitative Trading Systems"
 #property link        "https://github.com/aliamani66/metatrader-Indicator"
-#property version     "1.00"
-#property description "ربات معامله‌گر مستقل FlagPro - ثبت معاملات رسمی در تب Operations متاتریدر ۵"
+#property version     "1.01"
+#property description "ربات معامله‌گر مستقل FlagPro - سیستم خروج چندمرحله‌ای (Scale-Out) و بریک‌ایون خودکار"
 
 #include <Trade\Trade.mqh>
 #include <FlagPro\Flag_Types.mqh>
 
 //+------------------------------------------------------------------+
-//| INPUT PARAMETERS - تنظیمات معامله‌گری و مدیریت سرمایه               |
+//| INPUT PARAMETERS - تنظیمات معامله‌گری و خروج چندمرحله‌ای            |
 //+------------------------------------------------------------------+
-input group "=== 🤖 تنظیمات معامله‌گری و مدیریت ریسک (Trading & Risk) ==="
-input double           InpFixedLot               = 0.10;         // حجم ثابت معامله به لات (Fixed Lot)
-input bool             InpUseRiskPercent         = false;        // محاسبه پویای حجم بر اساس درصد ریسک حساب
-input double           InpRiskPercent            = 1.0;          // درصد ریسک در هر معامله (% Equity Risk)
-input int              InpTargetTPLevel          = 2;            // تارگت خروج برای اعمال در بروکر (1=TP1, 2=TP2, 3=TP3, 4=TP4)
+input group "=== 🎯 سیستم خروج چند مرحله‌ای (Scale-Out & Break-Even) ==="
+input bool             InpEnableScaleOut         = true;         // فعال‌سازی خروج ۴ مرحله‌ای (Scale-Out)
+input double           InpScaleOutLot            = 0.01;         // حجم هر یک از ۴ پوزیشن به لات (Fixed 0.01)
+input bool             InpMoveToBreakEven        = true;         // انتقال حد ضرر به نقطه ورود پس از لمس TP1 (Break-Even)
+input double           InpBEBufferPips           = 1.0;          // بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ)
+input bool             InpTrailToPreviousTP      = true;         // تریل هوشمند حد ضرر به تارگت‌های قبلی (Lock Profit)
 input double           InpMaxSLPips              = 30.0;         // حداکثر حد ضرر مجاز به پیپ (جلوگیری از استاپ‌های نامتعارف ماکرو)
-input int              InpMaxOpenPositions       = 1;            // حداکثر پوزیشن‌های باز همزمان (انضباط سرمایه)
+input int              InpMaxOpenGroups          = 1;            // حداکثر تعداد ستاپ‌های همزمان فعال (مدیریت ریسک)
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
 
@@ -181,9 +183,25 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 #include <FlagPro\Flag_Backtest.mqh>
 #include <FlagPro\Flag_Render.mqh>
 
+// ساختار مدیریت گروهی پوزیشن‌های ۴ مرحله‌ای
+struct SActiveTradeGroup
+{
+   string   tradeKey;
+   bool     isBuy;
+   double   entryPrice;
+   double   initialSL;
+   double   tp1, tp2, tp3, tp4;
+   ulong    tickets[4];
+   bool     beApplied;
+   bool     trailTP1Applied;
+   bool     trailTP2Applied;
+   bool     isFinished;
+};
+
 // متغیرهای گلوبال اکسپرت
-CTrade         m_trade;
-string         m_executedTradesKeys[];
+CTrade            m_trade;
+string            m_executedTradesKeys[];
+SActiveTradeGroup m_activeGroups[];
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -212,11 +230,12 @@ int OnInit()
    }
 
    ArrayResize(m_executedTradesKeys, 0);
+   ArrayResize(m_activeGroups, 0);
    ArrayResize(g_tradeSetups, 0);
    g_tradeCount = 0;
    g_testerStartBase = 0;
 
-   Print("🚀 FlagPro_Trader EA آماده به کار است. تم حرفه‌ای اعمال شد.");
+   Print("🚀 FlagPro_Trader EA آماده به کار است. سیستم خروج ۴ مرحله‌ای (Scale-Out) و بریک‌ایون فعال شد.");
    return INIT_SUCCEEDED;
 }
 
@@ -226,61 +245,37 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    ArrayResize(m_executedTradesKeys, 0);
+   ArrayResize(m_activeGroups, 0);
    ArrayResize(g_tradeSetups, 0);
    g_tradeCount = 0;
    g_testerStartBase = 0;
 }
 
 //+------------------------------------------------------------------+
-//| شمارش پوزیشن‌های باز این اکسپرت                                 |
+//| شمارش تعداد گروه‌های فعال معاملاتی                                |
 //+------------------------------------------------------------------+
-int CountOpenPositions()
+int CountOpenPositionGroups()
 {
    int count = 0;
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   for(int g = 0; g < ArraySize(m_activeGroups); g++)
    {
-      if(PositionGetSymbol(i) == _Symbol)
+      if(m_activeGroups[g].isFinished) continue;
+      bool hasOpen = false;
+      for(int p = 0; p < 4; p++)
       {
-         if(PositionGetInteger(POSITION_MAGIC) == (long)InpMagicNumber)
-            count++;
+         if(m_activeGroups[g].tickets[p] > 0)
+         {
+            if(PositionSelectByTicket(m_activeGroups[g].tickets[p]))
+            {
+               hasOpen = true;
+               break;
+            }
+         }
       }
+      if(hasOpen) count++;
+      else m_activeGroups[g].isFinished = true;
    }
    return count;
-}
-
-//+------------------------------------------------------------------+
-//| محاسبه پویای حجم معامله                                          |
-//+------------------------------------------------------------------+
-double CalculateTradeLot(double entryPrice, double slPrice)
-{
-   if(!InpUseRiskPercent || entryPrice <= 0 || slPrice <= 0)
-      return InpFixedLot;
-
-   double riskPoints = MathAbs(entryPrice - slPrice) / _Point;
-   if(riskPoints <= 0) return InpFixedLot;
-
-   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-   double riskMoney = equity * (InpRiskPercent / 100.0);
-
-   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-   double tickSize  = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-   if(tickSize <= 0) tickSize = _Point;
-   if(tickValue <= 0) tickValue = 1.0;
-
-   double pointValue = tickValue * (_Point / tickSize);
-   double riskPerLot = riskPoints * pointValue;
-   if(riskPerLot <= 0) return InpFixedLot;
-
-   double lot = riskMoney / riskPerLot;
-   double minLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-   double maxLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
-   double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-
-   lot = MathFloor(lot / lotStep) * lotStep;
-   if(lot < minLot) lot = minLot;
-   if(lot > maxLot) lot = maxLot;
-
-   return NormalizeDouble(lot, 2);
 }
 
 //+------------------------------------------------------------------+
@@ -294,6 +289,139 @@ bool IsTradeAlreadyExecuted(const string tradeKey)
          return true;
    }
    return false;
+}
+
+//+------------------------------------------------------------------+
+//| ارسال ایمن سفارش با مدیریت حالت‌های پر شدن بروکر (Filling Modes)  |
+//+------------------------------------------------------------------+
+ulong SafeSendOrder(bool isBuy, double lot, double price, double sl, double tp, string comment)
+{
+   bool success = false;
+   if(isBuy)
+      success = m_trade.Buy(lot, _Symbol, price, sl, tp, comment);
+   else
+      success = m_trade.Sell(lot, _Symbol, price, sl, tp, comment);
+
+   if(!success && (m_trade.ResultRetcode() == 10030 || m_trade.ResultRetcode() == TRADE_RETCODE_INVALID_FILL))
+   {
+      m_trade.SetTypeFilling(ORDER_FILLING_IOC);
+      price = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      success = isBuy ? m_trade.Buy(lot, _Symbol, price, sl, tp, comment)
+                      : m_trade.Sell(lot, _Symbol, price, sl, tp, comment);
+      if(!success)
+      {
+         m_trade.SetTypeFilling(ORDER_FILLING_FOK);
+         price = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+         success = isBuy ? m_trade.Buy(lot, _Symbol, price, sl, tp, comment)
+                         : m_trade.Sell(lot, _Symbol, price, sl, tp, comment);
+      }
+   }
+
+   if(success)
+      return m_trade.ResultOrder();
+   return 0;
+}
+
+//+------------------------------------------------------------------+
+//| مدیریت بریک‌ایون و تریل سود پوزیشن‌های فعال (Scale-Out Management) |
+//+------------------------------------------------------------------+
+void ManageActiveTradeGroups()
+{
+   double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
+   double currentBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double currentAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   for(int g = 0; g < ArraySize(m_activeGroups); g++)
+   {
+      if(m_activeGroups[g].isFinished) continue;
+
+      bool anyOpen = false;
+      bool ticketOpen[4] = {false, false, false, false};
+
+      for(int p = 0; p < 4; p++)
+      {
+         if(m_activeGroups[g].tickets[p] > 0)
+         {
+            if(PositionSelectByTicket(m_activeGroups[g].tickets[p]))
+            {
+               ticketOpen[p] = true;
+               anyOpen = true;
+            }
+         }
+      }
+
+      if(!anyOpen)
+      {
+         m_activeGroups[g].isFinished = true;
+         continue;
+      }
+
+      bool isBuy = m_activeGroups[g].isBuy;
+      double currentP = isBuy ? currentBid : currentAsk;
+
+      // مرحله ۱: انتقال به بریک‌ایون (Break-Even) پس از تاچ TP1 یا خروج پوزیشن اول
+      if(InpMoveToBreakEven && !m_activeGroups[g].beApplied)
+      {
+         bool tp1Reached = (!ticketOpen[0] && m_activeGroups[g].tickets[0] > 0) ||
+                           (isBuy ? (currentP >= m_activeGroups[g].tp1) : (currentP <= m_activeGroups[g].tp1));
+
+         if(tp1Reached)
+         {
+            double beBuffer = InpBEBufferPips * pipSize;
+            double bePrice = isBuy ? (m_activeGroups[g].entryPrice + beBuffer) : (m_activeGroups[g].entryPrice - beBuffer);
+            bePrice = NormalizeDouble(bePrice, _Digits);
+
+            for(int p = 1; p < 4; p++)
+            {
+               if(ticketOpen[p])
+               {
+                  m_trade.PositionModify(m_activeGroups[g].tickets[p], bePrice, PositionGetDouble(POSITION_TP));
+               }
+            }
+            m_activeGroups[g].beApplied = true;
+            PrintFormat("🛡️ [FlagPro BE] تارگت TP1 لمس شد! حد ضرر پوزیشن‌های باقی‌مانده به نقطه ورود (%.5f) منتقل گردید.", bePrice);
+         }
+      }
+
+      // مرحله ۲: تریل حد ضرر به TP1 پس از لمس TP2 جهت قفل سود قطعی
+      if(InpTrailToPreviousTP && m_activeGroups[g].beApplied && !m_activeGroups[g].trailTP1Applied)
+      {
+         bool tp2Reached = (!ticketOpen[1] && m_activeGroups[g].tickets[1] > 0) ||
+                           (isBuy ? (currentP >= m_activeGroups[g].tp2) : (currentP <= m_activeGroups[g].tp2));
+
+         if(tp2Reached)
+         {
+            double trailSL = NormalizeDouble(m_activeGroups[g].tp1, _Digits);
+            for(int p = 2; p < 4; p++)
+            {
+               if(ticketOpen[p])
+               {
+                  m_trade.PositionModify(m_activeGroups[g].tickets[p], trailSL, PositionGetDouble(POSITION_TP));
+               }
+            }
+            m_activeGroups[g].trailTP1Applied = true;
+            PrintFormat("🔒 [FlagPro Profit Lock] تارگت TP2 لمس شد! حد ضرر پوزیشن‌های ۳ و ۴ به TP1 (%.5f) تریل شد.", trailSL);
+         }
+      }
+
+      // مرحله ۳: تریل حد ضرر به TP2 پس از لمس TP3 تا پوزیشن ۴ تارگت نهایی ۱:۴ را بدود
+      if(InpTrailToPreviousTP && m_activeGroups[g].trailTP1Applied && !m_activeGroups[g].trailTP2Applied)
+      {
+         bool tp3Reached = (!ticketOpen[2] && m_activeGroups[g].tickets[2] > 0) ||
+                           (isBuy ? (currentP >= m_activeGroups[g].tp3) : (currentP <= m_activeGroups[g].tp3));
+
+         if(tp3Reached)
+         {
+            double trailSL = NormalizeDouble(m_activeGroups[g].tp2, _Digits);
+            if(ticketOpen[3])
+            {
+               m_trade.PositionModify(m_activeGroups[g].tickets[3], trailSL, PositionGetDouble(POSITION_TP));
+            }
+            m_activeGroups[g].trailTP2Applied = true;
+            PrintFormat("🚀 [FlagPro Runner Lock] تارگت TP3 لمس شد! حد ضرر پوزیشن ۴ به TP2 (%.5f) تریل شد تا تارگت ۱:۴ شکار شود.", trailSL);
+         }
+      }
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -358,8 +486,11 @@ void OnTick()
       }
    }
 
-   // بررسی ارسال سفارش جدید به تب Operations
-   if(CountOpenPositions() >= InpMaxOpenPositions)
+   // مدیریت تریل و بریک‌ایون تمام معاملات باز روی هر تیک
+   ManageActiveTradeGroups();
+
+   // بررسی ارسال پوزیشن‌های جدید
+   if(CountOpenPositionGroups() >= InpMaxOpenGroups)
       return;
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
@@ -379,59 +510,64 @@ void OnTick()
          riskDist = maxRiskDist;
       }
 
-      double targetDist = riskDist * (double)InpTargetTPLevel;
+      bool isBuy = g_tradeSetups[t].isBuy;
+      double entryP = g_tradeSetups[t].entryPrice;
 
-      double sl = g_tradeSetups[t].isBuy ? (g_tradeSetups[t].entryPrice - riskDist) : (g_tradeSetups[t].entryPrice + riskDist);
-      double tp = g_tradeSetups[t].isBuy ? (g_tradeSetups[t].entryPrice + targetDist) : (g_tradeSetups[t].entryPrice - targetDist);
+      double sl  = isBuy ? (entryP - riskDist) : (entryP + riskDist);
+      double tp1 = isBuy ? (entryP + riskDist * 1.0) : (entryP - riskDist * 1.0);
+      double tp2 = isBuy ? (entryP + riskDist * 2.0) : (entryP - riskDist * 2.0);
+      double tp3 = isBuy ? (entryP + riskDist * 3.0) : (entryP - riskDist * 3.0);
+      double tp4 = isBuy ? (entryP + riskDist * 4.0) : (entryP - riskDist * 4.0);
 
-      sl = NormalizeDouble(sl, _Digits);
-      tp = NormalizeDouble(tp, _Digits);
-      double lot = CalculateTradeLot(g_tradeSetups[t].entryPrice, sl);
+      sl  = NormalizeDouble(sl, _Digits);
+      tp1 = NormalizeDouble(tp1, _Digits);
+      tp2 = NormalizeDouble(tp2, _Digits);
+      tp3 = NormalizeDouble(tp3, _Digits);
+      tp4 = NormalizeDouble(tp4, _Digits);
 
-      string comment = "FlagPro [" + g_tradeSetups[t].boxRole + "]";
+      double tps[4] = {tp1, tp2, tp3, tp4};
+      ulong openedTickets[4] = {0, 0, 0, 0};
+      int successfulOrders = 0;
 
-      bool success = false;
       double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
       double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double sendPrice = isBuy ? ask : bid;
 
-      if(g_tradeSetups[t].isBuy)
+      // باز کردن ۴ پوزیشن همزمان (هر کدام با تارگت‌های TP1 تا TP4)
+      for(int p = 0; p < 4; p++)
       {
-         success = m_trade.Buy(lot, _Symbol, ask, sl, tp, comment);
-      }
-      else
-      {
-         success = m_trade.Sell(lot, _Symbol, bid, sl, tp, comment);
-      }
-
-      // در صورت خطای نحوه پر شدن (Filling Mode)، تغییر حالت و ارسال مجدد
-      if(!success && (m_trade.ResultRetcode() == 10030 || m_trade.ResultRetcode() == TRADE_RETCODE_INVALID_FILL))
-      {
-         m_trade.SetTypeFilling(ORDER_FILLING_IOC);
-         success = g_tradeSetups[t].isBuy ? m_trade.Buy(lot, _Symbol, ask, sl, tp, comment)
-                                          : m_trade.Sell(lot, _Symbol, bid, sl, tp, comment);
-         if(!success)
-         {
-            m_trade.SetTypeFilling(ORDER_FILLING_FOK);
-            success = g_tradeSetups[t].isBuy ? m_trade.Buy(lot, _Symbol, ask, sl, tp, comment)
-                                             : m_trade.Sell(lot, _Symbol, bid, sl, tp, comment);
-         }
+         string comment = StringFormat("FP [%s] TP%d", g_tradeSetups[t].boxRole, p + 1);
+         openedTickets[p] = SafeSendOrder(isBuy, InpScaleOutLot, sendPrice, sl, tps[p], comment);
+         if(openedTickets[p] > 0)
+            successfulOrders++;
       }
 
-      if(success)
+      if(successfulOrders > 0)
       {
          int newSize = ArraySize(m_executedTradesKeys) + 1;
          ArrayResize(m_executedTradesKeys, newSize);
          m_executedTradesKeys[newSize - 1] = tradeKey;
 
-         PrintFormat("✅ معامله رسمی در تب Operations ثبت شد | تیکت: %d | جهت: %s | حجم: %.2f | حد ضرر: %.5f | حد سود: %.5f | الگو: %s",
-                     m_trade.ResultOrder(),
-                     (g_tradeSetups[t].isBuy ? "BUY" : "SELL"),
-                     lot, sl, tp, g_tradeSetups[t].boxRole);
+         // ثبت گروه معاملاتی جهت مدیریت بریک‌ایون و تریلینگ
+         int gSize = ArraySize(m_activeGroups) + 1;
+         ArrayResize(m_activeGroups, gSize);
+         m_activeGroups[gSize - 1].tradeKey = tradeKey;
+         m_activeGroups[gSize - 1].isBuy = isBuy;
+         m_activeGroups[gSize - 1].entryPrice = sendPrice;
+         m_activeGroups[gSize - 1].initialSL = sl;
+         m_activeGroups[gSize - 1].tp1 = tp1;
+         m_activeGroups[gSize - 1].tp2 = tp2;
+         m_activeGroups[gSize - 1].tp3 = tp3;
+         m_activeGroups[gSize - 1].tp4 = tp4;
+         for(int p = 0; p < 4; p++) m_activeGroups[gSize - 1].tickets[p] = openedTickets[p];
+         m_activeGroups[gSize - 1].beApplied = false;
+         m_activeGroups[gSize - 1].trailTP1Applied = false;
+         m_activeGroups[gSize - 1].trailTP2Applied = false;
+         m_activeGroups[gSize - 1].isFinished = false;
+
+         PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت در Operations ثبت شد | جهت: %s | حجم: ۴ × %.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
+                     (isBuy ? "BUY" : "SELL"), InpScaleOutLot, sl, tp1, tp2, tp3, tp4);
          break;
-      }
-      else
-      {
-         PrintFormat("❌ خطا در ثبت سفارش متاتریدر: کد %d", m_trade.ResultRetcode());
       }
    }
 }
