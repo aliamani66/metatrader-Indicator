@@ -248,7 +248,11 @@ int OnCalculate(const int rates_total,
    ENUM_TIMEFRAMES tfArr[7]       = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
    bool            useArr[7]      = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
-   int             daysBackArr[7] = {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
+   int effectiveDays = (InpBacktestDays > 0) ? InpBacktestDays : 3;
+   int daysBackArr[7] = {0, 0, 0, 0,
+                         MathMin(InpM15DaysBack, effectiveDays),
+                         MathMin(InpM5DaysBack, effectiveDays),
+                         MathMin(InpM1DaysBack, effectiveDays)};
 
    // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)
    useArr[0] = false; // D1
@@ -271,31 +275,24 @@ int OnCalculate(const int rates_total,
       if(!useArr[s]) continue;
       ProcessTF(tfArr[s], InpSwingBars, tfColorArr[s], time, high, low, rates_total, daysBackArr[s]);
    }
-   Print("DEBUG: ProcessTF done, boxCount=", g_boxCount);
 
    // پردازش خطوط شکست RS و برچسب‌گذاری گره‌ها
    ProcessRSLinesFromLSBoxes(time, high, low, rates_total);
-   Print("DEBUG: ProcessRSLines done");
 
    // پردازش اولین گره بعد از پیووت مستقل به عنوان OInner
    ProcessOInnerBoxes();
-   Print("DEBUG: ProcessOInner done");
 
    // پردازش سیستم سراسری سواپ
    ProcessUniversalSwapLines(time, high, low, rates_total);
-   Print("DEBUG: ProcessUniversalSwapLines done, boxCount=", g_boxCount);
 
    // رسم نهایی باکس‌ها و مارکرهای مستقل
    RenderFinalBoxes();
-   Print("DEBUG: RenderFinalBoxes done");
    RenderFinalIndependentPivots(time, high, low, rates_total);
-   Print("DEBUG: RenderFinalIndependentPivots done");
 
    // اکسپورت خودکار گزارش جامع ستاپ‌ها به فایل CSV
    ExportAllTradesToCSV();
 
    if(!(bool)MQLInfoInteger(MQL_TESTER)) ChartRedraw(0);
-   Print("DEBUG: OnCalculate finish");
    return rates_total;
 }
 
