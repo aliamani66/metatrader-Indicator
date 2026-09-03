@@ -589,6 +589,273 @@ def build_dashboard():
     toxic_losses = len([r for r in sl_trades if is_toxic_pattern(r.get('Role', ''))])
     pure_flag_losses = len([r for r in sl_trades if is_pure_flag(r.get('Role', ''))])
 
+
+    # =========================================================================
+    # WEEKLY BREAKDOWN & CONSISTENCY ENGINE (هفته به هفته و سنجش پایداری)
+    # =========================================================================
+    weekly_data = defaultdict(lambda: {
+        'trades_all': [],
+        'trades_kings': [],
+        'boxes_all': defaultdict(list),
+        'boxes_kings': defaultdict(list)
+    })
+    box_weekly_history = defaultdict(lambda: defaultdict(list))
+    king_keys = {(k['role'], k['tf']) for k in qualified_kings}
+
+    def calc_scaleout_pnl(r):
+        pts = float(r.get('RiskPoints', 0.0))
+        hr = int(r.get('HitTargetRatio', 0))
+        if hr == 0: gross = - pts * 0.04
+        elif hr == 1: gross = pts * 0.02
+        elif hr in [2, 3]: gross = (pts * 0.02) + (pts * 2 * 0.01)
+        else: gross = (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+        return gross - friction_04_per_trade
+
+    for r in closed:
+        et = r.get('EntryTime', '')
+        if not et or et == 'None': continue
+        try:
+            dt = datetime.strptime(et, "%Y.%m.%d %H:%M")
+            yr, wk, _ = dt.isocalendar()
+            wk_key = (yr, wk)
+            role = r.get('Role', 'Unknown')
+            tf = r.get('Timeframe', 'M1')
+            b_key = f"{role} [{tf}]"
+            is_k = (role, tf) in king_keys
+
+            weekly_data[wk_key]['trades_all'].append(r)
+            weekly_data[wk_key]['boxes_all'][b_key].append(r)
+            box_weekly_history[b_key][wk_key].append(r)
+
+            if is_k:
+                weekly_data[wk_key]['trades_kings'].append(r)
+                weekly_data[wk_key]['boxes_kings'][b_key].append(r)
+        except:
+            continue
+
+    sorted_wk_keys = sorted(weekly_data.keys())
+
+    # 1. Weekly Consistency Ranking for All Boxes
+    consistency_list = []
+    for b_key, w_dict in box_weekly_history.items():
+        tot_wks = len(w_dict)
+        if tot_wks < 2: continue
+        green_wks = 0
+        red_wks = 0
+        flat_wks = 0
+        tot_pnl = 0.0
+        tot_t = 0
+        tot_w1 = 0
+        tot_sl = 0
+
+        for wk_k, t_list in w_dict.items():
+            w_pnl = sum(calc_scaleout_pnl(r) for r in t_list)
+            tot_pnl += w_pnl
+            tot_t += len(t_list)
+            tot_w1 += len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 1])
+            tot_sl += len([r for r in t_list if int(r.get('HitTargetRatio', 0)) == 0])
+            if w_pnl > 0.05: green_wks += 1
+            elif w_pnl < -0.05: red_wks += 1
+            else: flat_wks += 1
+
+        cons_pct = (green_wks / tot_wks) * 100 if tot_wks else 0
+        parts = b_key.rsplit(' [', 1)
+        r_name = parts[0]
+        tf_name = parts[1].rstrip(']') if len(parts) > 1 else 'M1'
+        is_k = (r_name, tf_name) in king_keys
+
+        consistency_list.append({
+            'box': b_key,
+            'role': r_name,
+            'tf': tf_name,
+            'is_king': is_k,
+            'weeks': tot_wks,
+            'green': green_wks,
+            'red': red_wks,
+            'flat': flat_wks,
+            'cons_pct': cons_pct,
+            'net_usd': tot_pnl,
+            'trades': tot_t,
+            'w1_pct': (tot_w1 / tot_t * 100) if tot_t else 0,
+            'sl_pct': (tot_sl / tot_t * 100) if tot_t else 0
+        })
+
+    consistency_list.sort(key=lambda x: (x['is_king'], x['cons_pct'] >= 65, x['green'], x['net_usd']), reverse=True)
+
+    weekly_consistency_rows_html = []
+    for idx, c in enumerate(consistency_list, 1):
+        k_tag = "👑 سلطان" if c['is_king'] else "سایر"
+        k_color = "#facc15" if c['is_king'] else "#94a3b8"
+        pnl_col = "#00e676" if c['net_usd'] >= 0 else "#ef4444"
+        badge = "💎 افسانه‌ای" if c['cons_pct'] >= 80 else ("⭐ عالی" if c['cons_pct'] >= 70 else ("🟢 خوب" if c['cons_pct'] >= 60 else "⚠️ نوسانی"))
+        badge_bg = "#064e3b" if c['cons_pct'] >= 70 else ("#1e3a8a" if c['cons_pct'] >= 60 else "#451a03")
+        badge_col = "#34d399" if c['cons_pct'] >= 70 else ("#93c5fd" if c['cons_pct'] >= 60 else "#fca5a5")
+
+        weekly_consistency_rows_html.append(f"""
+        <tr style="border-bottom:1px solid #1e293b;">
+            <td style="text-align:center;font-weight:bold;color:#94a3b8;">#{idx}</td>
+            <td style="font-weight:bold;color:{k_color};">{c['box']}</td>
+            <td style="text-align:center;"><span style="background:{'#854d0e' if c['is_king'] else '#1e293b'};color:{k_color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">{k_tag}</span></td>
+            <td style="text-align:center;font-weight:bold;">{c['trades']}</td>
+            <td style="text-align:center;">{c['weeks']} هفته</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{c['green']} 🟢</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{c['red']} 🔴</td>
+            <td style="text-align:center;font-weight:bold;color:#38bdf8;">{c['cons_pct']:.1f}%</td>
+            <td style="text-align:center;color:#00e676;">{c['w1_pct']:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;">{c['sl_pct']:.1f}%</td>
+            <td style="text-align:center;font-weight:bold;color:{pnl_col};">${c['net_usd']:+.2f}</td>
+            <td style="text-align:center;"><span style="background:{badge_bg};color:{badge_col};padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">{badge}</span></td>
+        </tr>
+        """)
+
+    # 2. Timeline & Details
+    weekly_timeline_rows_html = []
+    weekly_details_cards_html = []
+    weekly_dropdown_options = []
+
+    tot_kings_green_wks = 0
+    tot_kings_red_wks = 0
+    tot_kings_6m_pnl = 0.0
+
+    for yr, wk in sorted_wk_keys:
+        w_data = weekly_data[(yr, wk)]
+        t_all = w_data['trades_all']
+        t_kings = w_data['trades_kings']
+        
+        k_cnt = len(t_kings)
+        k_wins = len([r for r in t_kings if int(r.get('HitTargetRatio', 0)) >= 1])
+        k_losses = len([r for r in t_kings if int(r.get('HitTargetRatio', 0)) == 0])
+        k_wr = (k_wins / k_cnt * 100) if k_cnt else 0
+        k_loss_r = (k_losses / k_cnt * 100) if k_cnt else 0
+        k_pnl = sum(calc_scaleout_pnl(r) for r in t_kings)
+        tot_kings_6m_pnl += k_pnl
+        if k_pnl >= 0: tot_kings_green_wks += 1
+        else: tot_kings_red_wks += 1
+
+        all_cnt = len(t_all)
+        all_wins = len([r for r in t_all if int(r.get('HitTargetRatio', 0)) >= 1])
+        all_losses = len([r for r in t_all if int(r.get('HitTargetRatio', 0)) == 0])
+        all_wr = (all_wins / all_cnt * 100) if all_cnt else 0
+        all_loss_r = (all_losses / all_cnt * 100) if all_cnt else 0
+        all_pnl = sum(calc_scaleout_pnl(r) for r in t_all)
+
+        dts = [datetime.strptime(r['EntryTime'], '%Y.%m.%d %H:%M') for r in t_all]
+        date_range = f"{min(dts).strftime('%Y.%m.%d')} تا {max(dts).strftime('%m.%d')}"
+
+        best_k_name = "---"
+        best_k_pnl = -999999
+        for b_name, b_trades in w_data['boxes_kings'].items():
+            bp = sum(calc_scaleout_pnl(r) for r in b_trades)
+            if bp > best_k_pnl:
+                best_k_pnl = bp
+                best_k_name = f"{b_name} (+${bp:.2f})"
+        if best_k_pnl == -999999 or best_k_pnl <= 0:
+            best_k_name = "---"
+
+        best_all_name = "---"
+        best_all_pnl = -999999
+        for b_name, b_trades in w_data['boxes_all'].items():
+            bp = sum(calc_scaleout_pnl(r) for r in b_trades)
+            if bp > best_all_pnl:
+                best_all_pnl = bp
+                best_all_name = f"{b_name} (+${bp:.2f})"
+
+        k_stat_badge = "🟢 سبز" if k_pnl >= 0 else "🔴 قرمز"
+        k_stat_col = "#00e676" if k_pnl >= 0 else "#ef4444"
+        all_stat_badge = "🟢 سبز" if all_pnl >= 0 else "🔴 قرمز"
+        all_stat_col = "#00e676" if all_pnl >= 0 else "#ef4444"
+
+        weekly_timeline_rows_html.append(f"""
+        <tr class="wk-row wk-row-kings" style="border-bottom:1px solid #1e293b;">
+            <td style="text-align:center;font-weight:bold;color:#facc15;">هفته {wk}</td>
+            <td style="text-align:center;direction:ltr;font-family:monospace;font-size:12px;color:#94a3b8;">{date_range}</td>
+            <td style="text-align:center;font-weight:bold;">{k_cnt}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{k_wins}</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{k_losses}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{k_wr:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{k_loss_r:.1f}%</td>
+            <td style="text-align:center;font-weight:bold;color:{k_stat_col};">${k_pnl:+.2f}</td>
+            <td style="text-align:center;"><span style="color:{k_stat_col};font-weight:bold;">{k_stat_badge}</span></td>
+            <td style="text-align:center;color:#facc15;font-weight:bold;">{best_k_name}</td>
+            <td style="text-align:center;"><button class="sort-btn" style="padding:3px 10px;font-size:11px;" onclick="selectWeeklyDetail('wk-card-{yr}-{wk}')">👁️ کالبدشکافی باکس‌ها</button></td>
+        </tr>
+        <tr class="wk-row wk-row-all" style="border-bottom:1px solid #1e293b;display:none;">
+            <td style="text-align:center;font-weight:bold;color:#38bdf8;">هفته {wk}</td>
+            <td style="text-align:center;direction:ltr;font-family:monospace;font-size:12px;color:#94a3b8;">{date_range}</td>
+            <td style="text-align:center;font-weight:bold;">{all_cnt}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{all_wins}</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{all_losses}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{all_wr:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{all_loss_r:.1f}%</td>
+            <td style="text-align:center;font-weight:bold;color:{all_stat_col};">${all_pnl:+.2f}</td>
+            <td style="text-align:center;"><span style="color:{all_stat_col};font-weight:bold;">{all_stat_badge}</span></td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{best_all_name}</td>
+            <td style="text-align:center;"><button class="sort-btn" style="padding:3px 10px;font-size:11px;" onclick="selectWeeklyDetail('wk-card-{yr}-{wk}')">👁️ کالبدشکافی باکس‌ها</button></td>
+        </tr>
+        """)
+
+        weekly_dropdown_options.append(f'<option value="wk-card-{yr}-{wk}">هفته {wk} ({date_range}) - سود سلاطین: ${k_pnl:+.2f}</option>')
+
+        box_rows_html = []
+        sorted_boxes_this_wk = sorted(w_data['boxes_all'].items(), key=lambda x: sum(calc_scaleout_pnl(r) for r in x[1]), reverse=True)
+        for b_name, b_trades in sorted_boxes_this_wk:
+            b_cnt = len(b_trades)
+            b_wins = len([r for r in b_trades if int(r.get('HitTargetRatio', 0)) >= 1])
+            b_sl = len([r for r in b_trades if int(r.get('HitTargetRatio', 0)) == 0])
+            b_wr = (b_wins / b_cnt * 100) if b_cnt else 0
+            b_loss_r = (b_sl / b_cnt * 100) if b_cnt else 0
+            b_pnl = sum(calc_scaleout_pnl(r) for r in b_trades)
+            b_col = "#00e676" if b_pnl >= 0 else "#ef4444"
+            
+            parts = b_name.rsplit(' [', 1)
+            r_name = parts[0]
+            tf_name = parts[1].rstrip(']') if len(parts) > 1 else 'M1'
+            is_b_king = (r_name, tf_name) in king_keys
+            b_crown = "👑 " if is_b_king else ""
+            b_title_col = "#facc15" if is_b_king else "#e2e8f0"
+
+            box_rows_html.append(f"""
+            <tr style="border-bottom:1px solid #334155;">
+                <td style="color:{b_title_col};font-weight:bold;">{b_crown}{b_name}</td>
+                <td style="text-align:center;font-weight:bold;">{b_cnt}</td>
+                <td style="text-align:center;color:#00e676;font-weight:bold;">{b_wins}</td>
+                <td style="text-align:center;color:#ef4444;font-weight:bold;">{b_sl}</td>
+                <td style="text-align:center;color:#00e676;font-weight:bold;">{b_wr:.1f}%</td>
+                <td style="text-align:center;color:#ef4444;font-weight:bold;">{b_loss_r:.1f}%</td>
+                <td style="text-align:center;color:{b_col};font-weight:bold;">${b_pnl:+.2f}</td>
+            </tr>
+            """)
+
+        weekly_details_cards_html.append(f"""
+        <div id="wk-card-{yr}-{wk}" class="week-detail-card" style="display:none;background:#1e293b;border:1px solid #38bdf8;border-radius:10px;padding:16px;margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+                <h4 style="margin:0;color:#38bdf8;font-size:16px;">🔍 کالبدشکافی کامل تمام باکس‌های هفته {wk} ({date_range})</h4>
+                <div style="font-size:13px;color:#facc15;font-weight:bold;">سود دلاری سلاطین در این هفته: <span style="color:{k_stat_col};font-size:15px;">${k_pnl:+.2f}</span></div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;font-size:13px;">
+                    <thead>
+                        <tr style="background:#0f172a;color:#94a3b8;">
+                            <th>نام ساختار / باکس</th>
+                            <th style="text-align:center;">تعداد معامله</th>
+                            <th style="text-align:center;">برد (تاچ TP)</th>
+                            <th style="text-align:center;">باخت (SL)</th>
+                            <th style="text-align:center;">وین‌ریت %</th>
+                            <th style="text-align:center;">درصد استاپ %</th>
+                            <th style="text-align:center;">سود خالص دلاری ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {''.join(box_rows_html)}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """)
+
+    top_consistent_box = consistency_list[0]['box'] if consistency_list else 'N/A'
+    top_consistent_pct = consistency_list[0]['cons_pct'] if consistency_list else 0.0
+
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     html = f"""<!DOCTYPE html>
@@ -803,6 +1070,7 @@ def build_dashboard():
             <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین ۱۸ گانه</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">💎 خروج پلکانی و بریک‌ایون (0.04)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">📊 عملکرد تایم‌فریم‌ها (M1/M5/M15)</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-weekly')">📅 کالبدشکافی هفته به هفته</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-filters')">🛡️ فیلترهای ضد استاپ و مقایسه</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-financials')">💰 حسابداری دلاری 0.01 لات</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-all-patterns')">🏆 رتبه‌بندی تمام الگوها</button>
@@ -1360,9 +1628,154 @@ def build_dashboard():
                 </div>
             </div>
         </div>
+
+        <!-- ==================== TAB 8: 📅 WEEKLY BREAKDOWN & CONSISTENCY ==================== -->
+        <div id="tab-weekly" class="tab-content">
+            <!-- Weekly KPI Banner -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:20px;">
+                <div class="kpi-card" style="border-color:#38bdf8;">
+                    <div class="kpi-title">📅 کل هفته‌های کالبدشکافی‌شده</div>
+                    <div class="kpi-value" style="color:#38bdf8;">{len(sorted_wk_keys)} هفته</div>
+                    <div class="kpi-sub">پوشش کامل ۶ ماه اخیر</div>
+                </div>
+                <div class="kpi-card" style="border-color:#00e676;">
+                    <div class="kpi-title">🟢 هفته‌های سبز و سودده سلاطین</div>
+                    <div class="kpi-value" style="color:#00e676;">{tot_kings_green_wks} از {len(sorted_wk_keys)}</div>
+                    <div class="kpi-sub">{(tot_kings_green_wks/len(sorted_wk_keys)*100) if sorted_wk_keys else 0:.1f}٪ هفته‌ها در سود قطعی!</div>
+                </div>
+                <div class="kpi-card" style="border-color:#ef4444;">
+                    <div class="kpi-title">🔴 هفته‌های اصلاحی و استاپ سلاطین</div>
+                    <div class="kpi-value" style="color:#ef4444;">{tot_kings_red_wks} از {len(sorted_wk_keys)}</div>
+                    <div class="kpi-sub">{(tot_kings_red_wks/len(sorted_wk_keys)*100) if sorted_wk_keys else 0:.1f}٪ هفته‌های نوسانی و رنج</div>
+                </div>
+                <div class="kpi-card" style="border-color:#facc15;">
+                    <div class="kpi-title">👑 باثبات‌ترین سلطان دائمی چارت</div>
+                    <div class="kpi-value" style="color:#facc15;font-size:18px;">{top_consistent_box}</div>
+                    <div class="kpi-sub">ثبات هفتگی شگفت‌انگیز: {top_consistent_pct:.1f}٪</div>
+                </div>
+            </div>
+
+            <!-- SECTION 1: Consistency Ranking -->
+            <div class="section-box" style="border:1px solid #3b82f6;background:#0d1527;margin-bottom:24px;">
+                <div style="border-bottom:1px solid #1e3a8a;padding-bottom:12px;margin-bottom:16px;">
+                    <h3 style="margin:0;color:#60a5fa;font-size:19px;">🏆 جدول جامع رتبه‌بندی ثبات دائمی ساختارها (Consistency Leaderboard)</h3>
+                    <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">پاسخ به سوال کلیدی شما: کدام باکس‌ها هفته به هفته پایدارترین سودآوری را برای همیشه حفظ کرده‌اند؟</p>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#1e293b;color:#94a3b8;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th>نام ساختار و تایم‌فریم</th>
+                                <th style="text-align:center;">دسته‌بندی</th>
+                                <th style="text-align:center;">تعداد کل معامله</th>
+                                <th style="text-align:center;">هفته‌های فعال</th>
+                                <th style="text-align:center;">هفته‌های سبز 🟢</th>
+                                <th style="text-align:center;">هفته‌های قرمز 🔴</th>
+                                <th style="text-align:center;">درصد ثبات هفتگی</th>
+                                <th style="text-align:center;">وین‌ریت TP1</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;">سود کل ۶ ماه ($)</th>
+                                <th style="text-align:center;">نشان پایداری</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(weekly_consistency_rows_html)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 2: Master Weekly Timeline -->
+            <div class="section-box" style="border:1px solid #10b981;background:#061a14;margin-bottom:24px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #064e3b;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h3 style="margin:0;color:#34d399;font-size:19px;">📅 کارنامه کامل هفته به هفته (Master 26-Week Timeline)</h3>
+                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">کالبدشکافی پیوسته تمام ۲۶ هفته از آغاز مارس تا کنون با تفکیک برد، استاپ و برترین سلطان هفته:</p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="btnWkKings" class="sort-btn active" onclick="filterWeeklyMode('kings')">👑 فقط سلاطین ۱۸ گانه</button>
+                        <button id="btnWkAll" class="sort-btn" onclick="filterWeeklyMode('all')">🌐 کل ساختارهای چارت</button>
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#1e293b;color:#94a3b8;">
+                                <th style="text-align:center;">شماره هفته</th>
+                                <th style="text-align:center;">بازه تاریخ</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">برد (تارگت)</th>
+                                <th style="text-align:center;">استاپ (Loss)</th>
+                                <th style="text-align:center;">وین‌ریت %</th>
+                                <th style="text-align:center;">درصد استاپ %</th>
+                                <th style="text-align:center;">سود خالص دلاری ($)</th>
+                                <th style="text-align:center;">وضعیت هفته</th>
+                                <th style="text-align:center;">برترین سلطان هفته 🏆</th>
+                                <th style="text-align:center;">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(weekly_timeline_rows_html)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 3: Detailed Box Deep Dive per Week -->
+            <div class="section-box" style="border:1px solid #eab308;background:#171305;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #854d0e;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h3 style="margin:0;color:#facc15;font-size:19px;">🔬 کالبدشکافی جزئیات تک‌تک ساختارها در هر هفته انتخابی</h3>
+                        <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">یک هفته را انتخاب کنید تا ببینید هر باکس در آن هفته مشخص دقیقاً چند سود، چند استاپ و چه مقدار دلار ساخته است:</p>
+                    </div>
+                    <div>
+                        <select onchange="selectWeeklyDetail(this.value)" style="background:#1e293b;color:#f1f5f9;border:1px solid #475569;padding:8px 14px;border-radius:6px;font-size:13px;">
+                            <option value="">-- انتخاب هفته جهت مشاهده جدول اختصاصی باکس‌ها --</option>
+                            {''.join(weekly_dropdown_options)}
+                        </select>
+                    </div>
+                </div>
+
+                <div id="weeklyDetailsContainer">
+                    {''.join(weekly_details_cards_html)}
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
+
+        function selectWeeklyDetail(cardId) {{
+            if(!cardId) return;
+            document.querySelectorAll('.week-detail-card').forEach(c => c.style.display = 'none');
+            let el = document.getElementById(cardId);
+            if(el) {{
+                el.style.display = 'block';
+                el.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+            }}
+        }}
+
+        function filterWeeklyMode(mode) {{
+            let kingsRows = document.querySelectorAll('.wk-row-kings');
+            let allRows = document.querySelectorAll('.wk-row-all');
+            let btnKings = document.getElementById('btnWkKings');
+            let btnAll = document.getElementById('btnWkAll');
+            if(mode === 'kings') {{
+                kingsRows.forEach(r => r.style.display = '');
+                allRows.forEach(r => r.style.display = 'none');
+                if(btnKings) btnKings.classList.add('active');
+                if(btnAll) btnAll.classList.remove('active');
+            }} else {{
+                kingsRows.forEach(r => r.style.display = 'none');
+                allRows.forEach(r => r.style.display = '');
+                if(btnKings) btnKings.classList.remove('active');
+                if(btnAll) btnAll.classList.add('active');
+            }}
+        }}
+
         function openTab(evt, tabId) {{
             let contents = document.querySelectorAll('.tab-content');
             contents.forEach(c => c.classList.remove('active'));
