@@ -57,32 +57,32 @@ input int              InpM1DaysBack = 3;            // تاریخچه ۱ دقی
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
 input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
-input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
-input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های ۳۰ روز گذشته
+input bool             InpShowOnlyRSMicroBoxes  = false;  // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
+input bool             InpShowNormalMicroBoxes  = true;   // رسم کامل همه باکس‌های چارت (پیش‌فرض: فعال - هیچ باکسی حذف نشود)
 input string           InpRSTagPrefix           = "RS";   // پیشوند تگ‌های هوشمند (RS)
 
-input group "=== 🏆 فیلتر نمایش برترین الگوهای برنده (Top Winners Filter) ==="
-input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // نوع فیلتر نمایش باکس‌ها روی چارت (پیش‌فرض: فقط برترین الگوهای طلایی برنده)
-input bool InpShow_LSBU_OInnerBE = true;   // 💎 نمایش الگوی طلایی LS-BU > OInner-BE (وین‌ریت ۶۱٪)
-input bool InpShow_LSBE          = false;  // 💎 نمایش الگوی طلایی LS-BE (وین‌ریت ۵۰٪)
-input bool InpShow_OInnerBE_RSBE = false;  // 💎 نمایش الگوی طلایی OInner-BE > RS-BE (وین‌ریت ۱۰۰٪)
-input bool InpShow_SLS           = false;  // ⚡ نمایش سواپ‌های ال‌اس S-LS
-input bool InpShow_SOInner       = false;  // ⚡ نمایش سواپ‌های او‌اینر S-OInner
-input bool InpShow_OtherBoxes    = false;  // 📦 نمایش سایر باکس‌های عادی و فرعی
+input group "=== 🏆 فیلتر نمایش الگوهای برنده (Box Display Filter) ==="
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_SHOW_ALL; // نوع فیلتر نمایش باکس‌ها روی چارت (پیش‌فرض: نمایش همه باکس‌ها بدون حذف)
+input bool InpShow_LSBU_OInnerBE = true;   // 💎 نمایش الگوی طلایی LS-BU > OInner-BE
+input bool InpShow_LSBE          = true;   // 💎 نمایش الگوی طلایی LS-BE
+input bool InpShow_OInnerBE_RSBE = true;   // 💎 نمایش الگوی طلایی OInner-BE > RS-BE
+input bool InpShow_SLS           = true;   // ⚡ نمایش سواپ‌های ال‌اس S-LS
+input bool InpShow_SOInner       = true;   // ⚡ نمایش سواپ‌های او‌اینر S-OInner
+input bool InpShow_OtherBoxes    = true;   // 📦 نمایش سایر باکس‌های عادی و فرعی
 
 input group "=== 🛡️ فیلترهای هوشمند ضد استاپ (Anti-SL Filters) ==="
-input bool InpFilterSingleLS     = true;   // 🛡️ فیلتر ۱: حذف باکس‌های منفرد LS (دقت: ۶۸.۶٪ | از هر ۱۰ تا، ۷ تا استاپ بود)
-input bool InpFilterNightHours   = true;   // 🛡️ فیلتر ۲: مسدودسازی بازه شب ۲۱ تا ۰۱ (دقت: ۶۵.۲٪ | از هر ۳ تا، ۲ تا استاپ بود)
-input bool InpFilterPreLondonHunt= true;   // 🛡️ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ قبل لندن (دقت: ۵۸.۷٪ | از هر ۱۰ تا، ۶ تا استاپ بود)
-input bool InpFilterToxicPatterns= true;   // 🛡️ فیلتر ۴: حذف زنجیره‌های سمی (دقت: ۷۰.۶٪ | از هر ۱۰ تا، ۷ تا استاپ بود)
-input bool InpFilterPureFlags    = true;   // 🛡️ فیلتر ۵: حذف فلگ‌های بدون تلاقی (دقت: ۶۰.۳٪ | از هر ۵ تا، ۳ تا استاپ بود)
-input bool InpHideFilteredBoxes  = true;   // مخفی‌سازی کامل باکس‌های فیلترشده از روی چارت (پیش‌فرض: روشن)
+input bool InpFilterSingleLS     = false;  // 🛡️ فیلتر ۱: حذف باکس‌های منفرد LS
+input bool InpFilterNightHours   = false;  // 🛡️ فیلتر ۲: مسدودسازی بازه شب ۲۱ تا ۰۱
+input bool InpFilterPreLondonHunt= false;  // 🛡️ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ قبل لندن
+input bool InpFilterToxicPatterns= false;  // 🛡️ فیلتر ۴: حذف زنجیره‌های سمی
+input bool InpFilterPureFlags    = false;  // 🛡️ فیلتر ۵: حذف فلگ‌های بدون تلاقی
+input bool InpHideFilteredBoxes  = false;  // مخفی‌سازی باکس‌های فیلترشده از روی چارت (پیش‌فرض: خاموش تا باکس‌ها روی چارت حفظ شوند)
 
 input group "=== 💰 فیلتر اقتصادی و اصطکاک کارمزد (Friction & Commission Filter) ==="
-input bool   InpFilterLowRewardVsFriction = true;   // 💰 فیلتر عدم ورود اگر سود TP1 کمتر یا سربه‌سر با کمیسیون باشد
+input bool   InpFilterLowRewardVsFriction = false;  // 💰 فیلتر عدم ورود اگر سود کمتر از کمیسیون باشد
 input double InpBrokerCommissionPerLot    = 6.0;    // کمیسیون بروکر در هر ۱ لات کامل ($)
 input double InpEstimatedSpreadPips       = 0.8;    // اسپرد تخمینی معامله (پیپ)
-input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سود TP1 به کل اصطکاک (1.0 = سود TP1 قطعا بیشتر از هزینه باشد)
+input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سود TP1 به کل اصطکاک
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)

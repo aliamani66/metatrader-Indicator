@@ -63,7 +63,7 @@ void RenderFinalBoxes()
 
       // در تایم ۱ دقیقه (M1) فقط و فقط باکس‌های استراتژیک (LS, OInner, RS و سواپ‌های آن‌ها مثل S-LS, S-OInner, S-RS) رسم شوند
       // فلگ‌های عادی و یا سواپ فلگ‌های معمولی (S-Flag) در ۱ دقیقه هرگز رسم نشوند
-      if(g_drawnBoxes[b].tf == PERIOD_M1)
+      if(g_drawnBoxes[b].tf == PERIOD_M1 && !InpShowNormalMicroBoxes)
       {
          bool isStrategicM1 = false;
          for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
