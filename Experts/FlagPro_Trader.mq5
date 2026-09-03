@@ -70,14 +70,15 @@ input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌ه�
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
 input string           InpRSTagPrefix           = "RS";   // پیشوند تگ‌های هوشمند (RS)
 
-input group "=== 🏆 فیلتر نمایش الگوهای برنده (Box Display Filter) ==="
-input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY;
-input bool InpShow_LSBU_OInnerBE = true;   // 💎 نمایش الگوی طلایی LS-BU > OInner-BE
-input bool InpShow_LSBE          = false;  // 💎 نمایش الگوی طلایی LS-BE
-input bool InpShow_OInnerBE_RSBE = false;  // 💎 نمایش الگوی طلایی OInner-BE > RS-BE
-input bool InpShow_SLS           = false;  // ⚡ نمایش سواپ‌های ال‌اس S-LS
-input bool InpShow_SOInner       = false;  // ⚡ نمایش سواپ‌های او‌اینر S-OInner
-input bool InpShow_OtherBoxes    = false;  // 📦 نمایش سایر باکس‌های عادی و فرعی
+input group "=== 👑 سلاطین ۷ گانه معاملاتی (Golden Kings) ==="
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها (فقط الگوهای برنده فعال)
+input bool InpTrade_OInnerBE_RSBU = true; // 🥇 سلطان ۱: OInner-BE > RS-BU (وین‌ریت ۸۱.۲٪)
+input bool InpTrade_OInnerBU_RSBE = true; // 🥈 سلطان ۲: OInner-BU > RS-BE (وین‌ریت ۷۰.۶٪)
+input bool InpTrade_RSBU          = true; // 🥉 سلطان ۳: RS-BU (وین‌ریت ۶۸.۲٪)
+input bool InpTrade_OInnerBU_RSBU = true; // 🌟 سلطان ۴: OInner-BU > RS-BU (وین‌ریت ۶۷.۵٪)
+input bool InpTrade_OInnerBU      = true; // 👑 سلطان ۵: OInner-BU (وین‌ریت ۶۱.۳٪)
+input bool InpTrade_OInnerBE      = true; // 👑 سلطان ۶: OInner-BE (وین‌ریت ۶۰.۰٪)
+input bool InpTrade_RSBE          = true; // ⭐ سلطان ۷: RS-BE (وین‌ریت ۵۸.۹٪)
 
 input group "=== 🛡️ فیلترهای هوشمند ضد استاپ (Anti-SL Filters) ==="
 input bool InpFilterSingleLS     = true;   // 🛡️ فیلتر ۱: حذف باکس‌های منفرد LS

@@ -121,7 +121,7 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
 
       if(!hasRSTags)
       {
-         if(InpBoxDisplayFilter != FILTER_SHOW_ALL && !InpShow_OtherBoxes)
+         if(InpBoxDisplayFilter != FILTER_SHOW_ALL)
             continue;
       }
 
@@ -172,21 +172,7 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
          // ===== اعمال فیلتر هوشمند الگوها =====
          if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
          {
-            bool isStrategic = (isLS || isOI || isRS || isSwap);
-            if(!isStrategic)
-               continue;
-         }
-         else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
-         {
-            bool allowed = false;
-            if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS") >= 0) allowed = true;
-            else if(InpShow_LSBE && StringFind(tagCombo, "LS") >= 0) allowed = true;
-            else if(InpShow_OInnerBE_RSBE && (StringFind(tagCombo, "OInner") >= 0 || StringFind(tagCombo, "RS") >= 0)) allowed = true;
-            else if(InpShow_SLS && StringFind(tagCombo, "S-LS") >= 0) allowed = true;
-            else if(InpShow_SOInner && StringFind(tagCombo, "S-OInner") >= 0) allowed = true;
-            else if(InpShow_OtherBoxes) allowed = true;
-
-            if(!allowed)
+            if(!IsGoldenTradeSetup(tagCombo))
                continue;
          }
 

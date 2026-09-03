@@ -129,30 +129,37 @@ bool IsSetupFilteredOut(const string roleTag, const datetime entryTime, double r
 }
 
 //+------------------------------------------------------------------+
-//| سلاطین ۷ گانه استراتژی (منحصراً فقط این ۷ ساختار مجاز به معامله‌اند)|
+//| سلاطین ۷ گانه استراتژی (کنترل مجزا با سوئیچ‌های اینپوت)           |
 //+------------------------------------------------------------------+
 bool IsGoldenTradeSetup(const string roleTag)
 {
    // ۱. رتبه اول: OInner-BE > RS-BU (وین‌ریت ۸۱.۲٪)
-   if(StringFind(roleTag, "OInner-BE > RS-BU") >= 0) return true;
+   if(StringFind(roleTag, "OInner-BE > RS-BU") >= 0)
+      return InpTrade_OInnerBE_RSBU;
 
    // ۲. رتبه دوم: OInner-BU > RS-BE (وین‌ریت ۷۰.۶٪)
-   if(StringFind(roleTag, "OInner-BU > RS-BE") >= 0) return true;
+   if(StringFind(roleTag, "OInner-BU > RS-BE") >= 0)
+      return InpTrade_OInnerBU_RSBE;
 
    // ۳. رتبه سوم: RS-BU (وین‌ریت ۶۸.۲٪)
-   if(roleTag == "RS-BU" || (StringFind(roleTag, "RS-BU") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+   if(roleTag == "RS-BU" || (StringFind(roleTag, "RS-BU") >= 0 && StringFind(roleTag, ">") < 0))
+      return InpTrade_RSBU;
 
    // ۴. رتبه چهارم: OInner-BU > RS-BU (وین‌ریت ۶۷.۵٪)
-   if(StringFind(roleTag, "OInner-BU > RS-BU") >= 0) return true;
+   if(StringFind(roleTag, "OInner-BU > RS-BU") >= 0)
+      return InpTrade_OInnerBU_RSBU;
 
    // ۵. رتبه پنجم: OInner-BU (وین‌ریت ۶۱.۳٪)
-   if(roleTag == "OInner-BU" || (StringFind(roleTag, "OInner-BU") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+   if(roleTag == "OInner-BU" || (StringFind(roleTag, "OInner-BU") >= 0 && StringFind(roleTag, ">") < 0))
+      return InpTrade_OInnerBU;
 
    // ۶. رتبه ششم: OInner-BE (وین‌ریت ۶۰.۰٪)
-   if(roleTag == "OInner-BE" || (StringFind(roleTag, "OInner-BE") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+   if(roleTag == "OInner-BE" || (StringFind(roleTag, "OInner-BE") >= 0 && StringFind(roleTag, ">") < 0))
+      return InpTrade_OInnerBE;
 
    // ۷. رتبه هفتم: RS-BE (وین‌ریت ۵۸.۹٪)
-   if(roleTag == "RS-BE" || (StringFind(roleTag, "RS-BE") >= 0 && StringFind(roleTag, ">") < 0)) return true;
+   if(roleTag == "RS-BE" || (StringFind(roleTag, "RS-BE") >= 0 && StringFind(roleTag, ">") < 0))
+      return InpTrade_RSBE;
 
    return false;
 }
