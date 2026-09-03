@@ -188,19 +188,37 @@ void ShowTradeSetupForBox(int boxIdx)
    if(maxBoxTime <= confirmTime) 
       maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
 
+   int cancelBarIdx = -1;
+   string cancelReasonStr = "";
+
    for(int k = confirmIdx; k < copied; k++)
    {
       // ابطال ۱: انقضای زمانی معامله با گذشت از اعتبار باکس
-      if(chartTime[k] > maxBoxTime) break;
+      if(chartTime[k] > maxBoxTime)
+      {
+         cancelBarIdx = k;
+         cancelReasonStr = "EXPIRED ⏱ (پایان اعتبار زمانی باکس)";
+         break;
+      }
 
       // ابطال ۲: برخورد قیمت به حد ضرر در هر زمان (حتی قبل از پرتاب) ستاپ را فوراً لغو می‌کند
       if(isBull)
       {
-         if(chartLow[k] <= slPrice) break;
+         if(chartLow[k] <= slPrice)
+         {
+            cancelBarIdx = k;
+            cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
+            break;
+         }
       }
       else
       {
-         if(chartHigh[k] >= slPrice) break;
+         if(chartHigh[k] >= slPrice)
+         {
+            cancelBarIdx = k;
+            cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
+            break;
+         }
       }
 
       if(departedBar < 0)
@@ -210,7 +228,12 @@ void ShowTradeSetupForBox(int boxIdx)
          else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
 
          // مهلت خروج اولیه از باکس حداکثر ۳۰ کندل
-         if(k - confirmIdx > 30) break;
+         if(k - confirmIdx > 30)
+         {
+            cancelBarIdx = k;
+            cancelReasonStr = "NO BREAKOUT ⏱ (عدم خروج قیمت از گره)";
+            break;
+         }
       }
       else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
       {
@@ -236,7 +259,12 @@ void ShowTradeSetupForBox(int boxIdx)
          }
 
          // مهلت بازگشت پولبک حداکثر ۶۰ کندل بعد از پرتاب
-         if(k - departedBar > 60) break;
+         if(k - departedBar > 60)
+         {
+            cancelBarIdx = k;
+            cancelReasonStr = "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";
+            break;
+         }
       }
    }
 
@@ -247,7 +275,10 @@ void ShowTradeSetupForBox(int boxIdx)
    if(!isEntered)
    {
       entryTime = confirmTime;
-      exitTime  = chartTime[copied - 1];
+      if(cancelBarIdx >= 0)
+         exitTime = chartTime[cancelBarIdx];
+      else
+         exitTime = chartTime[copied - 1];
    }
    else
    {
@@ -404,7 +435,19 @@ void ShowTradeSetupForBox(int boxIdx)
 
    string resText = "";
    color resColor = clrSilver;
-   if(!isEntered)        { resText = "PENDING ⏳"; resColor = clrSilver; }
+   if(!isEntered)
+   {
+      if(cancelReasonStr != "")
+      {
+         resText = cancelReasonStr;
+         resColor = (StringFind(cancelReasonStr, "CANCELLED") >= 0) ? clrSalmon : clrSilver;
+      }
+      else
+      {
+         resText = "PENDING ⏳ (در انتظار پولبک لایو)";
+         resColor = clrGold;
+      }
+   }
    else if(hitTP == 4)   { resText = "WIN 1:4 🎯"; resColor = clrLime; }
    else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = clrMediumSpringGreen; }
    else if(hitTP == 2)   { resText = "WIN 1:2 ✨"; resColor = clrSpringGreen; }
