@@ -71,7 +71,7 @@ def build_dashboard():
     min_date = min(dates) if dates else 'نامشخص'
     max_date = max(dates) if dates else 'نامشخص'
 
-    # Filter analysis (Before vs After)
+    # Filter evaluation
     accepted_trades = []
     rejected_trades = []
 
@@ -107,7 +107,7 @@ def build_dashboard():
         else:
             accepted_trades.append(r)
 
-    # Filter metrics Before
+    # Metrics Before
     w1_cnt_b = len([r for r in closed if int(r.get('HitTargetRatio', 0)) >= 1])
     w2_cnt_b = len([r for r in closed if int(r.get('HitTargetRatio', 0)) >= 2])
     sl_cnt_b = len([r for r in closed if int(r.get('HitTargetRatio', 0)) == 0])
@@ -116,7 +116,7 @@ def build_dashboard():
     sl_rate_b = sl_cnt_b / len(closed) * 100 if closed else 0
     ev_b = (w2_rate_b / 100.0 * 2.0) - (sl_rate_b / 100.0 * 1.0)
 
-    # Filter metrics After
+    # Metrics After
     w1_cnt_a = len([r for r in accepted_trades if int(r.get('HitTargetRatio', 0)) >= 1])
     w2_cnt_a = len([r for r in accepted_trades if int(r.get('HitTargetRatio', 0)) >= 2])
     sl_cnt_a = len([r for r in accepted_trades if int(r.get('HitTargetRatio', 0)) == 0])
@@ -141,8 +141,8 @@ def build_dashboard():
 
     kings_trades = [r for r in closed if any(r.get('Role') == k[0] for k in kings_7_defs)]
     tot_k_cnt = len(kings_trades)
-
-    friction_04_per_trade = 0.48 # $0.24 comm + $0.24 spread per trade
+    friction_04_per_trade = 0.48
+    tot_k_fric = tot_k_cnt * friction_04_per_trade
 
     kings_rows_html = []
     for role_name, rank_icon, rank_label in kings_7_defs:
@@ -202,76 +202,44 @@ def build_dashboard():
         </tr>
         """)
 
-    # Dynamic 0.04 Lot 3-Way Scale-Out Strategy Calculation
-    tot_k_fric = tot_k_cnt * friction_04_per_trade
-
-    # Strategy 1: 100% at TP1
-    s1_gross = 0.0
-    s1_w_sum = 0.0
-    s1_l_sum = 0.0
+    # Dynamic 0.04 Scale-Out Comparison
+    # Strategy 1: Fixed 1:1
+    s1_gross, s1_w, s1_l = 0.0, 0.0, 0.0
     for r in kings_trades:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr >= 1:
-            win = pts * 0.04
-            s1_gross += win
-            s1_w_sum += win
-        else:
-            loss = pts * 0.04
-            s1_gross -= loss
-            s1_l_sum += loss
+        if hr >= 1: win = pts * 0.04; s1_gross += win; s1_w += win
+        else: loss = pts * 0.04; s1_gross -= loss; s1_l += loss
     s1_net = s1_gross - tot_k_fric
-    s1_pf = s1_w_sum / s1_l_sum if s1_l_sum > 0 else 0.0
+    s1_pf = s1_w / s1_l if s1_l > 0 else 0.0
 
-    # Strategy 2: 100% at TP2
-    s2_gross = 0.0
-    s2_w_sum = 0.0
-    s2_l_sum = 0.0
+    # Strategy 2: Fixed 1:2
+    s2_gross, s2_w, s2_l = 0.0, 0.0, 0.0
     for r in kings_trades:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr >= 2:
-            win = pts * 2 * 0.04
-            s2_gross += win
-            s2_w_sum += win
-        else:
-            loss = pts * 0.04
-            s2_gross -= loss
-            s2_l_sum += loss
+        if hr >= 2: win = pts * 2 * 0.04; s2_gross += win; s2_w += win
+        else: loss = pts * 0.04; s2_gross -= loss; s2_l += loss
     s2_net = s2_gross - tot_k_fric
-    s2_pf = s2_w_sum / s2_l_sum if s2_l_sum > 0 else 0.0
+    s2_pf = s2_w / s2_l if s2_l > 0 else 0.0
     s2_diff_dollar = s2_net - s1_net
     s2_diff_pct = (s2_net - s1_net) / abs(s1_net) * 100 if s1_net != 0 else 0.0
 
     # Strategy 3: Multi-Stage Scale-Out (50% TP1 + BE, 25% TP2 + Lock, 25% TP4 Runner)
-    s3_gross = 0.0
-    s3_w_sum = 0.0
-    s3_l_sum = 0.0
+    s3_gross, s3_w, s3_l = 0.0, 0.0, 0.0
     for r in kings_trades:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr == 0:
-            loss = pts * 0.04
-            s3_gross -= loss
-            s3_l_sum += loss
-        elif hr == 1:
-            win = pts * 0.02
-            s3_gross += win
-            s3_w_sum += win
-        elif hr in [2, 3]:
-            win = (pts * 0.02) + (pts * 2 * 0.01)
-            s3_gross += win
-            s3_w_sum += win
-        elif hr >= 4:
-            win = (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
-            s3_gross += win
-            s3_w_sum += win
+        if hr == 0: loss = pts * 0.04; s3_gross -= loss; s3_l += loss
+        elif hr == 1: win = pts * 0.02; s3_gross += win; s3_w += win
+        elif hr in [2, 3]: win = (pts * 0.02) + (pts * 2 * 0.01); s3_gross += win; s3_w += win
+        elif hr >= 4: win = (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01); s3_gross += win; s3_w += win
     s3_net = s3_gross - tot_k_fric
-    s3_pf = s3_w_sum / s3_l_sum if s3_l_sum > 0 else 0.0
+    s3_pf = s3_w / s3_l if s3_l > 0 else 0.0
     s3_diff_dollar = s3_net - s1_net
     s3_diff_pct = (s3_net - s1_net) / abs(s1_net) * 100 if s1_net != 0 else 0.0
 
-    # Dynamic Break-Even Analysis (Mode 1 BE at TP1 vs Mode 2 BE at TP2)
+    # Break-Even Comparison: TP1 vs TP2
     sl_direct = len([r for r in kings_trades if int(r.get('HitTargetRatio', 0)) == 0])
     tp1_only  = len([r for r in kings_trades if int(r.get('HitTargetRatio', 0)) == 1])
     tp2_only  = len([r for r in kings_trades if int(r.get('HitTargetRatio', 0)) == 2])
@@ -282,11 +250,9 @@ def build_dashboard():
     tp2_only_pct  = tp2_only / tot_k_cnt * 100 if tot_k_cnt else 0
     tp3_4_pct     = tp3_4 / tot_k_cnt * 100 if tot_k_cnt else 0
 
-    # Mode 1 Net (BE at TP1)
     m1_gross = s3_gross
     m1_net = s3_net
 
-    # Mode 2 Net (BE at TP2: if trade reverses at TP1, the 0.02 runner hits original SL)
     m2_gross = 0.0
     for r in kings_trades:
         pts = float(r.get('RiskPoints', 0.0))
@@ -298,7 +264,7 @@ def build_dashboard():
     m2_net = m2_gross - tot_k_fric
     be_diff = m1_net - m2_net
 
-    # Dynamic Timeframes Performance Table (Summary: M1, M5, M15)
+    # Timeframe Summary (M1, M5, M15)
     tf_map = defaultdict(list)
     for r in closed:
         tf_map[r.get('Timeframe', 'Unknown')].append(r)
@@ -338,46 +304,64 @@ def build_dashboard():
         </tr>
         """)
 
-    # Dynamic Financial Accounting for 0.01 Lot
+    # Interactive Timeframe-Role Table
+    tf_role_map = defaultdict(list)
+    for r in closed:
+        tf_role_map[(r.get('Timeframe', 'M1'), r.get('Role', 'Unknown'))].append(r)
+
+    tf_role_rows = []
+    for (tf, role), t_list in sorted(tf_role_map.items(), key=lambda x: (x[0][0], -len(x[1]))):
+        cnt = len(t_list)
+        w1 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 1])
+        w2 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 2])
+        w3 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 3])
+        w4 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 4])
+        sl = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) == 0])
+
+        w1_p = w1 / cnt * 100
+        w2_p = w2 / cnt * 100
+        sl_p = sl / cnt * 100
+        ev_item = (w2_p / 100.0 * 2.0) - (sl_p / 100.0 * 1.0)
+        ev_col = "#00e676" if ev_item >= 0.2 else ("#38bdf8" if ev_item >= 0 else "#ef4444")
+
+        tf_role_rows.append(f"""
+        <tr class="tf-row" data-tf="{tf}">
+            <td style="color:#38bdf8;font-weight:bold;">{tf}</td>
+            <td style="color:#facc15;font-weight:bold;">{role}</td>
+            <td style="text-align:center;font-weight:bold;">{cnt}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{w1_p:.1f}%</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{w2_p:.1f}%</td>
+            <td style="text-align:center;color:#38bdf8;">{w3/cnt*100:.1f}%</td>
+            <td style="text-align:center;color:#c084fc;">{w4/cnt*100:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl_p:.1f}%</td>
+            <td style="text-align:center;color:{ev_col};font-weight:bold;">{ev_item:+.2f} R</td>
+        </tr>
+        """)
+
+    # Financial 0.01 Lot
     f01_comm = len(closed) * 0.06
     f01_spread = len(closed) * 0.06
     f01_friction = f01_comm + f01_spread
 
-    f01_gross_tp1 = 0.0
-    f01_wins_tp1 = 0.0
-    f01_loss_tp1 = 0.0
+    f01_gross_tp1, f01_w1, f01_l1 = 0.0, 0.0, 0.0
     for r in closed:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr >= 1:
-            win = pts * 0.01
-            f01_gross_tp1 += win
-            f01_wins_tp1 += win
-        else:
-            loss = pts * 0.01
-            f01_gross_tp1 -= loss
-            f01_loss_tp1 += loss
+        if hr >= 1: win = pts * 0.01; f01_gross_tp1 += win; f01_w1 += win
+        else: loss = pts * 0.01; f01_gross_tp1 -= loss; f01_l1 += loss
     f01_net_tp1 = f01_gross_tp1 - f01_friction
-    f01_pf_tp1 = f01_wins_tp1 / f01_loss_tp1 if f01_loss_tp1 > 0 else 0.0
+    f01_pf_tp1 = f01_w1 / f01_l1 if f01_l1 > 0 else 0.0
 
-    f01_gross_tp2 = 0.0
-    f01_wins_tp2 = 0.0
-    f01_loss_tp2 = 0.0
+    f01_gross_tp2, f01_w2, f01_l2 = 0.0, 0.0, 0.0
     for r in closed:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr >= 2:
-            win = pts * 2 * 0.01
-            f01_gross_tp2 += win
-            f01_wins_tp2 += win
-        else:
-            loss = pts * 0.01
-            f01_gross_tp2 -= loss
-            f01_loss_tp2 += loss
+        if hr >= 2: win = pts * 2 * 0.01; f01_gross_tp2 += win; f01_w2 += win
+        else: loss = pts * 0.01; f01_gross_tp2 -= loss; f01_l2 += loss
     f01_net_tp2 = f01_gross_tp2 - f01_friction
-    f01_pf_tp2 = f01_wins_tp2 / f01_loss_tp2 if f01_loss_tp2 > 0 else 0.0
+    f01_pf_tp2 = f01_w2 / f01_l2 if f01_l2 > 0 else 0.0
 
-    # Master Table: All Patterns Breakdown
+    # Master Table All Patterns
     role_map = defaultdict(list)
     for r in closed:
         role_map[r.get('Role', 'Unknown')].append(r)
@@ -421,41 +405,7 @@ def build_dashboard():
         </tr>
         """)
 
-    # Interactive Timeframe-Role Table
-    tf_role_map = defaultdict(list)
-    for r in closed:
-        tf_role_map[(r.get('Timeframe', 'M1'), r.get('Role', 'Unknown'))].append(r)
-
-    tf_role_rows = []
-    for (tf, role), t_list in sorted(tf_role_map.items(), key=lambda x: (x[0][0], -len(x[1]))):
-        cnt = len(t_list)
-        w1 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 1])
-        w2 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 2])
-        w3 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 3])
-        w4 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 4])
-        sl = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) == 0])
-
-        w1_p = w1 / cnt * 100
-        w2_p = w2 / cnt * 100
-        sl_p = sl / cnt * 100
-        ev_item = (w2_p / 100.0 * 2.0) - (sl_p / 100.0 * 1.0)
-        ev_col = "#00e676" if ev_item >= 0.2 else ("#38bdf8" if ev_item >= 0 else "#ef4444")
-
-        tf_role_rows.append(f"""
-        <tr class="tf-row" data-tf="{tf}">
-            <td style="color:#38bdf8;font-weight:bold;">{tf}</td>
-            <td style="color:#facc15;font-weight:bold;">{role}</td>
-            <td style="text-align:center;font-weight:bold;">{cnt}</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;">{w1_p:.1f}%</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;">{w2_p:.1f}%</td>
-            <td style="text-align:center;color:#38bdf8;">{w3/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#c084fc;">{w4/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl_p:.1f}%</td>
-            <td style="text-align:center;color:{ev_col};font-weight:bold;">{ev_item:+.2f} R</td>
-        </tr>
-        """)
-
-    # Loss Intelligence Analysis
+    # Loss Pattern Intelligence
     sl_trades = [r for r in closed if int(r.get('HitTargetRatio', 0)) == 0]
     total_losses = len(sl_trades)
 
@@ -470,26 +420,26 @@ def build_dashboard():
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>داشبورد جامع و هوشمند FlagPro - تحلیل کامل معاملات</title>
+    <title>داشبورد جامع و هوشمند FlagPro - ساختار تبولار (بدون اسکرول)</title>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
             background-color: #0b0f19;
             color: #f1f5f9;
             margin: 0;
-            padding: 24px;
+            padding: 20px;
             direction: rtl;
         }}
         .container {{
-            max-width: 1500px;
+            max-width: 1550px;
             margin: 0 auto;
         }}
         .header {{
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border: 1px solid #334155;
-            padding: 24px;
+            padding: 20px 24px;
             border-radius: 12px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -507,23 +457,23 @@ def build_dashboard():
         .kpi-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 14px;
+            margin-bottom: 20px;
         }}
         .kpi-card {{
             background: #1e293b;
             border: 1px solid #334155;
-            padding: 18px;
+            padding: 14px 18px;
             border-radius: 10px;
             text-align: center;
         }}
         .kpi-title {{
-            font-size: 13px;
+            font-size: 12px;
             color: #94a3b8;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }}
         .kpi-value {{
-            font-size: 26px;
+            font-size: 24px;
             font-weight: bold;
             color: #f8fafc;
         }}
@@ -532,12 +482,63 @@ def build_dashboard():
             color: #64748b;
             margin-top: 4px;
         }}
+
+        /* Modern Tabs Navigation */
+        .tabs-nav {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }}
+        .tab-btn {{
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .tab-btn:hover {{
+            color: #f8fafc;
+            border-color: #38bdf8;
+            background: #1e293b;
+        }}
+        .tab-btn.active {{
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+        }}
+
+        /* Tab Content Panel */
+        .tab-content {{
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }}
+        .tab-content.active {{
+            display: block;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(6px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
         .section-box {{
             background: #1e293b;
             border: 1px solid #334155;
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
+            padding: 22px;
+            margin-bottom: 20px;
         }}
         table {{
             width: 100%;
@@ -581,14 +582,14 @@ def build_dashboard():
         <!-- Header -->
         <div class="header">
             <div>
-                <h1>🎯 داشبورد جامع و هوشمند FlagPro - تحلیل کامل معاملات</h1>
+                <h1>🎯 داشبورد جامع FlagPro - معماری تبولار (دسترسی بدون اسکرول)</h1>
                 <p style="margin:6px 0 0 0;color:#94a3b8;font-size:13px;">
-                    جفت‌ارز EURUSD | بازه تحت پوشش: <b>{min_date}</b> تا <b>{max_date}</b> | تایم‌های فعال: <b>M1, M5, M15</b>
+                    جفت‌ارز EURUSD | بازه داده‌ها: <b>{min_date}</b> تا <b>{max_date}</b> | تایم‌های فعال: <b>M1, M5, M15</b>
                 </p>
             </div>
             <div style="text-align:left;">
                 <span style="background:#0f172a;border:1px solid #334155;padding:6px 14px;border-radius:8px;font-size:12px;color:#38bdf8;">
-                    🔄 همگام‌سازی زنده دیتابیس: {now_str}
+                    🔄 همگام‌سازی زنده: {now_str}
                 </span>
             </div>
         </div>
@@ -608,7 +609,7 @@ def build_dashboard():
             <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
                 <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
                 <div class="kpi-value" style="color:#f59e0b;">{sl_in_rej} 🎯</div>
-                <div class="kpi-sub">دقت فیلتر در شناسایی باخت: {rej_accuracy:.1f}%</div>
+                <div class="kpi-sub">دقت فیلتر در باخت: {rej_accuracy:.1f}%</div>
             </div>
             <div class="kpi-card" style="border-top: 4px solid #10b981;">
                 <div class="kpi-title">🚀 جهش امید ریاضی (EV)</div>
@@ -622,459 +623,495 @@ def build_dashboard():
             </div>
         </div>
 
-        <!-- 🛡️ SECTION 1: ANTI-SL FILTERS DEDICATED TABLE -->
-        <div class="section-box" style="border: 1px solid #38bdf8; background: #0c1829;">
-            <div style="border-bottom: 1px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 16px;">
-                <h3 style="margin:0;color:#38bdf8;font-size:19px;">🛡️ جدول تفکیکی دقت فیلترهای ضد استاپ اعمال‌شده در FlagPro (محاسبه ۱۰۰٪ زنده)</h3>
-                <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">عملکرد مجزای هر فیلتر بر مبنای کل {len(closed):,} معامله واقعی این فایل داده:</p>
-            </div>
-
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>نام فیلتر هوشمند ضد استاپ</th>
-                            <th style="text-align:center;">تنظیم ورودی در متاتریدر</th>
-                            <th style="text-align:center;">تعداد معاملات حذفی</th>
-                            <th style="text-align:center;">استاپ‌های نجات‌یافته</th>
-                            <th style="text-align:center;">🎯 درصد دقت فیلتر</th>
-                            <th>تفسیر و عملکرد فیلتر</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">🛡️ فیلتر ۱: حذف باکس‌های منفرد LS بدون تلاقی</td>
-                            <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterSingleLS = true</span></td>
-                            <td style="text-align:center;color:#cbd5e1;">{f1_rej} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">{f1_sl} استاپ قطعی!</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f1_sl/f1_rej*100) if f1_rej else 0:.1f}%</td>
-                            <td style="color:#94a3b8;font-size:12px;">حذف تریدهای منفرد با بیشترین نرخ باخت</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۲: مسدودسازی بازه شبانه (۲۱:۰۰ تا ۰۱:۰۰)</td>
-                            <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterNightHours = true</span></td>
-                            <td style="text-align:center;color:#cbd5e1;">{f2_rej} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">{f2_sl} استاپ قطعی!</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f2_sl/f2_rej*100) if f2_rej else 0:.1f}%</td>
-                            <td style="color:#94a3b8;font-size:12px;">فرار از واید شدن اسپرد و افت نقدینگی شبانه</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ صبح (شکار استاپ آسیا)</td>
-                            <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPreLondonHunt = true</span></td>
-                            <td style="text-align:center;color:#cbd5e1;">{f3_rej} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">{f3_sl} استاپ قطعی!</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f3_sl/f3_rej*100) if f3_rej else 0:.1f}%</td>
-                            <td style="color:#94a3b8;font-size:12px;">فرار از شکار نقدینگی قبل از اوپن لندن</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">☣️ فیلتر ۴: حذف زنجیره‌های سمی و فرسایشی</td>
-                            <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterToxicPatterns = true</span></td>
-                            <td style="text-align:center;color:#cbd5e1;">{f4_rej} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">{f4_sl} استاپ قطعی!</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f4_sl/f4_rej*100) if f4_rej else 0:.1f}%</td>
-                            <td style="color:#94a3b8;font-size:12px;">جلوگیری از ورود در امواج اشباع بازار</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">📦 فیلتر ۵: حذف فلگ‌های ساده بدون تلاقی (نویز)</td>
-                            <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPureFlags = true</span></td>
-                            <td style="text-align:center;color:#cbd5e1;">{f5_rej} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">{f5_sl} استاپ قطعی!</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f5_sl/f5_rej*100) if f5_rej else 0:.1f}%</td>
-                            <td style="color:#94a3b8;font-size:12px;">تصفیه نویزهای ریز بازار</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">💰 فیلتر ۶ (اقتصادی): حذف تریدهای با سود کمتر از اصطکاک</td>
-                            <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterLowRewardVsFriction = true</span></td>
-                            <td style="text-align:center;color:#cbd5e1;">{f7_rej} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">{f7_sl} زیان قطعی خنثی شد! 🎯</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f7_sl/f7_rej*100) if f7_rej else 0:.1f}%</td>
-                            <td style="color:#94a3b8;font-size:12px;">عدم ورود در تریدهایی که سودشان کمتر از کارمزد بروکر است</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- 📑 TABS NAVIGATION BAR -->
+        <div class="tabs-nav">
+            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین ۷ گانه</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">💎 خروج پلکانی و بریک‌ایون (0.04)</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">📊 عملکرد تایم‌فریم‌ها (M1/M5/M15)</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-filters')">🛡️ فیلترهای ضد استاپ و مقایسه</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-financials')">💰 حسابداری دلاری 0.01 لات</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-all-patterns')">🏆 رتبه‌بندی تمام الگوها</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-loss-intel')">🔍 هوش باخت‌ها و استاپ‌ها</button>
         </div>
 
-        <!-- ⚖️ SECTION 2: BEFORE VS AFTER COMPARISON -->
-        <div class="section-box" style="border: 1px solid #10b981; background: #0c1a1a;">
-            <div style="border-bottom: 1px solid #134e4a; padding-bottom: 14px; margin-bottom: 16px;">
-                <h3 style="margin:0;color:#2dd4bf;font-size:19px;">⚖️ گزارش اثرگذاری فیلتر ضد استاپ (مقایسه زنده قبل و بعد از فیلترها)</h3>
-                <p style="margin:4px 0 0 0;color:#99f6e4;font-size:12px;">محاسبه دقیق بهبود آماری با فیلتر کردن ساعات پرخطر و الگوهای سمی:</p>
-            </div>
-
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>شاخص عملکردی کلیدی</th>
-                            <th style="text-align:center;">بدون فیلتر (حالت خام)</th>
-                            <th style="text-align:center;">با فیلتر ضد استاپ (Flag_Filters)</th>
-                            <th style="text-align:center;">میزان بهبود و تغییر</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="font-weight:bold;">تعداد کل معاملات ارزیابی‌شده</td>
-                            <td style="text-align:center;color:#94a3b8;">{len(closed):,} معامله</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{len(accepted_trades):,} معامله تاییدشده</td>
-                            <td style="text-align:center;color:#f59e0b;">{len(rejected_trades)} معامله فیلتر و رد شد</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#10b981;">تعداد باخت‌های حذف‌شده (استاپ‌های نجات‌یافته)</td>
-                            <td style="text-align:center;color:#ef4444;">۰ ({sl_cnt_b} معامله استاپ)</td>
-                            <td style="text-align:center;color:#10b981;font-weight:bold;">{sl_in_rej} معامله استاپ خورده نجات یافت! 🎯</td>
-                            <td style="text-align:center;color:#34d399;font-weight:bold;">دقت فیلتر: {rej_accuracy:.1f}%</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;">وین‌ریت تارگت اول (TP 1:1)</td>
-                            <td style="text-align:center;color:#94a3b8;">{w1_rate_b:.1f}%</td>
-                            <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a:.1f}%</td>
-                            <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a - w1_rate_b:+.1f}%</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;">وین‌ریت تارگت دوم (TP 1:2)</td>
-                            <td style="text-align:center;color:#94a3b8;">{w2_rate_b:.1f}%</td>
-                            <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a:.1f}%</td>
-                            <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a - w2_rate_b:+.1f}%</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;">نرخ استاپ خوردن (Stop Loss Rate)</td>
-                            <td style="text-align:center;color:#ef4444;">{sl_rate_b:.1f}%</td>
-                            <td style="text-align:center;color:#f87171;font-weight:bold;">{sl_rate_a:.1f}%</td>
-                            <td style="text-align:center;color:#34d399;font-weight:bold;">{sl_rate_a - sl_rate_b:+.1f}% کاهش باخت</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#38bdf8;">امید ریاضی به ازای هر ترید (EV در نسبت 1:2)</td>
-                            <td style="text-align:center;color:#94a3b8;">{ev_b:+.2f} R</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">{ev_a:+.2f} R 🚀</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{ev_a - ev_b:+.2f} R رشد خالص</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 👑 SECTION 3: TOP 7 GOLDEN KINGS TABLE -->
-        <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
-            <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
-                <h3 style="margin:0;color:#facc15;font-size:19px;">👑 سلاطین استراتژی (۷ ساختار برتر در شرایط واقعی لایو با تایید ساختاری کامل)</h3>
-                <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی ۱۰۰٪ پویا از رفتار {tot_k_cnt} معامله واقعی سلاطین برتر با حجم 0.04 لات:</p>
-            </div>
-
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr style="background:#261e07;">
-                            <th style="text-align:center;">رتبه</th>
-                            <th>نام ساختار / تلاقی گره‌ها</th>
-                            <th style="text-align:center;">تعداد معامله</th>
-                            <th style="text-align:center;">وین‌ریت ۱:۱</th>
-                            <th style="text-align:center;">وین‌ریت ۱:۲</th>
-                            <th style="text-align:center;">نرخ باخت (SL)</th>
-                            <th style="text-align:center;color:#38bdf8;">🟢 حداقل استاپ</th>
-                            <th style="text-align:center;color:#f87171;">🔴 حداکثر استاپ</th>
-                            <th style="text-align:center;color:#facc15;">میانگین استاپ</th>
-                            <th style="text-align:center;color:#00e676;">💵 سود خالص دلاری (۰.۰۴ لات)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {"".join(kings_rows_html)}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 💎 SECTION 4: 0.04 LOT SCALE-OUT AND BREAK-EVEN COMPARISON (100% DYNAMIC) -->
-        <div class="section-box" style="border: 2px solid #38bdf8; background: #082136;">
-            <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <div>
-                        <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
-                        <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین ۷ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
-                    </div>
-                    <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
-                        <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
-                        <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>${tot_k_fric:.2f} دلار</b></div>
-                    </div>
+        <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
+        <div id="tab-kings" class="tab-content active">
+            <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
+                <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
+                    <h3 style="margin:0;color:#facc15;font-size:19px;">👑 سلاطین استراتژی (۷ ساختار برتر در شرایط واقعی لایو با تایید ساختاری کامل)</h3>
+                    <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی ۱۰۰٪ پویا از رفتار {tot_k_cnt} معامله واقعی سلاطین برتر با حجم 0.04 لات:</p>
                 </div>
-            </div>
-
-            <!-- Steps Breakdown Grid -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:18px;">
-                <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                    <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله اول (TP 1:1) - خروج ۰.۰۲ لات (۵۰٪)</div>
-                    <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">ذخیره ۵۰٪ سود معامله + <b>انتقال فوری استاپ لاس به نقطه ورود (ریسک‌فری سریع)</b></div>
-                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">🛡️ نتیجه: ریسک کل معامله صفر شد و کمیسیون پوشش یافت!</div>
-                </div>
-                <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                    <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله دوم (TP 1:2) - خروج ۰.۰۱ لات (۲۵٪)</div>
-                    <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ دیگر از حجم با سود ۲ برابری + <b>قفل سود در سطح TP1</b></div>
-                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">📈 نتیجه: تثبیت سود عالی بدون هیچ‌گونه استرس روانی</div>
-                </div>
-                <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                    <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله سوم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
-                    <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن امواج بزرگ روندی</div>
-                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در {tp3_4} معامله!</div>
-                </div>
-            </div>
-
-            <!-- Table: 0.04 Lot Performance (100% Dynamic) -->
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr style="background:#0b3353;">
-                            <th>استراتژی خروج معامله با حجم 0.04 لات</th>
-                            <th style="text-align:center;">سود ناخالص</th>
-                            <th style="text-align:center;">کل کمیسیون و اسپرد</th>
-                            <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
-                            <th style="text-align:center;">ضریب سود (PF)</th>
-                            <th style="text-align:center;">جهش سود خالص دلاری</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="color:#94a3b8;font-weight:bold;">۱. خروج ساده تک‌تارگت در TP 1:1 (بستن ۱۰۰٪ حجم 0.04)</td>
-                            <td style="text-align:center;color:#38bdf8;">${s1_gross:+.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
-                            <td style="text-align:center;color:{'#00e676' if s1_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s1_net:+.2f} دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;">{s1_pf:.2f}</td>
-                            <td style="text-align:center;color:#94a3b8;">مبنا</td>
-                        </tr>
-                        <tr>
-                            <td style="color:#94a3b8;font-weight:bold;">۲. خروج ساده تک‌تارگت در TP 1:2 (بستن ۱۰۰٪ حجم 0.04)</td>
-                            <td style="text-align:center;color:#38bdf8;">${s2_gross:+.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
-                            <td style="text-align:center;color:{'#00e676' if s2_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s2_net:+.2f} دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;">{s2_pf:.2f}</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">${s2_diff_dollar:+.2f} ({s2_diff_pct:+.1f}%)</td>
-                        </tr>
-                        <tr style="background:#064e3b33;border:2px solid #10b981;">
-                            <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج پلکانی شکار امواج تا TP4 (۰.۰۲ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP4) 🚀</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_gross:+.2f}</td>
-                            <td style="text-align:center;color:#cbd5e1;">${tot_k_fric:.2f}</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">${s3_net:+.2f} دلار نقد خالص! 💵</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{s3_pf:.2f} 🚀</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_diff_dollar:+.2f} سود بیشتر ({s3_diff_pct:+.1f}%) 🚀</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Break-Even Comparison: TP1 vs TP2 with 0.04 Lot (100% Dynamic) -->
-            <div style="margin-top: 24px; border-top: 1px dashed #0284c7; padding-top: 18px;">
-                <h4 style="margin:0 0 10px 0; color:#facc15; font-size:16px;">⚖️ مقایسه بریک‌ایون (ریسک‌فری) با حجم 0.04 لات: انتقال استاپ در TP1 یا در TP2؟ کدام سودده‌تر است؟</h4>
-                <p style="margin:0 0 14px 0; color:#cbd5e1; font-size:12.5px; line-height:1.6;">
-                    کالبدشکافی رفتار {tot_k_cnt} معامله سلاطین: <b>{sl_direct} معامله استاپ مستقیم ({sl_direct_pct:.1f}%)</b> | 
-                    <b style="color:#facc15;">{tp1_only} معامله ({tp1_only_pct:.1f}%) فقط TP1 را تاچ کردند و برگشتند!</b> | 
-                    <b>{tp2_only} معامله ({tp2_only_pct:.1f}%) تا TP2 رفتند</b> | 
-                    <b style="color:#00e676;">{tp3_4} معامله ({tp3_4_pct:.1f}%) به TP3 و TP4 رسیدند!</b>
-                </p>
 
                 <div style="overflow-x:auto;">
                     <table>
                         <thead>
-                            <tr style="background:#0b3353;">
-                                <th>روش انتقال استاپ به ورود (Break-Even) با حجم 0.04 لات</th>
-                                <th style="text-align:center;">سرنوشت {tp1_only} معامله‌ای که بعد از TP1 برگشتند</th>
-                                <th style="text-align:center;">سود ناخالص</th>
-                                <th style="text-align:center;">کل کمیسیون و اسپرد</th>
-                                <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
-                                <th style="text-align:center;">اختلاف و برتری مالی</th>
+                            <tr style="background:#261e07;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th>نام ساختار / تلاقی گره‌ها</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">وین‌ریت ۱:۱</th>
+                                <th style="text-align:center;">وین‌ریت ۱:۲</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;color:#38bdf8;">🟢 حداقل استاپ</th>
+                                <th style="text-align:center;color:#f87171;">🔴 حداکثر استاپ</th>
+                                <th style="text-align:center;color:#facc15;">میانگین استاپ</th>
+                                <th style="text-align:center;color:#00e676;">💵 سود خالص دلاری (۰.۰۴ لات)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr style="background:#064e3b44; border: 2px solid #10b981;">
-                                <td style="color:#00e676; font-weight:bold; font-size:13.5px;">🥇 حالت اول: انتقال استاپ به نقطه ورود (BE) در TP1</td>
-                                <td style="text-align:center; color:#a7f3d0; font-size:12px;">سود ۰.۰۲ لات در TP1 ذخیره شد + ۰.۰۲ لات باقیمانده بدون ضرر روی نقطه ورود خارج شد (سود خالص!)</td>
-                                <td style="text-align:center; color:#00e676; font-weight:bold;">${m1_gross:+.2f}</td>
-                                <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
-                                <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">${m1_net:+.2f} دلار نقد 🚀</td>
-                                <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (${be_diff:+.2f} دلار سود بیشتر)</td>
+                            {"".join(kings_rows_html)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: 💎 SCALE-OUT & BREAK-EVEN ==================== -->
+        <div id="tab-scaleout" class="tab-content">
+            <div class="section-box" style="border: 2px solid #38bdf8; background: #082136;">
+                <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
+                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین ۷ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
+                        </div>
+                        <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
+                            <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
+                            <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>${tot_k_fric:.2f} دلار</b></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Steps Breakdown Grid -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:18px;">
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله اول (TP 1:1) - خروج ۰.۰۲ لات (۵۰٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">ذخیره ۵۰٪ سود معامله + <b>انتقال فوری استاپ لاس به نقطه ورود (ریسک‌فری سریع)</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">🛡️ نتیجه: ریسک کل معامله صفر شد و کمیسیون پوشش یافت!</div>
+                    </div>
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله دوم (TP 1:2) - خروج ۰.۰۱ لات (۲۵٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ دیگر از حجم با سود ۲ برابری + <b>قفل سود در سطح TP1</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">📈 نتیجه: تثبیت سود عالی بدون هیچ‌گونه استرس روانی</div>
+                    </div>
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله سوم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن امواج بزرگ روندی</div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در {tp3_4} معامله!</div>
+                    </div>
+                </div>
+
+                <!-- Table: 0.04 Lot Performance -->
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0b3353;">
+                                <th>استراتژی خروج معامله با حجم 0.04 لات</th>
+                                <th style="text-align:center;">سود ناخالص</th>
+                                <th style="text-align:center;">کل کمیسیون و اسپرد</th>
+                                <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
+                                <th style="text-align:center;">ضریب سود (PF)</th>
+                                <th style="text-align:center;">جهش سود خالص دلاری</th>
                             </tr>
-                            <tr style="background:#450a0a22; border: 1px solid #7f1d1d;">
-                                <td style="color:#f87171; font-weight:bold; font-size:13.5px;">❌ حالت دوم: انتقال استاپ به نقطه ورود (BE) فقط در TP2</td>
-                                <td style="text-align:center; color:#fca5a5; font-size:12px;">سود ۰.۰۲ لات گرفته شد، اما چون استاپ دست نخورده بود، ۰.۰۲ لات باقیمانده برگشت و استاپ اولیه را زد!</td>
-                                <td style="text-align:center; color:#f87171; font-weight:bold;">${m2_gross:+.2f}</td>
-                                <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
-                                <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">${m2_net:+.2f} دلار</td>
-                                <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (${abs(be_diff):.2f} دلار سود کمتر!)</td>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:#94a3b8;font-weight:bold;">۱. خروج ساده تک‌تارگت در TP 1:1 (بستن ۱۰۰٪ حجم 0.04)</td>
+                                <td style="text-align:center;color:#38bdf8;">${s1_gross:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
+                                <td style="text-align:center;color:{'#00e676' if s1_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s1_net:+.2f} دلار</td>
+                                <td style="text-align:center;color:#cbd5e1;">{s1_pf:.2f}</td>
+                                <td style="text-align:center;color:#94a3b8;">مبنا</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#94a3b8;font-weight:bold;">۲. خروج ساده تک‌تارگت در TP 1:2 (بستن ۱۰۰٪ حجم 0.04)</td>
+                                <td style="text-align:center;color:#38bdf8;">${s2_gross:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
+                                <td style="text-align:center;color:{'#00e676' if s2_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s2_net:+.2f} دلار</td>
+                                <td style="text-align:center;color:#cbd5e1;">{s2_pf:.2f}</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">${s2_diff_dollar:+.2f} ({s2_diff_pct:+.1f}%)</td>
+                            </tr>
+                            <tr style="background:#064e3b33;border:2px solid #10b981;">
+                                <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج پلکانی شکار امواج تا TP4 (۰.۰۲ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP4) 🚀</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_gross:+.2f}</td>
+                                <td style="text-align:color:#cbd5e1;">${tot_k_fric:.2f}</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">${s3_net:+.2f} دلار نقد خالص! 💵</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{s3_pf:.2f} 🚀</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_diff_dollar:+.2f} سود بیشتر ({s3_diff_pct:+.1f}%) 🚀</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div style="background:#09304a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-top:12px; font-size:12px; color:#e0f2fe; line-height:1.5;">
-                    💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>{tp1_only_pct:.1f}٪ معاملات ({tp1_only} معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن {be_diff:.2f} دلار سود شما می‌شود و سود کل سیستم را به <b>${m1_net:+.2f} دلار نقد خالص</b> می‌رساند!
+                <!-- Break-Even Comparison -->
+                <div style="margin-top: 24px; border-top: 1px dashed #0284c7; padding-top: 18px;">
+                    <h4 style="margin:0 0 10px 0; color:#facc15; font-size:16px;">⚖️ مقایسه بریک‌ایون (ریسک‌فری) با حجم 0.04 لات: انتقال استاپ در TP1 یا در TP2؟ کدام سودده‌تر است؟</h4>
+                    <p style="margin:0 0 14px 0; color:#cbd5e1; font-size:12.5px; line-height:1.6;">
+                        کالبدشکافی رفتار {tot_k_cnt} معامله سلاطین: <b>{sl_direct} معامله استاپ مستقیم ({sl_direct_pct:.1f}%)</b> | 
+                        <b style="color:#facc15;">{tp1_only} معامله ({tp1_only_pct:.1f}%) فقط TP1 را تاچ کردند و برگشتند!</b> | 
+                        <b>{tp2_only} معامله ({tp2_only_pct:.1f}%) تا TP2 رفتند</b> | 
+                        <b style="color:#00e676;">{tp3_4} معامله ({tp3_4_pct:.1f}%) به TP3 و TP4 رسیدند!</b>
+                    </p>
+
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr style="background:#0b3353;">
+                                    <th>روش انتقال استاپ به ورود (Break-Even) با حجم 0.04 لات</th>
+                                    <th style="text-align:center;">سرنوشت {tp1_only} معامله‌ای که بعد از TP1 برگشتند</th>
+                                    <th style="text-align:center;">سود ناخالص</th>
+                                    <th style="text-align:center;">کل کمیسیون و اسپرد</th>
+                                    <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
+                                    <th style="text-align:center;">اختلاف و برتری مالی</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="background:#064e3b44; border: 2px solid #10b981;">
+                                    <td style="color:#00e676; font-weight:bold; font-size:13.5px;">🥇 حالت اول: انتقال استاپ به نقطه ورود (BE) در TP1</td>
+                                    <td style="text-align:center; color:#a7f3d0; font-size:12px;">سود ۰.۰۲ لات در TP1 ذخیره شد + ۰.۰۲ لات باقیمانده بدون ضرر روی نقطه ورود خارج شد (سود خالص!)</td>
+                                    <td style="text-align:center; color:#00e676; font-weight:bold;">${m1_gross:+.2f}</td>
+                                    <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
+                                    <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">${m1_net:+.2f} دلار نقد 🚀</td>
+                                    <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (${be_diff:+.2f} دلار سود بیشتر)</td>
+                                </tr>
+                                <tr style="background:#450a0a22; border: 1px solid #7f1d1d;">
+                                    <td style="color:#f87171; font-weight:bold; font-size:13.5px;">❌ حالت دوم: انتقال استاپ به نقطه ورود (BE) فقط در TP2</td>
+                                    <td style="text-align:center; color:#fca5a5; font-size:12px;">سود ۰.۰۲ لات گرفته شد، اما چون استاپ دست نخورده بود، ۰.۰۲ لات باقیمانده برگشت و استاپ اولیه را زد!</td>
+                                    <td style="text-align:center; color:#f87171; font-weight:bold;">${m2_gross:+.2f}</td>
+                                    <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
+                                    <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">${m2_net:+.2f} دلار</td>
+                                    <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (${abs(be_diff):.2f} دلار سود کمتر!)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style="background:#09304a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-top:12px; font-size:12px; color:#e0f2fe; line-height:1.5;">
+                        💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>{tp1_only_pct:.1f}٪ معاملات ({tp1_only} معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن {be_diff:.2f} دلار سود شما می‌شود و سود کل سیستم را به <b>${m1_net:+.2f} دلار نقد خالص</b> می‌رساند!
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 💰 SECTION 5: 0.01 LOT FINANCIAL ACCOUNTING (100% DYNAMIC) -->
-        <div class="section-box" style="border: 1px solid #10b981; background: #061e14;">
-            <div style="border-bottom: 1px solid #065f46; padding-bottom: 14px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                <div>
-                    <h3 style="margin:0;color:#34d399;font-size:19px;">💰 صورت سود و زیان دلاری بر مبنای حجم ثابت 0.01 لات (حساب میکرو / استاندارد)</h3>
-                    <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">محاسبه اصطکاک معاملاتی: کمیسیون بروکر ($0.06) + اسپرد میانگین ($0.06) | کل هزینه هر ترید: <b>$0.12</b></p>
+        <!-- ==================== TAB 3: 📊 TIMEFRAMES BREAKDOWN ==================== -->
+        <div id="tab-timeframes" class="tab-content">
+            <div class="section-box">
+                <div style="border-bottom:1px solid #334155;padding-bottom:14px;margin-bottom:16px;">
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 جدول عملکرد جامع به تفکیک تایم‌فریم‌ها (M1, M5, M15)</h3>
+                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">کالبدشکافی عملکرد معاملاتی و سودآوری خالص در هر یک از تایم‌فریم‌های فعال بازار:</p>
                 </div>
-                <div style="background:#022c22;border:1px solid #059669;padding:6px 14px;border-radius:8px;font-size:12px;color:#6ee7b7;">
-                    💵 ارزش هر پیپ در 0.01 لات = $0.10 دلار
-                </div>
-            </div>
 
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr style="background:#064e3b;">
-                            <th>سناریوی معاملاتی با حجم 0.01 لات</th>
-                            <th style="text-align:center;">سود ناخالص</th>
-                            <th style="text-align:center;">کل کمیسیون بروکر</th>
-                            <th style="text-align:center;">کل هزینه اسپرد</th>
-                            <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
-                            <th style="text-align:center;">ضریب سود (PF)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">تارگت اول: ریسک به ریوارد ۱:۱ (TP 1:1)</td>
-                            <td style="text-align:center;color:#38bdf8;">${f01_gross_tp1:+.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${f01_comm:.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${f01_spread:.2f}</td>
-                            <td style="text-align:center;color:{'#00e676' if f01_net_tp1 >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${f01_net_tp1:+.2f} دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;">{f01_pf_tp1:.2f}</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:bold;color:#facc15;">تارگت دوم: ریسک به ریوارد ۱:۲ (TP 1:2)</td>
-                            <td style="text-align:center;color:#38bdf8;">${f01_gross_tp2:+.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${f01_comm:.2f}</td>
-                            <td style="text-align:center;color:#f87171;">${f01_spread:.2f}</td>
-                            <td style="text-align:center;color:{'#00e676' if f01_net_tp2 >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${f01_net_tp2:+.2f} دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;">{f01_pf_tp2:.2f}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Timeframe Summary Table -->
+                <div style="overflow-x:auto;margin-bottom:20px;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0f172a;">
+                                <th>تایم‌فریم</th>
+                                <th style="text-align:center;">تعداد کل معامله</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:1</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:2</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:3</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:4</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;">💵 سود خالص دلاری (0.04)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(tf_summary_rows)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Detailed Entity Breakdown by Timeframe -->
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;padding-top:14px;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <h4 style="margin:0;color:#f8fafc;font-size:15px;">تفکیک جزئی گره‌ها در هر تایم‌فریم:</h4>
+                    </div>
+                    <div>
+                        <button class="sort-btn active tf-btn" onclick="filterTF('ALL')">همه تایم‌ها</button>
+                        <button class="sort-btn tf-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="filterTF('M1')">⚡ M1 ({len(tf_map.get('M1', []))})</button>
+                        <button class="sort-btn tf-btn" style="border-color:#00e676;color:#00e676;" onclick="filterTF('M5')">🌟 M5 ({len(tf_map.get('M5', []))})</button>
+                        <button class="sort-btn tf-btn" style="border-color:#f59e0b;color:#f59e0b;" onclick="filterTF('M15')">🕒 M15 ({len(tf_map.get('M15', []))})</button>
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;margin-top:12px;">
+                    <table id="tfTable">
+                        <thead>
+                            <tr>
+                                <th>تایم‌فریم</th>
+                                <th>موجودیت باکس / سواپ</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">TP 1:1</th>
+                                <th style="text-align:center;">TP 1:2</th>
+                                <th style="text-align:center;">TP 1:3</th>
+                                <th style="text-align:center;">TP 1:4</th>
+                                <th style="text-align:center;">باخت (SL)</th>
+                                <th style="text-align:center;">امید ریاضی</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(tf_role_rows)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- 📊 SECTION 6: PERFORMANCE BY TIMEFRAME (M1, M5, M15) SUMMARY + INTERACTIVE TABLE -->
-        <div class="section-box">
-            <div style="border-bottom:1px solid #334155;padding-bottom:14px;margin-bottom:16px;">
-                <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 جدول عملکرد جامع به تفکیک تایم‌فریم‌ها (M1, M5, M15)</h3>
-                <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">کالبدشکافی عملکرد معاملاتی و سودآوری خالص در هر یک از تایم‌فریم‌های فعال بازار:</p>
-            </div>
-
-            <!-- Timeframe Summary Table -->
-            <div style="overflow-x:auto;margin-bottom:20px;">
-                <table>
-                    <thead>
-                        <tr style="background:#0f172a;">
-                            <th>تایم‌فریم</th>
-                            <th style="text-align:center;">تعداد کل معامله</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:1</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:2</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:3</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:4</th>
-                            <th style="text-align:center;">نرخ باخت (SL)</th>
-                            <th style="text-align:center;">💵 سود خالص دلاری (0.04)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {"".join(tf_summary_rows)}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Detailed Entity Breakdown by Timeframe -->
-            <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;padding-top:14px;flex-wrap:wrap;gap:10px;">
-                <div>
-                    <h4 style="margin:0;color:#f8fafc;font-size:15px;">تفکیک جزئی گره‌ها در هر تایم‌فریم:</h4>
+        <!-- ==================== TAB 4: 🛡️ ANTI-SL FILTERS ==================== -->
+        <div id="tab-filters" class="tab-content">
+            <div class="section-box" style="border: 1px solid #38bdf8; background: #0c1829;">
+                <div style="border-bottom: 1px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 16px;">
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">🛡️ جدول تفکیکی دقت فیلترهای ضد استاپ اعمال‌شده در FlagPro</h3>
+                    <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">عملکرد مجزای هر فیلتر بر مبنای کل {len(closed):,} معامله واقعی این فایل داده:</p>
                 </div>
-                <div>
-                    <button class="sort-btn active tf-btn" onclick="filterTF('ALL')">همه تایم‌ها</button>
-                    <button class="sort-btn tf-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="filterTF('M1')">⚡ M1 ({len(tf_map.get('M1', []))})</button>
-                    <button class="sort-btn tf-btn" style="border-color:#00e676;color:#00e676;" onclick="filterTF('M5')">🌟 M5 ({len(tf_map.get('M5', []))})</button>
-                    <button class="sort-btn tf-btn" style="border-color:#f59e0b;color:#f59e0b;" onclick="filterTF('M15')">🕒 M15 ({len(tf_map.get('M15', []))})</button>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>نام فیلتر هوشمند ضد استاپ</th>
+                                <th style="text-align:center;">تنظیم ورودی در متاتریدر</th>
+                                <th style="text-align:center;">تعداد معاملات حذفی</th>
+                                <th style="text-align:center;">استاپ‌های نجات‌یافته</th>
+                                <th style="text-align:center;">🎯 درصد دقت فیلتر</th>
+                                <th>تفسیر و عملکرد فیلتر</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">🛡️ فیلتر ۱: حذف باکس‌های منفرد LS بدون تلاقی</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterSingleLS = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f1_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f1_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f1_sl/f1_rej*100) if f1_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">حذف تریدهای منفرد با بیشترین نرخ باخت</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۲: مسدودسازی بازه شبانه (۲۱:۰۰ تا ۰۱:۰۰)</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterNightHours = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f2_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f2_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f2_sl/f2_rej*100) if f2_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">فرار از واید شدن اسپرد و افت نقدینگی شبانه</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ صبح (شکار استاپ آسیا)</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPreLondonHunt = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f3_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f3_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f3_sl/f3_rej*100) if f3_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">فرار از شکار نقدینگی قبل از اوپن لندن</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">☣️ فیلتر ۴: حذف زنجیره‌های سمی و فرسایشی</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterToxicPatterns = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f4_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f4_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f4_sl/f4_rej*100) if f4_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">جلوگیری از ورود در امواج اشباع بازار</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">📦 فیلتر ۵: حذف فلگ‌های ساده بدون تلاقی (نویز)</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPureFlags = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f5_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f5_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f5_sl/f5_rej*100) if f5_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">تصفیه نویزهای ریز بازار</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">💰 فیلتر ۶ (اقتصادی): حذف تریدهای با سود کمتر از اصطکاک</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterLowRewardVsFriction = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f7_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f7_sl} زیان قطعی خنثی شد! 🎯</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f7_sl/f7_rej*100) if f7_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">عدم ورود در تریدهایی که سودشان کمتر از کارمزد بروکر است</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <div style="overflow-x:auto;margin-top:12px;">
-                <table id="tfTable">
-                    <thead>
-                        <tr>
-                            <th>تایم‌فریم</th>
-                            <th>موجودیت باکس / سواپ</th>
-                            <th style="text-align:center;">تعداد معامله</th>
-                            <th style="text-align:center;">TP 1:1</th>
-                            <th style="text-align:center;">TP 1:2</th>
-                            <th style="text-align:center;">TP 1:3</th>
-                            <th style="text-align:center;">TP 1:4</th>
-                            <th style="text-align:center;">باخت (SL)</th>
-                            <th style="text-align:center;">امید ریاضی</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {"".join(tf_role_rows)}
-                    </tbody>
-                </table>
+            <!-- Before vs After -->
+            <div class="section-box" style="border: 1px solid #10b981; background: #0c1a1a;">
+                <div style="border-bottom: 1px solid #134e4a; padding-bottom: 14px; margin-bottom: 16px;">
+                    <h3 style="margin:0;color:#2dd4bf;font-size:19px;">⚖️ گزارش اثرگذاری فیلتر ضد استاپ (مقایسه زنده قبل و بعد از فیلترها)</h3>
+                    <p style="margin:4px 0 0 0;color:#99f6e4;font-size:12px;">محاسبه دقیق بهبود آماری با فیلتر کردن ساعات پرخطر و الگوهای سمی:</p>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>شاخص عملکردی کلیدی</th>
+                                <th style="text-align:center;">بدون فیلتر (حالت خام)</th>
+                                <th style="text-align:center;">با فیلتر ضد استاپ (Flag_Filters)</th>
+                                <th style="text-align:center;">میزان بهبود و تغییر</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:bold;">تعداد کل معاملات ارزیابی‌شده</td>
+                                <td style="text-align:center;color:#94a3b8;">{len(closed):,} معامله</td>
+                                <td style="text-align:center;color:#38bdf8;font-weight:bold;">{len(accepted_trades):,} معامله تاییدشده</td>
+                                <td style="text-align:center;color:#f59e0b;">{len(rejected_trades)} معامله فیلتر و رد شد</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#10b981;">تعداد باخت‌های حذف‌شده (استاپ‌های نجات‌یافته)</td>
+                                <td style="text-align:center;color:#ef4444;">۰ ({sl_cnt_b} معامله استاپ)</td>
+                                <td style="text-align:center;color:#10b981;font-weight:bold;">{sl_in_rej} معامله استاپ خورده نجات یافت! 🎯</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">دقت فیلتر: {rej_accuracy:.1f}%</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;">وین‌ریت تارگت اول (TP 1:1)</td>
+                                <td style="text-align:center;color:#94a3b8;">{w1_rate_b:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a - w1_rate_b:+.1f}%</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;">وین‌ریت تارگت دوم (TP 1:2)</td>
+                                <td style="text-align:center;color:#94a3b8;">{w2_rate_b:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a - w2_rate_b:+.1f}%</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;">نرخ استاپ خوردن (Stop Loss Rate)</td>
+                                <td style="text-align:center;color:#ef4444;">{sl_rate_b:.1f}%</td>
+                                <td style="text-align:center;color:#f87171;font-weight:bold;">{sl_rate_a:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{sl_rate_a - sl_rate_b:+.1f}% کاهش باخت</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#38bdf8;">امید ریاضی به ازای هر ترید (EV در نسبت 1:2)</td>
+                                <td style="text-align:center;color:#94a3b8;">{ev_b:+.2f} R</td>
+                                <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">{ev_a:+.2f} R 🚀</td>
+                                <td style="text-align:center;color:#38bdf8;font-weight:bold;">{ev_a - ev_b:+.2f} R رشد خالص</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- 🏆 SECTION 7: ALL PATTERNS MASTER TABLE -->
-        <div class="section-box">
-            <h3 style="margin:0 0 16px 0;color:#38bdf8;font-size:18px;">🏆 جدول رتبه‌بندی جامع استراتژی‌ها و باکس‌ها (مرتب‌شده بر اساس تعداد معامله)</h3>
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>الگو / ساختار</th>
-                            <th style="text-align:center;">تعداد</th>
-                            <th style="text-align:center;">TP1 (1:1)</th>
-                            <th style="text-align:center;">TP2 (1:2)</th>
-                            <th style="text-align:center;">TP3 (1:3)</th>
-                            <th style="text-align:center;">TP4 (1:4)</th>
-                            <th style="text-align:center;">استاپ (SL)</th>
-                            <th style="text-align:center;">سود خالص دلاری (0.04)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {"".join(all_patterns_rows)}
-                    </tbody>
-                </table>
+        <!-- ==================== TAB 5: 💰 FINANCIAL ACCOUNTING (0.01 LOT) ==================== -->
+        <div id="tab-financials" class="tab-content">
+            <div class="section-box" style="border: 1px solid #10b981; background: #061e14;">
+                <div style="border-bottom: 1px solid #065f46; padding-bottom: 14px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="margin:0;color:#34d399;font-size:19px;">💰 صورت سود و زیان دلاری بر مبنای حجم ثابت 0.01 لات (حساب میکرو / استاندارد)</h3>
+                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">محاسبه اصطکاک معاملاتی: کمیسیون بروکر ($0.06) + اسپرد میانگین ($0.06) | کل هزینه هر ترید: <b>$0.12</b></p>
+                    </div>
+                    <div style="background:#022c22;border:1px solid #059669;padding:6px 14px;border-radius:8px;font-size:12px;color:#6ee7b7;">
+                        💵 ارزش هر پیپ در 0.01 لات = $0.10 دلار
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#064e3b;">
+                                <th>سناریوی معاملاتی با حجم 0.01 لات</th>
+                                <th style="text-align:center;">سود ناخالص</th>
+                                <th style="text-align:center;">کل کمیسیون بروکر</th>
+                                <th style="text-align:center;">کل هزینه اسپرد</th>
+                                <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
+                                <th style="text-align:center;">ضریب سود (PF)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">تارگت اول: ریسک به ریوارد ۱:۱ (TP 1:1)</td>
+                                <td style="text-align:center;color:#38bdf8;">${f01_gross_tp1:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${f01_comm:.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${f01_spread:.2f}</td>
+                                <td style="text-align:center;color:{'#00e676' if f01_net_tp1 >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${f01_net_tp1:+.2f} دلار</td>
+                                <td style="text-align:center;color:#cbd5e1;font-weight:bold;">{f01_pf_tp1:.2f}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">تارگت دوم: ریسک به ریوارد ۱:۲ (TP 1:2)</td>
+                                <td style="text-align:center;color:#38bdf8;">${f01_gross_tp2:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${f01_comm:.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${f01_spread:.2f}</td>
+                                <td style="text-align:center;color:{'#00e676' if f01_net_tp2 >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${f01_net_tp2:+.2f} دلار</td>
+                                <td style="text-align:center;color:#cbd5e1;font-weight:bold;">{f01_pf_tp2:.2f}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- 🔍 SECTION 8: LOSS PATTERN INTELLIGENCE (100% DYNAMIC) -->
-        <div class="section-box" style="border: 1px solid #ef4444; background: #18111c;">
-            <div style="border-bottom: 1px solid #332032; padding-bottom: 14px; margin-bottom: 18px;">
-                <h3 style="margin:0;color:#f87171;font-size:20px;">🔍 تحلیل آماری معاملات استاپ‌شده (Loss Pattern Intelligence)</h3>
-                <p style="margin:4px 0 0 0;color:#fca5a5;font-size:12px;">کالبدشکافی {total_losses} معامله استاپ‌خورده در این دیتاست جهت جلوگیری هوشمند از تکرار باخت:</p>
+        <!-- ==================== TAB 6: 🏆 ALL PATTERNS MASTER TABLE ==================== -->
+        <div id="tab-all-patterns" class="tab-content">
+            <div class="section-box">
+                <h3 style="margin:0 0 16px 0;color:#38bdf8;font-size:18px;">🏆 جدول رتبه‌بندی جامع استراتژی‌ها و باکس‌ها (مرتب‌شده بر اساس تعداد معامله)</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>الگو / ساختار</th>
+                                <th style="text-align:center;">تعداد</th>
+                                <th style="text-align:center;">TP1 (1:1)</th>
+                                <th style="text-align:center;">TP2 (1:2)</th>
+                                <th style="text-align:center;">TP3 (1:3)</th>
+                                <th style="text-align:center;">TP4 (1:4)</th>
+                                <th style="text-align:center;">استاپ (SL)</th>
+                                <th style="text-align:center;">سود خالص دلاری (0.04)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(all_patterns_rows)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+        </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;">
-                <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                    <div style="color:#f87171;font-weight:bold;font-size:14px;">🌙 باخت‌های ساعات شب (۲۱ تا ۰۱)</div>
-                    <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{night_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(night_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                    <div style="color:#94a3b8;font-size:11px;">اسپرد بالا و نبود نقدینگی در سشن آسیا منشأ این باخت‌هاست.</div>
+        <!-- ==================== TAB 7: 🔍 LOSS INTELLIGENCE ==================== -->
+        <div id="tab-loss-intel" class="tab-content">
+            <div class="section-box" style="border: 1px solid #ef4444; background: #18111c;">
+                <div style="border-bottom: 1px solid #332032; padding-bottom: 14px; margin-bottom: 18px;">
+                    <h3 style="margin:0;color:#f87171;font-size:20px;">🔍 تحلیل آماری معاملات استاپ‌شده (Loss Pattern Intelligence)</h3>
+                    <p style="margin:4px 0 0 0;color:#fca5a5;font-size:12px;">کالبدشکافی {total_losses} معامله استاپ‌خورده در این دیتاست جهت جلوگیری هوشمند از تکرار باخت:</p>
                 </div>
-                <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                    <div style="color:#f87171;font-weight:bold;font-size:14px;">🚫 باخت‌های باکس‌های تک LS</div>
-                    <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{single_ls_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(single_ls_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                    <div style="color:#94a3b8;font-size:11px;">باکس‌های LS منفرد بدون تلاقی بیشترین ریسک را به همراه دارند.</div>
-                </div>
-                <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                    <div style="color:#f87171;font-weight:bold;font-size:14px;">☣️ باخت‌های زنجیره‌های سمی</div>
-                    <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{toxic_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(toxic_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                    <div style="color:#94a3b8;font-size:11px;">ورود در روندهای فرسایشی انتهای موج.</div>
-                </div>
-                <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                    <div style="color:#f87171;font-weight:bold;font-size:14px;">📦 باخت‌های فلگ‌های ساده</div>
-                    <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{pure_flag_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(pure_flag_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                    <div style="color:#94a3b8;font-size:11px;">نویزهای میانی چارت بدون شکست ساختار.</div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;">
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">🌙 باخت‌های ساعات شب (۲۱ تا ۰۱)</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{night_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(night_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">اسپرد بالا و نبود نقدینگی در سشن آسیا منشأ این باخت‌هاست.</div>
+                    </div>
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">🚫 باخت‌های باکس‌های تک LS</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{single_ls_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(single_ls_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">باکس‌های LS منفرد بدون تلاقی بیشترین ریسک را به همراه دارند.</div>
+                    </div>
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">☣️ باخت‌های زنجیره‌های سمی</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{toxic_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(toxic_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">ورود در روندهای فرسایشی انتهای موج.</div>
+                    </div>
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">📦 باخت‌های فلگ‌های ساده</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{pure_flag_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(pure_flag_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">نویزهای میانی چارت بدون شکست ساختار.</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        function openTab(evt, tabId) {{
+            let contents = document.querySelectorAll('.tab-content');
+            contents.forEach(c => c.classList.remove('active'));
+
+            let btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }}
+
         function filterTF(tf) {{
             let btns = document.querySelectorAll('.tf-btn');
             btns.forEach(b => b.classList.remove('active'));
