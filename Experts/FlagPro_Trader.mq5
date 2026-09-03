@@ -95,7 +95,7 @@ input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سو�
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (پوشش بهینه و سریع)
+input int              InpMaxBarsTF   = 50000;       // حداکثر کندل‌های محاسبه (پوشش کامل ۱ ماه - ۵۰ هزار کندل)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)

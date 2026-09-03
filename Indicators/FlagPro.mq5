@@ -87,7 +87,7 @@ input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سو�
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌های محاسبه (پوشش بهینه و سریع)
+input int              InpMaxBarsTF   = 50000;       // حداکثر کندل‌های محاسبه (پوشش کامل ۱ ماه - ۵۰ هزار کندل)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -301,15 +301,34 @@ int OnCalculate(const int rates_total,
    // پردازش اولین گره بعد از پیووت مستقل به عنوان OInner
    ProcessOInnerBoxes();
 
-   // پردازش سیستم سراسری سواپ
-   ProcessUniversalSwapLines(time, high, low, rates_total);
+   // بارگذاری عمیق تاریخچه یک‌ماهه جهت پوشش کامل تمام ۳۰ روز (حتی اگر کاربر در چارت اسکرول نکرده باشد)
+   datetime fullTime[];
+   double   fullHigh[], fullLow[], fullClose[];
+   ArraySetAsSeries(fullTime,  false);
+   ArraySetAsSeries(fullHigh,  false);
+   ArraySetAsSeries(fullLow,   false);
+   ArraySetAsSeries(fullClose, false);
 
-   // ۱. پردازش معاملات خودکار و تشخیص باکس‌های معامله‌شده
-   RenderAutoTradeSetups(time, high, low, close, rates_total);
+   int targetBars = MathMax(InpMaxBarsTF, rates_total);
+   int totalCopied = CopyTime(_Symbol, _Period, 0, targetBars, fullTime);
+   if(totalCopied > rates_total)
+   {
+      CopyHigh(_Symbol, _Period, 0, totalCopied, fullHigh);
+      CopyLow(_Symbol, _Period, 0, totalCopied, fullLow);
+      CopyClose(_Symbol, _Period, 0, totalCopied, fullClose);
 
-   // ۲. رسم نهایی باکس‌ها (با شرط نمایش فقط باکس‌های معامله‌شده در گذشته چارت)
-   RenderFinalBoxes(time, rates_total);
-   RenderFinalIndependentPivots(time, high, low, rates_total);
+      ProcessUniversalSwapLines(fullTime, fullHigh, fullLow, totalCopied);
+      RenderAutoTradeSetups(fullTime, fullHigh, fullLow, fullClose, totalCopied);
+      RenderFinalBoxes(fullTime, totalCopied);
+      RenderFinalIndependentPivots(fullTime, fullHigh, fullLow, totalCopied);
+   }
+   else
+   {
+      ProcessUniversalSwapLines(time, high, low, rates_total);
+      RenderAutoTradeSetups(time, high, low, close, rates_total);
+      RenderFinalBoxes(time, rates_total);
+      RenderFinalIndependentPivots(time, high, low, rates_total);
+   }
 
    // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
    if(g_selectedBoxName != "")
