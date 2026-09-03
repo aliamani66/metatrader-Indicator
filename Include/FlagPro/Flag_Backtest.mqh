@@ -527,16 +527,16 @@ void ShowTradeSetupForBox(int boxIdx)
 }
 
 //+------------------------------------------------------------------+
-//| Render Automatic Trade Setups for all Valid & Entered Boxes     |
+//| Render Automatic Trade Setups with Full Lifecycle Persistence    |
 //+------------------------------------------------------------------+
 void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], const double &chartClose[], int ratesTotal)
 {
-   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
    if(!InpAutoDrawTrades || ratesTotal < 10) return;
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = InpRSPipBuffer * pipSize;
 
+   // مرحله ۱: شناسایی و ثبت معاملات جدید در مخزن پایدار g_tradeSetups
    for(int b = 0; b < g_boxCount; b++)
    {
       g_drawnBoxes[b].hasTradeEntered = false;
@@ -595,7 +595,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
-      // معامله منحصراً فقط و فقط روی ۷ سلطان طلایی استراتژی انجام می‌شود
+      // فقط ۷ سلطان طلایی مجاز به معامله هستند
       if(!IsGoldenTradeSetup(role)) continue;
 
       bool isBull = true;
@@ -658,7 +658,6 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       double risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
-      // فیلتر هوشمند ضد استاپ: اگر ستاپ فیلتر باشد، گرافیک معامله رسم نمی‌شود
       if(IsSetupFilteredOut(role, g_drawnBoxes[b].t1, risk / _Point))
          continue;
 
@@ -673,7 +672,6 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
       bool isEntered = false;
-      int  entryBarIdx = -1;
       datetime entryTime = 0;
       int departedBar = -1;
       datetime maxBoxTime = g_drawnBoxes[b].t2;
@@ -684,7 +682,6 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       {
          if(chartTime[k] > maxBoxTime) break;
 
-         // اگر قبل از ورود به حد ضرر بخورد، ستاپ لغو می‌شود
          if(isBull && chartLow[k] <= slPrice) break;
          if(!isBull && chartHigh[k] >= slPrice) break;
 
@@ -699,14 +696,12 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             if(isBull && chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
             {
                isEntered = true;
-               entryBarIdx = k;
                entryTime = chartTime[k];
                break;
             }
             else if(!isBull && chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
             {
                isEntered = true;
-               entryBarIdx = k;
                entryTime = chartTime[k];
                break;
             }
@@ -714,89 +709,130 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          }
       }
 
-      // فقط برای باکس‌هایی که معامله روی آن‌ها تایید و فعال شده گرافیک کشیده شود
-      if(!isEntered)
-         continue;
+      if(!isEntered) continue;
 
       g_drawnBoxes[b].hasTradeEntered = true;
 
-      // محاسبه تارگت‌ها
+      // بررسی عدم تکرار معامله در مخزن ماندگار g_tradeSetups
+      bool exists = false;
+      for(int t = 0; t < g_tradeCount; t++)
+      {
+         if(g_tradeSetups[t].boxName == g_drawnBoxes[b].boxName && g_tradeSetups[t].entryTime == entryTime)
+         {
+            exists = true;
+            break;
+         }
+      }
+
+      if(!exists)
+      {
+         ArrayResize(g_tradeSetups, g_tradeCount + 1);
+         g_tradeSetups[g_tradeCount].boxName    = g_drawnBoxes[b].boxName;
+         g_tradeSetups[g_tradeCount].boxRole    = role;
+         g_tradeSetups[g_tradeCount].tf         = g_drawnBoxes[b].tf;
+         g_tradeSetups[g_tradeCount].tfTag      = g_drawnBoxes[b].tfTag;
+         g_tradeSetups[g_tradeCount].isBuy      = isBull;
+         g_tradeSetups[g_tradeCount].entryTime  = entryTime;
+         g_tradeSetups[g_tradeCount].entryPrice = entryPrice;
+         g_tradeSetups[g_tradeCount].slPrice    = slPrice;
+         g_tradeSetups[g_tradeCount].risk       = risk;
+         g_tradeSetups[g_tradeCount].tp1        = isBull ? entryPrice + risk * 1.0 : entryPrice - risk * 1.0;
+         g_tradeSetups[g_tradeCount].tp2        = isBull ? entryPrice + risk * 2.0 : entryPrice - risk * 2.0;
+         g_tradeSetups[g_tradeCount].tp3        = isBull ? entryPrice + risk * 3.0 : entryPrice - risk * 3.0;
+         g_tradeSetups[g_tradeCount].tp4        = isBull ? entryPrice + risk * 4.0 : entryPrice - risk * 4.0;
+         g_tradeSetups[g_tradeCount].exitTime   = chartTime[ratesTotal - 1];
+         g_tradeSetups[g_tradeCount].hitTP      = 0;
+         g_tradeSetups[g_tradeCount].isClosed   = false;
+         g_tradeCount++;
+      }
+   }
+
+   // مرحله ۲: بروزرسانی و رسم تمام معاملات ثبت‌شده (معاملات هرگز محو نمی‌شوند)
+   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
+
+   for(int t = 0; t < g_tradeCount; t++)
+   {
       double tps[4];
-      for(int tp = 0; tp < 4; tp++)
-      {
-         if(isBull) tps[tp] = entryPrice + risk * (tp + 1);
-         else       tps[tp] = entryPrice - risk * (tp + 1);
-      }
+      tps[0] = g_tradeSetups[t].tp1;
+      tps[1] = g_tradeSetups[t].tp2;
+      tps[2] = g_tradeSetups[t].tp3;
+      tps[3] = g_tradeSetups[t].tp4;
 
-      int hitTP = 0;
-      bool isClosed = false;
-      datetime exitTime = 0;
-      datetime hitTime = 0;
-
-      for(int k = entryBarIdx; k < ratesTotal; k++)
+      if(!g_tradeSetups[t].isClosed)
       {
-         if(isBull)
+         int entryBarIdx = FindBarIndex(chartTime, ratesTotal, g_tradeSetups[t].entryTime);
+         if(entryBarIdx < 0) entryBarIdx = 0;
+
+         int currentHitTP = g_tradeSetups[t].hitTP;
+         datetime hitTime = 0;
+
+         for(int k = entryBarIdx; k < ratesTotal; k++)
          {
-            for(int tp = hitTP; tp < 4; tp++)
+            if(g_tradeSetups[t].isBuy)
             {
-               if(chartHigh[k] >= tps[tp])
+               for(int tp = currentHitTP; tp < 4; tp++)
                {
-                  hitTP = tp + 1;
-                  hitTime = chartTime[k];
+                  if(chartHigh[k] >= tps[tp])
+                  {
+                     currentHitTP = tp + 1;
+                     hitTime = chartTime[k];
+                  }
+               }
+               if(chartLow[k] <= g_tradeSetups[t].slPrice)
+               {
+                  g_tradeSetups[t].isClosed = true;
+                  g_tradeSetups[t].exitTime = (currentHitTP > 0) ? hitTime : chartTime[k];
+                  break;
+               }
+               if(currentHitTP == 4)
+               {
+                  g_tradeSetups[t].isClosed = true;
+                  g_tradeSetups[t].exitTime = hitTime;
+                  break;
                }
             }
-            if(chartLow[k] <= slPrice)
+            else
             {
-               isClosed = true;
-               exitTime = (hitTP > 0) ? hitTime : chartTime[k];
-               break;
-            }
-            if(hitTP == 4)
-            {
-               isClosed = true;
-               exitTime = hitTime;
-               break;
-            }
-         }
-         else
-         {
-            for(int tp = hitTP; tp < 4; tp++)
-            {
-               if(chartLow[k] <= tps[tp])
+               for(int tp = currentHitTP; tp < 4; tp++)
                {
-                  hitTP = tp + 1;
-                  hitTime = chartTime[k];
+                  if(chartLow[k] <= tps[tp])
+                  {
+                     currentHitTP = tp + 1;
+                     hitTime = chartTime[k];
+                  }
+               }
+               if(chartHigh[k] >= g_tradeSetups[t].slPrice)
+               {
+                  g_tradeSetups[t].isClosed = true;
+                  g_tradeSetups[t].exitTime = (currentHitTP > 0) ? hitTime : chartTime[k];
+                  break;
+               }
+               if(currentHitTP == 4)
+               {
+                  g_tradeSetups[t].isClosed = true;
+                  g_tradeSetups[t].exitTime = hitTime;
+                  break;
                }
             }
-            if(chartHigh[k] >= slPrice)
-            {
-               isClosed = true;
-               exitTime = (hitTP > 0) ? hitTime : chartTime[k];
-               break;
-            }
-            if(hitTP == 4)
-            {
-               isClosed = true;
-               exitTime = hitTime;
-               break;
-            }
          }
+
+         g_tradeSetups[t].hitTP = currentHitTP;
+         if(!g_tradeSetups[t].isClosed)
+            g_tradeSetups[t].exitTime = chartTime[ratesTotal - 1];
       }
 
-      if(!isClosed)
-         exitTime = (hitTP > 0) ? hitTime : chartTime[ratesTotal - 1];
-
-      datetime t1 = entryTime;
-      datetime t2 = exitTime;
+      datetime t1 = g_tradeSetups[t].entryTime;
+      datetime t2 = g_tradeSetups[t].exitTime;
       if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
 
-      string pfx = FP_PREFIX + "AUTO_TR_" + IntegerToString(b) + "_";
+      string pfx = FP_PREFIX + "AUTO_TR_" + IntegerToString(t) + "_";
+      int hitTP = g_tradeSetups[t].hitTP;
+      int activeTP = (hitTP > 0) ? (hitTP - 1) : 0;
+      double activeTPPrice = (activeTP == 0 ? tps[0] : (activeTP == 1 ? tps[1] : (activeTP == 2 ? tps[2] : tps[3])));
 
       // ۰. بک‌گراند کم‌رنگ و ملایم معامله (سود: زمردی ملایم | زیان: زرشکی ملایم)
-      int activeTP = (hitTP > 0) ? (hitTP - 1) : 0;
-
-      double tpTop = isBull ? tps[activeTP] : entryPrice;
-      double tpBtm = isBull ? entryPrice : tps[activeTP];
+      double tpTop = g_tradeSetups[t].isBuy ? activeTPPrice : g_tradeSetups[t].entryPrice;
+      double tpBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : activeTPPrice;
       string profitZone = pfx + "PROFIT_BG";
       ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
       ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
@@ -804,8 +840,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
       ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
 
-      double slTop = isBull ? entryPrice : slPrice;
-      double slBtm = isBull ? slPrice : entryPrice;
+      double slTop = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : g_tradeSetups[t].slPrice;
+      double slBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].slPrice : g_tradeSetups[t].entryPrice;
       string lossZone = pfx + "LOSS_BG";
       ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
       ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
@@ -815,7 +851,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       // ۱. خط ورود سفید
       string entryLine = pfx + "ENTRY";
-      ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
+      ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, g_tradeSetups[t].entryPrice, t2, g_tradeSetups[t].entryPrice);
       ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
       ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
       ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
@@ -824,29 +860,34 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       // ۲. خط حد ضرر قرمز باریک
       string slLine = pfx + "SL";
-      ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
+      ObjectCreate(0, slLine, OBJ_TREND, 0, t1, g_tradeSetups[t].slPrice, t2, g_tradeSetups[t].slPrice);
       ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrRed);
       ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
       ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
       ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
-      // ۳. خط تارگت سبز (فقط تارگتی که فعال یا لمس شده)
+      // ۳. خط تارگت سبز
       string tpLine = pfx + "TP";
-      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[activeTP], t2, tps[activeTP]);
+      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, activeTPPrice, t2, activeTPPrice);
       ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
       ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP > 0 ? 2 : 1));
       ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP > 0 ? STYLE_SOLID : STYLE_DOT));
       ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
 
-      // ۴. برچسب شیک و شفاف نتیجه در انتهای معامله
+      // ۴. برچسب نتیجه در انتهای معامله
       string resLbl = pfx + "RES_LBL";
-      string resTxt = (hitTP > 0) ? StringFormat("🎯 TP%d (+%dR)", hitTP, hitTP) : (isClosed ? "❌ SL (-1R)" : "⏳ OPEN");
-      color resClr = (hitTP > 0) ? clrLimeGreen : (isClosed ? clrTomato : clrGold);
+      string resTxt = "";
+      if(!g_tradeSetups[t].isClosed)
+         resTxt = (hitTP > 0) ? StringFormat("⏳ باز: TP%d (+%dR)", hitTP, hitTP) : "⏳ در حال معامله...";
+      else
+         resTxt = (hitTP > 0) ? StringFormat("🎯 TP%d (+%dR)", hitTP, hitTP) : "❌ SL (-1R)";
 
-      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, isBull ? tps[activeTP] : tps[activeTP]);
-      ObjectSetString(0, resLbl, OBJPROP_TEXT, resTxt);
+      color resClr = (hitTP > 0) ? clrLimeGreen : (g_tradeSetups[t].isClosed ? clrTomato : clrGold);
+
+      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, activeTPPrice);
+      ObjectSetString(0, resLbl, OBJPROP_TEXT, " " + resTxt + " [" + g_tradeSetups[t].boxRole + "]");
       ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resClr);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 8);
       ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);

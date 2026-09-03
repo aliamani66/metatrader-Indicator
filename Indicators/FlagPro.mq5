@@ -56,7 +56,7 @@ input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 3;            // تاریخچه ۱ دقیقه (۳ روز)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
-input bool             InpShowBoxes             = true;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
+input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
 input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
@@ -188,6 +188,8 @@ int OnInit()
    SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
    ApplyProChartTheme();
 
+   ArrayResize(g_tradeSetups, 0);
+   g_tradeCount = 0;
    ObjectsDeleteAll(0, FP_PREFIX);
    ChartRedraw(0);
    g_forceRecalc = true;
@@ -201,6 +203,8 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   ArrayResize(g_tradeSetups, 0);
+   g_tradeCount = 0;
    ObjectsDeleteAll(0, FP_PREFIX);
    ChartRedraw(0);
    g_testerStartBase = 0;
