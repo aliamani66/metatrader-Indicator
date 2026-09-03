@@ -94,6 +94,9 @@ void RenderFinalBoxes()
             shouldDraw = true;
       }
 
+      if((bool)MQLInfoInteger(MQL_TESTER))
+         shouldDraw = true;
+
       if(!shouldDraw)
          continue;
 
@@ -104,7 +107,7 @@ void RenderFinalBoxes()
 
       ENUM_LINE_STYLE drawStyle = g_drawnBoxes[b].baseStyle;
 
-      if(!hasRSTags)
+      if(!hasRSTags && !(bool)MQLInfoInteger(MQL_TESTER))
       {
          if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
             continue;
@@ -156,31 +159,34 @@ void RenderFinalBoxes()
             tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
          }
 
-         // ===== اعمال فیلتر برترین الگوهای برنده (فقط و فقط ۷ سلطان طلایی سودده) =====
-         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
+         // ===== اعمال فیلتر برترین الگوهای برنده (فقط در لایو بازار در صورت تمایل کاربر) =====
+         if(!(bool)MQLInfoInteger(MQL_TESTER))
          {
-            bool isWinner = false;
-            if(tagCombo == "OInner-BU > RS-BU") isWinner = true;
-            else if(tagCombo == "OInner-BU > RS-BE") isWinner = true;
-            else if(tagCombo == "OInner-BE > RS-BU") isWinner = true;
-            else if(tagCombo == "RS-BU") isWinner = true;
-            else if(tagCombo == "RS-BE") isWinner = true;
-            else if(tagCombo == "OInner-BU") isWinner = true;
-            else if(tagCombo == "OInner-BE") isWinner = true;
-            if(!isWinner) continue;
-         }
-         else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
-         {
-            bool allowed = false;
-            if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS-BU > OInner-BE") >= 0) allowed = true;
-            else if(InpShow_LSBE && (tagCombo == "LS-BE" || (StringFind(tagCombo, "LS-BE") == 0 && StringFind(tagCombo, ">") < 0))) allowed = true;
-            else if(InpShow_OInnerBE_RSBE && StringFind(tagCombo, "OInner-BE > RS-BE") >= 0) allowed = true;
-            else if(InpShow_SLS && StringFind(tagCombo, "S-LS") >= 0) allowed = true;
-            else if(InpShow_SOInner && StringFind(tagCombo, "S-OInner") >= 0) allowed = true;
-            else if(InpShow_OtherBoxes) allowed = true;
+            if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
+            {
+               bool isWinner = false;
+               if(tagCombo == "OInner-BU > RS-BU") isWinner = true;
+               else if(tagCombo == "OInner-BU > RS-BE") isWinner = true;
+               else if(tagCombo == "OInner-BE > RS-BU") isWinner = true;
+               else if(tagCombo == "RS-BU") isWinner = true;
+               else if(tagCombo == "RS-BE") isWinner = true;
+               else if(tagCombo == "OInner-BU") isWinner = true;
+               else if(tagCombo == "OInner-BE") isWinner = true;
+               if(!isWinner) continue;
+            }
+            else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
+            {
+               bool allowed = false;
+               if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS-BU > OInner-BE") >= 0) allowed = true;
+               else if(InpShow_LSBE && (tagCombo == "LS-BE" || (StringFind(tagCombo, "LS-BE") == 0 && StringFind(tagCombo, ">") < 0))) allowed = true;
+               else if(InpShow_OInnerBE_RSBE && StringFind(tagCombo, "OInner-BE > RS-BE") >= 0) allowed = true;
+               else if(InpShow_SLS && StringFind(tagCombo, "S-LS") >= 0) allowed = true;
+               else if(InpShow_SOInner && StringFind(tagCombo, "S-OInner") >= 0) allowed = true;
+               else if(InpShow_OtherBoxes) allowed = true;
 
-            if(!allowed)
-               continue;
+               if(!allowed)
+                  continue;
+            }
          }
 
          bool isBull = false;
@@ -200,9 +206,9 @@ void RenderFinalBoxes()
          else if(isLS) shortRoleTag = "LS" + (g_drawnBoxes[b].isLSBull ? "-BU" : "-BE");
          else if(isRS) shortRoleTag = "RS" + (g_drawnBoxes[b].isRSBull ? "-BU" : "-BE");
 
-         // مخفی‌سازی باکس‌های فیلترشده در صورتی که کاربر گزینه مخفی‌سازی را فعال کرده باشد
+         // مخفی‌سازی باکس‌های فیلترشده در صورتی که کاربر گزینه مخفی‌سازی را فعال کرده باشد (فقط در لایو)
          double boxRiskPts = (_Point > 0) ? (MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom) / _Point) : 0.0;
-         if(InpHideFilteredBoxes && IsSetupFilteredOut(roleTag, g_drawnBoxes[b].t1, boxRiskPts))
+         if(!(bool)MQLInfoInteger(MQL_TESTER) && InpHideFilteredBoxes && IsSetupFilteredOut(roleTag, g_drawnBoxes[b].t1, boxRiskPts))
             continue;
 
          if(isSwap)
