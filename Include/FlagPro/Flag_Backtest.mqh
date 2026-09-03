@@ -882,8 +882,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       if(!exists)
       {
-         // قانون تک‌معامله‌ای: جلوگیری از تداخل معاملات هم‌زمان در همان تایم‌فریم
-         if(InpPreventOverlappingTrades)
+         // بررسی تداخل فقط در صورت غیرفعال بودن معاملات همزمان توسط کاربر
+         if(!InpAllowOverlappingTrades)
          {
             bool isBusy = false;
             for(int t = 0; t < g_tradeCount; t++)

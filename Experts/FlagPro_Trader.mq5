@@ -163,8 +163,8 @@ input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل 
 
 input group "=== Trade Setup & Simulator (ستاپ معامله و بک‌تست) ==="
 input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
-input bool             InpTradeOnlyGoldenKings  = true;         // 👑 معامله منحصراً فقط روی ۷ سلطان طلایی (وین‌ریت بالای ۶۰٪)
-input bool             InpPreventOverlappingTrades = false;     // 🔓 اجازه معاملات همزمان (هر ستاپ معتبری مستقل معامله می‌شود)
+input bool             InpTradeOnlyGoldenKings  = true;         // 👑 فقط معامله سلاطین طلایی برگزیده (سلاطین ۲۰ گانه)
+input bool             InpAllowOverlappingTrades = true;        // 🔓 اجازه معاملات همزمان (هر ستاپ معتبری مستقل معامله می‌شود)
 input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض: خاموش)
 input double           InpSLOffsetPips          = 3.0;          // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ - پیش‌فرض ۳ پیپ)
 #define InpRSPipBuffer InpSLOffsetPips
@@ -510,7 +510,7 @@ void OnTick()
    for(int t = 0; t < g_tradeCount; t++)
    {
       // 👑 فیلتر سلاطین برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
-      if(InpOnlyTradeKings && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
          continue;
 
       // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها)
