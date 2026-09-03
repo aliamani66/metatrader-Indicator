@@ -100,6 +100,7 @@ void RenderFinalBoxes()
       color drawClr = g_drawnBoxes[b].baseColor;
       int drawWidth = g_drawnBoxes[b].baseWidth;
       string roleTag = "";
+      string shortRoleTag = "";
 
       ENUM_LINE_STYLE drawStyle = g_drawnBoxes[b].baseStyle;
 
@@ -191,6 +192,14 @@ void RenderFinalBoxes()
 
          roleTag = tagCombo;
 
+         if(isSwap) shortRoleTag = swapTag + (g_drawnBoxes[b].isSwapBull ? "-BU" : "-BE");
+         else if(isLS && isRS) shortRoleTag = "LS+RS" + (g_drawnBoxes[b].isRSBull ? "-BU" : "-BE");
+         else if(isOI && isRS) shortRoleTag = "OInner+RS" + (g_drawnBoxes[b].isRSBull ? "-BU" : "-BE");
+         else if(isLS && isOI) shortRoleTag = "LS+OInner" + (g_drawnBoxes[b].isOInnerBull ? "-BU" : "-BE");
+         else if(isOI) shortRoleTag = "OInner" + (g_drawnBoxes[b].isOInnerBull ? "-BU" : "-BE");
+         else if(isLS) shortRoleTag = "LS" + (g_drawnBoxes[b].isLSBull ? "-BU" : "-BE");
+         else if(isRS) shortRoleTag = "RS" + (g_drawnBoxes[b].isRSBull ? "-BU" : "-BE");
+
          // مخفی‌سازی باکس‌های فیلترشده در صورتی که کاربر گزینه مخفی‌سازی را فعال کرده باشد
          double boxRiskPts = (_Point > 0) ? (MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom) / _Point) : 0.0;
          if(InpHideFilteredBoxes && IsSetupFilteredOut(roleTag, g_drawnBoxes[b].t1, boxRiskPts))
@@ -257,9 +266,11 @@ void RenderFinalBoxes()
          datetime labelTime = (datetime)((g_drawnBoxes[b].t1 + g_drawnBoxes[b].t2) / 2);
          string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
 
+         string displayTag = (InpLabelFormat == LABEL_CONCISE && shortRoleTag != "") ? shortRoleTag : roleTag;
+
          string lblText = g_drawnBoxes[b].tfTag;
-         if(roleTag != "")
-            lblText = g_drawnBoxes[b].tfTag + " [" + roleTag + "]";
+         if(displayTag != "")
+            lblText = g_drawnBoxes[b].tfTag + " [" + displayTag + "]";
          else
          {
             string flDir = g_drawnBoxes[b].isBullish ? "BU" : "BE";

@@ -24,6 +24,12 @@ enum ENUM_BOX_DISPLAY_FILTER
    FILTER_SHOW_ALL = 2                 // نمایش همه باکس‌ها (بدون فیلتر)
 };
 
+enum ENUM_LABEL_FORMAT
+{
+   LABEL_CONCISE,   // نام کوتاه و تمیز (مثل چارت کلاسیک: OInner-BE, S-LS)
+   LABEL_FULL_CHAIN // زنجیره کامل مسیر الگو (LS > OInner > RS > Swap)
+};
+
 // ساختار نگهداری مشخصات باکس‌ها
 struct SBoxInfo
 {
@@ -106,3 +112,4 @@ color           g_origBoxColor = clrNONE;
 int             g_origBoxWidth = 1;
 ENUM_LINE_STYLE g_origBoxStyle = STYLE_SOLID;
 bool            g_forceRecalc = true;
+datetime        g_sessionStartTime = 0;

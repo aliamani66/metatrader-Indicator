@@ -91,6 +91,7 @@ input int              InpMaxBarsTF   = 3000;        // حداکثر کندل‌
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
 input bool             InpShowLabel   = true;        // نمایش برچسب تایم‌فریم
+input ENUM_LABEL_FORMAT InpLabelFormat = LABEL_CONCISE; // فرمت برچسب نام (کلاسیک و کوتاه / زنجیره‌ای)
 input bool             InpRemoveOverlapping = true;  // حذف باکس‌های هم‌پوشان تکراری
 
 input group "=== Independent Pivots (پیووت‌های مستقل) ==="

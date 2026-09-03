@@ -18,7 +18,9 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    {
       int secPerBar = PeriodSeconds(tf);
       if(secPerBar <= 0) secPerBar = 60;
-      maxBars = (daysBack * 86400 / secPerBar) + 500;
+      int elapsedSec = (g_sessionStartTime > 0) ? (int)(TimeCurrent() - g_sessionStartTime) : 0;
+      if(elapsedSec < 0) elapsedSec = 0;
+      maxBars = ((daysBack * 86400 + elapsedSec) / secPerBar) + 500;
    }
    else
    {
@@ -49,9 +51,12 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    string tfTag = TFName(tf);
    string tfSymbol = (tf == PERIOD_H1) ? "H1" : tfTag;
 
+   if(g_sessionStartTime == 0)
+      g_sessionStartTime = TimeCurrent();
+
    datetime limitTime = 0;
    if(daysBack > 0)
-      limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
+      limitTime = g_sessionStartTime - daysBack * 24 * 60 * 60;
 
    //--- مرحله ۱: مشخص کردن اینکه کدام یال‌ها و پیووت‌ها متعلق به باکس‌های پرچم هستند
    bool isLegBox[];
