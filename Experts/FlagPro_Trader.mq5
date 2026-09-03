@@ -232,6 +232,8 @@ int OnInit()
    {
       ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_BG_");
    }
+   ObjectsDeleteAll(0, FP_PREFIX + "LIVE_TR_");
+   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
 
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(m_activeGroups, 0);
@@ -248,6 +250,8 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   ObjectsDeleteAll(0, FP_PREFIX + "LIVE_TR_");
+   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(m_activeGroups, 0);
    ArrayResize(g_tradeSetups, 0);
@@ -429,6 +433,109 @@ void ManageActiveTradeGroups()
 }
 
 //+------------------------------------------------------------------+
+//| رسم دینامیک خطوط منحصراً برای پوزیشن فعال (حذف خطوط معاملات گذشته)|
+//+------------------------------------------------------------------+
+void UpdateActiveTradeVisuals()
+{
+   // پاکسازی قطعی تمام خطوط معاملات قدیمی که کاربر را گمراه می‌کرد
+   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
+
+   bool hasLiveGroup = false;
+   int liveIdx = -1;
+
+   for(int g = ArraySize(m_activeGroups) - 1; g >= 0; g--)
+   {
+      if(!m_activeGroups[g].isFinished)
+      {
+         hasLiveGroup = true;
+         liveIdx = g;
+         break;
+      }
+   }
+
+   // اگر معامله در متاتریدر بسته شده، تمام خطوط را فوراً از روی چارت پاک کن
+   if(!hasLiveGroup || liveIdx < 0)
+   {
+      ObjectsDeleteAll(0, FP_PREFIX + "LIVE_TR_");
+      return;
+   }
+
+   datetime t1 = iTime(_Symbol, _Period, 20);
+   datetime t2 = iTime(_Symbol, _Period, 0) + PeriodSeconds(_Period) * 20;
+
+   double entryP    = m_activeGroups[liveIdx].entryPrice;
+   double currentSL = m_activeGroups[liveIdx].initialSL;
+   string slLabel   = "SL (اصلی)";
+
+   double pipSize   = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
+   double beBuffer  = InpBEBufferPips * pipSize;
+   double bePrice   = m_activeGroups[liveIdx].isBuy ? (entryP + beBuffer) : (entryP - beBuffer);
+
+   if(m_activeGroups[liveIdx].trailTP2Applied)
+   {
+      currentSL = m_activeGroups[liveIdx].tp2;
+      slLabel = "Trail (TP2)";
+   }
+   else if(m_activeGroups[liveIdx].trailTP1Applied)
+   {
+      currentSL = m_activeGroups[liveIdx].tp1;
+      slLabel = "Trail (TP1)";
+   }
+   else if(m_activeGroups[liveIdx].beApplied)
+   {
+      currentSL = bePrice;
+      slLabel = "Break-Even (0.0)";
+   }
+
+   currentSL = NormalizeDouble(currentSL, _Digits);
+
+   // ۱. رسم خط ورود معامله فعال (سفید)
+   string lineEntry = FP_PREFIX + "LIVE_TR_ENTRY";
+   ObjectCreate(0, lineEntry, OBJ_TREND, 0, t1, entryP, t2, entryP);
+   ObjectSetInteger(0, lineEntry, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, lineEntry, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, lineEntry, OBJPROP_STYLE, STYLE_SOLID);
+   ObjectSetInteger(0, lineEntry, OBJPROP_RAY_RIGHT, false);
+   ObjectSetInteger(0, lineEntry, OBJPROP_SELECTABLE, false);
+
+   // ۲. رسم خط حد ضرر معامله فعال (قرمز - دقیقاً منطبق بر استاپ بروکر)
+   string lineSL = FP_PREFIX + "LIVE_TR_SL";
+   ObjectCreate(0, lineSL, OBJ_TREND, 0, t1, currentSL, t2, currentSL);
+   ObjectSetInteger(0, lineSL, OBJPROP_COLOR, clrRed);
+   ObjectSetInteger(0, lineSL, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, lineSL, OBJPROP_STYLE, STYLE_SOLID);
+   ObjectSetInteger(0, lineSL, OBJPROP_RAY_RIGHT, false);
+   ObjectSetInteger(0, lineSL, OBJPROP_SELECTABLE, false);
+
+   string lblSL = FP_PREFIX + "LIVE_TR_SL_TXT";
+   ObjectCreate(0, lblSL, OBJ_TEXT, 0, t2, currentSL);
+   ObjectSetString(0, lblSL, OBJPROP_TEXT, " " + slLabel);
+   ObjectSetInteger(0, lblSL, OBJPROP_COLOR, clrTomato);
+   ObjectSetInteger(0, lblSL, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, lblSL, OBJPROP_SELECTABLE, false);
+
+   // ۳. رسم خطوط تارگت‌های معامله فعال (سبز)
+   double tps[4] = {m_activeGroups[liveIdx].tp1, m_activeGroups[liveIdx].tp2, m_activeGroups[liveIdx].tp3, m_activeGroups[liveIdx].tp4};
+   for(int p = 0; p < 4; p++)
+   {
+      string lineTP = FP_PREFIX + "LIVE_TR_TP" + IntegerToString(p + 1);
+      ObjectCreate(0, lineTP, OBJ_TREND, 0, t1, tps[p], t2, tps[p]);
+      ObjectSetInteger(0, lineTP, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, lineTP, OBJPROP_WIDTH, 1);
+      ObjectSetInteger(0, lineTP, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, lineTP, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, lineTP, OBJPROP_SELECTABLE, false);
+
+      string lblTP = FP_PREFIX + "LIVE_TR_TP_TXT" + IntegerToString(p + 1);
+      ObjectCreate(0, lblTP, OBJ_TEXT, 0, t2, tps[p]);
+      ObjectSetString(0, lblTP, OBJPROP_TEXT, StringFormat(" TP%d (+%dR)", p + 1, p + 1));
+      ObjectSetInteger(0, lblTP, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, lblTP, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, lblTP, OBJPROP_SELECTABLE, false);
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
@@ -496,6 +603,9 @@ void OnTick()
 
    // مدیریت تریل و بریک‌ایون تمام معاملات باز روی هر تیک
    ManageActiveTradeGroups();
+
+   // به‌روزرسانی خطوط و پاکسازی خودکار معاملات بسته‌شده از روی چارت
+   UpdateActiveTradeVisuals();
 
    // بررسی ارسال پوزیشن‌های جدید
    if(CountOpenPositionGroups() >= InpMaxOpenGroups)
