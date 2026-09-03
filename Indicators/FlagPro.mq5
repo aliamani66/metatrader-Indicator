@@ -250,6 +250,16 @@ int OnCalculate(const int rates_total,
    useArr[2] = false; // H4
    useArr[3] = false; // H1
 
+   // در استراتژی تستر متاتریدر ۵، اندیکاتور اجازه فراخوانی سایر تایم‌فریم‌ها را ندارد و قفل می‌شود؛
+   // بنابراین در تستر دقیقاً تایم‌فریم جاری چارت (_Period) محاسبه می‌شود تا با حداکثر سرعت اجرا شود
+   if((bool)MQLInfoInteger(MQL_TESTER))
+   {
+      for(int s = 0; s < 7; s++)
+      {
+         useArr[s] = (tfArr[s] == _Period);
+      }
+   }
+
    for(int s = 0; s < 7; s++)
    {
       if(!useArr[s]) continue;
