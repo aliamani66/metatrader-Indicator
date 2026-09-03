@@ -264,45 +264,107 @@ def build_dashboard():
     m2_net = m2_gross - tot_k_fric
     be_diff = m1_net - m2_net
 
-    # Timeframe Summary (M1, M5, M15)
+    # Timeframe Breakdown: 1. Golden Kings Strategy (Trading Reality) vs 2. All Raw Boxes (Unfiltered Noise)
     tf_map = defaultdict(list)
     for r in closed:
         tf_map[r.get('Timeframe', 'Unknown')].append(r)
 
-    tf_summary_rows = []
-    for tf_name in ['M1', 'M5', 'M15']:
-        t_list = tf_map.get(tf_name, [])
+    def calc_tf_metrics(t_list):
         cnt = len(t_list)
-        if cnt == 0: continue
+        if cnt == 0: return None
         w1 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 1])
         w2 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 2])
         w3 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 3])
         w4 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 4])
         sl = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) == 0])
-
-        tf_gross = 0.0
+        gross = 0.0
         for r in t_list:
             pts = float(r.get('RiskPoints', 0.0))
             hr = int(r.get('HitTargetRatio', 0))
-            if hr == 0: tf_gross -= pts * 0.04
-            elif hr == 1: tf_gross += pts * 0.02
-            elif hr in [2, 3]: tf_gross += (pts * 0.02) + (pts * 2 * 0.01)
-            elif hr >= 4: tf_gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
-        tf_net = tf_gross - (cnt * friction_04_per_trade)
-        col = "#00e676" if tf_net >= 0 else "#ef4444"
+            if hr == 0: gross -= pts * 0.04
+            elif hr == 1: gross += pts * 0.02
+            elif hr in [2, 3]: gross += (pts * 0.02) + (pts * 2 * 0.01)
+            elif hr >= 4: gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+        net = gross - (cnt * friction_04_per_trade)
+        return {
+            'cnt': cnt,
+            'w1_p': w1 / cnt * 100,
+            'w2_p': w2 / cnt * 100,
+            'w3_p': w3 / cnt * 100,
+            'w4_p': w4 / cnt * 100,
+            'sl_p': sl / cnt * 100,
+            'net': net
+        }
 
-        tf_summary_rows.append(f"""
+    # 1. Golden Kings Strategy per Timeframe (The actual system being traded)
+    tf_kings_rows = []
+    for tf_name in ['M1', 'M5', 'M15']:
+        t_sub = [r for r in kings_trades if r.get('Timeframe') == tf_name]
+        d = calc_tf_metrics(t_sub)
+        if not d: continue
+        col = "#00e676" if d['net'] >= 0 else "#ef4444"
+        tf_kings_rows.append(f"""
         <tr>
             <td style="color:#38bdf8;font-weight:bold;font-size:14px;">{tf_name}</td>
-            <td style="text-align:center;font-weight:bold;">{cnt} معامله</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;">{w1/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;">{w2/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#38bdf8;">{w3/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#c084fc;">{w4/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:{col};font-weight:bold;font-size:15px;">${tf_net:+.2f} دلار</td>
+            <td style="text-align:center;font-weight:bold;">{d['cnt']} معامله</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{d['w1_p']:.1f}%</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{d['w2_p']:.1f}%</td>
+            <td style="text-align:center;color:#38bdf8;">{d['w3_p']:.1f}%</td>
+            <td style="text-align:center;color:#c084fc;">{d['w4_p']:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{d['sl_p']:.1f}%</td>
+            <td style="text-align:center;color:{col};font-weight:bold;font-size:15px;">${d['net']:+.2f} دلار</td>
         </tr>
         """)
+
+    d_tot_kings = calc_tf_metrics(kings_trades)
+    tot_kings_col = "#00e676" if d_tot_kings['net'] >= 0 else "#ef4444"
+    tf_kings_rows.append(f"""
+    <tr style="background:#1e293b;border-top:2px solid #38bdf8;">
+        <td style="color:#facc15;font-weight:bold;font-size:15px;">👑 مجموع سلاطین (FlagPro)</td>
+        <td style="text-align:center;font-weight:bold;color:#facc15;font-size:14px;">{d_tot_kings['cnt']} معامله</td>
+        <td style="text-align:center;color:#00e676;font-weight:bold;">{d_tot_kings['w1_p']:.1f}%</td>
+        <td style="text-align:center;color:#00e676;font-weight:bold;">{d_tot_kings['w2_p']:.1f}%</td>
+        <td style="text-align:center;color:#38bdf8;">{d_tot_kings['w3_p']:.1f}%</td>
+        <td style="text-align:center;color:#c084fc;">{d_tot_kings['w4_p']:.1f}%</td>
+        <td style="text-align:center;color:#ef4444;font-weight:bold;">{d_tot_kings['sl_p']:.1f}%</td>
+        <td style="text-align:center;color:{tot_kings_col};font-weight:bold;font-size:16px;">${d_tot_kings['net']:+.2f} دلار</td>
+    </tr>
+    """)
+
+    # 2. Raw noise summary (All 40+ patterns) for direct comparison
+    tf_raw_rows = []
+    for tf_name in ['M1', 'M5', 'M15']:
+        t_sub = [r for r in closed if r.get('Timeframe') == tf_name]
+        d = calc_tf_metrics(t_sub)
+        if not d: continue
+        col = "#00e676" if d['net'] >= 0 else "#ef4444"
+        tf_raw_rows.append(f"""
+        <tr style="opacity:0.85;">
+            <td style="color:#94a3b8;font-weight:bold;">{tf_name} (خام)</td>
+            <td style="text-align:center;">{d['cnt']} معامله</td>
+            <td style="text-align:center;">{d['w1_p']:.1f}%</td>
+            <td style="text-align:center;">{d['w2_p']:.1f}%</td>
+            <td style="text-align:center;">{d['w3_p']:.1f}%</td>
+            <td style="text-align:center;">{d['w4_p']:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;">{d['sl_p']:.1f}%</td>
+            <td style="text-align:center;color:{col};font-weight:bold;">${d['net']:+.2f} دلار</td>
+        </tr>
+        """)
+
+    d_tot_raw = calc_tf_metrics(closed)
+    tot_raw_col = "#00e676" if d_tot_raw['net'] >= 0 else "#ef4444"
+    tf_raw_rows.append(f"""
+    <tr style="background:#1c1917;border-top:1px solid #44403c;">
+        <td style="color:#f87171;font-weight:bold;">❌ مجموع کل بازار خام</td>
+        <td style="text-align:center;font-weight:bold;">{d_tot_raw['cnt']} معامله</td>
+        <td style="text-align:center;">{d_tot_raw['w1_p']:.1f}%</td>
+        <td style="text-align:center;">{d_tot_raw['w2_p']:.1f}%</td>
+        <td style="text-align:center;">{d_tot_raw['w3_p']:.1f}%</td>
+        <td style="text-align:center;">{d_tot_raw['w4_p']:.1f}%</td>
+        <td style="text-align:center;color:#ef4444;font-weight:bold;">{d_tot_raw['sl_p']:.1f}%</td>
+        <td style="text-align:center;color:{tot_raw_col};font-weight:bold;font-size:15px;">${d_tot_raw['net']:+.2f} دلار</td>
+    </tr>
+    """)
 
     # Interactive Timeframe-Role Table
     tf_role_map = defaultdict(list)
@@ -819,17 +881,17 @@ def build_dashboard():
         <div id="tab-timeframes" class="tab-content">
             <div class="section-box">
                 <div style="border-bottom:1px solid #334155;padding-bottom:14px;margin-bottom:16px;">
-                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 جدول عملکرد جامع به تفکیک تایم‌فریم‌ها (M1, M5, M15)</h3>
-                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">کالبدشکافی عملکرد معاملاتی و سودآوری خالص در هر یک از تایم‌فریم‌های فعال بازار:</p>
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین ۷ گانه FlagPro</h3>
+                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
                 </div>
 
-                <!-- Timeframe Summary Table -->
-                <div style="overflow-x:auto;margin-bottom:20px;">
+                <!-- Primary: Golden Kings per Timeframe -->
+                <div style="overflow-x:auto;margin-bottom:24px;">
                     <table>
                         <thead>
                             <tr style="background:#0f172a;">
-                                <th>تایم‌فریم</th>
-                                <th style="text-align:center;">تعداد کل معامله</th>
+                                <th>تایم‌فریم (سلاطین ۷ گانه)</th>
+                                <th style="text-align:center;">تعداد معامله</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:1</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:2</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:3</th>
@@ -839,7 +901,38 @@ def build_dashboard():
                             </tr>
                         </thead>
                         <tbody>
-                            {"".join(tf_summary_rows)}
+                            {"".join(tf_kings_rows)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Comparison Banner: Why Filters & Kings Are Essential -->
+                <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">💡 تفاوت معاملات سلاطین با کل بازار خام چارت:</span>
+                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل ۲۰۸۴ باکس و نویز چارت بدون فیلتر معامله می‌شد، ۵۵۲- دلار زیان تولید می‌شد؛ اما سلاطین ۷ گانه با فیلتر هوشمند آن را به ۱۸۴+ دلار سود خالص رسانده‌اند!</div>
+                    </div>
+                    <button class="sort-btn" style="border-color:#a5b4fc;color:#a5b4fc;" onclick="let el = document.getElementById('rawTfTable'); el.style.display = el.style.display==='none'?'':'none';">👁️ مشاهده جدول کل دیتای خام چارت</button>
+                </div>
+
+                <!-- Hidden Comparative Raw Table -->
+                <div id="rawTfTable" style="display:none;overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
+                    <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل ۲۰۸۴ معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
+                    <table>
+                        <thead>
+                            <tr style="background:#1e293b;">
+                                <th>تایم‌فریم خام</th>
+                                <th style="text-align:center;">کل معاملات</th>
+                                <th style="text-align:center;">وین‌ریت 1:1</th>
+                                <th style="text-align:center;">وین‌ریت 1:2</th>
+                                <th style="text-align:center;">وین‌ریت 1:3</th>
+                                <th style="text-align:center;">وین‌ریت 1:4</th>
+                                <th style="text-align:center;">نرخ باخت</th>
+                                <th style="text-align:center;">سود/زیان کل خام</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(tf_raw_rows)}
                         </tbody>
                     </table>
                 </div>
