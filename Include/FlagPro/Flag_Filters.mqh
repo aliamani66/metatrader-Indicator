@@ -129,39 +129,54 @@ bool IsSetupFilteredOut(const string roleTag, const datetime entryTime, double r
 }
 
 //+------------------------------------------------------------------+
-//| سلاطین ۷ گانه استراتژی (کنترل مجزا با سوئیچ‌های اینپوت)           |
+//| تشخیص آیا باکس متعلق به ۱۸ سلطان برگزیده بر مبنای تایم‌فریم است؟   |
 //+------------------------------------------------------------------+
+bool IsQualifiedKing(ENUM_TIMEFRAMES tf, const string role)
+{
+   if(tf == PERIOD_M15)
+   {
+      if(!InpEnableKingsM15) return false;
+      if(role == "S-Flag" || 
+         role == "S-OInner") return true;
+   }
+   else if(tf == PERIOD_M5)
+   {
+      if(!InpEnableKingsM5) return false;
+      if(role == "OInner-BE > RS-BU" ||
+         role == "Flag-BU" ||
+         role == "Flag-BE" ||
+         role == "OInner-BE > RS-BE" ||
+         role == "OInner-BE" ||
+         role == "S-Flag" ||
+         role == "S-OInner") return true;
+   }
+   else if(tf == PERIOD_M1)
+   {
+      if(!InpEnableKingsM1) return false;
+      if(role == "Flag-BU" ||
+         role == "Flag-BE" ||
+         role == "OInner-BU > RS-BE" ||
+         role == "OInner-BE > RS-BU" ||
+         role == "OInner-BU > RS-BU" ||
+         role == "OInner-BU" ||
+         role == "OInner-BE" ||
+         role == "RS-BU" ||
+         role == "OInner-BE > RS-BE") return true;
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| سلاطین برگزیده استراتژی بر مبنای تایم‌فریم (۱۸ سلطان طلایی)        |
+//+------------------------------------------------------------------+
+bool IsGoldenTradeSetup(ENUM_TIMEFRAMES tf, const string roleTag)
+{
+   return IsQualifiedKing(tf, roleTag);
+}
+
 bool IsGoldenTradeSetup(const string roleTag)
 {
-   // ۱. رتبه اول: OInner-BE > RS-BU (وین‌ریت ۸۱.۲٪)
-   if(StringFind(roleTag, "OInner-BE > RS-BU") >= 0)
-      return InpTrade_OInnerBE_RSBU;
-
-   // ۲. رتبه دوم: OInner-BU > RS-BE (وین‌ریت ۷۰.۶٪)
-   if(StringFind(roleTag, "OInner-BU > RS-BE") >= 0)
-      return InpTrade_OInnerBU_RSBE;
-
-   // ۳. رتبه سوم: RS-BU (وین‌ریت ۶۸.۲٪)
-   if(roleTag == "RS-BU" || (StringFind(roleTag, "RS-BU") >= 0 && StringFind(roleTag, ">") < 0))
-      return InpTrade_RSBU;
-
-   // ۴. رتبه چهارم: OInner-BU > RS-BU (وین‌ریت ۶۷.۵٪)
-   if(StringFind(roleTag, "OInner-BU > RS-BU") >= 0)
-      return InpTrade_OInnerBU_RSBU;
-
-   // ۵. رتبه پنجم: OInner-BU (وین‌ریت ۶۱.۳٪)
-   if(roleTag == "OInner-BU" || (StringFind(roleTag, "OInner-BU") >= 0 && StringFind(roleTag, ">") < 0))
-      return InpTrade_OInnerBU;
-
-   // ۶. رتبه ششم: OInner-BE (وین‌ریت ۶۰.۰٪)
-   if(roleTag == "OInner-BE" || (StringFind(roleTag, "OInner-BE") >= 0 && StringFind(roleTag, ">") < 0))
-      return InpTrade_OInnerBE;
-
-   // ۷. رتبه هفتم: RS-BE (وین‌ریت ۵۸.۹٪)
-   if(roleTag == "RS-BE" || (StringFind(roleTag, "RS-BE") >= 0 && StringFind(roleTag, ">") < 0))
-      return InpTrade_RSBE;
-
-   return false;
+   return IsQualifiedKing(PERIOD_M1, roleTag) || IsQualifiedKing(PERIOD_M5, roleTag) || IsQualifiedKing(PERIOD_M15, roleTag);
 }
 
 //+------------------------------------------------------------------+

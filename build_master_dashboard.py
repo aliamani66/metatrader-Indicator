@@ -800,7 +800,7 @@ def build_dashboard():
 
         <!-- 📑 TABS NAVIGATION BAR -->
         <div class="tabs-nav">
-            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین ۷ گانه</button>
+            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین ۱۸ گانه</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">💎 خروج پلکانی و بریک‌ایون (0.04)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">📊 عملکرد تایم‌فریم‌ها (M1/M5/M15)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-filters')">🛡️ فیلترهای ضد استاپ و مقایسه</button>
@@ -873,7 +873,7 @@ def build_dashboard():
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
                             <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
-                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین ۷ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
+                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین ۱۸ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
                         </div>
                         <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
                             <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
@@ -1002,7 +1002,7 @@ def build_dashboard():
         <div id="tab-timeframes" class="tab-content">
             <div class="section-box">
                 <div style="border-bottom:1px solid #334155;padding-bottom:14px;margin-bottom:16px;">
-                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین ۷ گانه FlagPro</h3>
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین ۱۸ گانه FlagPro</h3>
                     <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
                 </div>
 
@@ -1033,7 +1033,7 @@ def build_dashboard():
                 <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                     <div>
                         <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">💡 تفاوت معاملات سلاطین با کل بازار خام چارت:</span>
-                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل ۲۰۸۴ باکس و نویز چارت بدون فیلتر معامله می‌شد، ۵۵۲- دلار زیان تولید می‌شد؛ اما سلاطین ۷ گانه با فیلتر هوشمند آن را به ۱۸۴+ دلار سود خالص رسانده‌اند!</div>
+                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل ۲۰۸۴ باکس و نویز چارت بدون فیلتر معامله می‌شد، ۵۵۲- دلار زیان تولید می‌شد؛ اما سلاطین ۱۸ گانه با فیلتر هوشمند آن را به ۱۸۴+ دلار سود خالص رسانده‌اند!</div>
                     </div>
                     <button class="sort-btn" style="border-color:#a5b4fc;color:#a5b4fc;" onclick="let el = document.getElementById('rawTfTable'); el.style.display = el.style.display==='none'?'':'none';">👁️ مشاهده جدول کل دیتای خام چارت</button>
                 </div>

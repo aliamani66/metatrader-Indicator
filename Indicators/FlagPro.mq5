@@ -38,7 +38,6 @@ input color            InpColorTF4 = clrYellow;
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
 input int              InpBacktestDays = 90;         // تعداد روزهای بک‌تست و خروجی گزارش (۹۰ روز - ۳ ماه کامل)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای تولید آنی دیتای داشبورد)
-input bool             InpOnlyTradeKings = true;     // 👑 فقط رسم و ارزیابی ۱۸ سلطان برگزیده بر مبنای تایم‌فریم (Kings Only)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
@@ -63,15 +62,12 @@ input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌ه�
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
 input string           InpRSTagPrefix           = "RS";   // پیشوند تگ‌های هوشمند (RS)
 
-input group "=== 👑 سلاطین ۷ گانه معاملاتی (Golden Kings) ==="
-input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها (فقط الگوهای برنده فعال)
-input bool InpTrade_OInnerBE_RSBU = true; // 🥇 سلطان ۱: OInner-BE > RS-BU (وین‌ریت ۸۱.۲٪)
-input bool InpTrade_OInnerBU_RSBE = true; // 🥈 سلطان ۲: OInner-BU > RS-BE (وین‌ریت ۷۰.۶٪)
-input bool InpTrade_RSBU          = true; // 🥉 سلطان ۳: RS-BU (وین‌ریت ۶۸.۲٪)
-input bool InpTrade_OInnerBU_RSBU = true; // 🌟 سلطان ۴: OInner-BU > RS-BU (وین‌ریت ۶۷.۵٪)
-input bool InpTrade_OInnerBU      = true; // 👑 سلطان ۵: OInner-BU (وین‌ریت ۶۱.۳٪)
-input bool InpTrade_OInnerBE      = true; // 👑 سلطان ۶: OInner-BE (وین‌ریت ۶۰.۰٪)
-input bool InpTrade_RSBE          = true; // ⭐ سلطان ۷: RS-BE (وین‌ریت ۵۸.۹٪)
+input group "=== 👑 سلاطین برگزیده معاملاتی بر مبنای تایم‌فریم (Golden Kings) ==="
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها (فقط سلاطین برگزیده)
+input bool InpOnlyTradeKings      = true; // 👑 فقط معامله و رسم ۱۸ سلطان برگزیده (Kings Only)
+input bool InpEnableKingsM15      = true; // 👑 فعال‌سازی سلاطین تایم M15 (۲ ساختار برتر)
+input bool InpEnableKingsM5       = true; // 👑 فعال‌سازی سلاطین تایم M5 (۷ ساختار برتر)
+input bool InpEnableKingsM1       = true; // 👑 فعال‌سازی سلاطین تایم M1 (۹ ساختار برتر)
 
 input group "=== 🛡️ فیلترهای هوشمند ضد استاپ (Anti-SL Filters) ==="
 input bool InpFilterSingleLS     = true;   // 🛡️ فیلتر ۱: حذف باکس‌های منفرد LS
