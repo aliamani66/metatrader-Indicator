@@ -40,6 +40,8 @@ void ApplyProChartTheme()
    ChartSetInteger(0, CHART_COLOR_GRID, clrNONE);
    ChartSetInteger(0, CHART_SHOW_GRID, false);
    ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
+   ChartSetInteger(0, CHART_SHOW_ASK_LINE, false);
+   ChartSetInteger(0, CHART_SHOW_LAST_LINE, false);
 
    // بازگرداندن رنگ کندل‌ها دقیقاً به سفید ملایم و خاکستری مورد علاقه کاربر
    ChartSetInteger(0, CHART_COLOR_CHART_UP,    clrSilver);
