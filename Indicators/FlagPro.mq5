@@ -260,16 +260,6 @@ int OnCalculate(const int rates_total,
    useArr[2] = false; // H4
    useArr[3] = false; // H1
 
-   // در استراتژی تستر متاتریدر ۵، اندیکاتور اجازه فراخوانی سایر تایم‌فریم‌ها را ندارد و قفل می‌شود؛
-   // بنابراین در تستر دقیقاً تایم‌فریم جاری چارت (_Period) محاسبه می‌شود تا با حداکثر سرعت اجرا شود
-   if((bool)MQLInfoInteger(MQL_TESTER))
-   {
-      for(int s = 0; s < 7; s++)
-      {
-         useArr[s] = (tfArr[s] == _Period);
-      }
-   }
-
    for(int s = 0; s < 7; s++)
    {
       if(!useArr[s]) continue;
@@ -288,6 +278,19 @@ int OnCalculate(const int rates_total,
    // رسم نهایی باکس‌ها و مارکرهای مستقل
    RenderFinalBoxes();
    RenderFinalIndependentPivots(time, high, low, rates_total);
+
+   // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
+   if(g_selectedBoxName != "")
+   {
+      for(int b = 0; b < g_boxCount; b++)
+      {
+         if(g_drawnBoxes[b].boxName == g_selectedBoxName)
+         {
+            HighlightBox(b);
+            break;
+         }
+      }
+   }
 
    // اکسپورت خودکار گزارش جامع ستاپ‌ها به فایل CSV
    ExportAllTradesToCSV();
