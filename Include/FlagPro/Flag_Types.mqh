@@ -113,3 +113,4 @@ int             g_origBoxWidth = 1;
 ENUM_LINE_STYLE g_origBoxStyle = STYLE_SOLID;
 bool            g_forceRecalc = true;
 datetime        g_sessionStartTime = 0;
+datetime        g_testerStartBase = 0;

@@ -180,7 +180,7 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("DEBUG: OnInit start");
+   g_testerStartBase = 0;
    SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
    ApplyProChartTheme();
 
@@ -189,7 +189,6 @@ int OnInit()
    g_forceRecalc = true;
    IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro v1.00");
    Print("🚀 FlagPro v1.00 آماده است: معماری کاملاً ماژولار و تمیز.");
-   Print("DEBUG: OnInit end");
    return INIT_SUCCEEDED;
 }
 
@@ -200,6 +199,7 @@ void OnDeinit(const int reason)
 {
    ObjectsDeleteAll(0, FP_PREFIX);
    ChartRedraw(0);
+   g_testerStartBase = 0;
 }
 
 //+------------------------------------------------------------------+
@@ -249,11 +249,7 @@ int OnCalculate(const int rates_total,
    ENUM_TIMEFRAMES tfArr[7]       = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
    bool            useArr[7]      = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
-   int effectiveDays = (InpBacktestDays > 0) ? InpBacktestDays : 3;
-   int daysBackArr[7] = {0, 0, 0, 0,
-                         MathMin(InpM15DaysBack, effectiveDays),
-                         MathMin(InpM5DaysBack, effectiveDays),
-                         MathMin(InpM1DaysBack, effectiveDays)};
+   int daysBackArr[7] = {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
 
    // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)
    useArr[0] = false; // D1

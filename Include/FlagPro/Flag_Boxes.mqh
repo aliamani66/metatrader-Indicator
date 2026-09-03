@@ -13,14 +13,17 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
                int ratesTotal, int daysBack)
 {
    SPivot pivots[];
+   if(g_testerStartBase == 0)
+      g_testerStartBase = TimeCurrent();
+
    int maxBars = InpMaxBarsTF;
    if(daysBack > 0)
    {
       int secPerBar = PeriodSeconds(tf);
       if(secPerBar <= 0) secPerBar = 60;
-      int elapsedSec = (g_sessionStartTime > 0) ? (int)(TimeCurrent() - g_sessionStartTime) : 0;
+      int elapsedSec = (g_testerStartBase > 0) ? (int)(TimeCurrent() - g_testerStartBase) : 0;
       if(elapsedSec < 0) elapsedSec = 0;
-      maxBars = ((daysBack * 86400 + elapsedSec) / secPerBar) + 500;
+      maxBars = ((daysBack * 86400 + elapsedSec) / secPerBar) + 1000;
    }
    else
    {
@@ -51,12 +54,12 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    string tfTag = TFName(tf);
    string tfSymbol = (tf == PERIOD_H1) ? "H1" : tfTag;
 
-   if(g_sessionStartTime == 0)
-      g_sessionStartTime = TimeCurrent();
-
    datetime limitTime = 0;
    if(daysBack > 0)
-      limitTime = g_sessionStartTime - daysBack * 24 * 60 * 60;
+   {
+      datetime baseTime = ((bool)MQLInfoInteger(MQL_TESTER)) ? g_testerStartBase : TimeCurrent();
+      limitTime = baseTime - daysBack * 24 * 60 * 60;
+   }
 
    //--- مرحله ۱: مشخص کردن اینکه کدام یال‌ها و پیووت‌ها متعلق به باکس‌های پرچم هستند
    bool isLegBox[];
