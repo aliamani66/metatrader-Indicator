@@ -186,61 +186,28 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       }
       if(leftIdx > 0) leftIdx--;
 
-      // ===== امتداد به جلو (Forward Extension): تشخیص شکست و امتداد پیوسته سطح عرضه/تقاضا =====
-      int breakOutIdx = idxEnd;
+      // ===== امتداد به جلو (Forward Extension) و تشخیص قطعی جهت شکست =====
+      int rightIdx = idxEnd;
       bool brokeUp = false;
       bool brokeDown = false;
-      
-      // مرحله ۱: تشخیص جهت خروج اولیه قیمت از تراکم
       for(int k = idxEnd + 1; k < ratesTotal; k++)
       {
          if(chartHigh[k] > boxTop)
          {
             brokeUp = true;
-            breakOutIdx = k;
+            rightIdx = k;
             break;
          }
          else if(chartLow[k] < boxBottom)
          {
             brokeDown = true;
-            breakOutIdx = k;
+            rightIdx = k;
             break;
          }
-         breakOutIdx = k;
+         rightIdx = k;
       }
-
-      bool isBullish = (!p1.isHigh && p2.isHigh);
-      if(brokeUp) isBullish = true;
-      else if(brokeDown) isBullish = false;
-
-      // مرحله ۲: امتداد مستقیم و پیوسته باکس در چارت تا زمان نقض و بطلان سطح
-      int rightIdx = breakOutIdx;
-      if(brokeDown) // گره نزولی (سطح عرضه/مقاومت): تا زمانی که قیمت سقف را نشکند امتداد می‌یابد
-      {
-         for(int k = breakOutIdx + 1; k < ratesTotal; k++)
-         {
-            if(chartHigh[k] > boxTop)
-            {
-               rightIdx = k;
-               break;
-            }
-            rightIdx = k;
-         }
-      }
-      else if(brokeUp) // گره صعودی (سطح تقاضا/حمایت): تا زمانی که قیمت کف را نشکند امتداد می‌یابد
-      {
-         for(int k = breakOutIdx + 1; k < ratesTotal; k++)
-         {
-            if(chartLow[k] < boxBottom)
-            {
-               rightIdx = k;
-               break;
-            }
-            rightIdx = k;
-         }
-      }
-
       if(rightIdx <= leftIdx && leftIdx < ratesTotal - 1) rightIdx = leftIdx + 1;
+      if(rightIdx < ratesTotal - 1) rightIdx++;
 
       datetime t1 = chartTime[leftIdx];
       datetime t2 = chartTime[rightIdx];
@@ -266,6 +233,13 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_drawnBoxes[g_boxCount].baseColor      = clr;
       g_drawnBoxes[g_boxCount].baseWidth      = InpLineWidth;
       g_drawnBoxes[g_boxCount].baseStyle      = GetTFLineStyle(tf);
+      
+      // قانون بنیادین پرایس‌اکشن:
+      // خروج از کف یعنی گره مقاومت نزولی است (Bearish)
+      // خروج از سقف یعنی گره حمایت صعودی است (Bullish)
+      bool isBullish = (!p1.isHigh && p2.isHigh);
+      if(brokeUp) isBullish = true;
+      else if(brokeDown) isBullish = false;
       g_drawnBoxes[g_boxCount].isBullish      = isBullish;
       g_drawnBoxes[g_boxCount].isPreIP        = isPreIPBox[i];
       g_drawnBoxes[g_boxCount].isLSBull       = targetIPIsHighArr[i];
