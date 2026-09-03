@@ -128,77 +128,98 @@ def build_dashboard():
     sl_in_rej = len([r for r in rejected_trades if int(r.get('HitTargetRatio', 0)) == 0])
     rej_accuracy = sl_in_rej / len(rejected_trades) * 100 if rejected_trades else 0
 
-    # 7 Golden Kings
-    kings_7_defs = [
-        ('OInner-BE > RS-BU', '🥇', 'رتبه ۱'),
-        ('OInner-BU > RS-BE', '🥈', 'رتبه ۲'),
-        ('RS-BU', '🥉', 'رتبه ۳'),
-        ('OInner-BU > RS-BU', '#4', 'رتبه ۴'),
-        ('OInner-BU', '#5', 'رتبه ۵'),
-        ('OInner-BE', '#6', 'رتبه ۶'),
-        ('RS-BE', '#7', 'رتبه ۷')
-    ]
+    # Dynamic Kings Selection: Based on Timeframe, 100% Win Rate (>=2 trades), and King Quality Score (KQS)
+    tf_role_map_raw = defaultdict(list)
+    for r in closed:
+        tf_role_map_raw[(r.get('Timeframe', 'M1'), r.get('Role', 'Unknown'))].append(r)
 
-    kings_trades = [r for r in closed if any(r.get('Role') == k[0] for k in kings_7_defs)]
-    tot_k_cnt = len(kings_trades)
+    qualified_kings = []
     friction_04_per_trade = 0.48
-    tot_k_fric = tot_k_cnt * friction_04_per_trade
 
-    kings_rows_html = []
-    for role_name, rank_icon, rank_label in kings_7_defs:
-        kt = [r for r in closed if r.get('Role') == role_name]
-        cnt = len(kt)
-        if cnt == 0:
-            kings_rows_html.append(f"""
-            <tr>
-                <td style="text-align:center;font-size:16px;">{rank_icon}</td>
-                <td style="color:#facc15;font-weight:bold;">{role_name}</td>
-                <td style="text-align:center;color:#64748b;">۰</td>
-                <td style="text-align:center;color:#64748b;">-</td>
-                <td style="text-align:center;color:#64748b;">-</td>
-                <td style="text-align:center;color:#64748b;">-</td>
-                <td style="text-align:center;color:#64748b;">-</td>
-                <td style="text-align:center;color:#64748b;">-</td>
-                <td style="text-align:center;color:#64748b;">-</td>
-                <td style="text-align:center;color:#64748b;">$0.00</td>
-            </tr>
-            """)
-            continue
+    for (tf, role), t_list in tf_role_map_raw.items():
+        cnt = len(t_list)
+        w1 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 1])
+        w2 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 2])
+        w3 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 3])
+        w4 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 4])
+        sl = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) == 0])
 
-        w1 = len([r for r in kt if int(r.get('HitTargetRatio', 0)) >= 1])
-        w2 = len([r for r in kt if int(r.get('HitTargetRatio', 0)) >= 2])
-        sl = len([r for r in kt if int(r.get('HitTargetRatio', 0)) == 0])
+        w1_p = w1 / cnt * 100
+        w2_p = w2 / cnt * 100
+        w3_p = w3 / cnt * 100
+        w4_p = w4 / cnt * 100
+        sl_p = sl / cnt * 100
 
-        stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in kt]
+        # King Score Formula:
+        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 3.0) + (w4_p * 4.0) - (sl_p * 2.0)
+        is_perfect = (cnt >= 2 and sl == 0)
+        final_score = base_score + (100.0 if is_perfect else 0.0)
+        is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
+
+        gross = 0.0
+        for r in t_list:
+            pts = float(r.get('RiskPoints', 0.0))
+            hr = int(r.get('HitTargetRatio', 0))
+            if hr == 0: gross -= pts * 0.04
+            elif hr == 1: gross += pts * 0.02
+            elif hr in [2, 3]: gross += (pts * 0.02) + (pts * 2 * 0.01)
+            elif hr >= 4: gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+        net = gross - (cnt * friction_04_per_trade)
+
+        stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in t_list]
         min_sl = min(stops) if stops else 0.0
         max_sl = max(stops) if stops else 0.0
         avg_sl = sum(stops) / len(stops) if stops else 0.0
 
-        k_gross = 0.0
-        for r in kt:
-            pts = float(r.get('RiskPoints', 0.0))
-            hr = int(r.get('HitTargetRatio', 0))
-            if hr == 0: k_gross -= pts * 0.04
-            elif hr == 1: k_gross += pts * 0.02
-            elif hr in [2, 3]: k_gross += (pts * 0.02) + (pts * 2 * 0.01)
-            elif hr >= 4: k_gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+        # Eligibility Criteria for Kings:
+        # 1. 100% Win Rate with at least 2 trades (Zero SL)
+        # OR 2. High King Score (>=200) with at least 5 trades and Win Rate 1:1 >= 55%
+        if is_perfect or (cnt >= 5 and final_score >= 200 and w1_p >= 55.0):
+            qualified_kings.append({
+                'tf': tf, 'role': role, 'cnt': cnt,
+                'w1': w1, 'w2': w2, 'w3': w3, 'w4': w4, 'sl': sl,
+                'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
+                'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner,
+                'min_sl': min_sl, 'max_sl': max_sl, 'avg_sl': avg_sl,
+                'net': net, 'trades': t_list
+            })
 
-        k_fric = cnt * friction_04_per_trade
-        k_net = k_gross - k_fric
-        net_col = "#00e676" if k_net >= 0 else "#ef4444"
+    # Sort Kings by Score descending
+    qualified_kings.sort(key=lambda x: (x['score'], x['cnt']), reverse=True)
+
+    # Collect all trades belonging to qualified kings
+    kings_trades = []
+    for k in qualified_kings:
+        kings_trades.extend(k['trades'])
+
+    tot_k_cnt = len(kings_trades)
+    tot_k_fric = tot_k_cnt * friction_04_per_trade
+
+    kings_rows_html = []
+    medals = ['🥇', '🥈', '🥉', '👑', '👑', '⭐', '⭐', '⭐', '⭐', '⭐']
+    for idx, k in enumerate(qualified_kings, 1):
+        rank_icon = medals[idx-1] if idx <= len(medals) else f"#{idx}"
+        badge_html = ""
+        if k['is_perfect']:
+            badge_html = " <span style='background:#064e3b;color:#34d399;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #059669;'>💎 ۱۰۰٪ قطعی</span>"
+        elif k['is_runner']:
+            badge_html = " <span style='background:#312e81;color:#a5b4fc;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #4338ca;'>🚀 دونده</span>"
+
+        net_col = "#00e676" if k['net'] >= 0 else "#ef4444"
 
         kings_rows_html.append(f"""
         <tr>
-            <td style="text-align:center;font-size:16px;">{rank_icon}</td>
-            <td style="color:#facc15;font-weight:bold;font-size:14px;">{role_name}</td>
-            <td style="text-align:center;font-weight:bold;">{cnt}</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;">{w1/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;">{w2/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{sl/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{min_sl:.1f} پیپ <span style="font-size:11px;color:#bae6fd;">(${min_sl*0.40:.2f})</span></td>
-            <td style="text-align:center;color:#f87171;font-weight:bold;">{max_sl:.1f} پیپ <span style="font-size:11px;color:#fca5a5;">(${max_sl*0.40:.2f})</span></td>
-            <td style="text-align:center;color:#facc15;">{avg_sl:.1f} پیپ <span style="font-size:11px;color:#fef08a;">(${avg_sl*0.40:.2f})</span></td>
-            <td style="text-align:center;color:{net_col};font-weight:bold;font-size:14px;">${k_net:+.2f} دلار</td>
+            <td style="text-align:center;font-size:16px;font-weight:bold;">{rank_icon}</td>
+            <td style="color:#38bdf8;font-weight:bold;text-align:center;font-size:14px;">{k['tf']}</td>
+            <td style="color:#facc15;font-weight:bold;font-size:14px;">{k['role']}{badge_html}</td>
+            <td style="text-align:center;color:#facc15;font-weight:bold;font-size:14px;background:#1e293b;">{k['score']:.1f}</td>
+            <td style="text-align:center;font-weight:bold;">{k['cnt']}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{k['w1_p']:.1f}%</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{k['w2_p']:.1f}%</td>
+            <td style="text-align:center;color:#38bdf8;">{k['w3_p']:.1f}%</td>
+            <td style="text-align:center;color:#c084fc;">{k['w4_p']:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">{k['sl_p']:.1f}%</td>
+            <td style="text-align:center;color:{net_col};font-weight:bold;font-size:14px;">${k['net']:+.2f} دلار</td>
         </tr>
         """)
 
@@ -747,8 +768,20 @@ def build_dashboard():
         <div id="tab-kings" class="tab-content active">
             <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
                 <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
-                    <h3 style="margin:0;color:#facc15;font-size:19px;">👑 سلاطین استراتژی (۷ ساختار برتر در شرایط واقعی لایو با تایید ساختاری کامل)</h3>
-                    <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی ۱۰۰٪ پویا از رفتار {tot_k_cnt} معامله واقعی سلاطین برتر با حجم 0.04 لات:</p>
+                    <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب بر مبنای شاخص ترکیبی و تفکیک تایم‌فریم</h3>
+                    <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی پویا از {tot_k_cnt} معامله واقعی سلاطین برتر FlagPro (گزینش با فرمول شاخص سلطان، بونوس ۱۰۰٪ قطعی و الگوهای دونده):</p>
+                </div>
+
+                <!-- Formula Highlight Banner -->
+                <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <b style="color:#facc15;font-size:13px;">📐 فرمول رسمی گزینش سلاطین:</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:13px;font-weight:bold;">Score = (TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 3.0) + (TP4 × 4.0) - (SL × 2.0)</span>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">💎 ۱۰۰٪ قطعی (حداقل ۲ معامله + ۱۰۰ بونوس)</span>
+                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4338ca;">🚀 دونده (TP3/4 ≥ 30%)</span>
+                    </div>
                 </div>
 
                 <div style="overflow-x:auto;">
@@ -756,15 +789,16 @@ def build_dashboard():
                         <thead>
                             <tr style="background:#261e07;">
                                 <th style="text-align:center;">رتبه</th>
+                                <th style="text-align:center;">تایم‌فریم</th>
                                 <th>نام ساختار / تلاقی گره‌ها</th>
+                                <th style="text-align:center;color:#facc15;">امتیاز سلطان (Score)</th>
                                 <th style="text-align:center;">تعداد معامله</th>
-                                <th style="text-align:center;">وین‌ریت ۱:۱</th>
-                                <th style="text-align:center;">وین‌ریت ۱:۲</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:1</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:2</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:3</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:4</th>
                                 <th style="text-align:center;">نرخ باخت (SL)</th>
-                                <th style="text-align:center;color:#38bdf8;">🟢 حداقل استاپ</th>
-                                <th style="text-align:center;color:#f87171;">🔴 حداکثر استاپ</th>
-                                <th style="text-align:center;color:#facc15;">میانگین استاپ</th>
-                                <th style="text-align:center;color:#00e676;">💵 سود خالص دلاری (۰.۰۴ لات)</th>
+                                <th style="text-align:center;color:#00e676;">💵 سود خالص دلاری (0.04)</th>
                             </tr>
                         </thead>
                         <tbody>
