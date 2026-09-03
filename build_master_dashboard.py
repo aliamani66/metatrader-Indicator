@@ -150,11 +150,20 @@ def build_dashboard():
         w4_p = w4 / cnt * 100
         sl_p = sl / cnt * 100
 
-        # King Score Formula:
-        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 3.0) + (w4_p * 4.0) - (sl_p * 2.0)
+        # King Score Formula with Statistical Confidence Weight:
+        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 2.0) + (w4_p * 3.0) - (sl_p * 2.0)
         is_perfect = (cnt >= 2 and sl == 0)
-        final_score = base_score + (100.0 if is_perfect else 0.0)
+        bonus = 100.0 if is_perfect else 0.0
+
+        # Statistical Confidence Multiplier Conf(N):
+        if cnt >= 20: conf = 1.00
+        elif cnt >= 10: conf = 0.90
+        elif cnt >= 5: conf = 0.80
+        else: conf = 0.65
+
+        final_score = (base_score + bonus) * conf
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
+        is_proven = (cnt >= 20)
 
         gross = 0.0
         for r in t_list:
@@ -179,7 +188,7 @@ def build_dashboard():
                 'tf': tf, 'role': role, 'cnt': cnt,
                 'w1': w1, 'w2': w2, 'w3': w3, 'w4': w4, 'sl': sl,
                 'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
-                'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner,
+                'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner, 'is_proven': is_proven, 'conf': conf,
                 'min_sl': min_sl, 'max_sl': max_sl, 'avg_sl': avg_sl,
                 'net': net, 'trades': t_list
             })
@@ -407,16 +416,19 @@ def build_dashboard():
         w4_p = w4 / cnt * 100
         sl_p = sl / cnt * 100
 
-        # King Score Formula:
-        # Base: (TP1 * 1.0) + (TP2 * 1.5) + (TP3 * 3.0) + (TP4 * 4.0) - (SL * 2.0)
-        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 3.0) + (w4_p * 4.0) - (sl_p * 2.0)
-
-        # Rule 1: 100% Win Rate Bonus for cnt >= 2 (+100 points)
+        # King Score Formula with Statistical Confidence Weight:
+        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 2.0) + (w4_p * 3.0) - (sl_p * 2.0)
         is_perfect = (cnt >= 2 and sl == 0)
-        final_score = base_score + (100.0 if is_perfect else 0.0)
+        bonus = 100.0 if is_perfect else 0.0
 
-        # Rule 2: Big Runners (TP3 or TP4 >= 30%)
+        if cnt >= 20: conf = 1.00
+        elif cnt >= 10: conf = 0.90
+        elif cnt >= 5: conf = 0.80
+        else: conf = 0.65
+
+        final_score = (base_score + bonus) * conf
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
+        is_proven = (cnt >= 20)
 
         computed_tf_roles.append({
             'tf': tf, 'role': role, 'cnt': cnt,
@@ -776,7 +788,7 @@ def build_dashboard():
                 <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                     <div>
                         <b style="color:#facc15;font-size:13px;">📐 فرمول رسمی گزینش سلاطین:</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:13px;font-weight:bold;">Score = (TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 3.0) + (TP4 × 4.0) - (SL × 2.0)</span>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:13px;font-weight:bold;">Score = [(TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 2.0) + (TP4 × 3.0) - (SL × 2.0) + بونوس] × Conf(N)</span>
                     </div>
                     <div style="display:flex;gap:6px;">
                         <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">💎 ۱۰۰٪ قطعی (حداقل ۲ معامله + ۱۰۰ بونوس)</span>
@@ -1013,7 +1025,7 @@ def build_dashboard():
                 <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                     <div>
                         <b style="color:#facc15;">📐 فرمول ترکیبی شاخص سلطان (King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = (TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 3.0) + (TP4 × 4.0) - (SL × 2.0)</span>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = [(TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 2.0) + (TP4 × 3.0) - (SL × 2.0) + بونوس] × Conf(N)</span>
                     </div>
                     <div>
                         <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">💎 ۱۰۰٪ قطعی (+100 بونوس)</span>
