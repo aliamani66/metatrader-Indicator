@@ -110,11 +110,16 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
 
       if(prevBoxLegIdx >= 0)
       {
-         isPreIPBox[prevBoxLegIdx] = true;
-         datetime exactIPTime = GetExactPivotChartTime(pivots[p].time, tf, pivots[p].price, pivots[p].isHigh,
-                                                       chartTime, chartHigh, chartLow, ratesTotal);
-         targetIPIsHighArr[prevBoxLegIdx] = pivots[p].isHigh;
-         targetIPTimeArr[prevBoxLegIdx]   = exactIPTime;
+         // هر گره فقط متعلق به اولین پیووت مستقلی است که بلافاصله پس از آن تشکیل می‌شود
+         // نباید توسط پیووت‌های بعدی بازنویسی شود
+         if(!isPreIPBox[prevBoxLegIdx])
+         {
+            isPreIPBox[prevBoxLegIdx] = true;
+            datetime exactIPTime = GetExactPivotChartTime(pivots[p].time, tf, pivots[p].price, pivots[p].isHigh,
+                                                          chartTime, chartHigh, chartLow, ratesTotal);
+            targetIPIsHighArr[prevBoxLegIdx] = pivots[p].isHigh;
+            targetIPTimeArr[prevBoxLegIdx]   = exactIPTime;
+         }
       }
    }
 
@@ -629,13 +634,14 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
    {
       if(g_drawnBoxes[b].top <= 0) continue;
       bool isBull = g_drawnBoxes[b].isBullish;
-      if(g_drawnBoxes[b].isSwap)        isBull = g_drawnBoxes[b].isSwapBull;
+      if(g_drawnBoxes[b].isPreIP)       isBull = g_drawnBoxes[b].isLSBull;
+      else if(g_drawnBoxes[b].isSwap)   isBull = g_drawnBoxes[b].isSwapBull;
       else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
       else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
-      else if(g_drawnBoxes[b].isPreIP)  isBull = g_drawnBoxes[b].isLSBull;
-      datetime startTime = g_drawnBoxes[b].t2;
-      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
-      if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, startTime);
+
+      datetime startTime = g_drawnBoxes[b].formationTime;
+      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].formationTime);
+      if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t1);
       if(startSearchIdx < 0) startSearchIdx = 0;
 
       // قانون اصیل پرایس‌اکشن:
