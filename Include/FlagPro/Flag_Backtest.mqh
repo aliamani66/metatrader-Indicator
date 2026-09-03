@@ -184,13 +184,33 @@ void ShowTradeSetupForBox(int boxIdx)
    // ۲. قیمت باید ابتدا با کلوز کندل فاصله بگیرد (departedBar)
    // ۳. ورود منحصراً در کندل‌های بعدی روی پولبک و لمس سطح ورود (k > departedBar)
    int departedBar = -1;
+   datetime maxBoxTime = g_drawnBoxes[boxIdx].t2;
+   if(maxBoxTime <= confirmTime) 
+      maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
+
    for(int k = confirmIdx; k < copied; k++)
    {
+      // ابطال ۱: انقضای زمانی معامله با گذشت از اعتبار باکس
+      if(chartTime[k] > maxBoxTime) break;
+
+      // ابطال ۲: برخورد قیمت به حد ضرر در هر زمان (حتی قبل از پرتاب) ستاپ را فوراً لغو می‌کند
+      if(isBull)
+      {
+         if(chartLow[k] <= slPrice) break;
+      }
+      else
+      {
+         if(chartHigh[k] >= slPrice) break;
+      }
+
       if(departedBar < 0)
       {
          // تایید پرتاب و کلوز کامل کندل در بیرون از باکس
          if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
          else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+
+         // مهلت خروج اولیه از باکس حداکثر ۳۰ کندل
+         if(k - confirmIdx > 30) break;
       }
       else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
       {
@@ -203,8 +223,6 @@ void ShowTradeSetupForBox(int boxIdx)
                entryTime = chartTime[k];
                break;
             }
-            // اگر قیمت قبل از رسیدن به نقطه ورود استاپ خورد، ستاپ باطل است
-            if(chartLow[k] <= slPrice) break;
          }
          else
          {
@@ -215,9 +233,10 @@ void ShowTradeSetupForBox(int boxIdx)
                entryTime = chartTime[k];
                break;
             }
-            // اگر قیمت قبل از رسیدن به نقطه ورود استاپ خورد، ستاپ باطل است
-            if(chartHigh[k] >= slPrice) break;
          }
+
+         // مهلت بازگشت پولبک حداکثر ۶۰ کندل بعد از پرتاب
+         if(k - departedBar > 60) break;
       }
    }
 
@@ -636,14 +655,35 @@ void ExportAllTradesToCSV()
       // ۲. پرتاب و کلوز کامل کندل در بیرون از محدوده (departedBar)
       // ۳. اردر لیمیت روی پولبک و ورود منحصراً در کندل‌های بعدی (k > departedBar)
       int departedBar = -1;
+      datetime maxBoxTime = g_drawnBoxes[b].t2;
+      if(maxBoxTime <= confirmTime) 
+         maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
+
       for(int k = confirmIdx; k < copied; k++)
       {
-         if(departedBar < 0)
+         // ابطال ۱: انقضای زمانی معامله با گذشت از اعتبار باکس
+         if(chartTime[k] > maxBoxTime) break;
+
+         // ابطال ۲: برخورد قیمت به حد ضرر در هر زمان (حتی قبل از پرتاب) ستاپ را فوراً لغو می‌کند
+         if(isBull)
          {
-            if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
-            else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+            if(chartLow[k] <= slPrice) break;
          }
          else
+         {
+            if(chartHigh[k] >= slPrice) break;
+         }
+
+         if(departedBar < 0)
+         {
+            // تایید پرتاب و کلوز کامل کندل در بیرون از باکس
+            if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
+            else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+
+            // مهلت خروج اولیه از باکس حداکثر ۳۰ کندل
+            if(k - confirmIdx > 30) break;
+         }
+         else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
          {
             if(isBull)
             {
@@ -654,7 +694,6 @@ void ExportAllTradesToCSV()
                   entryTime = chartTime[k];
                   break;
                }
-               if(chartLow[k] <= slPrice) break;
             }
             else
             {
@@ -665,8 +704,10 @@ void ExportAllTradesToCSV()
                   entryTime = chartTime[k];
                   break;
                }
-               if(chartHigh[k] >= slPrice) break;
             }
+
+            // مهلت بازگشت پولبک حداکثر ۶۰ کندل بعد از پرتاب
+            if(k - departedBar > 60) break;
          }
       }
 
