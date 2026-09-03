@@ -520,6 +520,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
    for(int b = 0; b < g_boxCount; b++)
    {
+      g_drawnBoxes[b].hasTradeEntered = false;
       if(g_drawnBoxes[b].top <= 0) continue;
       if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
 
@@ -697,6 +698,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       // فقط برای باکس‌هایی که معامله روی آن‌ها تایید و فعال شده گرافیک کشیده شود
       if(!isEntered)
          continue;
+
+      g_drawnBoxes[b].hasTradeEntered = true;
 
       // محاسبه تارگت‌ها
       double tps[4];

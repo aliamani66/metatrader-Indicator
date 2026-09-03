@@ -61,6 +61,7 @@ struct SBoxInfo
    bool            isMacro;
    datetime        targetIPTime;
    bool            targetIPIsHigh;
+   bool            hasTradeEntered; // آیا روی این باکس معامله واقعی فعال شده است؟
 };
 
 // ساختار نگهداری معاملات بک‌تست

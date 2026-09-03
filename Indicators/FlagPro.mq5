@@ -69,6 +69,7 @@ input bool InpShow_OInnerBE_RSBE = false;  // 💎 نمایش الگوی طلا�
 input bool InpShow_SLS           = false;  // ⚡ نمایش سواپ‌های ال‌اس S-LS
 input bool InpShow_SOInner       = false;  // ⚡ نمایش سواپ‌های او‌اینر S-OInner
 input bool InpShow_OtherBoxes    = false;  // 📦 نمایش سایر باکس‌های عادی و فرعی
+input bool InpHistoryOnlyTradedBoxes = true; // 🧹 در گذشته چارت فقط باکس‌های معامله‌شده نمایش داده شوند (لایو: همه باکس‌ها)
 
 input group "=== 🛡️ فیلترهای هوشمند ضد استاپ (Anti-SL Filters) ==="
 input bool InpFilterSingleLS     = true;   // 🛡️ فیلتر ۱: حذف باکس‌های منفرد LS
@@ -295,12 +296,12 @@ int OnCalculate(const int rates_total,
    // پردازش سیستم سراسری سواپ
    ProcessUniversalSwapLines(time, high, low, rates_total);
 
-   // رسم نهایی باکس‌ها و مارکرهای مستقل
-   RenderFinalBoxes();
-   RenderFinalIndependentPivots(time, high, low, rates_total);
-
-   // رسم خودکار گرافیک معاملات فعال‌شده (Entry, SL, TP) روی چارت
+   // ۱. پردازش معاملات خودکار و تشخیص باکس‌های معامله‌شده
    RenderAutoTradeSetups(time, high, low, close, rates_total);
+
+   // ۲. رسم نهایی باکس‌ها (با شرط نمایش فقط باکس‌های معامله‌شده در گذشته چارت)
+   RenderFinalBoxes(time, rates_total);
+   RenderFinalIndependentPivots(time, high, low, rates_total);
 
    // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
    if(g_selectedBoxName != "")
