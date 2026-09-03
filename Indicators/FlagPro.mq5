@@ -296,6 +296,9 @@ int OnCalculate(const int rates_total,
    // پردازش سیستم سراسری سواپ
    ProcessUniversalSwapLines(time, high, low, rates_total);
 
+   // حذف سراسری هم‌پوشانی باکس‌ها میان تمام تایم‌فریم‌ها (ادغام M15, M5, M1 و جلوگیری از کشیدن دو باکس روی هم)
+   RemoveCrossTFOverlappingBoxes();
+
    // ۱. پردازش معاملات خودکار و تشخیص باکس‌های معامله‌شده
    RenderAutoTradeSetups(time, high, low, close, rates_total);
 

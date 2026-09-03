@@ -384,6 +384,83 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
 }
 
 //+------------------------------------------------------------------+
+//| فیلتر سراسری حذف هم‌پوشانی باکس‌ها در تمام تایم‌فریم‌ها (M15, M5, M1)|
+//+------------------------------------------------------------------+
+void RemoveCrossTFOverlappingBoxes()
+{
+   if(!InpRemoveOverlapping) return;
+
+   for(int i = 0; i < g_boxCount; i++)
+   {
+      if(g_drawnBoxes[i].top <= 0) continue;
+
+      double top1 = g_drawnBoxes[i].top;
+      double bot1 = g_drawnBoxes[i].bottom;
+      datetime t1 = g_drawnBoxes[i].t1;
+      datetime t2 = g_drawnBoxes[i].t2;
+
+      for(int j = i + 1; j < g_boxCount; j++)
+      {
+         if(g_drawnBoxes[j].top <= 0) continue;
+
+         double top2 = g_drawnBoxes[j].top;
+         double bot2 = g_drawnBoxes[j].bottom;
+         datetime jt1 = g_drawnBoxes[j].t1;
+         datetime jt2 = g_drawnBoxes[j].t2;
+
+         bool timeOverlap = !(t2 < jt1 || jt2 < t1);
+         if(!timeOverlap) continue;
+
+         double interTop = MathMin(top1, top2);
+         double interBot = MathMax(bot1, bot2);
+         if(interTop <= interBot) continue;
+
+         double h1 = top1 - bot1;
+         double h2 = top2 - bot2;
+         double interH = interTop - interBot;
+
+         if(h1 > 0 && h2 > 0)
+         {
+            double ratio1 = interH / h1;
+            double ratio2 = interH / h2;
+
+            if(ratio1 > 0.70 || ratio2 > 0.70)
+            {
+               bool iStrategic = (g_drawnBoxes[i].isPreIP || g_drawnBoxes[i].isOInner || g_drawnBoxes[i].isBOFlag);
+               bool jStrategic = (g_drawnBoxes[j].isPreIP || g_drawnBoxes[j].isOInner || g_drawnBoxes[j].isBOFlag);
+
+               if(iStrategic && !jStrategic)
+               {
+                  g_drawnBoxes[j].top = -1;
+               }
+               else if(!iStrategic && jStrategic)
+               {
+                  g_drawnBoxes[i].top = -1;
+                  break;
+               }
+               else
+               {
+                  if(g_drawnBoxes[i].tf >= g_drawnBoxes[j].tf)
+                  {
+                     if(StringFind(g_drawnBoxes[i].tfTag, g_drawnBoxes[j].tfTag) < 0)
+                        g_drawnBoxes[i].tfTag = g_drawnBoxes[i].tfTag + "/" + g_drawnBoxes[j].tfTag;
+                     g_drawnBoxes[j].top = -1;
+                  }
+                  else
+                  {
+                     if(StringFind(g_drawnBoxes[j].tfTag, g_drawnBoxes[i].tfTag) < 0)
+                        g_drawnBoxes[j].tfTag = g_drawnBoxes[j].tfTag + "/" + g_drawnBoxes[i].tfTag;
+                     g_drawnBoxes[i].top = -1;
+                     break;
+                  }
+               }
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Process and draw RS Breakout Lines directly from LS Launch Boxes |
 //+------------------------------------------------------------------+
 void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], int ratesTotal)
