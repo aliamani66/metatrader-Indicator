@@ -510,6 +510,12 @@ void ShowTradeSetupForBox(int boxIdx)
 //+------------------------------------------------------------------+
 void ExportAllTradesToCSV()
 {
+   if(!InpExportCSV) return;
+
+   static datetime lastExportTime = 0;
+   if(TimeCurrent() - lastExportTime < 300 && !g_forceRecalc) return;
+   lastExportTime = TimeCurrent();
+
    string symClean = _Symbol;
    StringReplace(symClean, "!", "");
    StringReplace(symClean, "#", "");
@@ -534,13 +540,15 @@ void ExportAllTradesToCSV()
    ArraySetAsSeries(chartLow, false);
    ArraySetAsSeries(chartClose, false);
 
-   int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
-   CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
-   CopyLow(_Symbol, _Period, 0, 250000, chartLow);
-   CopyClose(_Symbol, _Period, 0, 250000, chartClose);
+   int barsToCopy = (InpBacktestDays > 0) ? (InpBacktestDays * 1440 * 2 + 1000) : 50000;
+   int copied = CopyTime(_Symbol, _Period, 0, barsToCopy, chartTime);
+   CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
+   CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);
+   CopyClose(_Symbol, _Period, 0, barsToCopy, chartClose);
    if(copied < 10)
    {
-      FileClose(handle);
+      if(handle != INVALID_HANDLE) FileClose(handle);
+      if(handleSym != INVALID_HANDLE) FileClose(handleSym);
       return;
    }
 
