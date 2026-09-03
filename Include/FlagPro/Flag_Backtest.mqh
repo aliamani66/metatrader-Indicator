@@ -635,6 +635,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             }
          }
 
+         if(g_drawnBoxes[b].isPreIP) isLS = true;
          string tagCombo = "";
          if(isLS)
          {
@@ -661,8 +662,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
-      // فقط ۷ سلطان طلایی مجاز به معامله هستند
-      if(!IsGoldenTradeSetup(role)) continue;
+      // فقط سلاطین طلایی تاییدشده مجاز به معامله هستند
+      if(!IsQualifiedKing(g_drawnBoxes[b].tf, role)) continue;
 
       bool isBull = true;
       double entryPrice = 0;
@@ -1186,6 +1187,7 @@ void ExportAllTradesToCSV()
             }
          }
 
+         if(g_drawnBoxes[b].isPreIP) isLS = true;
          string tagCombo = "";
          if(isLS)
          {

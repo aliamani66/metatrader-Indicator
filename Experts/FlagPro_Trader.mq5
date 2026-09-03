@@ -509,8 +509,12 @@ void OnTick()
 
    for(int t = 0; t < g_tradeCount; t++)
    {
-      // 👑 فیلتر ۱۸ سلطان برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
+      // 👑 فیلتر سلاطین برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
       if(InpOnlyTradeKings && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+         continue;
+
+      // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها)
+      if(IsSetupFilteredOut(g_tradeSetups[t].boxRole, g_tradeSetups[t].entryTime, g_tradeSetups[t].risk / _Point))
          continue;
 
       // فقط ستاپ‌هایی که در کندل جاری یا کندل قبلی فعال شده‌اند مجاز به اجرا هستند (نه ستاپ‌های تاریخچه!)
@@ -605,7 +609,8 @@ void OnTick()
          m_activeGroups[gSize - 1].trailTP2Applied = false;
          m_activeGroups[gSize - 1].isFinished = false;
 
-         PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت ثبت شد | جهت: %s | حجم‌ها: TP1=%.2f, TP2=%.2f, TP3=%.2f, TP4=%.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
+         PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت ثبت شد | الگو: %s [%s] | جهت: %s | حجم‌ها: TP1=%.2f, TP2=%.2f, TP3=%.2f, TP4=%.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
+                     g_tradeSetups[t].boxRole, EnumToString(g_tradeSetups[t].tf),
                      (isBuy ? "BUY" : "SELL"), InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4, sl, tp1, tp2, tp3, tp4);
          break;
       }

@@ -136,32 +136,34 @@ bool IsQualifiedKing(ENUM_TIMEFRAMES tf, const string role)
    if(tf == PERIOD_M15)
    {
       if(!InpEnableKingsM15) return false;
-      if(role == "S-Flag" || 
-         role == "S-OInner") return true;
+      if(role == "S-OInner") return true;
    }
    else if(tf == PERIOD_M5)
    {
       if(!InpEnableKingsM5) return false;
-      if(role == "OInner-BE > RS-BU" ||
+      if(role == "Flag-BE" ||
          role == "Flag-BU" ||
-         role == "Flag-BE" ||
-         role == "OInner-BE > RS-BE" ||
+         role == "LS-BE > OInner-BE > RS-BE" ||
          role == "OInner-BE" ||
-         role == "S-Flag" ||
-         role == "S-OInner") return true;
+         role == "OInner-BE > RS-BU" ||
+         role == "OInner-BU" ||
+         role == "OInner-BU > RS-BE" ||
+         role == "OInner-BU > RS-BU") return true;
    }
    else if(tf == PERIOD_M1)
    {
       if(!InpEnableKingsM1) return false;
-      if(role == "Flag-BU" ||
-         role == "Flag-BE" ||
-         role == "OInner-BU > RS-BE" ||
-         role == "OInner-BE > RS-BU" ||
-         role == "OInner-BU > RS-BU" ||
-         role == "OInner-BU" ||
+      if(role == "Flag-BE" ||
+         role == "Flag-BU" ||
          role == "OInner-BE" ||
+         role == "OInner-BE > RS-BE" ||
+         role == "OInner-BE > RS-BU" ||
+         role == "OInner-BU" ||
+         role == "OInner-BU > RS-BE" ||
+         role == "OInner-BU > RS-BU" ||
+         role == "RS-BE" ||
          role == "RS-BU" ||
-         role == "OInner-BE > RS-BE") return true;
+         role == "S-RS") return true;
    }
    return false;
 }
