@@ -1,5 +1,7 @@
 # MQL5 folders to ignore
-Experts/
+Experts/*
+!Experts/FlagPro_Trader.mq5
+!Experts/FlagPro_VisualTester.mq5
 Files/
 Images/
 Include/*
