@@ -574,7 +574,7 @@ void ProcessOInnerBoxes()
 //+------------------------------------------------------------------+
 //| Universal Box Swap System (S-Prefix Breakout & Reaction Flags)   |
 //+------------------------------------------------------------------+
-void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], const double &chartClose[], int ratesTotal)
+void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], int ratesTotal)
 {
    if(!InpEnableSwapLines) return;
 
@@ -594,9 +594,8 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       if(startSearchIdx < 0) startSearchIdx = 0;
 
       // قانون اصیل پرایس‌اکشن:
-      // باکس صعودی حمایت است و فقط با بسته شدن کامل کندل (Close) زیر کف باطل می‌شود.
-      // باکس نزولی مقاومت است و فقط با بسته شدن کامل کندل (Close) بالای سقف باطل می‌شود.
-      // (سایه‌ها و شدوهای پولبک هرگز نباید امتداد باکس را قیچی کنند!)
+      // باکس صعودی حمایت است و به محض شکست کف (bottom) باطل و قطع می‌شود.
+      // باکس نزولی مقاومت است و به محض شکست سقف (top) باطل و قطع می‌شود.
       double breakPrice = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
 
       bool isBroken = false;
@@ -605,7 +604,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       {
          if(isBull)
          {
-            if(chartClose[k] < breakPrice)
+            if(chartLow[k] < breakPrice)
             {
                isBroken = true;
                breakIdx = k;
@@ -614,7 +613,7 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
          }
          else
          {
-            if(chartClose[k] > breakPrice)
+            if(chartHigh[k] > breakPrice)
             {
                isBroken = true;
                breakIdx = k;
