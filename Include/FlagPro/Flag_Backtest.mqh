@@ -158,9 +158,9 @@ void ShowTradeSetupForBox(int boxIdx)
       else isBull = g_drawnBoxes[boxIdx].isBullish;
    }
 
-   int bStartIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[boxIdx].t1);
-   int bEndIdx   = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[boxIdx].confirmationTime);
-   if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[boxIdx].t2);
+   int bStartIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t1);
+   int bEndIdx   = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].confirmationTime);
+   if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t2);
    if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
 
    double patternHigh = g_drawnBoxes[boxIdx].top;
@@ -172,7 +172,7 @@ void ShowTradeSetupForBox(int boxIdx)
       if(pivotP < patternLow)  patternLow  = pivotP;
    }
 
-   for(int ck = bStartIdx; ck <= bEndIdx && ck < ratesTotal; ck++)
+   for(int ck = bStartIdx; ck <= bEndIdx && ck < copied; ck++)
    {
       if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
       if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
