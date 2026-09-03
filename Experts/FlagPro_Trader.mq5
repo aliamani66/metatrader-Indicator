@@ -161,12 +161,12 @@ input int              InpSwapBoxWidth          = 2;            // ضخامت ک
 input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل پیش‌فرض سواپ
 
 input group "=== Trade Setup & Simulator (ستاپ معامله و بک‌تست) ==="
-input bool             InpEnableTradeSetup      = true;         // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
 input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input bool             InpTradeOnlyGoldenKings  = true;         // 👑 معامله منحصراً فقط روی ۷ سلطان طلایی (وین‌ریت بالای ۶۰٪)
 input bool             InpPreventOverlappingTrades = false;     // 🔓 اجازه معاملات همزمان (هر ستاپ معتبری مستقل معامله می‌شود)
-input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض در اکسپرت: خاموش)
-input double           InpRSPipBuffer           = 2.0;          // بافر حد ضرر برای RS و فلگ‌ها (پیپ)
+input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض: خاموش)
+input double           InpSLOffsetPips          = 3.0;          // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ - پیش‌فرض ۳ پیپ)
+#define InpRSPipBuffer InpSLOffsetPips
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
 input color            InpTradeSLColor          = clrRed;       // رنگ خط حد ضرر (SL)
 input color            InpTradeTPColor          = clrLimeGreen; // رنگ خطوط تارگت (TP)

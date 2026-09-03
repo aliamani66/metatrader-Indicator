@@ -158,12 +158,12 @@ void ShowTradeSetupForBox(int boxIdx)
       if(isBull)
       {
          entryPrice = g_drawnBoxes[boxIdx].top;
-         slPrice    = pivotP - 2.0 * pipSize;
+         slPrice    = pivotP - bufferPips;
       }
       else
       {
          entryPrice = g_drawnBoxes[boxIdx].bottom;
-         slPrice    = pivotP + 2.0 * pipSize;
+         slPrice    = pivotP + bufferPips;
       }
    }
    else
@@ -662,12 +662,12 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(isBull)
          {
             entryPrice = g_drawnBoxes[b].top;
-            slPrice    = pivotP - 2.0 * pipSize;
+            slPrice    = pivotP - bufferPips;
          }
          else
          {
             entryPrice = g_drawnBoxes[b].bottom;
-            slPrice    = pivotP + 2.0 * pipSize;
+            slPrice    = pivotP + bufferPips;
          }
       }
       else
@@ -1192,12 +1192,12 @@ void ExportAllTradesToCSV()
          if(isBull)
          {
             entryPrice = g_drawnBoxes[b].top;
-            slPrice    = pivotP - 2.0 * pipSize;
+            slPrice    = pivotP - bufferPips;
          }
          else
          {
             entryPrice = g_drawnBoxes[b].bottom;
-            slPrice    = pivotP + 2.0 * pipSize;
+            slPrice    = pivotP + bufferPips;
          }
       }
       else
