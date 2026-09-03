@@ -106,9 +106,7 @@ void RenderFinalBoxes()
 
       if(!hasRSTags)
       {
-         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
-            continue;
-         if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY && !InpShow_OtherBoxes)
+         if(InpBoxDisplayFilter != FILTER_SHOW_ALL && !InpShow_OtherBoxes)
             continue;
       }
 
@@ -156,20 +154,8 @@ void RenderFinalBoxes()
             tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
          }
 
-         // ===== اعمال فیلتر برترین الگوهای برنده =====
-         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
-         {
-            bool isWinner = false;
-            if(StringFind(tagCombo, "OInner-BU > RS-BU") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "OInner-BU > RS-BE") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "OInner-BE > RS-BU") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "RS-BU") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "RS-BE") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "OInner-BU") >= 0) isWinner = true;
-            else if(StringFind(tagCombo, "OInner-BE") >= 0) isWinner = true;
-            if(!isWinner) continue;
-         }
-         else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
+         // ===== اعمال فیلتر هوشمند الگوها (بر اساس چک‌باکس‌های کاربر) =====
+         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY || InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
          {
             bool allowed = false;
             if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS-BU > OInner-BE") >= 0) allowed = true;
