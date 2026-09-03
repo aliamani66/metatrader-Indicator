@@ -236,6 +236,7 @@ int OnCalculate(const int rates_total,
    }
    lastBarTime = currentBarTime;
    g_forceRecalc = false;
+   if(!InpShowBoxes) g_boxesVisible = false;
 
    Print("DEBUG: OnCalculate start rates_total=", rates_total, " prev=", prev_calculated);
 

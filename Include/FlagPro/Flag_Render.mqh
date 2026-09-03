@@ -14,6 +14,7 @@ void ShowTradeSetupForBox(int boxIdx);
 void DrawHollowBox(string name, datetime t1, double top, datetime t2, double bottom,
                    color clr, int width, ENUM_LINE_STYLE style = STYLE_SOLID)
 {
+   if(!InpShowBoxes || !g_boxesVisible) return;
    if(ObjectFind(0, name) >= 0) ObjectDelete(0, name);
    ObjectCreate(0, name, OBJ_RECTANGLE, 0, t1, top, t2, bottom);
    ObjectSetInteger(0, name, OBJPROP_COLOR,      clr);
@@ -54,17 +55,11 @@ void ApplyProChartTheme()
 //+------------------------------------------------------------------+
 void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
 {
-   if(!g_boxesVisible)
+   if(!InpShowBoxes || !g_boxesVisible)
    {
-      // فقط مخفی‌سازی کامل بصری باکس‌ها از روی چارت بدون دستکاری منطق محاسبات یا معاملات
-      for(int b = 0; b < g_boxCount; b++)
-      {
-         if(ObjectFind(0, g_drawnBoxes[b].boxName) >= 0)
-            ObjectDelete(0, g_drawnBoxes[b].boxName);
-         string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
-         if(ObjectFind(0, lblName) >= 0)
-            ObjectDelete(0, lblName);
-      }
+      // حذف قطعی تمام مستطیل‌های باکس و برچسب‌های متناظر از روی چارت
+      ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
+      ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
       return;
    }
 
