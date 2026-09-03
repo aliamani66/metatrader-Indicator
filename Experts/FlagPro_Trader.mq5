@@ -19,6 +19,7 @@ input double           InpFixedLot               = 0.10;         // حجم ثا�
 input bool             InpUseRiskPercent         = false;        // محاسبه پویای حجم بر اساس درصد ریسک حساب
 input double           InpRiskPercent            = 1.0;          // درصد ریسک در هر معامله (% Equity Risk)
 input int              InpTargetTPLevel          = 2;            // تارگت خروج برای اعمال در بروکر (1=TP1, 2=TP2, 3=TP3, 4=TP4)
+input double           InpMaxSLPips              = 30.0;         // حداکثر حد ضرر مجاز به پیپ (جلوگیری از استاپ‌های نامتعارف ماکرو)
 input int              InpMaxOpenPositions       = 1;            // حداکثر پوزیشن‌های باز همزمان (انضباط سرمایه)
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
@@ -182,7 +183,6 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 
 // متغیرهای گلوبال اکسپرت
 CTrade         m_trade;
-int            m_indicatorHandle = INVALID_HANDLE;
 string         m_executedTradesKeys[];
 
 //+------------------------------------------------------------------+
@@ -201,6 +201,9 @@ int OnInit()
    else
       m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
 
+   // اعمال تم شیک چارت (حذف چهارخونه‌های گرید و تنظیم رنگ‌های نرم)
+   ApplyProChartTheme();
+
    g_boxesVisible = InpShowBoxes;
    if(!InpShowBoxes)
    {
@@ -213,7 +216,7 @@ int OnInit()
    g_tradeCount = 0;
    g_testerStartBase = 0;
 
-   Print("🚀 FlagPro_Trader EA آماده به کار است. ثبت مستقیم معاملات در تب Operations فعال شد.");
+   Print("🚀 FlagPro_Trader EA آماده به کار است. تم حرفه‌ای اعمال شد.");
    return INIT_SUCCEEDED;
 }
 
@@ -359,37 +362,59 @@ void OnTick()
    if(CountOpenPositions() >= InpMaxOpenPositions)
       return;
 
+   double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
+
    for(int t = 0; t < g_tradeCount; t++)
    {
-      if(g_tradeSetups[t].isClosed)
-         continue;
-
       string tradeKey = g_tradeSetups[t].boxName + "_" + IntegerToString((int)g_tradeSetups[t].entryTime);
       if(IsTradeAlreadyExecuted(tradeKey))
          continue;
 
-      double targetTP = g_tradeSetups[t].tp2;
-      if(InpTargetTPLevel == 1)      targetTP = g_tradeSetups[t].tp1;
-      else if(InpTargetTPLevel == 2) targetTP = g_tradeSetups[t].tp2;
-      else if(InpTargetTPLevel == 3) targetTP = g_tradeSetups[t].tp3;
-      else if(InpTargetTPLevel == 4) targetTP = g_tradeSetups[t].tp4;
+      // محاسبه فاصله حد ضرر معقول و نرمال‌سازی شده
+      double riskDist = MathAbs(g_tradeSetups[t].entryPrice - g_tradeSetups[t].slPrice);
+      double maxRiskDist = (InpMaxSLPips > 0) ? (InpMaxSLPips * pipSize) : (30.0 * pipSize);
 
-      double sl = NormalizeDouble(g_tradeSetups[t].slPrice, _Digits);
-      double tp = NormalizeDouble(targetTP, _Digits);
+      if(riskDist > maxRiskDist || riskDist < 2.0 * _Point)
+      {
+         riskDist = maxRiskDist;
+      }
+
+      double targetDist = riskDist * (double)InpTargetTPLevel;
+
+      double sl = g_tradeSetups[t].isBuy ? (g_tradeSetups[t].entryPrice - riskDist) : (g_tradeSetups[t].entryPrice + riskDist);
+      double tp = g_tradeSetups[t].isBuy ? (g_tradeSetups[t].entryPrice + targetDist) : (g_tradeSetups[t].entryPrice - targetDist);
+
+      sl = NormalizeDouble(sl, _Digits);
+      tp = NormalizeDouble(tp, _Digits);
       double lot = CalculateTradeLot(g_tradeSetups[t].entryPrice, sl);
 
       string comment = "FlagPro [" + g_tradeSetups[t].boxRole + "]";
 
       bool success = false;
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
       if(g_tradeSetups[t].isBuy)
       {
-         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
          success = m_trade.Buy(lot, _Symbol, ask, sl, tp, comment);
       }
       else
       {
-         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
          success = m_trade.Sell(lot, _Symbol, bid, sl, tp, comment);
+      }
+
+      // در صورت خطای نحوه پر شدن (Filling Mode)، تغییر حالت و ارسال مجدد
+      if(!success && (m_trade.ResultRetcode() == 10030 || m_trade.ResultRetcode() == TRADE_RETCODE_INVALID_FILL))
+      {
+         m_trade.SetTypeFilling(ORDER_FILLING_IOC);
+         success = g_tradeSetups[t].isBuy ? m_trade.Buy(lot, _Symbol, ask, sl, tp, comment)
+                                          : m_trade.Sell(lot, _Symbol, bid, sl, tp, comment);
+         if(!success)
+         {
+            m_trade.SetTypeFilling(ORDER_FILLING_FOK);
+            success = g_tradeSetups[t].isBuy ? m_trade.Buy(lot, _Symbol, ask, sl, tp, comment)
+                                             : m_trade.Sell(lot, _Symbol, bid, sl, tp, comment);
+         }
       }
 
       if(success)
@@ -398,12 +423,10 @@ void OnTick()
          ArrayResize(m_executedTradesKeys, newSize);
          m_executedTradesKeys[newSize - 1] = tradeKey;
 
-         PrintFormat("✅ معامله رسمی در تب Operations ثبت شد | تیکت: %d | جهت: %s | حجم: %.2f | ورود: %.5f | حد ضرر: %.5f | حد سود: %.5f | الگو: %s",
+         PrintFormat("✅ معامله رسمی در تب Operations ثبت شد | تیکت: %d | جهت: %s | حجم: %.2f | حد ضرر: %.5f | حد سود: %.5f | الگو: %s",
                      m_trade.ResultOrder(),
                      (g_tradeSetups[t].isBuy ? "BUY" : "SELL"),
-                     lot,
-                     (g_tradeSetups[t].isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID)),
-                     sl, tp, g_tradeSetups[t].boxRole);
+                     lot, sl, tp, g_tradeSetups[t].boxRole);
          break;
       }
       else
