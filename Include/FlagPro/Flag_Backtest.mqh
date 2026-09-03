@@ -542,10 +542,28 @@ void ShowTradeSetupForBox(int boxIdx)
 }
 
 //+------------------------------------------------------------------+
+//| پاکسازی کامل پس‌زمینه رنگی معاملات (شدو سبز و قرمز)              |
+//+------------------------------------------------------------------+
+void DeleteAllTradeShadings()
+{
+   for(int i = ObjectsTotal(0, -1, OBJ_RECTANGLE) - 1; i >= 0; i--)
+   {
+      string objName = ObjectName(0, i, -1, OBJ_RECTANGLE);
+      if(StringFind(objName, "_LOSS_BG") >= 0 || StringFind(objName, "_PROFIT_BG") >= 0)
+      {
+         ObjectDelete(0, objName);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Render Automatic Trade Setups with Full Lifecycle Persistence    |
 //+------------------------------------------------------------------+
 void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], const double &chartClose[], int ratesTotal)
 {
+   if(!InpShowTradeShading)
+      DeleteAllTradeShadings();
+
    if(!InpAutoDrawTrades || ratesTotal < 10) return;
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
@@ -959,6 +977,13 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
             ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
          }
+      }
+      else
+      {
+         string profitZone = pfx + "PROFIT_BG";
+         string lossZone   = pfx + "LOSS_BG";
+         if(ObjectFind(0, profitZone) >= 0) ObjectDelete(0, profitZone);
+         if(ObjectFind(0, lossZone) >= 0)   ObjectDelete(0, lossZone);
       }
 
       // ۱. خط ورود سفید یکدست و تمیز

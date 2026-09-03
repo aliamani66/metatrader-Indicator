@@ -230,7 +230,7 @@ int OnInit()
    }
    if(!InpShowTradeShading)
    {
-      ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_BG_");
+      DeleteAllTradeShadings();
    }
 
    ArrayResize(m_executedTradesKeys, 0);
@@ -492,7 +492,7 @@ void OnTick()
       }
       if(!InpShowTradeShading)
       {
-         ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_BG_");
+         DeleteAllTradeShadings();
       }
    }
 
