@@ -497,27 +497,40 @@ void OnTick()
 
    for(int t = 0; t < g_tradeCount; t++)
    {
+      // فقط ستاپ‌هایی که در کندل جاری یا کندل قبلی فعال شده‌اند مجاز به اجرا هستند (نه ستاپ‌های تاریخچه!)
+      if(g_tradeSetups[t].entryTime < chartTime[ratesTotal - 2])
+         continue;
+
       string tradeKey = g_tradeSetups[t].boxName + "_" + IntegerToString((int)g_tradeSetups[t].entryTime);
       if(IsTradeAlreadyExecuted(tradeKey))
          continue;
+
+      // ثبت کلید معامله در لیست پردازش‌شده‌ها تا در تیک‌های بعدی تکرار نشود
+      int newSize = ArraySize(m_executedTradesKeys) + 1;
+      ArrayResize(m_executedTradesKeys, newSize);
+      m_executedTradesKeys[newSize - 1] = tradeKey;
+
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      bool isBuy = g_tradeSetups[t].isBuy;
+      double sendPrice = isBuy ? ask : bid;
 
       // محاسبه فاصله حد ضرر معقول و نرمال‌سازی شده
       double riskDist = MathAbs(g_tradeSetups[t].entryPrice - g_tradeSetups[t].slPrice);
       double maxRiskDist = (InpMaxSLPips > 0) ? (InpMaxSLPips * pipSize) : (30.0 * pipSize);
 
-      if(riskDist > maxRiskDist || riskDist < 2.0 * _Point)
-      {
-         riskDist = maxRiskDist;
-      }
+      double minStops = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+      if(minStops < 15.0 * _Point) minStops = 15.0 * _Point;
 
-      bool isBuy = g_tradeSetups[t].isBuy;
-      double entryP = g_tradeSetups[t].entryPrice;
+      if(riskDist > maxRiskDist) riskDist = maxRiskDist;
+      if(riskDist < minStops)    riskDist = minStops + 5.0 * _Point;
 
-      double sl  = isBuy ? (entryP - riskDist) : (entryP + riskDist);
-      double tp1 = isBuy ? (entryP + riskDist * 1.0) : (entryP - riskDist * 1.0);
-      double tp2 = isBuy ? (entryP + riskDist * 2.0) : (entryP - riskDist * 2.0);
-      double tp3 = isBuy ? (entryP + riskDist * 3.0) : (entryP - riskDist * 3.0);
-      double tp4 = isBuy ? (entryP + riskDist * 4.0) : (entryP - riskDist * 4.0);
+      // محاسبه دقیق حد ضرر و تارگت‌ها نسبت به قیمت لحظه‌ای ورود (جلوگیری قطعی از Invalid Stops)
+      double sl  = isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist);
+      double tp1 = isBuy ? (sendPrice + riskDist * 1.0) : (sendPrice - riskDist * 1.0);
+      double tp2 = isBuy ? (sendPrice + riskDist * 2.0) : (sendPrice - riskDist * 2.0);
+      double tp3 = isBuy ? (sendPrice + riskDist * 3.0) : (sendPrice - riskDist * 3.0);
+      double tp4 = isBuy ? (sendPrice + riskDist * 4.0) : (sendPrice - riskDist * 4.0);
 
       sl  = NormalizeDouble(sl, _Digits);
       tp1 = NormalizeDouble(tp1, _Digits);
@@ -528,10 +541,6 @@ void OnTick()
       double tps[4] = {tp1, tp2, tp3, tp4};
       ulong openedTickets[4] = {0, 0, 0, 0};
       int successfulOrders = 0;
-
-      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      double sendPrice = isBuy ? ask : bid;
 
       // باز کردن ۴ پوزیشن همزمان (هر کدام با تارگت‌های TP1 تا TP4)
       for(int p = 0; p < 4; p++)
@@ -544,10 +553,6 @@ void OnTick()
 
       if(successfulOrders > 0)
       {
-         int newSize = ArraySize(m_executedTradesKeys) + 1;
-         ArrayResize(m_executedTradesKeys, newSize);
-         m_executedTradesKeys[newSize - 1] = tradeKey;
-
          // ثبت گروه معاملاتی جهت مدیریت بریک‌ایون و تریلینگ
          int gSize = ArraySize(m_activeGroups) + 1;
          ArrayResize(m_activeGroups, gSize);
