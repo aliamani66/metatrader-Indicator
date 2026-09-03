@@ -56,6 +56,20 @@ void ApplyProChartTheme()
 //+------------------------------------------------------------------+
 void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
 {
+   if(!g_boxesVisible)
+   {
+      // فقط مخفی‌سازی کامل بصری باکس‌ها از روی چارت بدون دستکاری منطق محاسبات یا معاملات
+      for(int b = 0; b < g_boxCount; b++)
+      {
+         if(ObjectFind(0, g_drawnBoxes[b].boxName) >= 0)
+            ObjectDelete(0, g_drawnBoxes[b].boxName);
+         string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
+         if(ObjectFind(0, lblName) >= 0)
+            ObjectDelete(0, lblName);
+      }
+      return;
+   }
+
    datetime liveTime = (ratesTotal > 0) ? chartTime[ratesTotal - 1] : 0;
 
    for(int b = 0; b < g_boxCount; b++)

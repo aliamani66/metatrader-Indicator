@@ -56,6 +56,7 @@ input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 3;            // تاریخچه ۱ دقیقه (۳ روز)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
+input bool             InpShowBoxes             = true;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
 input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
@@ -183,6 +184,7 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 int OnInit()
 {
    g_testerStartBase = 0;
+   g_boxesVisible = InpShowBoxes;
    SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
    ApplyProChartTheme();
 
@@ -355,6 +357,19 @@ void OnChartEvent(const int id,
             g_clickCounter = 0;
             ChartRedraw(0);
          }
+      }
+   }
+   else if(id == CHARTEVENT_KEYDOWN)
+   {
+      // فشردن کلید B در کیبورد برای مخفی یا نمایان کردن فوری تمام باکس‌ها
+      if(lparam == 'B' || lparam == 'b')
+      {
+         g_boxesVisible = !g_boxesVisible;
+         Print("FlagPro: وضعیت نمایش باکس‌ها: ", (g_boxesVisible ? "روشن (نمایان)" : "خاموش (مخفی)"));
+         datetime tArr[];
+         CopyTime(_Symbol, _Period, 0, 1, tArr);
+         RenderFinalBoxes(tArr, 1);
+         ChartRedraw(0);
       }
    }
 }
