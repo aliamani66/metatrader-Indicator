@@ -6,6 +6,20 @@
 #property link      ""
 
 //+------------------------------------------------------------------+
+//| تطبیق تایم‌فریم پیووت با باکس مربوطه                              |
+//+------------------------------------------------------------------+
+bool IsPivotTimeframeMatch(int pivotIdx, const string boxTfTag)
+{
+   if(pivotIdx < 0 || pivotIdx >= g_indepCount) return false;
+   for(int t = 0; t < ArraySize(g_indepPivots[pivotIdx].tfTags); t++)
+   {
+      if(g_indepPivots[pivotIdx].tfTags[t] == boxTfTag)
+         return true;
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
 //| Interactive On-Demand Trade Simulation for Clicked Box in History |
 //+------------------------------------------------------------------+
 void ShowTradeSetupForBox(int boxIdx)
@@ -118,6 +132,7 @@ void ShowTradeSetupForBox(int boxIdx)
       for(int k = 0; k < g_indepCount; k++)
       {
          if(!g_indepPivots[k].hasIP) continue;
+         if(!IsPivotTimeframeMatch(k, g_drawnBoxes[boxIdx].tfTag)) continue;
          if(g_indepPivots[k].time <= g_drawnBoxes[boxIdx].t1)
          {
             // پیووت مبنای استاپ باید با جهت پوزیشن همخوانی داشته باشد:
@@ -610,6 +625,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          for(int k = 0; k < g_indepCount; k++)
          {
             if(!g_indepPivots[k].hasIP) continue;
+            if(!IsPivotTimeframeMatch(k, g_drawnBoxes[b].tfTag)) continue;
             if(g_indepPivots[k].time <= g_drawnBoxes[b].t1)
             {
                bool pivotValidForTrade = (isBull ? !g_indepPivots[k].isHigh : g_indepPivots[k].isHigh);
@@ -982,7 +998,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       color resClr = (hitTP > 0) ? clrLimeGreen : (g_tradeSetups[t].isClosed ? clrTomato : clrGold);
 
-      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, activeTPPrice);
+      double labelPrice = (hitTP > 0) ? activeTPPrice : g_tradeSetups[t].slPrice;
+      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, labelPrice);
       ObjectSetString(0, resLbl, OBJPROP_TEXT, " " + resTxt + " [" + g_tradeSetups[t].boxRole + "]");
       ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resClr);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 8);
@@ -1113,6 +1130,7 @@ void ExportAllTradesToCSV()
          for(int k = 0; k < g_indepCount; k++)
          {
             if(!g_indepPivots[k].hasIP) continue;
+            if(!IsPivotTimeframeMatch(k, g_drawnBoxes[b].tfTag)) continue;
             if(g_indepPivots[k].time <= g_drawnBoxes[b].t1)
             {
                // پیووت مبنای استاپ باید با جهت پوزیشن همخوانی داشته باشد:
