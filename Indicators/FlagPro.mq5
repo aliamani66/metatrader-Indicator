@@ -249,7 +249,28 @@ int OnCalculate(const int rates_total,
    ENUM_TIMEFRAMES tfArr[7]       = {InpTF1, InpTF2, InpTF3, InpTF4, InpTF5, InpTF6, InpTF7};
    bool            useArr[7]      = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
-   int daysBackArr[7] = {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
+   int daysBackArr[7];
+   if((bool)MQLInfoInteger(MQL_TESTER))
+   {
+      int effectiveDays = (InpBacktestDays > 0) ? InpBacktestDays : 3;
+      daysBackArr[0] = 0;
+      daysBackArr[1] = 0;
+      daysBackArr[2] = 0;
+      daysBackArr[3] = 0;
+      daysBackArr[4] = MathMin(InpM15DaysBack, effectiveDays);
+      daysBackArr[5] = MathMin(InpM5DaysBack, effectiveDays);
+      daysBackArr[6] = MathMin(InpM1DaysBack, effectiveDays);
+   }
+   else
+   {
+      daysBackArr[0] = 0;
+      daysBackArr[1] = 0;
+      daysBackArr[2] = 0;
+      daysBackArr[3] = 0;
+      daysBackArr[4] = InpM15DaysBack;
+      daysBackArr[5] = InpM5DaysBack;
+      daysBackArr[6] = InpM1DaysBack;
+   }
 
    // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)
    useArr[0] = false; // D1
