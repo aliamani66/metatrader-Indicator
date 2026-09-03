@@ -979,14 +979,25 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
-      // ۳. خط تارگت سبز یکدست
-      string tpLine = pfx + "TP";
-      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, activeTPPrice, t2, activeTPPrice);
-      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
-      ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, 1);
-      ObjectSetInteger(0, tpLine, OBJPROP_STYLE, STYLE_SOLID);
-      ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
-      ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
+      // ۳. خطوط تارگت‌های ۴ گانه
+      for(int p = 0; p < 4; p++)
+      {
+         string tpLine = pfx + "TP" + IntegerToString(p + 1);
+         ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[p], t2, tps[p]);
+         ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
+         ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, 1);
+         ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (p == 0 ? STYLE_SOLID : STYLE_DOT));
+         ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
+         ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
+
+         string tpLbl = pfx + "TP" + IntegerToString(p + 1) + "_LBL";
+         ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[p]);
+         ObjectSetString(0, tpLbl, OBJPROP_TEXT, StringFormat(" TP%d", p + 1));
+         ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, clrLimeGreen);
+         ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 7);
+         ObjectSetInteger(0, tpLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+         ObjectSetInteger(0, tpLbl, OBJPROP_SELECTABLE, false);
+      }
 
       // ۴. برچسب نتیجه در انتهای معامله
       string resLbl = pfx + "RES_LBL";

@@ -543,10 +543,27 @@ void OnTick()
          sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
       }
 
-      double tp1 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 1.0) : (sendPrice - riskDist * 1.0), _Digits);
-      double tp2 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 2.0) : (sendPrice - riskDist * 2.0), _Digits);
-      double tp3 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 3.0) : (sendPrice - riskDist * 3.0), _Digits);
-      double tp4 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 4.0) : (sendPrice - riskDist * 4.0), _Digits);
+      // تارگت‌ها دقیقاً منطبق بر خطوط سبز چارت (بدون هیچ مغایرت و تفاوتی)
+      double tp1 = NormalizeDouble(g_tradeSetups[t].tp1, _Digits);
+      double tp2 = NormalizeDouble(g_tradeSetups[t].tp2, _Digits);
+      double tp3 = NormalizeDouble(g_tradeSetups[t].tp3, _Digits);
+      double tp4 = NormalizeDouble(g_tradeSetups[t].tp4, _Digits);
+
+      // اعتبارسنجی حداقل فاصله قانونی با بروکر
+      if(isBuy)
+      {
+         if(tp1 <= sendPrice + minStops) tp1 = NormalizeDouble(sendPrice + minStops + 5.0 * _Point, _Digits);
+         if(tp2 <= tp1) tp2 = NormalizeDouble(tp1 + 10.0 * _Point, _Digits);
+         if(tp3 <= tp2) tp3 = NormalizeDouble(tp2 + 10.0 * _Point, _Digits);
+         if(tp4 <= tp3) tp4 = NormalizeDouble(tp3 + 10.0 * _Point, _Digits);
+      }
+      else
+      {
+         if(tp1 >= sendPrice - minStops) tp1 = NormalizeDouble(sendPrice - minStops - 5.0 * _Point, _Digits);
+         if(tp2 >= tp1) tp2 = NormalizeDouble(tp1 - 10.0 * _Point, _Digits);
+         if(tp3 >= tp2) tp3 = NormalizeDouble(tp2 - 10.0 * _Point, _Digits);
+         if(tp4 >= tp3) tp4 = NormalizeDouble(tp3 - 10.0 * _Point, _Digits);
+      }
 
       double tps[4] = {tp1, tp2, tp3, tp4};
       ulong openedTickets[4] = {0, 0, 0, 0};
