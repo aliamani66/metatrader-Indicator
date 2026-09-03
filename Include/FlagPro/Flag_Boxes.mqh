@@ -211,22 +211,46 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       int rightIdx = idxEnd;
       bool brokeUp = false;
       bool brokeDown = false;
+      int confirmIdx = -1;
+
       for(int k = idxEnd + 1; k < ratesTotal; k++)
       {
          if(chartHigh[k] > boxTop)
          {
             brokeUp = true;
+            confirmIdx = k;
             rightIdx = k;
             break;
          }
          else if(chartLow[k] < boxBottom)
          {
             brokeDown = true;
+            confirmIdx = k;
             rightIdx = k;
             break;
          }
          rightIdx = k;
       }
+
+      // شرط بنیادین پرایس‌اکشن: باکس فلگ فقط و فقط زمانی کشیده می‌شود که تایید شکست را ثبت کرده باشد
+      // ۱. در فلگ صعودی (حرکت از سقف P1 به کف اصلاحی P2)، قیمت باید حتماً سقف را به بالا رد کند (brokeUp)
+      if(p1.isHigh && !p2.isHigh)
+      {
+         if(!brokeUp)
+            continue; // هنوز سقف رد نشده و فلگ تایید نشده است؛ رسم نمی‌شود
+      }
+      // ۲. در فلگ نزولی (حرکت از کف P1 به سقف اصلاحی P2)، قیمت باید حتماً کف را به پایین رد کند (brokeDown)
+      else if(!p1.isHigh && p2.isHigh)
+      {
+         if(!brokeDown)
+            continue; // هنوز کف رد نشده و فلگ تایید نشده است؛ رسم نمی‌شود
+      }
+      else
+      {
+         if(!brokeUp && !brokeDown)
+            continue;
+      }
+
       if(rightIdx <= leftIdx && leftIdx < ratesTotal - 1) rightIdx = leftIdx + 1;
       if(rightIdx < ratesTotal - 1) rightIdx++;
 
@@ -248,7 +272,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_drawnBoxes[g_boxCount].t1        = t1;
       g_drawnBoxes[g_boxCount].t2        = t2;
       g_drawnBoxes[g_boxCount].formationTime = chartTime[idxEnd];
-      g_drawnBoxes[g_boxCount].confirmationTime = chartTime[idxEnd] + PeriodSeconds(tf) * InpSwingBars;
+      g_drawnBoxes[g_boxCount].confirmationTime = (confirmIdx >= 0) ? chartTime[confirmIdx] : chartTime[idxEnd];
       g_drawnBoxes[g_boxCount].top       = boxTop;
       g_drawnBoxes[g_boxCount].bottom    = boxBottom;
       g_drawnBoxes[g_boxCount].baseColor      = clr;
