@@ -639,9 +639,9 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
       else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
 
-      datetime startTime = g_drawnBoxes[b].formationTime;
-      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].formationTime);
-      if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t1);
+      datetime startTime = g_drawnBoxes[b].t2;
+      int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
+      if(startSearchIdx < 0) startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].formationTime);
       if(startSearchIdx < 0) startSearchIdx = 0;
 
       // قانون اصیل پرایس‌اکشن:

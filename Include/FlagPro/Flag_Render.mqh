@@ -154,13 +154,19 @@ void RenderFinalBoxes()
             tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
          }
 
-         // ===== اعمال فیلتر هوشمند الگوها (بر اساس چک‌باکس‌های کاربر) =====
-         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY || InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
+         // ===== اعمال فیلتر هوشمند الگوها =====
+         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
+         {
+            bool isStrategic = (isLS || isOI || isRS || isSwap);
+            if(!isStrategic)
+               continue;
+         }
+         else if(InpBoxDisplayFilter == FILTER_CUSTOM_SELECTED_ONLY)
          {
             bool allowed = false;
-            if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS-BU > OInner-BE") >= 0) allowed = true;
-            else if(InpShow_LSBE && (tagCombo == "LS-BE" || (StringFind(tagCombo, "LS-BE") == 0 && StringFind(tagCombo, ">") < 0))) allowed = true;
-            else if(InpShow_OInnerBE_RSBE && StringFind(tagCombo, "OInner-BE > RS-BE") >= 0) allowed = true;
+            if(InpShow_LSBU_OInnerBE && StringFind(tagCombo, "LS") >= 0) allowed = true;
+            else if(InpShow_LSBE && StringFind(tagCombo, "LS") >= 0) allowed = true;
+            else if(InpShow_OInnerBE_RSBE && (StringFind(tagCombo, "OInner") >= 0 || StringFind(tagCombo, "RS") >= 0)) allowed = true;
             else if(InpShow_SLS && StringFind(tagCombo, "S-LS") >= 0) allowed = true;
             else if(InpShow_SOInner && StringFind(tagCombo, "S-OInner") >= 0) allowed = true;
             else if(InpShow_OtherBoxes) allowed = true;
