@@ -1079,7 +1079,7 @@ void ExportAllTradesToCSV()
    ArraySetAsSeries(chartLow, false);
    ArraySetAsSeries(chartClose, false);
 
-   int barsToCopy = (InpBacktestDays > 0) ? (InpBacktestDays * 1440 * 2 + 1000) : 50000;
+   int barsToCopy = (InpBacktestDays > 0) ? (InpBacktestDays * 1440 * 2 + 1000) : 150000;
    int copied = CopyTime(_Symbol, _Period, 0, barsToCopy, chartTime);
    CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
    CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);

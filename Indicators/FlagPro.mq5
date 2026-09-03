@@ -36,24 +36,24 @@ input bool             InpUseTF4  = false;          // محاسبه یک‌سا�
 input color            InpColorTF4 = clrYellow;
 
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
-input int              InpBacktestDays = 30;         // تعداد روزهای بک‌تست و خروجی گزارش (۳۰ روز - ۱ ماه کامل)
+input int              InpBacktestDays = 90;         // تعداد روزهای بک‌تست و خروجی گزارش (۹۰ روز - ۳ ماه کامل)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای تولید آنی دیتای داشبورد)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 30;          // تاریخچه ۱۵ دقیقه (۳۰ روز - ۱ ماه)
+input int              InpM15DaysBack = 90;          // تاریخچه ۱۵ دقیقه (۹۰ روز - ۳ ماه کامل)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 30;           // تاریخچه ۵ دقیقه (۳۰ روز - ۱ ماه)
+input int              InpM5DaysBack = 90;           // تاریخچه ۵ دقیقه (۹۰ روز - ۳ ماه کامل)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 30;           // تاریخچه ۱ دقیقه (۳۰ روز - ۱ ماه)
+input int              InpM1DaysBack = 90;           // تاریخچه ۱ دقیقه (۹۰ روز - ۳ ماه کامل)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
 input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (پیش‌فرض: کاملاً هیدن و خاموش)
@@ -88,7 +88,7 @@ input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سو�
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 50000;       // حداکثر کندل‌های محاسبه (پوشش کامل ۱ ماه - ۵۰ هزار کندل)
+input int              InpMaxBarsTF   = 150000;      // حداکثر کندل‌های محاسبه (پوشش کامل ۳ ماه - ۱۵۰ هزار کندل)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
