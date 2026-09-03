@@ -1145,6 +1145,66 @@ def build_dashboard():
             evt.currentTarget.classList.add('active');
         }}
 
+        let sortDirections = {{ 'data-ev': true }};
+
+        function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {{
+            let table = document.getElementById(tableId);
+            if (!table) return;
+            let tbody = table.querySelector('tbody');
+            if (!tbody) return;
+            let rows = Array.from(tbody.querySelectorAll('tr.tf-row'));
+
+            let isCurrentDesc = sortDirections[attrName];
+            let newDesc = (isCurrentDesc === undefined) ? defaultDesc : !isCurrentDesc;
+            sortDirections[attrName] = newDesc;
+
+            let headers = table.querySelectorAll('th');
+            headers.forEach(h => {{
+                let icon = h.querySelector('.sort-icon');
+                if (icon) icon.textContent = ' ⬍';
+                h.style.background = '';
+            }});
+
+            let activeTh = table.querySelector(`th[data-sort="${{attrName}}"]`);
+            if (activeTh) {{
+                let icon = activeTh.querySelector('.sort-icon');
+                if (icon) icon.textContent = newDesc ? ' ▼' : ' ▲';
+                activeTh.style.background = '#1e293b';
+            }}
+
+            if (btnElem) {{
+                let p = btnElem.parentElement;
+                if (p) {{
+                    p.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btnElem.classList.add('active');
+                }}
+            }}
+
+            rows.sort((a, b) => {{
+                let valA = a.getAttribute(attrName) || '';
+                let valB = b.getAttribute(attrName) || '';
+
+                if (isNumeric) {{
+                    let numA = parseFloat(valA) || 0.0;
+                    let numB = parseFloat(valB) || 0.0;
+                    if (numA !== numB) {{
+                        return newDesc ? (numB - numA) : (numA - numB);
+                    }}
+                    let evA = parseFloat(a.getAttribute('data-ev')) || 0.0;
+                    let evB = parseFloat(b.getAttribute('data-ev')) || 0.0;
+                    return evB - evA;
+                }} else {{
+                    let res = valA.localeCompare(valB);
+                    if (res !== 0) return newDesc ? -res : res;
+                    let evA = parseFloat(a.getAttribute('data-ev')) || 0.0;
+                    let evB = parseFloat(b.getAttribute('data-ev')) || 0.0;
+                    return evB - evA;
+                }}
+            }});
+
+            rows.forEach(r => tbody.appendChild(r));
+        }}
+
         function filterTF(tf) {{
             let btns = document.querySelectorAll('.tf-btn');
             btns.forEach(b => b.classList.remove('active'));
