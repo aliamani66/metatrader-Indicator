@@ -60,20 +60,6 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       if(g_drawnBoxes[b].top <= 0 || g_drawnBoxes[b].bottom <= 0)
          continue;
 
-      // بررسی زنده بودن باکس در لایو بازار
-      bool isLive = (g_drawnBoxes[b].t2 >= liveTime || (liveTime - g_drawnBoxes[b].t2 < PeriodSeconds(g_drawnBoxes[b].tf) * 15));
-
-      // قانون طلایی: در گذشته چارت فقط باکس‌های معامله‌شده رسم می‌شوند؛ در لایو همه باکس‌ها رسم می‌شوند
-      if(InpHistoryOnlyTradedBoxes && !isLive && !g_drawnBoxes[b].hasTradeEntered)
-      {
-         if(ObjectFind(0, g_drawnBoxes[b].boxName) >= 0)
-            ObjectDelete(0, g_drawnBoxes[b].boxName);
-         string oldLbl = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
-         if(ObjectFind(0, oldLbl) >= 0)
-            ObjectDelete(0, oldLbl);
-         continue;
-      }
-
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
