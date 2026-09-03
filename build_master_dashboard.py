@@ -366,7 +366,7 @@ def build_dashboard():
     </tr>
     """)
 
-    # Interactive Timeframe-Role Table
+    # Interactive Timeframe-Role Table: Scored by King Quality Score (KQS)
     tf_role_map = defaultdict(list)
     for r in closed:
         tf_role_map[(r.get('Timeframe', 'M1'), r.get('Role', 'Unknown'))].append(r)
@@ -385,15 +385,26 @@ def build_dashboard():
         w3_p = w3 / cnt * 100
         w4_p = w4 / cnt * 100
         sl_p = sl / cnt * 100
-        ev_item = (w2_p / 100.0 * 2.0) - (sl_p / 100.0 * 1.0)
+
+        # King Score Formula:
+        # Base: (TP1 * 1.0) + (TP2 * 1.5) + (TP3 * 3.0) + (TP4 * 4.0) - (SL * 2.0)
+        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 3.0) + (w4_p * 4.0) - (sl_p * 2.0)
+
+        # Rule 1: 100% Win Rate Bonus for cnt >= 2 (+100 points)
+        is_perfect = (cnt >= 2 and sl == 0)
+        final_score = base_score + (100.0 if is_perfect else 0.0)
+
+        # Rule 2: Big Runners (TP3 or TP4 >= 30%)
+        is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
+
         computed_tf_roles.append({
             'tf': tf, 'role': role, 'cnt': cnt,
             'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
-            'ev_item': ev_item
+            'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner
         })
 
-    # Sort by EV descending by default, breaking ties with trade count
-    computed_tf_roles.sort(key=lambda x: (x['ev_item'], x['cnt']), reverse=True)
+    # Sort by King Score descending by default, breaking ties with trade count
+    computed_tf_roles.sort(key=lambda x: (x['score'], x['cnt']), reverse=True)
 
     tf_role_rows = []
     for item in computed_tf_roles:
@@ -405,20 +416,34 @@ def build_dashboard():
         w3_p = item['w3_p']
         w4_p = item['w4_p']
         sl_p = item['sl_p']
-        ev_item = item['ev_item']
-        ev_col = "#00e676" if ev_item >= 0.2 else ("#38bdf8" if ev_item >= 0 else "#ef4444")
+        score = item['score']
+
+        badge_html = ""
+        if item['is_perfect']:
+            badge_html += " <span style='background:#064e3b;color:#34d399;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #059669;'>💎 ۱۰۰٪ قطعی</span>"
+        elif item['is_runner']:
+            badge_html += " <span style='background:#312e81;color:#a5b4fc;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #4338ca;'>🚀 دونده</span>"
+
+        if score >= 300:
+            score_html = f"<span style='color:#facc15;font-weight:bold;font-size:15px;'>{score:.1f} 👑</span>"
+        elif score >= 180:
+            score_html = f"<span style='color:#00e676;font-weight:bold;font-size:14px;'>{score:.1f} ⭐</span>"
+        elif score >= 80:
+            score_html = f"<span style='color:#38bdf8;font-weight:bold;font-size:13px;'>{score:.1f}</span>"
+        else:
+            score_html = f"<span style='color:#ef4444;font-size:13px;'>{score:.1f}</span>"
 
         tf_role_rows.append(f"""
-        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-ev="{ev_item:.3f}">
+        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-score="{score:.2f}">
             <td style="color:#38bdf8;font-weight:bold;">{tf}</td>
-            <td style="color:#facc15;font-weight:bold;">{role}</td>
+            <td style="color:#facc15;font-weight:bold;">{role}{badge_html}</td>
             <td style="text-align:center;font-weight:bold;">{cnt}</td>
             <td style="text-align:center;color:#00e676;font-weight:bold;">{w1_p:.1f}%</td>
             <td style="text-align:center;color:#00e676;font-weight:bold;">{w2_p:.1f}%</td>
             <td style="text-align:center;color:#38bdf8;">{w3_p:.1f}%</td>
             <td style="text-align:center;color:#c084fc;">{w4_p:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl_p:.1f}%</td>
-            <td style="text-align:center;color:{ev_col};font-weight:bold;font-size:14px;">{ev_item:+.2f} R</td>
+            <td style="text-align:center;">{score_html}</td>
         </tr>
         """)
 
@@ -950,10 +975,23 @@ def build_dashboard():
                     </div>
                 </div>
 
+                <!-- Formula Formula Explainer Box -->
+                <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <b style="color:#facc15;">📐 فرمول ترکیبی شاخص سلطان (King Score):</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = (TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 3.0) + (TP4 × 4.0) - (SL × 2.0)</span>
+                    </div>
+                    <div>
+                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">💎 ۱۰۰٪ قطعی (+100 بونوس)</span>
+                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #4338ca;">🚀 دونده (TP3/4 ≥ 30%)</span>
+                    </div>
+                </div>
+
                 <!-- Quick Combined Sorting Buttons -->
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;background:#0f172a;padding:8px 12px;border-radius:8px;border:1px solid #334155;">
                     <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
-                    <button class="sort-btn active" id="btnSortEV" onclick="sortTableByAttr('tfTable', 'data-ev', true, true, this)">🚀 بیشترین امید ریاضی (EV)</button>
+                    <button class="sort-btn active" id="btnSortScore" onclick="sortTableByAttr('tfTable', 'data-score', true, true, this)">👑 بیشترین امتیاز سلطان (Score)</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w4', true, true, this)">🚀 بیشترین تارگت دونده (TP4)</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-cnt', true, true, this)">📦 بیشترین تعداد معامله</button>
@@ -973,7 +1011,7 @@ def build_dashboard():
                                 <th onclick="sortTableByAttr('tfTable', 'data-w3', true, true)" data-sort="data-w3" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:3 <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-ev', true, true)" data-sort="data-ev" style="cursor:pointer;text-align:center;color:#38bdf8;background:#1e293b;" title="مرتب‌سازی شده بر اساس امید ریاضی">امید ریاضی (EV) <span class="sort-icon">▼</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-score', true, true)" data-sort="data-score" style="cursor:pointer;text-align:center;color:#facc15;background:#1e293b;" title="مرتب‌سازی شده بر مبنای فرمول شاخص سلطان">امتیاز سلطان (Score) <span class="sort-icon">▼</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1238,7 +1276,7 @@ def build_dashboard():
             evt.currentTarget.classList.add('active');
         }}
 
-        let sortDirections = {{ 'data-ev': true }};
+        let sortDirections = {{ 'data-score': true }};
 
         function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {{
             let table = document.getElementById(tableId);
@@ -1283,14 +1321,14 @@ def build_dashboard():
                     if (numA !== numB) {{
                         return newDesc ? (numB - numA) : (numA - numB);
                     }}
-                    let evA = parseFloat(a.getAttribute('data-ev')) || 0.0;
-                    let evB = parseFloat(b.getAttribute('data-ev')) || 0.0;
+                    let evA = parseFloat(a.getAttribute('data-score')) || 0.0;
+                    let evB = parseFloat(b.getAttribute('data-score')) || 0.0;
                     return evB - evA;
                 }} else {{
                     let res = valA.localeCompare(valB);
                     if (res !== 0) return newDesc ? -res : res;
-                    let evA = parseFloat(a.getAttribute('data-ev')) || 0.0;
-                    let evB = parseFloat(b.getAttribute('data-ev')) || 0.0;
+                    let evA = parseFloat(a.getAttribute('data-score')) || 0.0;
+                    let evB = parseFloat(b.getAttribute('data-score')) || 0.0;
                     return evB - evA;
                 }}
             }});
