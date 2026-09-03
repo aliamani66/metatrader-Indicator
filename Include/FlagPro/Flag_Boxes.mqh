@@ -186,12 +186,21 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       }
       if(leftIdx > 0) leftIdx--;
 
-      // ===== امتداد به جلو (Forward Extension) =====
+      // ===== امتداد به جلو (Forward Extension) و تشخیص قطعی جهت شکست =====
       int rightIdx = idxEnd;
+      bool brokeUp = false;
+      bool brokeDown = false;
       for(int k = idxEnd + 1; k < ratesTotal; k++)
       {
-         if(chartHigh[k] > boxTop || chartLow[k] < boxBottom)
+         if(chartHigh[k] > boxTop)
          {
+            brokeUp = true;
+            rightIdx = k;
+            break;
+         }
+         else if(chartLow[k] < boxBottom)
+         {
+            brokeDown = true;
             rightIdx = k;
             break;
          }
@@ -224,7 +233,13 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_drawnBoxes[g_boxCount].baseColor      = clr;
       g_drawnBoxes[g_boxCount].baseWidth      = InpLineWidth;
       g_drawnBoxes[g_boxCount].baseStyle      = GetTFLineStyle(tf);
+      
+      // قانون بنیادین پرایس‌اکشن:
+      // خروج از کف یعنی گره مقاومت نزولی است (Bearish)
+      // خروج از سقف یعنی گره حمایت صعودی است (Bullish)
       bool isBullish = (!p1.isHigh && p2.isHigh);
+      if(brokeUp) isBullish = true;
+      else if(brokeDown) isBullish = false;
       g_drawnBoxes[g_boxCount].isBullish      = isBullish;
       g_drawnBoxes[g_boxCount].isPreIP        = isPreIPBox[i];
       g_drawnBoxes[g_boxCount].isLSBull       = targetIPIsHighArr[i];
@@ -504,6 +519,15 @@ void ProcessOInnerBoxes()
          {
             if(g_drawnBoxes[ob].top <= 0) continue;
             if(g_drawnBoxes[ob].tfTag != tfStr) continue;
+
+            // قانون قطعی پرایس‌اکشن:
+            // سقف مستقل فقط با گره نزولی (که از کف شکسته: !isBullish) جفت می‌شود
+            // کف مستقل فقط با گره صعودی (که از سقف شکسته: isBullish) جفت می‌شود
+            if(isHigh && g_drawnBoxes[ob].isBullish) continue;
+            if(!isHigh && !g_drawnBoxes[ob].isBullish) continue;
+
+            // باکسی که قبلاً او‌اینر پیووت دیگری شده بازنویسی نشود
+            if(g_drawnBoxes[ob].isOInner) continue;
 
             // باکس باید بعد از این پیووت باشد
             if(g_drawnBoxes[ob].t1 < pivotTime - 60) continue;
