@@ -192,11 +192,6 @@ void RenderFinalBoxes()
          else if(isLS) shortRoleTag = "LS" + (g_drawnBoxes[b].isLSBull ? "-BU" : "-BE");
          else if(isRS) shortRoleTag = "RS" + (g_drawnBoxes[b].isRSBull ? "-BU" : "-BE");
 
-         // مخفی‌سازی باکس‌های فیلترشده در صورتی که کاربر گزینه مخفی‌سازی را فعال کرده باشد
-         double boxRiskPts = (_Point > 0) ? (MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom) / _Point) : 0.0;
-         if(InpHideFilteredBoxes && IsSetupFilteredOut(roleTag, g_drawnBoxes[b].t1, boxRiskPts))
-            continue;
-
          if(isSwap)
          {
             if(StringFind(swapTag, "S-OInner") >= 0)

@@ -155,6 +155,7 @@ input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل 
 
 input group "=== Trade Setup & Simulator (ستاپ معامله و بک‌تست) ==="
 input bool             InpEnableTradeSetup      = true;         // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
+input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input double           InpRSPipBuffer           = 2.0;          // بافر حد ضرر برای RS و فلگ‌ها (پیپ)
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
 input color            InpTradeSLColor          = clrRed;       // رنگ خط حد ضرر (SL)
@@ -296,6 +297,9 @@ int OnCalculate(const int rates_total,
    // رسم نهایی باکس‌ها و مارکرهای مستقل
    RenderFinalBoxes();
    RenderFinalIndependentPivots(time, high, low, rates_total);
+
+   // رسم خودکار گرافیک معاملات فعال‌شده (Entry, SL, TP) روی چارت
+   RenderAutoTradeSetups(time, high, low, close, rates_total);
 
    // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
    if(g_selectedBoxName != "")

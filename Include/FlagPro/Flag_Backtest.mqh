@@ -506,6 +506,330 @@ void ShowTradeSetupForBox(int boxIdx)
 }
 
 //+------------------------------------------------------------------+
+//| Render Automatic Trade Setups for all Valid & Entered Boxes     |
+//+------------------------------------------------------------------+
+void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], const double &chartClose[], int ratesTotal)
+{
+   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
+   if(!InpAutoDrawTrades || ratesTotal < 10) return;
+
+   double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
+   double bufferPips = InpRSPipBuffer * pipSize;
+
+   for(int b = 0; b < g_boxCount; b++)
+   {
+      if(g_drawnBoxes[b].top <= 0) continue;
+      if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
+
+      string role = "Flag";
+      bool isSwap = g_drawnBoxes[b].isSwap;
+      bool isLS   = false;
+      bool isRS   = false;
+      bool isOI   = false;
+      string swapTag = "";
+
+      if(isSwap)
+      {
+         role = "S-" + g_drawnBoxes[b].swapSourceRole;
+      }
+      else
+      {
+         for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+         {
+            string tgName = g_drawnBoxes[b].rsTags[tg];
+            if(tgName == "LS") isLS = true;
+            else if(tgName == "RS") isRS = true;
+            else if(tgName == "OInner") isOI = true;
+            else if(StringFind(tgName, "S-") == 0)
+            {
+               isSwap = true;
+               swapTag += (swapTag == "" ? "" : "+") + tgName;
+            }
+         }
+
+         string tagCombo = "";
+         if(isLS)
+         {
+            string lsDir = g_drawnBoxes[b].isLSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "LS" + lsDir : " > LS" + lsDir);
+         }
+         if(isOI)
+         {
+            string oiDir = g_drawnBoxes[b].isOInnerBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "OInner" + oiDir : " > OInner" + oiDir);
+         }
+         if(isRS)
+         {
+            string rsDir = g_drawnBoxes[b].isRSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "RS" + rsDir : " > RS" + rsDir);
+         }
+         if(isSwap)
+         {
+            string swDir = g_drawnBoxes[b].isSwapBull ? "-BU" : "-BE";
+            string fullSwap = swapTag + swDir;
+            tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
+         }
+         if(tagCombo != "") role = tagCombo;
+         else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
+      }
+
+      bool isBull = true;
+      double entryPrice = 0;
+      double slPrice    = 0;
+
+      if(isOI)
+      {
+         isBull = g_drawnBoxes[b].isOInnerBull;
+         double   pivotP = 0;
+         datetime closestPivotTime = 0;
+         for(int k = 0; k < g_indepCount; k++)
+         {
+            if(!g_indepPivots[k].hasIP) continue;
+            if(g_indepPivots[k].time <= g_drawnBoxes[b].t1)
+            {
+               bool pivotValidForTrade = (isBull ? !g_indepPivots[k].isHigh : g_indepPivots[k].isHigh);
+               if(pivotValidForTrade)
+               {
+                  if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
+                  {
+                     closestPivotTime = g_indepPivots[k].time;
+                     pivotP = g_indepPivots[k].price;
+                  }
+               }
+            }
+         }
+         if(pivotP == 0) pivotP = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
+
+         if(isBull)
+         {
+            entryPrice = g_drawnBoxes[b].top;
+            slPrice    = pivotP - 2.0 * pipSize;
+         }
+         else
+         {
+            entryPrice = g_drawnBoxes[b].bottom;
+            slPrice    = pivotP + 2.0 * pipSize;
+         }
+      }
+      else
+      {
+         if(isSwap) isBull = g_drawnBoxes[b].isSwapBull;
+         else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
+         else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
+         else isBull = g_drawnBoxes[b].isBullish;
+
+         if(isBull)
+         {
+            entryPrice = g_drawnBoxes[b].top;
+            slPrice    = g_drawnBoxes[b].bottom - bufferPips;
+         }
+         else
+         {
+            entryPrice = g_drawnBoxes[b].bottom;
+            slPrice    = g_drawnBoxes[b].top + bufferPips;
+         }
+      }
+
+      double risk = MathAbs(entryPrice - slPrice);
+      if(risk < _Point * 2.0) risk = _Point * 2.0;
+
+      // فیلتر هوشمند ضد استاپ: اگر ستاپ فیلتر باشد، گرافیک معامله رسم نمی‌شود
+      if(IsSetupFilteredOut(role, g_drawnBoxes[b].t1, risk / _Point))
+         continue;
+
+      datetime confirmTime = g_drawnBoxes[b].confirmationTime;
+      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].formationTime + PeriodSeconds(g_drawnBoxes[b].tf) * InpSwingBars;
+      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].t1;
+
+      int confirmIdx = FindBarIndex(chartTime, ratesTotal, confirmTime);
+      if(confirmIdx < 0) confirmIdx = 0;
+
+      double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
+      double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
+
+      bool isEntered = false;
+      int  entryBarIdx = -1;
+      datetime entryTime = 0;
+      int departedBar = -1;
+      datetime maxBoxTime = g_drawnBoxes[b].t2;
+      if(maxBoxTime <= confirmTime)
+         maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
+
+      for(int k = confirmIdx; k < ratesTotal; k++)
+      {
+         if(chartTime[k] > maxBoxTime) break;
+
+         // اگر قبل از ورود به حد ضرر بخورد، ستاپ لغو می‌شود
+         if(isBull && chartLow[k] <= slPrice) break;
+         if(!isBull && chartHigh[k] >= slPrice) break;
+
+         if(departedBar < 0)
+         {
+            if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
+            else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+            if(k - confirmIdx > 30) break;
+         }
+         else
+         {
+            if(isBull && chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+            {
+               isEntered = true;
+               entryBarIdx = k;
+               entryTime = chartTime[k];
+               break;
+            }
+            else if(!isBull && chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            {
+               isEntered = true;
+               entryBarIdx = k;
+               entryTime = chartTime[k];
+               break;
+            }
+            if(k - departedBar > 60) break;
+         }
+      }
+
+      // فقط برای باکس‌هایی که معامله روی آن‌ها تایید و فعال شده گرافیک کشیده شود
+      if(!isEntered)
+         continue;
+
+      // محاسبه تارگت‌ها
+      double tps[4];
+      for(int tp = 0; tp < 4; tp++)
+      {
+         if(isBull) tps[tp] = entryPrice + risk * (tp + 1);
+         else       tps[tp] = entryPrice - risk * (tp + 1);
+      }
+
+      int hitTP = 0;
+      bool isClosed = false;
+      datetime exitTime = 0;
+      datetime hitTime = 0;
+
+      for(int k = entryBarIdx; k < ratesTotal; k++)
+      {
+         if(isBull)
+         {
+            for(int tp = hitTP; tp < 4; tp++)
+            {
+               if(chartHigh[k] >= tps[tp])
+               {
+                  hitTP = tp + 1;
+                  hitTime = chartTime[k];
+               }
+            }
+            if(chartLow[k] <= slPrice)
+            {
+               isClosed = true;
+               exitTime = (hitTP > 0) ? hitTime : chartTime[k];
+               break;
+            }
+            if(hitTP == 4)
+            {
+               isClosed = true;
+               exitTime = hitTime;
+               break;
+            }
+         }
+         else
+         {
+            for(int tp = hitTP; tp < 4; tp++)
+            {
+               if(chartLow[k] <= tps[tp])
+               {
+                  hitTP = tp + 1;
+                  hitTime = chartTime[k];
+               }
+            }
+            if(chartHigh[k] >= slPrice)
+            {
+               isClosed = true;
+               exitTime = (hitTP > 0) ? hitTime : chartTime[k];
+               break;
+            }
+            if(hitTP == 4)
+            {
+               isClosed = true;
+               exitTime = hitTime;
+               break;
+            }
+         }
+      }
+
+      if(!isClosed)
+         exitTime = (hitTP > 0) ? hitTime : chartTime[ratesTotal - 1];
+
+      datetime t1 = entryTime;
+      datetime t2 = exitTime;
+      if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
+
+      string pfx = FP_PREFIX + "AUTO_TR_" + IntegerToString(b) + "_";
+
+      // ۱. ناحیه سود (سبز زمردی ملایم در پس‌زمینه)
+      double tpTop = isBull ? tps[3] : entryPrice;
+      double tpBtm = isBull ? entryPrice : tps[3];
+      string profitZone = pfx + "PROFIT_BG";
+      ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
+      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'6,36,20');
+      ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
+      ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
+      ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+
+      // ۲. ناحیه ریسک (زرشکی ملایم در پس‌زمینه)
+      double slTop = isBull ? entryPrice : slPrice;
+      double slBtm = isBull ? slPrice : entryPrice;
+      string lossZone = pfx + "LOSS_BG";
+      ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
+      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'38,10,14');
+      ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
+      ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
+      ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+
+      // ۳. خط ورود سفید
+      string entryLine = pfx + "ENTRY";
+      ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
+      ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
+      ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
+      ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
+
+      // ۴. خط حد ضرر قرمز
+      string slLine = pfx + "SL";
+      ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
+      ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrRed);
+      ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 2);
+      ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
+      ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
+
+      // ۵. خطوط تارگت‌های سود سبز
+      for(int tp = 0; tp < 4; tp++)
+      {
+         string tpLine = pfx + "TP" + IntegerToString(tp + 1);
+         ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], t2, tps[tp]);
+         ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
+         ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
+         ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
+         ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
+         ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
+      }
+
+      // ۶. برچسب شفاف نتیجه
+      string resLbl = pfx + "RES_LBL";
+      string resTxt = (hitTP > 0) ? StringFormat("🎯 TP%d (+%dR)", hitTP, hitTP) : (isClosed ? "❌ SL (-1R)" : "⏳ OPEN");
+      color resClr = (hitTP > 0) ? clrLimeGreen : (isClosed ? clrTomato : clrGold);
+
+      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, entryPrice);
+      ObjectSetString(0, resLbl, OBJPROP_TEXT, resTxt);
+      ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resClr);
+      ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+      ObjectSetInteger(0, resLbl, OBJPROP_SELECTABLE, false);
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Export All Detected Trade Setups to CSV File                     |
 //+------------------------------------------------------------------+
 void ExportAllTradesToCSV()
