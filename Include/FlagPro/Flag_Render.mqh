@@ -31,23 +31,21 @@ void ApplyProChartTheme()
 {
    if(!InpApplyProTheme) return;
 
-   // پالت ارگونومیک و لوکس تریدینگ‌ویو (TradingView Dark Theme) برای آرامش و جلوگیری از خستگی چشم
-   color tvDarkBg       = C'20,24,35';   // پس‌زمینه سرمه‌ای/دودی ملایم و چشم‌نواز (#141823)
-   color tvTextFg       = C'180,185,195'; // متن و محورها نرم و بدون خیرگی
-   color tvBullTeal     = C'8,153,129';  // کندل صعودی زمردی تریدینگ‌ویو (#089981)
-   color tvBearRed      = C'242,54,69';  // کندل نزولی مرجانی استاندارد (#F23645)
+   // پس‌زمینه سرمه‌ای/دودی ملایم برای محافظت از چشم
+   color tvDarkBg       = C'20,24,35';
 
    ChartSetInteger(0, CHART_COLOR_BACKGROUND, tvDarkBg);
-   ChartSetInteger(0, CHART_COLOR_FOREGROUND, tvTextFg);
+   ChartSetInteger(0, CHART_COLOR_FOREGROUND, clrSilver);
    ChartSetInteger(0, CHART_COLOR_GRID, clrNONE);
    ChartSetInteger(0, CHART_SHOW_GRID, false);
    ChartSetInteger(0, CHART_SHOW_VOLUMES, CHART_VOLUME_HIDE);
 
-   ChartSetInteger(0, CHART_COLOR_CHART_UP,    tvBullTeal);
-   ChartSetInteger(0, CHART_COLOR_CHART_DOWN,  tvBearRed);
-   ChartSetInteger(0, CHART_COLOR_CANDLE_BULL, tvBullTeal);
-   ChartSetInteger(0, CHART_COLOR_CANDLE_BEAR, tvBearRed);
-   ChartSetInteger(0, CHART_COLOR_CHART_LINE,  C'100,110,130');
+   // بازگرداندن رنگ کندل‌ها دقیقاً به سفید ملایم و خاکستری مورد علاقه کاربر
+   ChartSetInteger(0, CHART_COLOR_CHART_UP,    clrSilver);
+   ChartSetInteger(0, CHART_COLOR_CHART_DOWN,  clrDimGray);
+   ChartSetInteger(0, CHART_COLOR_CANDLE_BULL, clrWhite);
+   ChartSetInteger(0, CHART_COLOR_CANDLE_BEAR, (color)0x352B28);
+   ChartSetInteger(0, CHART_COLOR_CHART_LINE,  clrLightSlateGray);
    ChartSetInteger(0, CHART_MODE, CHART_CANDLES);
 }
 
