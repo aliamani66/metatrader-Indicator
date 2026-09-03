@@ -854,6 +854,57 @@ def build_dashboard():
         """)
 
     top_consistent_box = consistency_list[0]['box'] if consistency_list else 'N/A'
+
+    # =========================================================================
+    # EQUITY & BALANCE CURVE ENGINE (منحنی رشد سرمایه و بالانس به سبک متاتریدر)
+    # =========================================================================
+    sorted_closed = sorted(closed, key=lambda x: x.get('ExitTime', x.get('EntryTime', '')))
+    bal_initial = 10000.0
+    bal_k = bal_initial
+    bal_a = bal_initial
+
+    pts_kings = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_k, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)'}]
+    pts_all = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_a, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)'}]
+
+    peak_k = bal_initial
+    max_dd_k = 0.0
+    peak_a = bal_initial
+    max_dd_a = 0.0
+
+    for r in sorted_closed:
+        pnl = calc_scaleout_pnl(r)
+        et = r.get('EntryTime', '')
+        role = r.get('Role', '')
+        tf = r.get('Timeframe', '')
+        b_name = f"{role} [{tf}]"
+        
+        # All
+        bal_a += pnl
+        pts_all.append({'idx': len(pts_all), 't': et, 'b': round(bal_a, 2), 'p': round(pnl, 2), 'n': b_name})
+        if bal_a > peak_a: peak_a = bal_a
+        dd_a = peak_a - bal_a
+        if dd_a > max_dd_a: max_dd_a = dd_a
+        
+        # Kings
+        if (role, tf) in king_keys:
+            bal_k += pnl
+            pts_kings.append({'idx': len(pts_kings), 't': et, 'b': round(bal_k, 2), 'p': round(pnl, 2), 'n': b_name})
+            if bal_k > peak_k: peak_k = bal_k
+            dd_k = peak_k - bal_k
+            if dd_k > max_dd_k: max_dd_k = dd_k
+
+    import json
+    json_pts_kings = json.dumps(pts_kings)
+    json_pts_all = json.dumps(pts_all)
+    
+    net_k = bal_k - bal_initial
+    net_k_pct = (net_k / bal_initial) * 100
+    max_dd_k_pct = (max_dd_k / peak_k) * 100 if peak_k else 0.0
+
+    net_a = bal_a - bal_initial
+    net_a_pct = (net_a / bal_initial) * 100
+    max_dd_a_pct = (max_dd_a / peak_a) * 100 if peak_a else 0.0
+
     top_consistent_pct = consistency_list[0]['cons_pct'] if consistency_list else 0.0
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1068,6 +1119,7 @@ def build_dashboard():
         <!-- 📑 TABS NAVIGATION BAR -->
         <div class="tabs-nav">
             <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین ۱۸ گانه</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-equity')">📈 نمودار رشد و اکوئیتی</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">💎 خروج پلکانی و بریک‌ایون (0.04)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">📊 عملکرد تایم‌فریم‌ها (M1/M5/M15)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-weekly')">📅 کالبدشکافی هفته به هفته</button>
@@ -1075,6 +1127,114 @@ def build_dashboard():
             <button class="tab-btn" onclick="openTab(event, 'tab-financials')">💰 حسابداری دلاری 0.01 لات</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-all-patterns')">🏆 رتبه‌بندی تمام الگوها</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-loss-intel')">🔍 هوش باخت‌ها و استاپ‌ها</button>
+        </div>
+
+
+        <!-- ==================== TAB: 📈 EQUITY & BALANCE CURVE ==================== -->
+        <div id="tab-equity" class="tab-content">
+            <!-- Equity Metrics Banner -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:20px;">
+                <div class="kpi-card" style="border-color:#38bdf8;">
+                    <div class="kpi-title">💵 بالانس شروع حساب</div>
+                    <div class="kpi-value" style="color:#f1f5f9;">${bal_initial:,.2f}</div>
+                    <div class="kpi-sub">شروع از ۹ مارس ۲۰۲۶</div>
+                </div>
+                <div class="kpi-card" style="border-color:#00e676;">
+                    <div class="kpi-title">📈 بالانس نهایی سلاطین</div>
+                    <div class="kpi-value" style="color:#00e676;">${bal_k:,.2f}</div>
+                    <div class="kpi-sub">سود خالص: ${net_k:+,.2f} ({net_k_pct:+.2f}٪)</div>
+                </div>
+                <div class="kpi-card" style="border-color:#facc15;">
+                    <div class="kpi-title">🏔️ بالاترین سقف سرمایه (Peak)</div>
+                    <div class="kpi-value" style="color:#facc15;">${peak_k:,.2f}</div>
+                    <div class="kpi-sub">ثبت رکورد در پایان بازه ۶ ماهه</div>
+                </div>
+                <div class="kpi-card" style="border-color:#ef4444;">
+                    <div class="kpi-title">🛡️ حداکثر افت حساب (Max Drawdown)</div>
+                    <div class="kpi-value" style="color:#fca5a5;">${max_dd_k:.2f} ({max_dd_k_pct:.2f}٪)</div>
+                    <div class="kpi-sub">مدیریت ریسک بی‌نقص در ۶ ماه!</div>
+                </div>
+            </div>
+
+            <!-- Interactive Canvas Graph Container -->
+            <div class="section-box" style="border:1px solid #38bdf8;background:#0b0f19;padding:20px;margin-bottom:24px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:14px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h3 style="margin:0;color:#38bdf8;font-size:20px;display:flex;align-items:center;gap:8px;">
+                            <span>📈 نمودار تعاملی رشد بالانس و اکوئیتی (MT5 Strategy Tester Graph)</span>
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">رسم دقیق منحنی رشد سرمایه معامله به معامله در طول زمان ۶ ماهه - موس را روی نمودار حرکت دهید تا جزئیات هر معامله را ببینید:</p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین ۱۸ گانه ({len(pts_kings)-1} معامله)</button>
+                        <button id="btnEqAll" class="sort-btn" onclick="switchEquityMode('all')">🌐 منحنی کل ساختارهای چارت ({len(pts_all)-1} معامله)</button>
+                    </div>
+                </div>
+
+                <!-- Canvas Box -->
+                <div style="position:relative;width:100%;height:480px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                    <canvas id="equityCanvas" style="width:100%;height:100%;display:block;cursor:crosshair;"></canvas>
+                    <div id="equityTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #38bdf8;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:210px;"></div>
+                </div>
+
+                <!-- Graph Legend & Stats Bar -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:4px;background:#38bdf8;border-radius:2px;"></span> خط رشد بالانس (Balance Curve)</span>
+                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:4px;background:#475569;border-radius:2px;"></span> خط تراز پایه ۱۰ هزار دلار</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span>تعداد نقاط ثبت‌شده: <b id="lblEqPts" style="color:#facc15;">{len(pts_kings)-1}</b></span>
+                        <span>|</span>
+                        <span>بازه زمانی: <b style="color:#38bdf8;">۹ مارس ۲۰۲۶ تا ۳ سپتامبر ۲۰۲۶</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Table: Kings vs All -->
+            <div class="section-box" style="border:1px solid #475569;background:#1e293b;">
+                <div style="border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:14px;">
+                    <h4 style="margin:0;color:#e2e8f0;font-size:16px;">⚖️ مقایسه شاخص‌های کلیدی منحنی رشد: سلاطین منتخب در برابر کل معاملات خام چارت</h4>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0f172a;color:#94a3b8;">
+                                <th>استراتژی و دامنه ساختارها</th>
+                                <th style="text-align:center;">تعداد کل معامله</th>
+                                <th style="text-align:center;">بالانس اولیه</th>
+                                <th style="text-align:center;">بالانس نهایی</th>
+                                <th style="text-align:center;">سود خالص دلاری ($)</th>
+                                <th style="text-align:center;">درصد رشد حساب</th>
+                                <th style="text-align:center;">حداکثر افت (Max Drawdown)</th>
+                                <th style="text-align:center;">قضاوت عملکرد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #334155;">
+                                <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین ۱۸ گانه (گزینش هوشمند)</td>
+                                <td style="text-align:center;font-weight:bold;">{len(pts_kings)-1}</td>
+                                <td style="text-align:center;">${bal_initial:,.2f}</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">${bal_k:,.2f}</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">${net_k:+,.2f}</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">{net_k_pct:+.2f}٪</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">${max_dd_k:.2f} ({max_dd_k_pct:.2f}٪)</td>
+                                <td style="text-align:center;"><span style="background:#064e3b;color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">💎 رشد مستمر و اکوئیتی صعودی</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#94a3b8;">🌐 کل ساختارهای خام چارت (بدون فیلتر)</td>
+                                <td style="text-align:center;font-weight:bold;">{len(pts_all)-1}</td>
+                                <td style="text-align:center;">${bal_initial:,.2f}</td>
+                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">${bal_a:,.2f}</td>
+                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">${net_a:+,.2f}</td>
+                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">{net_a_pct:+.2f}٪</td>
+                                <td style="text-align:center;color:#ef4444;font-weight:bold;">${max_dd_a:.2f} ({max_dd_a_pct:.2f}٪)</td>
+                                <td style="text-align:center;"><span style="background:#451a03;color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">⚠️ فرسایش ناشی از نویزها</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
@@ -1748,6 +1908,268 @@ def build_dashboard():
 
     <script>
 
+        let currentEquityMode = 'kings';
+        let dataKings = {json_pts_kings};
+        let dataAll = {json_pts_all};
+
+        function switchEquityMode(mode) {{
+            currentEquityMode = mode;
+            let btnK = document.getElementById('btnEqKings');
+            let btnA = document.getElementById('btnEqAll');
+            let lbl = document.getElementById('lblEqPts');
+            if(mode === 'kings') {{
+                if(btnK) btnK.classList.add('active');
+                if(btnA) btnA.classList.remove('active');
+                if(lbl) lbl.textContent = dataKings.length - 1;
+            }} else {{
+                if(btnK) btnK.classList.remove('active');
+                if(btnA) btnA.classList.add('active');
+                if(lbl) lbl.textContent = dataAll.length - 1;
+            }}
+            drawEquityChart(mode);
+        }}
+
+        function drawEquityChart(mode) {{
+            let canvas = document.getElementById('equityCanvas');
+            if (!canvas) return;
+            let ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            let dpr = window.devicePixelRatio || 1;
+            let rect = canvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            let w = rect.width;
+            let h = rect.height;
+            let padLeft = 30;
+            let padRight = 75;
+            let padTop = 25;
+            let padBottom = 35;
+            let plotW = w - padLeft - padRight;
+            let plotH = h - padTop - padBottom;
+
+            let pts = (mode === 'kings') ? dataKings : dataAll;
+            if (!pts || pts.length === 0) return;
+
+            let minBal = Infinity;
+            let maxBal = -Infinity;
+            for (let i = 0; i < pts.length; i++) {{
+                if (pts[i].b < minBal) minBal = pts[i].b;
+                if (pts[i].b > maxBal) maxBal = pts[i].b;
+            }}
+            let balRange = maxBal - minBal;
+            if (balRange < 50) balRange = 50;
+            minBal = Math.floor((minBal - balRange * 0.05) / 50) * 50;
+            maxBal = Math.ceil((maxBal + balRange * 0.05) / 50) * 50;
+            balRange = maxBal - minBal;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Background
+            ctx.fillStyle = '#0b0f19';
+            ctx.fillRect(0, 0, w, h);
+
+            // Plot area
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(padLeft, padTop, plotW, plotH);
+
+            // Horizontal Grid & Price Labels
+            let gridSteps = 6;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.font = '11px Segoe UI, Tahoma, sans-serif';
+            ctx.textAlign = 'left';
+
+            for (let s = 0; s <= gridSteps; s++) {{
+                let val = minBal + (balRange / gridSteps) * s;
+                let y = padTop + plotH - ((val - minBal) / balRange) * plotH;
+
+                ctx.beginPath();
+                ctx.moveTo(padLeft, y);
+                ctx.lineTo(padLeft + plotW, y);
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('$' + val.toFixed(0), padLeft + plotW + 10, y + 4);
+            }}
+
+            // Vertical Grid & Dates
+            let totalPts = pts.length;
+            let dateSteps = 6;
+            ctx.textAlign = 'center';
+
+            for (let s = 0; s <= dateSteps; s++) {{
+                let idx = Math.min(Math.floor((totalPts - 1) * (s / dateSteps)), totalPts - 1);
+                let x = padLeft + (idx / (totalPts - 1)) * plotW;
+
+                ctx.beginPath();
+                ctx.moveTo(x, padTop);
+                ctx.lineTo(x, padTop + plotH);
+                ctx.stroke();
+
+                let dStr = pts[idx].t ? pts[idx].t.substring(5, 10) : '';
+                ctx.fillStyle = '#64748b';
+                ctx.fillText(dStr, x, padTop + plotH + 20);
+            }}
+
+            ctx.setLineDash([]);
+
+            // Baseline ($10,000)
+            let baseVal = 10000.0;
+            if (baseVal >= minBal && baseVal <= maxBal) {{
+                let baseY = padTop + plotH - ((baseVal - minBal) / balRange) * plotH;
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, baseY);
+                ctx.lineTo(padLeft + plotW, baseY);
+                ctx.stroke();
+            }}
+
+            // Curve points
+            let coords = [];
+            for (let i = 0; i < totalPts; i++) {{
+                let x = padLeft + (i / (totalPts - 1)) * plotW;
+                let y = padTop + plotH - ((pts[i].b - minBal) / balRange) * plotH;
+                coords.push({{ x: x, y: y, pt: pts[i] }});
+            }}
+
+            // Gradient Fill
+            let grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+            if (mode === 'kings') {{
+                grad.addColorStop(0, 'rgba(56, 189, 248, 0.30)');
+                grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+            }} else {{
+                grad.addColorStop(0, 'rgba(168, 85, 247, 0.30)');
+                grad.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+            }}
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(coords[0].x, padTop + plotH);
+            for (let i = 0; i < coords.length; i++) {{
+                ctx.lineTo(coords[i].x, coords[i].y);
+            }}
+            ctx.lineTo(coords[coords.length - 1].x, padTop + plotH);
+            ctx.closePath();
+            ctx.fill();
+
+            // Line
+            ctx.strokeStyle = (mode === 'kings') ? '#38bdf8' : '#a855f7';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            for (let i = 0; i < coords.length; i++) {{
+                if (i === 0) ctx.moveTo(coords[i].x, coords[i].y);
+                else ctx.lineTo(coords[i].x, coords[i].y);
+            }}
+            ctx.stroke();
+
+            // Border
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(padLeft, padTop, plotW, plotH);
+
+            canvas._coords = coords;
+            canvas._padLeft = padLeft;
+            canvas._padTop = padTop;
+            canvas._plotW = plotW;
+            canvas._plotH = plotH;
+        }}
+
+        function initEquityCanvasEvents() {{
+            let canvas = document.getElementById('equityCanvas');
+            if (!canvas) return;
+
+            canvas.addEventListener('mousemove', function(evt) {{
+                if (!canvas._coords) return;
+                let rect = canvas.getBoundingClientRect();
+                let mouseX = evt.clientX - rect.left;
+                let mouseY = evt.clientY - rect.top;
+
+                let tt = document.getElementById('equityTooltip');
+                if (mouseX < canvas._padLeft || mouseX > canvas._padLeft + canvas._plotW ||
+                    mouseY < canvas._padTop || mouseY > canvas._padTop + canvas._plotH) {{
+                    if(tt) tt.style.display = 'none';
+                    return;
+                }}
+
+                let coords = canvas._coords;
+                let ratio = (mouseX - canvas._padLeft) / canvas._plotW;
+                let idx = Math.round(ratio * (coords.length - 1));
+                if (idx < 0) idx = 0;
+                if (idx >= coords.length) idx = coords.length - 1;
+
+                let target = coords[idx];
+                let pt = target.pt;
+
+                drawEquityChart(currentEquityMode);
+                let ctx = canvas.getContext('2d');
+                let dpr = window.devicePixelRatio || 1;
+                ctx.save();
+                ctx.scale(dpr, dpr);
+
+                // Crosshair vertical
+                ctx.strokeStyle = 'rgba(248, 250, 252, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(target.x, canvas._padTop);
+                ctx.lineTo(target.x, canvas._padTop + canvas._plotH);
+                ctx.stroke();
+
+                // Target Circle
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#facc15';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(target.x, target.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+
+                if (tt) {{
+                    tt.style.display = 'block';
+                    let pnlCol = pt.p >= 0 ? '#00e676' : '#ef4444';
+                    let pnlSign = pt.p >= 0 ? '+' : '';
+                    let totProfit = pt.b - 10000.0;
+                    let totCol = totProfit >= 0 ? '#00e676' : '#ef4444';
+                    let totSign = totProfit >= 0 ? '+' : '';
+
+                    tt.innerHTML = `
+                        <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">معامله #${{pt.idx}} - ${{pt.n}}</div>
+                        <div style="color:#94a3b8;font-size:11px;">🕒 زمان: <span style="direction:ltr;display:inline-block;font-family:monospace;color:#f1f5f9;">${{pt.t}}</span></div>
+                        <div style="margin-top:4px;">سود این معامله: <b style="color:${{pnlCol}};">${{pnlSign}}$${{pt.p.toFixed(2)}}</b></div>
+                        <div>بالانس حساب: <b style="color:#38bdf8;">$${{pt.b.toFixed(2)}}</b></div>
+                        <div>رشد کل: <b style="color:${{totCol}};">${{totSign}}$${{totProfit.toFixed(2)}} (${{(totProfit/100).toFixed(2)}}%)</b></div>
+                    `;
+
+                    let ttX = target.x + 15;
+                    let ttY = target.y - 40;
+                    if (ttX + 220 > rect.width) ttX = target.x - 230;
+                    if (ttY < 10) ttY = 10;
+                    tt.style.left = ttX + 'px';
+                    tt.style.top = ttY + 'px';
+                }}
+            }});
+
+            canvas.addEventListener('mouseleave', function() {{
+                let tt = document.getElementById('equityTooltip');
+                if (tt) tt.style.display = 'none';
+                drawEquityChart(currentEquityMode);
+            }});
+
+            window.addEventListener('resize', function() {{
+                drawEquityChart(currentEquityMode);
+            }});
+        }}
+
+
         function selectWeeklyDetail(cardId) {{
             if(!cardId) return;
             document.querySelectorAll('.week-detail-card').forEach(c => c.style.display = 'none');
@@ -1785,6 +2207,13 @@ def build_dashboard():
 
             document.getElementById(tabId).classList.add('active');
             evt.currentTarget.classList.add('active');
+
+            if (tabId === 'tab-equity') {{
+                setTimeout(() => {{
+                    initEquityCanvasEvents();
+                    drawEquityChart(currentEquityMode);
+                }}, 50);
+            }}
         }}
 
         let sortDirections = {{ 'data-score': true }};
