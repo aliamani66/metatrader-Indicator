@@ -36,24 +36,24 @@ input bool             InpUseTF4  = false;          // محاسبه یک‌سا�
 input color            InpColorTF4 = clrYellow;
 
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
-input int              InpBacktestDays = 14;         // تعداد روزهای بک‌تست و خروجی گزارش (۱۴ روز)
+input int              InpBacktestDays = 30;         // تعداد روزهای بک‌تست و خروجی گزارش (۳۰ روز - ۱ ماه کامل)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای تولید آنی دیتای داشبورد)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 14;          // تاریخچه ۱۵ دقیقه (۱۴ روز)
+input int              InpM15DaysBack = 30;          // تاریخچه ۱۵ دقیقه (۳۰ روز - ۱ ماه)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 7;            // تاریخچه ۵ دقیقه (۷ روز)
+input int              InpM5DaysBack = 30;           // تاریخچه ۵ دقیقه (۳۰ روز - ۱ ماه)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 3;            // تاریخچه ۱ دقیقه (۳ روز)
+input int              InpM1DaysBack = 30;           // تاریخچه ۱ دقیقه (۳۰ روز - ۱ ماه)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
 input bool             InpShowBoxes             = true;    // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
