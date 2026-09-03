@@ -6,8 +6,12 @@
 #property link      ""
 #property version   "1.00"
 #property indicator_chart_window
-#property indicator_buffers 0
-#property indicator_plots   0
+#property indicator_buffers 1
+#property indicator_plots   1
+#property indicator_label1  "FlagPro Active"
+#property indicator_type1   DRAW_NONE
+
+double g_dummyBuffer[];
 
 #include <FlagPro\Flag_Types.mqh>
 
@@ -175,10 +179,8 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
    ApplyProChartTheme();
-
-   ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
-   ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
 
    ObjectsDeleteAll(0, FP_PREFIX);
    ChartRedraw(0);
@@ -213,6 +215,8 @@ int OnCalculate(const int rates_total,
 {
    if(rates_total < 10) return 0;
 
+   g_dummyBuffer[rates_total - 1] = close[rates_total - 1];
+
    static datetime lastBarTime = 0;
    datetime currentBarTime = time[rates_total - 1];
    if(prev_calculated > 0 && currentBarTime == lastBarTime && !g_forceRecalc)
@@ -221,8 +225,6 @@ int OnCalculate(const int rates_total,
    }
    lastBarTime = currentBarTime;
    g_forceRecalc = false;
-
-   ApplyProChartTheme();
 
    // پاکسازی اشیاء گرافیکی قبلی FlagPro
    ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
@@ -282,7 +284,7 @@ int OnCalculate(const int rates_total,
    // اکسپورت خودکار گزارش جامع ستاپ‌ها به فایل CSV
    ExportAllTradesToCSV();
 
-   ChartRedraw(0);
+   if(!(bool)MQLInfoInteger(MQL_TESTER)) ChartRedraw(0);
    return rates_total;
 }
 
