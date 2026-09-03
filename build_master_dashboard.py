@@ -176,7 +176,8 @@ def build_dashboard():
                 if hr >= 2: gross += pts * 2.0 * 0.01
                 if hr >= 3: gross += pts * 3.0 * 0.01
                 if hr >= 4: gross += pts * 4.0 * 0.01
-        net = gross - (cnt * friction_04_per_trade)
+        fric = cnt * friction_04_per_trade
+        net = gross - fric
 
         stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in t_list]
         min_sl = min(stops) if stops else 0.0
@@ -193,7 +194,7 @@ def build_dashboard():
                 'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
                 'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner, 'is_proven': is_proven, 'conf': conf,
                 'min_sl': min_sl, 'max_sl': max_sl, 'avg_sl': avg_sl,
-                'net': net, 'trades': t_list
+                'gross': gross, 'fric': fric, 'net': net, 'trades': t_list
             })
 
     # Sort Kings by Score descending
@@ -206,6 +207,8 @@ def build_dashboard():
 
     tot_k_cnt = len(kings_trades)
     tot_k_fric = tot_k_cnt * friction_04_per_trade
+    tot_k_gross = sum(k['gross'] for k in qualified_kings)
+    tot_k_net = sum(k['net'] for k in qualified_kings)
 
     kings_rows_html = []
     medals = ['🥇', '🥈', '🥉', '👑', '👑', '⭐', '⭐', '⭐', '⭐', '⭐']
@@ -231,7 +234,9 @@ def build_dashboard():
             <td style="text-align:center;color:#38bdf8;">{k['w3_p']:.1f}%</td>
             <td style="text-align:center;color:#c084fc;">{k['w4_p']:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{k['sl_p']:.1f}%</td>
-            <td style="text-align:center;color:{net_col};font-weight:bold;font-size:14px;">${k['net']:+.2f} دلار</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:13px;">${k['gross']:+.2f}</td>
+            <td style="text-align:center;color:#f87171;font-weight:bold;font-size:13px;">${k['fric']:.2f}-</td>
+            <td style="text-align:center;color:{net_col};font-weight:bold;font-size:15px;background:#064e3b22;">${k['net']:+.2f} دلار</td>
         </tr>
         """)
 
@@ -337,6 +342,7 @@ def build_dashboard():
                 if hr >= 3: gross += pts * 3.0 * 0.01
                 if hr >= 4: gross += pts * 4.0 * 0.01
         net = gross - (cnt * friction_04_per_trade)
+        fric = cnt * friction_04_per_trade
         return {
             'cnt': cnt,
             'w1_p': w1 / cnt * 100,
@@ -344,6 +350,8 @@ def build_dashboard():
             'w3_p': w3 / cnt * 100,
             'w4_p': w4 / cnt * 100,
             'sl_p': sl / cnt * 100,
+            'gross': gross,
+            'fric': fric,
             'net': net
         }
 
@@ -363,7 +371,9 @@ def build_dashboard():
             <td style="text-align:center;color:#38bdf8;">{d['w3_p']:.1f}%</td>
             <td style="text-align:center;color:#c084fc;">{d['w4_p']:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{d['sl_p']:.1f}%</td>
-            <td style="text-align:center;color:{col};font-weight:bold;font-size:15px;">${d['net']:+.2f} دلار</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;">${d['gross']:+.2f}</td>
+            <td style="text-align:center;color:#f87171;font-weight:bold;">${d['fric']:.2f}-</td>
+            <td style="text-align:center;color:{col};font-weight:bold;font-size:15px;background:#064e3b22;">${d['net']:+.2f} دلار</td>
         </tr>
         """)
 
@@ -378,7 +388,9 @@ def build_dashboard():
         <td style="text-align:center;color:#38bdf8;">{d_tot_kings['w3_p']:.1f}%</td>
         <td style="text-align:center;color:#c084fc;">{d_tot_kings['w4_p']:.1f}%</td>
         <td style="text-align:center;color:#ef4444;font-weight:bold;">{d_tot_kings['sl_p']:.1f}%</td>
-        <td style="text-align:center;color:{tot_kings_col};font-weight:bold;font-size:16px;">${d_tot_kings['net']:+.2f} دلار</td>
+        <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">${d_tot_kings['gross']:+.2f}</td>
+        <td style="text-align:center;color:#f87171;font-weight:bold;font-size:15px;">${d_tot_kings['fric']:.2f}-</td>
+        <td style="text-align:center;color:{tot_kings_col};font-weight:bold;font-size:16px;background:#064e3b;">${d_tot_kings['net']:+.2f} دلار نقد</td>
     </tr>
     """)
 
@@ -831,12 +843,24 @@ def build_dashboard():
                                 <th style="text-align:center;">وین‌ریت TP 1:3</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:4</th>
                                 <th style="text-align:center;">نرخ باخت (SL)</th>
-                                <th style="text-align:center;color:#00e676;">💵 سود خالص دلاری (0.04)</th>
+                                <th style="text-align:center;color:#38bdf8;" title="مجموع سود بدون کسر اسپرد">سود ناخالص (Gross)</th>
+                                <th style="text-align:center;color:#f87171;" title="مجموع کل اسپرد و کمیسیون پرداخت شده به ازای هر ترید 0.04 لات ($0.48)">🧾 کل اصطکاک (اسپرد)</th>
+                                <th style="text-align:center;color:#00e676;background:#064e3b44;" title="سود قطعی واریزی به حساب بعد از پرداخت کل اسپرد و کمیسیون">💵 سود خالص واقعی (Net)</th>
                             </tr>
                         </thead>
                         <tbody>
                             {"".join(kings_rows_html)}
                         </tbody>
+                        <tfoot>
+                            <tr style="background:#261e07;border-top:2px solid #facc15;font-weight:bold;">
+                                <td colspan="4" style="text-align:center;color:#facc15;font-size:14px;">👑 مجموع عملکرد کل سلاطین برگزیده ({len(qualified_kings)} گره برتر)</td>
+                                <td style="text-align:center;color:#facc15;font-size:15px;">{tot_k_cnt}</td>
+                                <td colspan="5" style="text-align:center;color:#94a3b8;font-size:11px;">مبتنی بر استراتژی خروج چهارپله‌ای 0.04 لات</td>
+                                <td style="text-align:center;color:#38bdf8;font-size:14px;">${tot_k_gross:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;font-size:14px;">${tot_k_fric:.2f}-</td>
+                                <td style="text-align:center;color:#00e676;font-size:16px;background:#064e3b;">${tot_k_net:+.2f} دلار نقد خالص</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -987,14 +1011,16 @@ def build_dashboard():
                     <table>
                         <thead>
                             <tr style="background:#0f172a;">
-                                <th>تایم‌فریم (سلاطین ۷ گانه)</th>
+                                <th>تایم‌فریم (سلاطین منتخب FlagPro)</th>
                                 <th style="text-align:center;">تعداد معامله</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:1</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:2</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:3</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:4</th>
                                 <th style="text-align:center;">نرخ باخت (SL)</th>
-                                <th style="text-align:center;">💵 سود خالص دلاری (0.04)</th>
+                                <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
+                                <th style="text-align:center;color:#f87171;">کل اصطکاک (اسپرد)</th>
+                                <th style="text-align:center;color:#00e676;">💵 سود خالص واقعی</th>
                             </tr>
                         </thead>
                         <tbody>
