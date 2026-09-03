@@ -46,6 +46,7 @@ input color            InpColorTF4 = clrYellow;
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
 input int              InpBacktestDays = 90;         // تعداد روزهای بک‌تست و خروجی گزارش (۹۰ روز - ۳ ماه کامل)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای همگام‌سازی داشبورد)
+input bool             InpOnlyTradeKings = true;     // 👑 فقط معامله ۱۸ سلطان برگزیده بر مبنای تایم‌فریم (Kings Only)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
@@ -508,6 +509,10 @@ void OnTick()
 
    for(int t = 0; t < g_tradeCount; t++)
    {
+      // 👑 فیلتر ۱۸ سلطان برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
+      if(InpOnlyTradeKings && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+         continue;
+
       // فقط ستاپ‌هایی که در کندل جاری یا کندل قبلی فعال شده‌اند مجاز به اجرا هستند (نه ستاپ‌های تاریخچه!)
       if(g_tradeSetups[t].entryTime < chartTime[ratesTotal - 2])
          continue;

@@ -38,6 +38,7 @@ input color            InpColorTF4 = clrYellow;
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
 input int              InpBacktestDays = 90;         // تعداد روزهای بک‌تست و خروجی گزارش (۹۰ روز - ۳ ماه کامل)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای تولید آنی دیتای داشبورد)
+input bool             InpOnlyTradeKings = true;     // 👑 فقط رسم و ارزیابی ۱۸ سلطان برگزیده بر مبنای تایم‌فریم (Kings Only)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;

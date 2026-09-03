@@ -20,6 +20,41 @@ bool IsPivotTimeframeMatch(int pivotIdx, const string boxTfTag)
 }
 
 //+------------------------------------------------------------------+
+//| تشخیص آیا باکس متعلق به ۱۸ سلطان برگزیده بر مبنای تایم‌فریم است؟   |
+//+------------------------------------------------------------------+
+bool IsQualifiedKing(ENUM_TIMEFRAMES tf, string role)
+{
+   if(tf == PERIOD_M15)
+   {
+      if(role == "S-Flag" || 
+         role == "S-OInner") return true;
+   }
+   else if(tf == PERIOD_M5)
+   {
+      if(role == "OInner-BE > RS-BU" ||
+         role == "Flag-BU" ||
+         role == "Flag-BE" ||
+         role == "OInner-BE > RS-BE" ||
+         role == "OInner-BE" ||
+         role == "S-Flag" ||
+         role == "S-OInner") return true;
+   }
+   else if(tf == PERIOD_M1)
+   {
+      if(role == "Flag-BU" ||
+         role == "Flag-BE" ||
+         role == "OInner-BU > RS-BE" ||
+         role == "OInner-BE > RS-BU" ||
+         role == "OInner-BU > RS-BU" ||
+         role == "OInner-BU" ||
+         role == "OInner-BE" ||
+         role == "RS-BU" ||
+         role == "OInner-BE > RS-BE") return true;
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
 //| Interactive On-Demand Trade Simulation for Clicked Box in History |
 //+------------------------------------------------------------------+
 void ShowTradeSetupForBox(int boxIdx)
@@ -938,6 +973,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(!g_tradeSetups[t].isClosed)
             g_tradeSetups[t].exitTime = chartTime[ratesTotal - 1];
       }
+
+      // 👑 فقط رسم معاملات ۱۸ سلطان برگزیده بر اساس تایم‌فریم
+      if(InpOnlyTradeKings && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+         continue;
 
       datetime t1 = g_tradeSetups[t].entryTime;
       datetime t2 = g_tradeSetups[t].exitTime;
