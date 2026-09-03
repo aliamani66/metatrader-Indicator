@@ -14,27 +14,28 @@
 //+------------------------------------------------------------------+
 //| INPUT PARAMETERS                                                 |
 //+------------------------------------------------------------------+
-input group "=== Background Timeframes Calculation ==="
+input group "=== Macro Timeframes (غیرفعال) ==="
 input ENUM_TIMEFRAMES InpTF1      = PERIOD_D1;
-input bool             InpUseTF1  = true;           // محاسبه روزانه (D1)
+input bool             InpUseTF1  = false;          // محاسبه روزانه (D1)
 input color            InpColorTF1 = clrMagenta;
 
 input ENUM_TIMEFRAMES InpTF2      = PERIOD_W1;
-input bool             InpUseTF2  = true;           // محاسبه هفتگی (W1)
+input bool             InpUseTF2  = false;          // محاسبه هفتگی (W1)
 input color            InpColorTF2 = clrDodgerBlue;
 
 input ENUM_TIMEFRAMES InpTF3      = PERIOD_H4;
-input bool             InpUseTF3  = true;           // محاسبه چهارساعته (H4)
+input bool             InpUseTF3  = false;          // محاسبه چهارساعته (H4)
 input color            InpColorTF3 = clrWhite;
 
 input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
-input bool             InpUseTF4  = true;           // محاسبه یک‌ساعته (H1)
+input bool             InpUseTF4  = false;          // محاسبه یک‌ساعته (H1)
 input color            InpColorTF4 = clrYellow;
 
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
 input int              InpBacktestDays = 3;          // تعداد روزهای بک‌تست و خروجی گزارش (۳ روز)
 input bool             InpExportCSV    = false;      // استخراج خودکار فایل CSV (برای سرعت حداکثری: پیش‌فرض خاموش)
 
+input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
@@ -243,13 +244,11 @@ int OnCalculate(const int rates_total,
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
    int             daysBackArr[7] = {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
 
-   // در محیط استراتژی تستر متاتریدر ۵، فراخوانی تایم‌های فوق‌سنگین ماکرو (W1, D1, H4) باعث قفل شدن موتور شبیه‌ساز می‌شود
-   if((bool)MQLInfoInteger(MQL_TESTER))
-   {
-      useArr[0] = false; // D1
-      useArr[1] = false; // W1
-      useArr[2] = false; // H4
-   }
+   // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)
+   useArr[0] = false; // D1
+   useArr[1] = false; // W1
+   useArr[2] = false; // H4
+   useArr[3] = false; // H1
 
    for(int s = 0; s < 7; s++)
    {
