@@ -15,13 +15,17 @@
 //+------------------------------------------------------------------+
 //| INPUT PARAMETERS - تنظیمات معامله‌گری و خروج چندمرحله‌ای            |
 //+------------------------------------------------------------------+
-input group "=== 🎯 سیستم خروج چند مرحله‌ای (Scale-Out & Break-Even) ==="
-input bool             InpEnableScaleOut         = true;         // فعال‌سازی خروج ۴ مرحله‌ای (Scale-Out)
-input double           InpScaleOutLot            = 0.01;         // حجم هر یک از ۴ پوزیشن به لات (Fixed 0.01)
-input bool             InpMoveToBreakEven        = true;         // انتقال حد ضرر به نقطه ورود پس از لمس TP1 (Break-Even)
+input group "=== 🎯 سیستم خروج ۴ مرحله‌ای (4-Stage Scale-Out & Trailing) ==="
+input bool             InpEnableScaleOut         = true;         // فعال‌سازی سیستم خروج ۴ مرحله‌ای
+input double           InpLot_TP1                = 0.01;         // 🎯 حجم خروج مرحله ۱ در TP1 (25% کل حجم)
+input double           InpLot_TP2                = 0.01;         // 🎯 حجم خروج مرحله ۲ در TP2 (25% کل حجم)
+input double           InpLot_TP3                = 0.01;         // 🎯 حجم خروج مرحله ۳ در TP3 (25% کل حجم)
+input double           InpLot_TP4                = 0.01;         // 🎯 حجم خروج مرحله ۴ در TP4 (25% کل حجم - رانر)
+input bool             InpMoveToBreakEven        = true;         // 🛡️ مرحله ۱: انتقال به بریک‌ایون پس از تاچ TP1 (Break-Even)
 input double           InpBEBufferPips           = 1.0;          // بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ)
-input bool             InpTrailToPreviousTP      = true;         // تریل هوشمند حد ضرر به تارگت‌های قبلی (Lock Profit)
-input double           InpMaxSLPips              = 0.0;          // حداکثر حد ضرر مجاز به پیپ (0 = بدون محدودیت، دقیقاً منطبق بر خط قرمز چارت)
+input bool             InpTrailToTP1             = true;         // 🔒 مرحله ۲: تریل و قفل حد ضرر به TP1 پس از لمس TP2
+input bool             InpTrailToTP2             = true;         // 🚀 مرحله ۳: تریل و قفل حد ضرر به TP2 پس از لمس TP3
+input double           InpMaxSLPips              = 0.0;          // حداکثر حد ضرر مجاز به پیپ (0 = منطبق بر خط قرمز چارت)
 input int              InpMaxOpenGroups          = 5;            // حداکثر تعداد ستاپ‌های همزمان فعال (امکان معاملات هم‌زمان)
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
@@ -387,7 +391,7 @@ void ManageActiveTradeGroups()
       }
 
       // مرحله ۲: تریل حد ضرر به TP1 پس از لمس TP2 جهت قفل سود قطعی
-      if(InpTrailToPreviousTP && m_activeGroups[g].beApplied && !m_activeGroups[g].trailTP1Applied)
+      if(InpTrailToTP1 && m_activeGroups[g].beApplied && !m_activeGroups[g].trailTP1Applied)
       {
          bool tp2Reached = (!ticketOpen[1] && m_activeGroups[g].tickets[1] > 0) ||
                            (isBuy ? (currentP >= m_activeGroups[g].tp2) : (currentP <= m_activeGroups[g].tp2));
@@ -409,7 +413,7 @@ void ManageActiveTradeGroups()
       }
 
       // مرحله ۳: تریل حد ضرر به TP2 پس از لمس TP3 تا پوزیشن ۴ تارگت نهایی ۱:۴ را بدود
-      if(InpTrailToPreviousTP && m_activeGroups[g].trailTP1Applied && !m_activeGroups[g].trailTP2Applied)
+      if(InpTrailToTP2 && m_activeGroups[g].trailTP1Applied && !m_activeGroups[g].trailTP2Applied)
       {
          bool tp3Reached = (!ticketOpen[2] && m_activeGroups[g].tickets[2] > 0) ||
                            (isBuy ? (currentP >= m_activeGroups[g].tp3) : (currentP <= m_activeGroups[g].tp3));
@@ -567,15 +571,17 @@ void OnTick()
          if(tp4 >= tp3) tp4 = NormalizeDouble(tp3 - 10.0 * _Point, _Digits);
       }
 
+      double stageLots[4] = {InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4};
       double tps[4] = {tp1, tp2, tp3, tp4};
       ulong openedTickets[4] = {0, 0, 0, 0};
       int successfulOrders = 0;
 
-      // باز کردن ۴ پوزیشن همزمان (هر کدام با تارگت‌های TP1 تا TP4)
+      // باز کردن ۴ پوزیشن همزمان (هر کدام با تارگت‌های TP1 تا TP4 و حجم‌های تفکیکی)
       for(int p = 0; p < 4; p++)
       {
+         if(stageLots[p] <= 0) continue;
          string comment = StringFormat("FP [%s] TP%d", g_tradeSetups[t].boxRole, p + 1);
-         openedTickets[p] = SafeSendOrder(isBuy, InpScaleOutLot, sendPrice, sl, tps[p], comment);
+         openedTickets[p] = SafeSendOrder(isBuy, stageLots[p], sendPrice, sl, tps[p], comment);
          if(openedTickets[p] > 0)
             successfulOrders++;
       }
@@ -599,8 +605,8 @@ void OnTick()
          m_activeGroups[gSize - 1].trailTP2Applied = false;
          m_activeGroups[gSize - 1].isFinished = false;
 
-         PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت در Operations ثبت شد | جهت: %s | حجم: ۴ × %.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
-                     (isBuy ? "BUY" : "SELL"), InpScaleOutLot, sl, tp1, tp2, tp3, tp4);
+         PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت ثبت شد | جهت: %s | حجم‌ها: TP1=%.2f, TP2=%.2f, TP3=%.2f, TP4=%.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
+                     (isBuy ? "BUY" : "SELL"), InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4, sl, tp1, tp2, tp3, tp4);
          break;
       }
    }
