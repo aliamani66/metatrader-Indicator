@@ -36,19 +36,19 @@ input bool             InpUseTF4  = false;          // محاسبه یک‌سا�
 input color            InpColorTF4 = clrYellow;
 
 input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
-input int              InpBacktestDays = 3;          // تعداد روزهای بک‌تست و خروجی گزارش (۳ روز)
+input int              InpBacktestDays = 14;         // تعداد روزهای بک‌تست و خروجی گزارش (۱۴ روز)
 input bool             InpExportCSV    = false;      // استخراج خودکار فایل CSV (برای سرعت حداکثری: پیش‌فرض خاموش)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 3;           // تاریخچه ۱۵ دقیقه (۳ روز)
+input int              InpM15DaysBack = 14;          // تاریخچه ۱۵ دقیقه (۱۴ روز)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 3;            // تاریخچه ۵ دقیقه (۳ روز)
+input int              InpM5DaysBack = 7;            // تاریخچه ۵ دقیقه (۷ روز)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
@@ -56,7 +56,7 @@ input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 3;            // تاریخچه ۱ دقیقه (۳ روز)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
-input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
+input bool             InpShowBoxes             = true;    // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
 input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
@@ -159,7 +159,7 @@ input bool             InpEnableTradeSetup      = true;         // فعال‌س
 input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input bool             InpTradeOnlyGoldenKings  = true;         // 👑 معامله منحصراً فقط روی ۷ سلطان طلایی (وین‌ریت بالای ۶۰٪)
 input bool             InpPreventOverlappingTrades = true;      // 🛡️ جلوگیری از تداخل معاملات (تا بسته نشدن معامله جاری، معامله جدید باز نشود)
-input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (سبز/قرمز) - خاموش برای نهایت تمیزی چارت
+input bool             InpShowTradeShading      = true;         // 🎨 نمایش پس‌زمینه رنگی معاملات (سبز/قرمز)
 input double           InpRSPipBuffer           = 2.0;          // بافر حد ضرر برای RS و فلگ‌ها (پیپ)
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
 input color            InpTradeSLColor          = clrRed;       // رنگ خط حد ضرر (SL)
