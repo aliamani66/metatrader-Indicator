@@ -150,40 +150,46 @@ void ShowTradeSetupForBox(int boxIdx)
          }
       }
 
-      if(pivotP == 0)
+      int bStartIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[boxIdx].t1);
+      int bEndIdx   = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[boxIdx].confirmationTime);
+      if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[boxIdx].t2);
+      if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
+
+      double patternHigh = g_drawnBoxes[boxIdx].top;
+      double patternLow  = g_drawnBoxes[boxIdx].bottom;
+
+      if(isOI)
       {
-         pivotP = isBull ? g_drawnBoxes[boxIdx].bottom : g_drawnBoxes[boxIdx].top;
+         if(pivotP > 0)
+         {
+            if(pivotP > patternHigh) patternHigh = pivotP;
+            if(pivotP < patternLow)  patternLow  = pivotP;
+         }
+      }
+      else
+      {
+         if(isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
+         else if(isRS) isBull = g_drawnBoxes[boxIdx].isRSBull;
+         else if(isLS) isBull = g_drawnBoxes[boxIdx].isLSBull;
+         else isBull = g_drawnBoxes[boxIdx].isBullish;
+      }
+
+      for(int ck = bStartIdx; ck <= bEndIdx && ck < ratesTotal; ck++)
+      {
+         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
       }
 
       if(isBull)
       {
          entryPrice = g_drawnBoxes[boxIdx].top;
-         slPrice    = pivotP - bufferPips;
+         slPrice    = patternLow - bufferPips;
       }
       else
       {
          entryPrice = g_drawnBoxes[boxIdx].bottom;
-         slPrice    = pivotP + bufferPips;
+         slPrice    = patternHigh + bufferPips;
       }
-   }
-   else
-   {
-      if(isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
-      else if(isRS) isBull = g_drawnBoxes[boxIdx].isRSBull;
-      else if(isLS) isBull = g_drawnBoxes[boxIdx].isLSBull;
-      else isBull = g_drawnBoxes[boxIdx].isBullish;
-
-      if(isBull)
-      {
-         entryPrice = g_drawnBoxes[boxIdx].top;
-         slPrice    = g_drawnBoxes[boxIdx].bottom - bufferPips;
-      }
-      else
-      {
-         entryPrice = g_drawnBoxes[boxIdx].bottom;
-         slPrice    = g_drawnBoxes[boxIdx].top + bufferPips;
-      }
-   }
 
    double risk = MathAbs(entryPrice - slPrice);
    if(risk < _Point * 2.0) risk = _Point * 2.0;
@@ -656,18 +662,20 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                   }
                }
             }
-         }
-         if(pivotP == 0) pivotP = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
+      int bStartIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t1);
+      int bEndIdx   = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].confirmationTime);
+      if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
+      if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
 
-         if(isBull)
+      double patternHigh = g_drawnBoxes[b].top;
+      double patternLow  = g_drawnBoxes[b].bottom;
+
+      if(isOI)
+      {
+         if(pivotP > 0)
          {
-            entryPrice = g_drawnBoxes[b].top;
-            slPrice    = pivotP - bufferPips;
-         }
-         else
-         {
-            entryPrice = g_drawnBoxes[b].bottom;
-            slPrice    = pivotP + bufferPips;
+            if(pivotP > patternHigh) patternHigh = pivotP;
+            if(pivotP < patternLow)  patternLow  = pivotP;
          }
       }
       else
@@ -676,17 +684,24 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
          else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
          else isBull = g_drawnBoxes[b].isBullish;
+      }
 
-         if(isBull)
-         {
-            entryPrice = g_drawnBoxes[b].top;
-            slPrice    = g_drawnBoxes[b].bottom - bufferPips;
-         }
-         else
-         {
-            entryPrice = g_drawnBoxes[b].bottom;
-            slPrice    = g_drawnBoxes[b].top + bufferPips;
-         }
+      // اسکن دقیق شدوی تمام کندل‌ها در بازه الگو تا خط استاپ حتماً بالای نوک شدوها قرار گیرد
+      for(int ck = bStartIdx; ck <= bEndIdx && ck < ratesTotal; ck++)
+      {
+         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+      }
+
+      if(isBull)
+      {
+         entryPrice = g_drawnBoxes[b].top;
+         slPrice    = patternLow - bufferPips;
+      }
+      else
+      {
+         entryPrice = g_drawnBoxes[b].bottom;
+         slPrice    = patternHigh + bufferPips;
       }
 
       double risk = MathAbs(entryPrice - slPrice);
@@ -1188,20 +1203,20 @@ void ExportAllTradesToCSV()
             }
          }
 
-         if(pivotP == 0)
-         {
-            pivotP = isBull ? g_drawnBoxes[b].bottom : g_drawnBoxes[b].top;
-         }
+      int bStartIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t1);
+      int bEndIdx   = FindBarIndex(chartTime, copied, g_drawnBoxes[b].confirmationTime);
+      if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t2);
+      if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
 
-         if(isBull)
+      double patternHigh = g_drawnBoxes[b].top;
+      double patternLow  = g_drawnBoxes[b].bottom;
+
+      if(isOI)
+      {
+         if(pivotP > 0)
          {
-            entryPrice = g_drawnBoxes[b].top;
-            slPrice    = pivotP - bufferPips;
-         }
-         else
-         {
-            entryPrice = g_drawnBoxes[b].bottom;
-            slPrice    = pivotP + bufferPips;
+            if(pivotP > patternHigh) patternHigh = pivotP;
+            if(pivotP < patternLow)  patternLow  = pivotP;
          }
       }
       else
@@ -1210,17 +1225,23 @@ void ExportAllTradesToCSV()
          else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
          else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
          else isBull = g_drawnBoxes[b].isBullish;
+      }
 
-         if(isBull)
-         {
-            entryPrice = g_drawnBoxes[b].top;
-            slPrice    = g_drawnBoxes[b].bottom - bufferPips;
-         }
-         else
-         {
-            entryPrice = g_drawnBoxes[b].bottom;
-            slPrice    = g_drawnBoxes[b].top + bufferPips;
-         }
+      for(int ck = bStartIdx; ck <= bEndIdx && ck < copied; ck++)
+      {
+         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+      }
+
+      if(isBull)
+      {
+         entryPrice = g_drawnBoxes[b].top;
+         slPrice    = patternLow - bufferPips;
+      }
+      else
+      {
+         entryPrice = g_drawnBoxes[b].bottom;
+         slPrice    = patternHigh + bufferPips;
       }
 
       double risk = MathAbs(entryPrice - slPrice);
