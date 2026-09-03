@@ -7,7 +7,6 @@
 #property link        "https://github.com/aliamani66/metatrader-Indicator"
 #property version     "1.00"
 #property description "ربات معامله‌گر مستقل FlagPro - ثبت معاملات رسمی در تب Operations متاتریدر ۵"
-#property tester_indicator "FlagPro.ex5"
 
 #include <Trade\Trade.mqh>
 #include <FlagPro\Flag_Types.mqh>
@@ -62,7 +61,7 @@ input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 3;            // تاریخچه ۱ دقیقه (۳ روز)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
-input bool             InpShowBoxes             = true;    // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (کلید میانبر B در کیبورد)
+input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (پیش‌فرض: خاموش)
 input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
@@ -202,10 +201,11 @@ int OnInit()
    else
       m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
 
-   m_indicatorHandle = iCustom(_Symbol, _Period, "FlagPro");
-   if(m_indicatorHandle == INVALID_HANDLE)
+   g_boxesVisible = InpShowBoxes;
+   if(!InpShowBoxes)
    {
-      Print("⚠️ هشدار: اندیکاتور بصری FlagPro بارگذاری نشد. موتور معاملاتی فعال است.");
+      ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
+      ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
    }
 
    ArrayResize(m_executedTradesKeys, 0);
@@ -222,14 +222,10 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-   if(m_indicatorHandle != INVALID_HANDLE)
-   {
-      IndicatorRelease(m_indicatorHandle);
-      m_indicatorHandle = INVALID_HANDLE;
-   }
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(g_tradeSetups, 0);
    g_tradeCount = 0;
+   g_testerStartBase = 0;
 }
 
 //+------------------------------------------------------------------+
@@ -351,6 +347,12 @@ void OnTick()
       ProcessUniversalSwapLines(chartTime, chartHigh, chartLow, ratesTotal);
 
       RenderAutoTradeSetups(chartTime, chartHigh, chartLow, chartClose, ratesTotal);
+
+      if(!InpShowBoxes)
+      {
+         ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
+         ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
+      }
    }
 
    // بررسی ارسال سفارش جدید به تب Operations
