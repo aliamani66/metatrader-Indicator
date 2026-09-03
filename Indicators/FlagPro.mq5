@@ -179,6 +179,7 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   Print("DEBUG: OnInit start");
    SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
    ApplyProChartTheme();
 
@@ -187,6 +188,7 @@ int OnInit()
    g_forceRecalc = true;
    IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro v1.00");
    Print("🚀 FlagPro v1.00 آماده است: معماری کاملاً ماژولار و تمیز.");
+   Print("DEBUG: OnInit end");
    return INIT_SUCCEEDED;
 }
 
@@ -225,6 +227,8 @@ int OnCalculate(const int rates_total,
    }
    lastBarTime = currentBarTime;
    g_forceRecalc = false;
+
+   Print("DEBUG: OnCalculate start rates_total=", rates_total, " prev=", prev_calculated);
 
    // پاکسازی اشیاء گرافیکی قبلی FlagPro
    ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
@@ -267,24 +271,31 @@ int OnCalculate(const int rates_total,
       if(!useArr[s]) continue;
       ProcessTF(tfArr[s], InpSwingBars, tfColorArr[s], time, high, low, rates_total, daysBackArr[s]);
    }
+   Print("DEBUG: ProcessTF done, boxCount=", g_boxCount);
 
    // پردازش خطوط شکست RS و برچسب‌گذاری گره‌ها
    ProcessRSLinesFromLSBoxes(time, high, low, rates_total);
+   Print("DEBUG: ProcessRSLines done");
 
    // پردازش اولین گره بعد از پیووت مستقل به عنوان OInner
    ProcessOInnerBoxes();
+   Print("DEBUG: ProcessOInner done");
 
    // پردازش سیستم سراسری سواپ
    ProcessUniversalSwapLines(time, high, low, rates_total);
+   Print("DEBUG: ProcessUniversalSwapLines done, boxCount=", g_boxCount);
 
    // رسم نهایی باکس‌ها و مارکرهای مستقل
    RenderFinalBoxes();
+   Print("DEBUG: RenderFinalBoxes done");
    RenderFinalIndependentPivots(time, high, low, rates_total);
+   Print("DEBUG: RenderFinalIndependentPivots done");
 
    // اکسپورت خودکار گزارش جامع ستاپ‌ها به فایل CSV
    ExportAllTradesToCSV();
 
    if(!(bool)MQLInfoInteger(MQL_TESTER)) ChartRedraw(0);
+   Print("DEBUG: OnCalculate finish");
    return rates_total;
 }
 
