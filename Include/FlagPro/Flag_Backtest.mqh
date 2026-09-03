@@ -548,9 +548,11 @@ void ExportAllTradesToCSV()
    double bufferPips = InpRSPipBuffer * pipSize;
    int exportedCount = 0;
 
+   datetime minBacktestTime = (InpBacktestDays > 0) ? (TimeCurrent() - InpBacktestDays * 24 * 3600) : 0;
    for(int b = 0; b < g_boxCount; b++)
    {
       if(g_drawnBoxes[b].top <= 0) continue;
+      if(minBacktestTime > 0 && g_drawnBoxes[b].t1 < minBacktestTime) continue;
       if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
       string role = "Flag";
       bool isSwap = g_drawnBoxes[b].isSwap;
