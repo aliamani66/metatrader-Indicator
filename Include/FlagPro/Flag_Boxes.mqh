@@ -585,8 +585,8 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
       if(g_drawnBoxes[b].top <= 0) continue;
       bool isBull = g_drawnBoxes[b].isBullish;
       if(g_drawnBoxes[b].isSwap)        isBull = g_drawnBoxes[b].isSwapBull;
-      else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
       else if(g_drawnBoxes[b].isOInner) isBull = g_drawnBoxes[b].isOInnerBull;
+      else if(g_drawnBoxes[b].isBOFlag) isBull = g_drawnBoxes[b].isRSBull;
       else if(g_drawnBoxes[b].isPreIP)  isBull = g_drawnBoxes[b].isLSBull;
       datetime startTime = g_drawnBoxes[b].t2;
       int startSearchIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);

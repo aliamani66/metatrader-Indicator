@@ -184,8 +184,8 @@ void RenderFinalBoxes()
 
          bool isBull = false;
          if(isSwap) isBull = g_drawnBoxes[b].isSwapBull;
-         else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
          else if(isOI) isBull = g_drawnBoxes[b].isOInnerBull;
+         else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
          else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
          else isBull = g_drawnBoxes[b].isBullish;
 
