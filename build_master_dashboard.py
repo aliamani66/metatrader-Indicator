@@ -169,10 +169,13 @@ def build_dashboard():
         for r in t_list:
             pts = float(r.get('RiskPoints', 0.0))
             hr = int(r.get('HitTargetRatio', 0))
-            if hr == 0: gross -= pts * 0.04
-            elif hr == 1: gross += pts * 0.02
-            elif hr in [2, 3]: gross += (pts * 0.02) + (pts * 2 * 0.01)
-            elif hr >= 4: gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+            if hr == 0:
+                gross -= pts * 0.04
+            else:
+                if hr >= 1: gross += pts * 1.0 * 0.01
+                if hr >= 2: gross += pts * 2.0 * 0.01
+                if hr >= 3: gross += pts * 3.0 * 0.01
+                if hr >= 4: gross += pts * 4.0 * 0.01
         net = gross - (cnt * friction_04_per_trade)
 
         stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in t_list]
@@ -255,15 +258,23 @@ def build_dashboard():
     s2_diff_dollar = s2_net - s1_net
     s2_diff_pct = (s2_net - s1_net) / abs(s1_net) * 100 if s1_net != 0 else 0.0
 
-    # Strategy 3: Multi-Stage Scale-Out (50% TP1 + BE, 25% TP2 + Lock, 25% TP4 Runner)
+    # Strategy 3: Balanced 4-Way Scale-Out (25% TP1 + BE, 25% TP2 + Lock, 25% TP3, 25% TP4 Runner)
     s3_gross, s3_w, s3_l = 0.0, 0.0, 0.0
     for r in kings_trades:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr == 0: loss = pts * 0.04; s3_gross -= loss; s3_l += loss
-        elif hr == 1: win = pts * 0.02; s3_gross += win; s3_w += win
-        elif hr in [2, 3]: win = (pts * 0.02) + (pts * 2 * 0.01); s3_gross += win; s3_w += win
-        elif hr >= 4: win = (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01); s3_gross += win; s3_w += win
+        if hr == 0:
+            loss = pts * 0.04
+            s3_gross -= loss
+            s3_l += loss
+        else:
+            win = 0.0
+            if hr >= 1: win += pts * 1.0 * 0.01
+            if hr >= 2: win += pts * 2.0 * 0.01
+            if hr >= 3: win += pts * 3.0 * 0.01
+            if hr >= 4: win += pts * 4.0 * 0.01
+            s3_gross += win
+            s3_w += win
     s3_net = s3_gross - tot_k_fric
     s3_pf = s3_w / s3_l if s3_l > 0 else 0.0
     s3_diff_dollar = s3_net - s1_net
@@ -287,10 +298,17 @@ def build_dashboard():
     for r in kings_trades:
         pts = float(r.get('RiskPoints', 0.0))
         hr = int(r.get('HitTargetRatio', 0))
-        if hr == 0: m2_gross -= pts * 0.04
-        elif hr == 1: m2_gross += (pts * 0.02) - (pts * 0.02)
-        elif hr in [2, 3]: m2_gross += (pts * 0.02) + (pts * 2 * 0.01)
-        elif hr >= 4: m2_gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+        if hr == 0:
+            m2_gross -= pts * 0.04
+        elif hr == 1:
+            # TP1 took 0.01 profit (+0.01R), but remaining 0.03 hit SL (-0.03R)
+            m2_gross += (pts * 1.0 * 0.01) - (pts * 1.0 * 0.03)
+        elif hr == 2:
+            m2_gross += (pts * 1.0 * 0.01) + (pts * 2.0 * 0.01)
+        elif hr == 3:
+            m2_gross += (pts * 1.0 * 0.01) + (pts * 2.0 * 0.01) + (pts * 3.0 * 0.01)
+        elif hr >= 4:
+            m2_gross += (pts * 1.0 * 0.01) + (pts * 2.0 * 0.01) + (pts * 3.0 * 0.01) + (pts * 4.0 * 0.01)
     m2_net = m2_gross - tot_k_fric
     be_diff = m1_net - m2_net
 
@@ -311,10 +329,13 @@ def build_dashboard():
         for r in t_list:
             pts = float(r.get('RiskPoints', 0.0))
             hr = int(r.get('HitTargetRatio', 0))
-            if hr == 0: gross -= pts * 0.04
-            elif hr == 1: gross += pts * 0.02
-            elif hr in [2, 3]: gross += (pts * 0.02) + (pts * 2 * 0.01)
-            elif hr >= 4: gross += (pts * 0.02) + (pts * 2 * 0.01) + (pts * 4 * 0.01)
+            if hr == 0:
+                gross -= pts * 0.04
+            else:
+                if hr >= 1: gross += pts * 1.0 * 0.01
+                if hr >= 2: gross += pts * 2.0 * 0.01
+                if hr >= 3: gross += pts * 3.0 * 0.01
+                if hr >= 4: gross += pts * 4.0 * 0.01
         net = gross - (cnt * friction_04_per_trade)
         return {
             'cnt': cnt,
@@ -837,21 +858,26 @@ def build_dashboard():
                     </div>
                 </div>
 
-                <!-- Steps Breakdown Grid -->
-                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:18px;">
+                <!-- Steps Breakdown Grid: 4-Way Balanced 25-25-25-25 -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:18px;">
                     <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله اول (TP 1:1) - خروج ۰.۰۲ لات (۵۰٪)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">ذخیره ۵۰٪ سود معامله + <b>انتقال فوری استاپ لاس به نقطه ورود (ریسک‌فری سریع)</b></div>
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله اول (TP 1:1) - خروج ۰.۰۱ لات (۲۵٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">ذخیره سود پله ۱ + <b>انتقال فوری استاپ لاس به نقطه ورود (ریسک‌فری قطعی)</b></div>
                         <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">🛡️ نتیجه: ریسک کل معامله صفر شد و کمیسیون پوشش یافت!</div>
                     </div>
                     <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
                         <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله دوم (TP 1:2) - خروج ۰.۰۱ لات (۲۵٪)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ دیگر از حجم با سود ۲ برابری + <b>قفل سود در سطح TP1</b></div>
-                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">📈 نتیجه: تثبیت سود عالی بدون هیچ‌گونه استرس روانی</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ دیگر با سود ۲ برابری + <b>قفل سود در سطح TP1</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">📈 نتیجه: تثبیت سود عالی و کاهش کامل استرس معامله</div>
                     </div>
                     <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله سوم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن امواج بزرگ روندی</div>
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله سوم (TP 1:3) - خروج ۰.۰۱ لات (۲۵٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ با سود ۳ برابری + <b>تریل استاپ به سطح TP2</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">💰 نتیجه: شکار میانه موج‌های قوی بازار</div>
+                    </div>
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله چهارم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن انتهای ترندهای بزرگ</div>
                         <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در {tp3_4} معامله!</div>
                     </div>
                 </div>
@@ -887,7 +913,7 @@ def build_dashboard():
                                 <td style="text-align:center;color:#00e676;font-weight:bold;">${s2_diff_dollar:+.2f} ({s2_diff_pct:+.1f}%)</td>
                             </tr>
                             <tr style="background:#064e3b33;border:2px solid #10b981;">
-                                <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج پلکانی شکار امواج تا TP4 (۰.۰۲ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP4) 🚀</td>
+                                <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج چهارپله‌ای متوازن FlagPro (۰.۰۱ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP3 | ۰.۰۱ در TP4) 🚀</td>
                                 <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_gross:+.2f}</td>
                                 <td style="text-align:color:#cbd5e1;">${tot_k_fric:.2f}</td>
                                 <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">${s3_net:+.2f} دلار نقد خالص! 💵</td>
