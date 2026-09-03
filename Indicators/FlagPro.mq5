@@ -158,8 +158,8 @@ input group "=== Trade Setup & Simulator (ستاپ معامله و بک‌تست
 input bool             InpEnableTradeSetup      = true;         // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
 input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input bool             InpTradeOnlyGoldenKings  = true;         // 👑 معامله منحصراً فقط روی ۷ سلطان طلایی (وین‌ریت بالای ۶۰٪)
-input bool             InpPreventOverlappingTrades = true;      // 🛡️ جلوگیری از تداخل معاملات (تا بسته نشدن معامله جاری، معامله جدید باز نشود)
-input bool             InpShowTradeShading      = true;         // 🎨 نمایش پس‌زمینه رنگی معاملات (سبز/قرمز)
+input bool             InpPreventOverlappingTrades = false;     // 🔓 اجازه معاملات همزمان (هر ستاپ معتبری مستقل معامله می‌شود)
+input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض: خاموش)
 input double           InpRSPipBuffer           = 2.0;          // بافر حد ضرر برای RS و فلگ‌ها (پیپ)
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
 input color            InpTradeSLColor          = clrRed;       // رنگ خط حد ضرر (SL)

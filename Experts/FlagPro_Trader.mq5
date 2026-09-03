@@ -22,7 +22,7 @@ input bool             InpMoveToBreakEven        = true;         // انتقال
 input double           InpBEBufferPips           = 1.0;          // بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ)
 input bool             InpTrailToPreviousTP      = true;         // تریل هوشمند حد ضرر به تارگت‌های قبلی (Lock Profit)
 input double           InpMaxSLPips              = 0.0;          // حداکثر حد ضرر مجاز به پیپ (0 = بدون محدودیت، دقیقاً منطبق بر خط قرمز چارت)
-input int              InpMaxOpenGroups          = 1;            // حداکثر تعداد ستاپ‌های همزمان فعال (مدیریت ریسک)
+input int              InpMaxOpenGroups          = 5;            // حداکثر تعداد ستاپ‌های همزمان فعال (امکان معاملات هم‌زمان)
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
 
@@ -163,7 +163,7 @@ input group "=== Trade Setup & Simulator (ستاپ معامله و بک‌تست
 input bool             InpEnableTradeSetup      = true;         // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
 input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input bool             InpTradeOnlyGoldenKings  = true;         // 👑 معامله منحصراً فقط روی ۷ سلطان طلایی (وین‌ریت بالای ۶۰٪)
-input bool             InpPreventOverlappingTrades = true;      // 🛡️ جلوگیری از تداخل معاملات (تا بسته نشدن معامله جاری، معامله جدید باز نشود)
+input bool             InpPreventOverlappingTrades = false;     // 🔓 اجازه معاملات همزمان (هر ستاپ معتبری مستقل معامله می‌شود)
 input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض در اکسپرت: خاموش)
 input double           InpRSPipBuffer           = 2.0;          // بافر حد ضرر برای RS و فلگ‌ها (پیپ)
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
