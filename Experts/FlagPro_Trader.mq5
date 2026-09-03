@@ -164,7 +164,7 @@ input bool             InpEnableTradeSetup      = true;         // فعال‌س
 input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input bool             InpTradeOnlyGoldenKings  = true;         // 👑 معامله منحصراً فقط روی ۷ سلطان طلایی (وین‌ریت بالای ۶۰٪)
 input bool             InpPreventOverlappingTrades = true;      // 🛡️ جلوگیری از تداخل معاملات (تا بسته نشدن معامله جاری، معامله جدید باز نشود)
-input bool             InpShowTradeShading      = true;         // 🎨 نمایش پس‌زمینه رنگی معاملات (سبز/قرمز)
+input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض در اکسپرت: خاموش)
 input double           InpRSPipBuffer           = 2.0;          // بافر حد ضرر برای RS و فلگ‌ها (پیپ)
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط ورود به معامله (Entry)
 input color            InpTradeSLColor          = clrRed;       // رنگ خط حد ضرر (SL)
@@ -227,6 +227,10 @@ int OnInit()
    {
       ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
       ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
+   }
+   if(!InpShowTradeShading)
+   {
+      ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_BG_");
    }
 
    ArrayResize(m_executedTradesKeys, 0);
@@ -483,6 +487,10 @@ void OnTick()
       {
          ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
          ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
+      }
+      if(!InpShowTradeShading)
+      {
+         ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_BG_");
       }
    }
 
