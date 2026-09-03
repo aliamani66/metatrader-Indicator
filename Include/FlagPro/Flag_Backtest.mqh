@@ -322,6 +322,25 @@ void ShowTradeSetupForBox(int boxIdx)
    }
    else
    {
+      // به‌روزرسانی نهایی حد ضرر و ریسک بر مبنای نوک واقعی تمام شدوها از ابتدا تا دقیقاً لحظه ورود (entryBarIdx)
+      for(int ck = bStartIdx; ck <= entryBarIdx && ck < copied; ck++)
+      {
+         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+      }
+
+      if(isBull) slPrice = patternLow - bufferPips;
+      else       slPrice = patternHigh + bufferPips;
+
+      risk = MathAbs(entryPrice - slPrice);
+      if(risk < _Point * 2.0) risk = _Point * 2.0;
+
+      for(int tp = 0; tp < 4; tp++)
+      {
+         if(isBull) tps[tp] = entryPrice + risk * (tp + 1);
+         else       tps[tp] = entryPrice - risk * (tp + 1);
+      }
+
       int maxHit = 0;
       datetime hitTime = 0;
       for(int k = entryBarIdx; k < copied; k++)
@@ -419,24 +438,34 @@ void ShowTradeSetupForBox(int boxIdx)
 
 
 
-   // بک‌گراند کم‌رنگ و ملایم معامله (سود: زمردی ملایم | زیان: زرشکی ملایم)
-   double tpTop = isBull ? tps[3] : entryPrice;
-   double tpBtm = isBull ? entryPrice : tps[3];
-   string profitZone = pfx + "PROFIT_BG";
-   ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
-   ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
-   ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
-   ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
-   ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+   // بک‌گراند کم‌رنگ و ملایم معامله (فقط در صورت روشن بودن InpShowTradeShading)
+   if(InpShowTradeShading)
+   {
+      double tpTop = isBull ? tps[3] : entryPrice;
+      double tpBtm = isBull ? entryPrice : tps[3];
+      string profitZone = pfx + "PROFIT_BG";
+      ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
+      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
+      ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
+      ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
+      ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
 
-   double slTop = isBull ? entryPrice : slPrice;
-   double slBtm = isBull ? slPrice : entryPrice;
-   string lossZone = pfx + "LOSS_BG";
-   ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
-   ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
-   ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
-   ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
-   ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+      double slTop = isBull ? entryPrice : slPrice;
+      double slBtm = isBull ? slPrice : entryPrice;
+      string lossZone = pfx + "LOSS_BG";
+      ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
+      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
+      ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
+      ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
+      ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+   }
+   else
+   {
+      string profitZone = pfx + "PROFIT_BG";
+      string lossZone   = pfx + "LOSS_BG";
+      if(ObjectFind(0, profitZone) >= 0) ObjectDelete(0, profitZone);
+      if(ObjectFind(0, lossZone) >= 0)   ObjectDelete(0, lossZone);
+   }
 
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
@@ -762,6 +791,19 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       if(!isEntered) continue;
 
       g_drawnBoxes[b].hasTradeEntered = true;
+
+      // به‌روزرسانی نهایی حد ضرر و تارگت‌ها بر مبنای نوک واقعی شدوها از ابتدا تا دقیقاً لحظه ورود (entryBarIdx)
+      for(int ck = bStartIdx; ck <= entryBarIdx && ck < ratesTotal; ck++)
+      {
+         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+      }
+
+      if(isBull) slPrice = patternLow - bufferPips;
+      else       slPrice = patternHigh + bufferPips;
+
+      risk = MathAbs(entryPrice - slPrice);
+      if(risk < _Point * 2.0) risk = _Point * 2.0;
 
       // محاسبه فوری سرنوشت و زمان خروج واقعی معامله
       double tps[4];
@@ -1338,6 +1380,22 @@ void ExportAllTradesToCSV()
       }
       else
       {
+         // به‌روزرسانی نهایی حد ضرر و تارگت‌ها بر مبنای نوک واقعی شدوها از ابتدا تا دقیقاً لحظه ورود (entryBarIdx)
+         for(int ck = bStartIdx; ck <= entryBarIdx && ck < copied; ck++)
+         {
+            if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+            if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+         }
+
+         if(isBull) slPrice = patternLow - bufferPips;
+         else       slPrice = patternHigh + bufferPips;
+
+         risk = MathAbs(entryPrice - slPrice);
+         if(risk < _Point * 2.0) risk = _Point * 2.0;
+
+         for(int tp = 0; tp < 4; tp++)
+            tps[tp] = isBull ? entryPrice + risk * (tp + 1) : entryPrice - risk * (tp + 1);
+
          int maxHit = 0;
          datetime hitTime = 0;
          for(int k = entryBarIdx; k < copied; k++)
