@@ -22,9 +22,13 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    }
    else
    {
-      if(tf == PERIOD_M1 && maxBars < 150000) maxBars = 150000;
-      else if(tf == PERIOD_M5 && maxBars < 45000) maxBars = 45000;
-      else if(tf == PERIOD_M15 && maxBars < 20000) maxBars = 20000;
+      if(tf == PERIOD_D1)       maxBars = 500;
+      else if(tf == PERIOD_W1)  maxBars = 200;
+      else if(tf == PERIOD_H4)  maxBars = 1000;
+      else if(tf == PERIOD_H1)  maxBars = 1500;
+      else if(tf == PERIOD_M15) maxBars = 2000;
+      else if(tf == PERIOD_M5)  maxBars = 3000;
+      else if(tf == PERIOD_M1)  maxBars = 5000;
    }
 
    if(!BuildAlternatingPivots(tf, sBars, maxBars, pivots))
