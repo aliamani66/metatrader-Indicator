@@ -400,6 +400,25 @@ void ShowTradeSetupForBox(int boxIdx)
 
 
 
+   // بک‌گراند کم‌رنگ و ملایم معامله (سود: زمردی ملایم | زیان: زرشکی ملایم)
+   double tpTop = isBull ? tps[3] : entryPrice;
+   double tpBtm = isBull ? entryPrice : tps[3];
+   string profitZone = pfx + "PROFIT_BG";
+   ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
+   ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
+   ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
+   ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
+   ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+
+   double slTop = isBull ? entryPrice : slPrice;
+   double slBtm = isBull ? slPrice : entryPrice;
+   string lossZone = pfx + "LOSS_BG";
+   ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
+   ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
+   ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
+   ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
+   ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
    ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
@@ -773,6 +792,27 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       string pfx = FP_PREFIX + "AUTO_TR_" + IntegerToString(b) + "_";
 
+      // ۰. بک‌گراند کم‌رنگ و ملایم معامله (سود: زمردی ملایم | زیان: زرشکی ملایم)
+      int activeTP = (hitTP > 0) ? (hitTP - 1) : 0;
+
+      double tpTop = isBull ? tps[activeTP] : entryPrice;
+      double tpBtm = isBull ? entryPrice : tps[activeTP];
+      string profitZone = pfx + "PROFIT_BG";
+      ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
+      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
+      ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
+      ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
+      ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+
+      double slTop = isBull ? entryPrice : slPrice;
+      double slBtm = isBull ? slPrice : entryPrice;
+      string lossZone = pfx + "LOSS_BG";
+      ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
+      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
+      ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
+      ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
+      ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+
       // ۱. خط ورود سفید
       string entryLine = pfx + "ENTRY";
       ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
@@ -792,7 +832,6 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
       // ۳. خط تارگت سبز (فقط تارگتی که فعال یا لمس شده)
-      int activeTP = (hitTP > 0) ? (hitTP - 1) : 0;
       string tpLine = pfx + "TP";
       ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[activeTP], t2, tps[activeTP]);
       ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
