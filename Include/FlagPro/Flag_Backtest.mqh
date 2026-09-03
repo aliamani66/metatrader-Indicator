@@ -726,6 +726,21 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       if(!exists)
       {
+         // قانون تک‌معامله‌ای: جلوگیری از باز شدن معامله جدید تا بسته شدن معامله قبلی
+         if(InpPreventOverlappingTrades)
+         {
+            bool isBusy = false;
+            for(int t = 0; t < g_tradeCount; t++)
+            {
+               if(entryTime >= g_tradeSetups[t].entryTime && entryTime < g_tradeSetups[t].exitTime)
+               {
+                  isBusy = true;
+                  break;
+               }
+            }
+            if(isBusy) continue;
+         }
+
          ArrayResize(g_tradeSetups, g_tradeCount + 1);
          g_tradeSetups[g_tradeCount].boxName    = g_drawnBoxes[b].boxName;
          g_tradeSetups[g_tradeCount].boxRole    = role;
@@ -830,24 +845,36 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       int activeTP = (hitTP > 0) ? (hitTP - 1) : 0;
       double activeTPPrice = (activeTP == 0 ? tps[0] : (activeTP == 1 ? tps[1] : (activeTP == 2 ? tps[2] : tps[3])));
 
-      // ۰. بک‌گراند کم‌رنگ و ملایم معامله (سود: زمردی ملایم | زیان: زرشکی ملایم)
-      double tpTop = g_tradeSetups[t].isBuy ? activeTPPrice : g_tradeSetups[t].entryPrice;
-      double tpBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : activeTPPrice;
-      string profitZone = pfx + "PROFIT_BG";
-      ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
-      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
-      ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
-      ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
-      ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+      // ۰. بک‌گراند کم‌رنگ و ملایم معامله (فقط در صورت روشن بودن InpShowTradeShading)
+      if(InpShowTradeShading)
+      {
+         bool drawProfit = (!g_tradeSetups[t].isClosed || hitTP > 0);
+         bool drawLoss   = (!g_tradeSetups[t].isClosed || hitTP == 0);
 
-      double slTop = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : g_tradeSetups[t].slPrice;
-      double slBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].slPrice : g_tradeSetups[t].entryPrice;
-      string lossZone = pfx + "LOSS_BG";
-      ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
-      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
-      ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
-      ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
-      ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+         if(drawProfit)
+         {
+            double tpTop = g_tradeSetups[t].isBuy ? activeTPPrice : g_tradeSetups[t].entryPrice;
+            double tpBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : activeTPPrice;
+            string profitZone = pfx + "PROFIT_BG";
+            ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
+            ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
+            ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
+            ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
+            ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
+         }
+
+         if(drawLoss)
+         {
+            double slTop = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : g_tradeSetups[t].slPrice;
+            double slBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].slPrice : g_tradeSetups[t].entryPrice;
+            string lossZone = pfx + "LOSS_BG";
+            ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
+            ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
+            ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
+            ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
+            ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
+         }
+      }
 
       // ۱. خط ورود سفید
       string entryLine = pfx + "ENTRY";
