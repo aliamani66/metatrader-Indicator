@@ -274,11 +274,17 @@ void ShowTradeSetupForBox(int boxIdx)
 
    if(!isEntered)
    {
-      entryTime = confirmTime;
-      if(cancelBarIdx >= 0)
-         exitTime = chartTime[cancelBarIdx];
-      else
-         exitTime = chartTime[copied - 1];
+      string noTradeMsg = StringFormat(
+         "═══════════════════════════════════════════════════\n"
+         "📦 باکس %s [%s]\n"
+         "⚠️ سیگنال ورود به معامله صادر نشد!\n"
+         "📋 وضعیت: %s\n"
+         "═══════════════════════════════════════════════════",
+         g_drawnBoxes[boxIdx].tfTag, role,
+         (cancelReasonStr != "" ? cancelReasonStr : "عدم پولبک و ورود قیمت به باکس"));
+      Comment(noTradeMsg);
+      Print(noTradeMsg);
+      return;
    }
    else
    {
@@ -377,26 +383,7 @@ void ShowTradeSetupForBox(int boxIdx)
    ObjectSetInteger(0, confLbl, OBJPROP_ANCHOR, isBull ? ANCHOR_LOWER : ANCHOR_UPPER);
    ObjectSetInteger(0, confLbl, OBJPROP_SELECTABLE, false);
 
-   // --- بک‌گراند رنگی ملایم و شفاف برای ناحیه سود (سبز) و ناحیه ریسک (قرمز) مشابه تریدینگ‌ویو ---
-   // ۱. ناحیه سود (Profit Zone: بین نقطه ورود و تارگت‌ها)
-   double tpTop = isBull ? tps[3] : entryPrice;
-   double tpBtm = isBull ? entryPrice : tps[3];
-   string profitZone = pfx + "PROFIT_BG";
-   ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
-   ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'6,36,20'); // سبز ملایم زمردی در پس‌زمینه
-   ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
-   ObjectSetInteger(0, profitZone, OBJPROP_BACK, true); // رسم در پس‌زمینه (پشت کندل‌ها)
-   ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
 
-   // ۲. ناحیه ریسک (Risk Zone: بین نقطه ورود و حد ضرر)
-   double slTop = isBull ? entryPrice : slPrice;
-   double slBtm = isBull ? slPrice : entryPrice;
-   string lossZone = pfx + "LOSS_BG";
-   ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
-   ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'38,10,14'); // زرشکی ملایم در پس‌زمینه
-   ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
-   ObjectSetInteger(0, lossZone, OBJPROP_BACK, true); // رسم در پس‌زمینه (پشت کندل‌ها)
-   ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
 
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
@@ -572,6 +559,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(tagCombo != "") role = tagCombo;
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
+
+      // فقط باکس‌های استراتژیک (LS, OInner, RS, Swap) حق ورود به معامله دارند
+      bool isStrategic = (isLS || isOI || isRS || isSwap);
+      if(!isStrategic) continue;
 
       bool isBull = true;
       double entryPrice = 0;
@@ -765,27 +756,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       string pfx = FP_PREFIX + "AUTO_TR_" + IntegerToString(b) + "_";
 
-      // ۱. ناحیه سود (سبز زمردی ملایم در پس‌زمینه)
-      double tpTop = isBull ? tps[3] : entryPrice;
-      double tpBtm = isBull ? entryPrice : tps[3];
-      string profitZone = pfx + "PROFIT_BG";
-      ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
-      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'6,36,20');
-      ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
-      ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
-      ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
-
-      // ۲. ناحیه ریسک (زرشکی ملایم در پس‌زمینه)
-      double slTop = isBull ? entryPrice : slPrice;
-      double slBtm = isBull ? slPrice : entryPrice;
-      string lossZone = pfx + "LOSS_BG";
-      ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
-      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'38,10,14');
-      ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
-      ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
-      ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
-
-      // ۳. خط ورود سفید
+      // ۱. خط ورود سفید
       string entryLine = pfx + "ENTRY";
       ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
       ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
@@ -794,33 +765,31 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
-      // ۴. خط حد ضرر قرمز
+      // ۲. خط حد ضرر قرمز باریک
       string slLine = pfx + "SL";
       ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
       ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrRed);
-      ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 2);
+      ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
       ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
       ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
-      // ۵. خطوط تارگت‌های سود سبز
-      for(int tp = 0; tp < 4; tp++)
-      {
-         string tpLine = pfx + "TP" + IntegerToString(tp + 1);
-         ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], t2, tps[tp]);
-         ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
-         ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
-         ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
-         ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
-         ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
-      }
+      // ۳. خط تارگت سبز (فقط تارگتی که فعال یا لمس شده)
+      int activeTP = (hitTP > 0) ? (hitTP - 1) : 0;
+      string tpLine = pfx + "TP";
+      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[activeTP], t2, tps[activeTP]);
+      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP > 0 ? 2 : 1));
+      ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP > 0 ? STYLE_SOLID : STYLE_DOT));
+      ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
 
-      // ۶. برچسب شفاف نتیجه
+      // ۴. برچسب شیک و شفاف نتیجه در انتهای معامله
       string resLbl = pfx + "RES_LBL";
       string resTxt = (hitTP > 0) ? StringFormat("🎯 TP%d (+%dR)", hitTP, hitTP) : (isClosed ? "❌ SL (-1R)" : "⏳ OPEN");
       color resClr = (hitTP > 0) ? clrLimeGreen : (isClosed ? clrTomato : clrGold);
 
-      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, entryPrice);
+      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, isBull ? tps[activeTP] : tps[activeTP]);
       ObjectSetString(0, resLbl, OBJPROP_TEXT, resTxt);
       ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resClr);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 8);
