@@ -243,6 +243,14 @@ int OnCalculate(const int rates_total,
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
    int             daysBackArr[7] = {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
 
+   // در محیط استراتژی تستر متاتریدر ۵، فراخوانی تایم‌های فوق‌سنگین ماکرو (W1, D1, H4) باعث قفل شدن موتور شبیه‌ساز می‌شود
+   if((bool)MQLInfoInteger(MQL_TESTER))
+   {
+      useArr[0] = false; // D1
+      useArr[1] = false; // W1
+      useArr[2] = false; // H4
+   }
+
    for(int s = 0; s < 7; s++)
    {
       if(!useArr[s]) continue;
