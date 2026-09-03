@@ -21,7 +21,7 @@ input double           InpScaleOutLot            = 0.01;         // حجم هر 
 input bool             InpMoveToBreakEven        = true;         // انتقال حد ضرر به نقطه ورود پس از لمس TP1 (Break-Even)
 input double           InpBEBufferPips           = 1.0;          // بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ)
 input bool             InpTrailToPreviousTP      = true;         // تریل هوشمند حد ضرر به تارگت‌های قبلی (Lock Profit)
-input double           InpMaxSLPips              = 30.0;         // حداکثر حد ضرر مجاز به پیپ (جلوگیری از استاپ‌های نامتعارف ماکرو)
+input double           InpMaxSLPips              = 0.0;          // حداکثر حد ضرر مجاز به پیپ (0 = بدون محدودیت، دقیقاً منطبق بر خط قرمز چارت)
 input int              InpMaxOpenGroups          = 1;            // حداکثر تعداد ستاپ‌های همزمان فعال (مدیریت ریسک)
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
@@ -232,8 +232,6 @@ int OnInit()
    {
       ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_BG_");
    }
-   ObjectsDeleteAll(0, FP_PREFIX + "LIVE_TR_");
-   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
 
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(m_activeGroups, 0);
@@ -250,8 +248,6 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-   ObjectsDeleteAll(0, FP_PREFIX + "LIVE_TR_");
-   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(m_activeGroups, 0);
    ArrayResize(g_tradeSetups, 0);
@@ -379,11 +375,12 @@ void ManageActiveTradeGroups()
             double bePrice = isBuy ? (m_activeGroups[g].entryPrice + beBuffer) : (m_activeGroups[g].entryPrice - beBuffer);
             bePrice = NormalizeDouble(bePrice, _Digits);
 
+            double targetTPs[4] = {m_activeGroups[g].tp1, m_activeGroups[g].tp2, m_activeGroups[g].tp3, m_activeGroups[g].tp4};
             for(int p = 1; p < 4; p++)
             {
                if(ticketOpen[p])
                {
-                  m_trade.PositionModify(m_activeGroups[g].tickets[p], bePrice, PositionGetDouble(POSITION_TP));
+                  m_trade.PositionModify(m_activeGroups[g].tickets[p], bePrice, targetTPs[p]);
                }
             }
             m_activeGroups[g].beApplied = true;
@@ -400,11 +397,12 @@ void ManageActiveTradeGroups()
          if(tp2Reached)
          {
             double trailSL = NormalizeDouble(m_activeGroups[g].tp1, _Digits);
+            double targetTPs[4] = {m_activeGroups[g].tp1, m_activeGroups[g].tp2, m_activeGroups[g].tp3, m_activeGroups[g].tp4};
             for(int p = 2; p < 4; p++)
             {
                if(ticketOpen[p])
                {
-                  m_trade.PositionModify(m_activeGroups[g].tickets[p], trailSL, PositionGetDouble(POSITION_TP));
+                  m_trade.PositionModify(m_activeGroups[g].tickets[p], trailSL, targetTPs[p]);
                }
             }
             m_activeGroups[g].trailTP1Applied = true;
@@ -423,115 +421,12 @@ void ManageActiveTradeGroups()
             double trailSL = NormalizeDouble(m_activeGroups[g].tp2, _Digits);
             if(ticketOpen[3])
             {
-               m_trade.PositionModify(m_activeGroups[g].tickets[3], trailSL, PositionGetDouble(POSITION_TP));
+               m_trade.PositionModify(m_activeGroups[g].tickets[3], trailSL, m_activeGroups[g].tp4);
             }
             m_activeGroups[g].trailTP2Applied = true;
             PrintFormat("🚀 [FlagPro Runner Lock] تارگت TP3 لمس شد! حد ضرر پوزیشن ۴ به TP2 (%.5f) تریل شد تا تارگت ۱:۴ شکار شود.", trailSL);
          }
       }
-   }
-}
-
-//+------------------------------------------------------------------+
-//| رسم دینامیک خطوط منحصراً برای پوزیشن فعال (حذف خطوط معاملات گذشته)|
-//+------------------------------------------------------------------+
-void UpdateActiveTradeVisuals()
-{
-   // پاکسازی قطعی تمام خطوط معاملات قدیمی که کاربر را گمراه می‌کرد
-   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
-
-   bool hasLiveGroup = false;
-   int liveIdx = -1;
-
-   for(int g = ArraySize(m_activeGroups) - 1; g >= 0; g--)
-   {
-      if(!m_activeGroups[g].isFinished)
-      {
-         hasLiveGroup = true;
-         liveIdx = g;
-         break;
-      }
-   }
-
-   // اگر معامله در متاتریدر بسته شده، تمام خطوط را فوراً از روی چارت پاک کن
-   if(!hasLiveGroup || liveIdx < 0)
-   {
-      ObjectsDeleteAll(0, FP_PREFIX + "LIVE_TR_");
-      return;
-   }
-
-   datetime t1 = iTime(_Symbol, _Period, 20);
-   datetime t2 = iTime(_Symbol, _Period, 0) + PeriodSeconds(_Period) * 20;
-
-   double entryP    = m_activeGroups[liveIdx].entryPrice;
-   double currentSL = m_activeGroups[liveIdx].initialSL;
-   string slLabel   = "SL (اصلی)";
-
-   double pipSize   = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
-   double beBuffer  = InpBEBufferPips * pipSize;
-   double bePrice   = m_activeGroups[liveIdx].isBuy ? (entryP + beBuffer) : (entryP - beBuffer);
-
-   if(m_activeGroups[liveIdx].trailTP2Applied)
-   {
-      currentSL = m_activeGroups[liveIdx].tp2;
-      slLabel = "Trail (TP2)";
-   }
-   else if(m_activeGroups[liveIdx].trailTP1Applied)
-   {
-      currentSL = m_activeGroups[liveIdx].tp1;
-      slLabel = "Trail (TP1)";
-   }
-   else if(m_activeGroups[liveIdx].beApplied)
-   {
-      currentSL = bePrice;
-      slLabel = "Break-Even (0.0)";
-   }
-
-   currentSL = NormalizeDouble(currentSL, _Digits);
-
-   // ۱. رسم خط ورود معامله فعال (سفید)
-   string lineEntry = FP_PREFIX + "LIVE_TR_ENTRY";
-   ObjectCreate(0, lineEntry, OBJ_TREND, 0, t1, entryP, t2, entryP);
-   ObjectSetInteger(0, lineEntry, OBJPROP_COLOR, clrWhite);
-   ObjectSetInteger(0, lineEntry, OBJPROP_WIDTH, 1);
-   ObjectSetInteger(0, lineEntry, OBJPROP_STYLE, STYLE_SOLID);
-   ObjectSetInteger(0, lineEntry, OBJPROP_RAY_RIGHT, false);
-   ObjectSetInteger(0, lineEntry, OBJPROP_SELECTABLE, false);
-
-   // ۲. رسم خط حد ضرر معامله فعال (قرمز - دقیقاً منطبق بر استاپ بروکر)
-   string lineSL = FP_PREFIX + "LIVE_TR_SL";
-   ObjectCreate(0, lineSL, OBJ_TREND, 0, t1, currentSL, t2, currentSL);
-   ObjectSetInteger(0, lineSL, OBJPROP_COLOR, clrRed);
-   ObjectSetInteger(0, lineSL, OBJPROP_WIDTH, 1);
-   ObjectSetInteger(0, lineSL, OBJPROP_STYLE, STYLE_SOLID);
-   ObjectSetInteger(0, lineSL, OBJPROP_RAY_RIGHT, false);
-   ObjectSetInteger(0, lineSL, OBJPROP_SELECTABLE, false);
-
-   string lblSL = FP_PREFIX + "LIVE_TR_SL_TXT";
-   ObjectCreate(0, lblSL, OBJ_TEXT, 0, t2, currentSL);
-   ObjectSetString(0, lblSL, OBJPROP_TEXT, " " + slLabel);
-   ObjectSetInteger(0, lblSL, OBJPROP_COLOR, clrTomato);
-   ObjectSetInteger(0, lblSL, OBJPROP_FONTSIZE, 8);
-   ObjectSetInteger(0, lblSL, OBJPROP_SELECTABLE, false);
-
-   // ۳. رسم خطوط تارگت‌های معامله فعال (سبز)
-   double tps[4] = {m_activeGroups[liveIdx].tp1, m_activeGroups[liveIdx].tp2, m_activeGroups[liveIdx].tp3, m_activeGroups[liveIdx].tp4};
-   for(int p = 0; p < 4; p++)
-   {
-      string lineTP = FP_PREFIX + "LIVE_TR_TP" + IntegerToString(p + 1);
-      ObjectCreate(0, lineTP, OBJ_TREND, 0, t1, tps[p], t2, tps[p]);
-      ObjectSetInteger(0, lineTP, OBJPROP_COLOR, clrLimeGreen);
-      ObjectSetInteger(0, lineTP, OBJPROP_WIDTH, 1);
-      ObjectSetInteger(0, lineTP, OBJPROP_STYLE, STYLE_SOLID);
-      ObjectSetInteger(0, lineTP, OBJPROP_RAY_RIGHT, false);
-      ObjectSetInteger(0, lineTP, OBJPROP_SELECTABLE, false);
-
-      string lblTP = FP_PREFIX + "LIVE_TR_TP_TXT" + IntegerToString(p + 1);
-      ObjectCreate(0, lblTP, OBJ_TEXT, 0, t2, tps[p]);
-      ObjectSetString(0, lblTP, OBJPROP_TEXT, StringFormat(" TP%d (+%dR)", p + 1, p + 1));
-      ObjectSetInteger(0, lblTP, OBJPROP_COLOR, clrLimeGreen);
-      ObjectSetInteger(0, lblTP, OBJPROP_FONTSIZE, 8);
-      ObjectSetInteger(0, lblTP, OBJPROP_SELECTABLE, false);
    }
 }
 
@@ -604,9 +499,6 @@ void OnTick()
    // مدیریت تریل و بریک‌ایون تمام معاملات باز روی هر تیک
    ManageActiveTradeGroups();
 
-   // به‌روزرسانی خطوط و پاکسازی خودکار معاملات بسته‌شده از روی چارت
-   UpdateActiveTradeVisuals();
-
    // بررسی ارسال پوزیشن‌های جدید
    if(CountOpenPositionGroups() >= InpMaxOpenGroups)
       return;
@@ -633,28 +525,28 @@ void OnTick()
       bool isBuy = g_tradeSetups[t].isBuy;
       double sendPrice = isBuy ? ask : bid;
 
-      // محاسبه فاصله حد ضرر معقول و نرمال‌سازی شده
-      double riskDist = MathAbs(g_tradeSetups[t].entryPrice - g_tradeSetups[t].slPrice);
-      double maxRiskDist = (InpMaxSLPips > 0) ? (InpMaxSLPips * pipSize) : (30.0 * pipSize);
+      // حد ضرر دقیقاً مطابق با خط قرمز چارت (بدون هیچ مغایرت و تفاوتی)
+      double sl = NormalizeDouble(g_tradeSetups[t].slPrice, _Digits);
+      double riskDist = MathAbs(sendPrice - sl);
 
       double minStops = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
       if(minStops < 15.0 * _Point) minStops = 15.0 * _Point;
 
-      if(riskDist > maxRiskDist) riskDist = maxRiskDist;
-      if(riskDist < minStops)    riskDist = minStops + 5.0 * _Point;
+      if(InpMaxSLPips > 0 && riskDist > InpMaxSLPips * pipSize)
+      {
+         riskDist = InpMaxSLPips * pipSize;
+         sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
+      }
+      else if(riskDist < minStops)
+      {
+         riskDist = minStops + 5.0 * _Point;
+         sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
+      }
 
-      // محاسبه دقیق حد ضرر و تارگت‌ها نسبت به قیمت لحظه‌ای ورود (جلوگیری قطعی از Invalid Stops)
-      double sl  = isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist);
-      double tp1 = isBuy ? (sendPrice + riskDist * 1.0) : (sendPrice - riskDist * 1.0);
-      double tp2 = isBuy ? (sendPrice + riskDist * 2.0) : (sendPrice - riskDist * 2.0);
-      double tp3 = isBuy ? (sendPrice + riskDist * 3.0) : (sendPrice - riskDist * 3.0);
-      double tp4 = isBuy ? (sendPrice + riskDist * 4.0) : (sendPrice - riskDist * 4.0);
-
-      sl  = NormalizeDouble(sl, _Digits);
-      tp1 = NormalizeDouble(tp1, _Digits);
-      tp2 = NormalizeDouble(tp2, _Digits);
-      tp3 = NormalizeDouble(tp3, _Digits);
-      tp4 = NormalizeDouble(tp4, _Digits);
+      double tp1 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 1.0) : (sendPrice - riskDist * 1.0), _Digits);
+      double tp2 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 2.0) : (sendPrice - riskDist * 2.0), _Digits);
+      double tp3 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 3.0) : (sendPrice - riskDist * 3.0), _Digits);
+      double tp4 = NormalizeDouble(isBuy ? (sendPrice + riskDist * 4.0) : (sendPrice - riskDist * 4.0), _Digits);
 
       double tps[4] = {tp1, tp2, tp3, tp4};
       ulong openedTickets[4] = {0, 0, 0, 0};
