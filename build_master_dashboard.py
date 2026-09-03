@@ -682,7 +682,7 @@ def build_dashboard():
         <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
             <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
                 <h3 style="margin:0;color:#facc15;font-size:19px;">👑 سلاطین استراتژی (۷ ساختار برتر در شرایط واقعی لایو با تایید ساختاری کامل)</h3>
-                <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی کامل ۷ ساختار برنده پس از اصلاح پیووت‌های والد و اعمال شرایط لایو بازار با حجم 0.04 لات:</p>
+                <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی کامل ۷ ساختار برنده پس از اعمال شرایط واقعی لایو بازار با حجم 0.04 لات:</p>
             </div>
 
             <div style="overflow-x:auto;">
@@ -705,86 +705,86 @@ def build_dashboard():
                         <tr>
                             <td style="text-align:center;font-size:18px;">🥇</td>
                             <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BE > RS-BU 🌟</td>
-                            <td style="text-align:center;font-weight:bold;">۲۳</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۷۸.۳٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۵۲.۲٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲۱.۷٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲.۶ پیپ <span style="font-size:11px;color:#bae6fd;">($1.04)</span></td>
+                            <td style="text-align:center;font-weight:bold;">۱۶</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۸۱.۲٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۵۰.۰٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۱۸.۸٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۴.۳ پیپ <span style="font-size:11px;color:#bae6fd;">($1.72)</span></td>
                             <td style="text-align:center;color:#f87171;font-weight:bold;">۱۶.۷ پیپ <span style="font-size:11px;color:#fca5a5;">($6.68)</span></td>
-                            <td style="text-align:center;color:#facc15;">۶.۶ پیپ <span style="font-size:11px;color:#fef08a;">($2.64)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$27.06 دلار 🚀</td>
+                            <td style="text-align:center;color:#facc15;">۱۱.۳ پیپ <span style="font-size:11px;color:#fef08a;">($4.52)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$18.92 دلار 🚀</td>
                         </tr>
                         <tr>
                             <td style="text-align:center;font-size:18px;">🥈</td>
-                            <td style="color:#facc15;font-weight:bold;font-size:14px;">RS-BU (آر‌اس صعودی) ⭐</td>
-                            <td style="text-align:center;font-weight:bold;">۳۹</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۷۴.۴٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۵۶.۴٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲۵.۶٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲.۵ پیپ <span style="font-size:11px;color:#bae6fd;">($1.00)</span></td>
-                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۰.۳ پیپ <span style="font-size:11px;color:#fca5a5;">($4.12)</span></td>
-                            <td style="text-align:center;color:#facc15;">۴.۶ پیپ <span style="font-size:11px;color:#fef08a;">($1.84)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$36.72 دلار 🚀</td>
+                            <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BU > RS-BE 🌟</td>
+                            <td style="text-align:center;font-weight:bold;">۱۷</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۷۰.۶٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۵۲.۹٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲۹.۴٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۴.۱ پیپ <span style="font-size:11px;color:#bae6fd;">($1.64)</span></td>
+                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۹.۸ پیپ <span style="font-size:11px;color:#fca5a5;">($7.92)</span></td>
+                            <td style="text-align:center;color:#facc15;">۷.۸ پیپ <span style="font-size:11px;color:#fef08a;">($3.12)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$16.02 دلار 🚀</td>
                         </tr>
                         <tr>
                             <td style="text-align:center;font-size:18px;">🥉</td>
-                            <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BU > RS-BE 🌟</td>
-                            <td style="text-align:center;font-weight:bold;">۳۴</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۷.۶٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۴۱.۲٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۲.۴٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳.۱ پیپ <span style="font-size:11px;color:#bae6fd;">($1.24)</span></td>
-                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۹.۸ پیپ <span style="font-size:11px;color:#fca5a5;">($7.92)</span></td>
-                            <td style="text-align:center;color:#facc15;">۶.۶ پیپ <span style="font-size:11px;color:#fef08a;">($2.64)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$23.64 دلار 🚀</td>
+                            <td style="color:#facc15;font-weight:bold;font-size:14px;">RS-BU (آر‌اس صعودی) ⭐</td>
+                            <td style="text-align:center;font-weight:bold;">۴۴</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۸.۲٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۴۰.۹٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۱.۸٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲.۵ پیپ <span style="font-size:11px;color:#bae6fd;">($1.00)</span></td>
+                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۰.۳ پیپ <span style="font-size:11px;color:#fca5a5;">($4.12)</span></td>
+                            <td style="text-align:center;color:#facc15;">۴.۹ پیپ <span style="font-size:11px;color:#fef08a;">($1.96)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$19.82 دلار 🚀</td>
                         </tr>
                         <tr>
                             <td style="text-align:center;font-weight:bold;color:#facc15;">#4</td>
-                            <td style="color:#facc15;font-weight:bold;font-size:14px;">RS-BE (آر‌اس نزولی) ⭐</td>
-                            <td style="text-align:center;font-weight:bold;">۶۱</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۷.۲٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۳۶.۱٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۲.۸٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲.۶ پیپ <span style="font-size:11px;color:#bae6fd;">($1.04)</span></td>
-                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۰.۴ پیپ <span style="font-size:11px;color:#fca5a5;">($4.16)</span></td>
-                            <td style="text-align:center;color:#facc15;">۴.۷ پیپ <span style="font-size:11px;color:#fef08a;">($1.88)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$23.08 دلار ⭐</td>
+                            <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BU > RS-BU 🌟</td>
+                            <td style="text-align:center;font-weight:bold;">۳۹</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۶.۷٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۴۶.۲٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۳.۳٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۴.۰ پیپ <span style="font-size:11px;color:#bae6fd;">($1.60)</span></td>
+                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۴.۰ پیپ <span style="font-size:11px;color:#fca5a5;">($5.60)</span></td>
+                            <td style="text-align:center;color:#facc15;">۸.۱ پیپ <span style="font-size:11px;color:#fef08a;">($3.24)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$62.10 دلار ⭐</td>
                         </tr>
                         <tr>
                             <td style="text-align:center;font-weight:bold;color:#facc15;">#5</td>
                             <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BU (او‌اینر صعودی) 👑</td>
-                            <td style="text-align:center;font-weight:bold;">۱۵۵</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۶.۵٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۴۴.۵٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۳.۵٪</td>
+                            <td style="text-align:center;font-weight:bold;">۱۳۷</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۱.۳٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۳۹.۴٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۸.۷٪</td>
                             <td style="text-align:center;color:#38bdf8;font-weight:bold;">۱.۵ پیپ <span style="font-size:11px;color:#bae6fd;">($0.60)</span></td>
                             <td style="text-align:center;color:#f87171;font-weight:bold;">۲۰.۱ پیپ <span style="font-size:11px;color:#fca5a5;">($8.04)</span></td>
-                            <td style="text-align:center;color:#facc15;">۸.۱ پیپ <span style="font-size:11px;color:#fef08a;">($3.24)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$254.62 دلار نقد! 💰</td>
+                            <td style="text-align:center;color:#facc15;">۷.۸ پیپ <span style="font-size:11px;color:#fef08a;">($3.12)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$216.50 دلار نقد! 💰</td>
                         </tr>
                         <tr>
                             <td style="text-align:center;font-weight:bold;color:#facc15;">#6</td>
-                            <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BU > RS-BU 🌟</td>
-                            <td style="text-align:center;font-weight:bold;">۴۳</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۲.۸٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۴۱.۹٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۳۷.۲٪</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۴.۰ پیپ <span style="font-size:11px;color:#bae6fd;">($1.60)</span></td>
-                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۴.۰ پیپ <span style="font-size:11px;color:#fca5a5;">($5.60)</span></td>
-                            <td style="text-align:center;color:#facc15;">۷.۹ پیپ <span style="font-size:11px;color:#fef08a;">($3.16)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$53.46 دلار ⭐</td>
-                        </tr>
-                        <tr>
-                            <td style="text-align:center;font-weight:bold;color:#facc15;">#7</td>
                             <td style="color:#facc15;font-weight:bold;font-size:14px;">OInner-BE (او‌اینر نزولی) 👑</td>
-                            <td style="text-align:center;font-weight:bold;">۱۷۵</td>
+                            <td style="text-align:center;font-weight:bold;">۱۶۰</td>
                             <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۶۰.۰٪</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">۳۸.۹٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۳۹.۴٪</td>
                             <td style="text-align:center;color:#38bdf8;font-weight:bold;">۴۰.۰٪</td>
                             <td style="text-align:center;color:#38bdf8;font-weight:bold;">۱.۷ پیپ <span style="font-size:11px;color:#bae6fd;">($0.68)</span></td>
                             <td style="text-align:center;color:#f87171;font-weight:bold;">۳۹.۷ پیپ <span style="font-size:11px;color:#fca5a5;">($15.88)</span></td>
-                            <td style="text-align:center;color:#facc15;">۱۰.۰ پیپ <span style="font-size:11px;color:#fef08a;">($4.00)</span></td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$93.04 دلار نقد! 💰</td>
+                            <td style="text-align:center;color:#facc15;">۱۰.۷ پیپ <span style="font-size:11px;color:#fef08a;">($4.28)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$95.90 دلار نقد! 💰</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:center;font-weight:bold;color:#facc15;">#7</td>
+                            <td style="color:#facc15;font-weight:bold;font-size:14px;">RS-BE (آر‌اس نزولی) ⭐</td>
+                            <td style="text-align:center;font-weight:bold;">۷۳</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">۵۸.۹٪</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">۳۹.۷٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۴۱.۱٪</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">۲.۶ پیپ <span style="font-size:11px;color:#bae6fd;">($1.04)</span></td>
+                            <td style="text-align:center;color:#f87171;font-weight:bold;">۱۰.۴ پیپ <span style="font-size:11px;color:#fca5a5;">($4.16)</span></td>
+                            <td style="text-align:center;color:#facc15;">۴.۹ پیپ <span style="font-size:11px;color:#fef08a;">($1.96)</span></td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;">+$16.28 دلار ⭐</td>
                         </tr>
                     </tbody>
                 </table>
@@ -797,11 +797,11 @@ def build_dashboard():
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
                         <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
-                        <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار ۵۳۰ معامله واقعی سلاطین ۷ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
+                        <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار ۴۸۶ معامله واقعی سلاطین ۷ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
                     </div>
                     <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
                         <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
-                        <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>$254.40 دلار</b></div>
+                        <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>$233.28 دلار</b></div>
                     </div>
                 </div>
             </div>
@@ -821,7 +821,7 @@ def build_dashboard():
                 <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
                     <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله سوم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
                     <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن امواج بزرگ روندی</div>
-                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در ۱۳۲ معامله!</div>
+                    <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در ۱۱۹ معامله!</div>
                 </div>
             </div>
 
@@ -841,27 +841,27 @@ def build_dashboard():
                     <tbody>
                         <tr>
                             <td style="color:#94a3b8;font-weight:bold;">۱. خروج ساده تک‌تارگت در TP 1:1 (بستن ۱۰۰٪ حجم 0.04)</td>
-                            <td style="text-align:center;color:#38bdf8;">+$509.08</td>
-                            <td style="text-align:center;color:#f87171;">$254.40</td>
-                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$254.68 دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;">1.85</td>
+                            <td style="text-align:center;color:#38bdf8;">+$430.24</td>
+                            <td style="text-align:center;color:#f87171;">$233.28</td>
+                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$196.96 دلار</td>
+                            <td style="text-align:center;color:#cbd5e1;">1.72</td>
                             <td style="text-align:center;color:#94a3b8;">مبنا</td>
                         </tr>
                         <tr>
                             <td style="color:#94a3b8;font-weight:bold;">۲. خروج ساده تک‌تارگت در TP 1:2 (بستن ۱۰۰٪ حجم 0.04)</td>
-                            <td style="text-align:center;color:#38bdf8;">+$527.80</td>
-                            <td style="text-align:center;color:#f87171;">$254.40</td>
-                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$273.40 دلار</td>
-                            <td style="text-align:center;color:#cbd5e1;">1.55</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">+$18.72 (+7.4%)</td>
+                            <td style="text-align:center;color:#38bdf8;">+$452.84</td>
+                            <td style="text-align:center;color:#f87171;">$233.28</td>
+                            <td style="text-align:center;color:#cbd5e1;font-weight:bold;font-size:15px;">+$219.56 دلار</td>
+                            <td style="text-align:center;color:#cbd5e1;">1.49</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">+$22.60 (+11.5%)</td>
                         </tr>
                         <tr style="background:#064e3b33;border:2px solid #10b981;">
                             <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج پلکانی شکار امواج تا TP4 (۰.۰۲ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP4) 🚀</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$766.02</td>
-                            <td style="text-align:center;color:#cbd5e1;">$254.40</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">+$511.62 دلار نقد خالص! 💵</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">2.28 🚀</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$256.94 سود بیشتر (+100.9% دو برابر!) 🚀</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$678.82</td>
+                            <td style="text-align:center;color:#cbd5e1;">$233.28</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">+$445.54 دلار نقد خالص! 💵</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">2.14 🚀</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">+$248.58 سود بیشتر (+126.2% بیش از ۲ برابر!) 🚀</td>
                         </tr>
                     </tbody>
                 </table>
@@ -871,10 +871,10 @@ def build_dashboard():
             <div style="margin-top: 24px; border-top: 1px dashed #0284c7; padding-top: 18px;">
                 <h4 style="margin:0 0 10px 0; color:#facc15; font-size:16px;">⚖️ مقایسه بریک‌ایون (ریسک‌فری) با حجم 0.04 لات: انتقال استاپ در TP1 یا در TP2؟ کدام سودده‌تر است؟</h4>
                 <p style="margin:0 0 14px 0; color:#cbd5e1; font-size:12.5px; line-height:1.6;">
-                    کالبدشکافی رفتار ۵۳۰ معامله سلاطین: <b>۱۸۴ معامله استاپ مستقیم</b> | 
-                    <b style="color:#facc15;">۱۲۱ معامله (۲۲.۸٪) فقط TP1 را تاچ کردند و برگشتند!</b> | 
-                    <b>۹۳ معامله تا TP2 رفتند</b> | 
-                    <b style="color:#00e676;">۱۳۲ معامله به TP3 و TP4 رسیدند!</b>
+                    کالبدشکافی رفتار ۴۸۶ معامله سلاطین: <b>۱۸۲ معامله استاپ مستقیم</b> | 
+                    <b style="color:#facc15;">۱۰۵ معامله (۲۱.۶٪) فقط TP1 را تاچ کردند و برگشتند!</b> | 
+                    <b>۸۰ معامله تا TP2 رفتند</b> | 
+                    <b style="color:#00e676;">۱۱۹ معامله به TP3 و TP4 رسیدند!</b>
                 </p>
 
                 <div style="overflow-x:auto;">
@@ -882,7 +882,7 @@ def build_dashboard():
                         <thead>
                             <tr style="background:#0b3353;">
                                 <th>روش انتقال استاپ به ورود (Break-Even) با حجم 0.04 لات</th>
-                                <th style="text-align:center;">سرنوشت ۱۲۱ معامله‌ای که بعد از TP1 برگشتند</th>
+                                <th style="text-align:center;">سرنوشت ۱۰۵ معامله‌ای که بعد از TP1 برگشتند</th>
                                 <th style="text-align:center;">سود ناخالص</th>
                                 <th style="text-align:center;">کل کمیسیون و اسپرد</th>
                                 <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
@@ -893,25 +893,25 @@ def build_dashboard():
                             <tr style="background:#064e3b44; border: 2px solid #10b981;">
                                 <td style="color:#00e676; font-weight:bold; font-size:13.5px;">🥇 حالت اول: انتقال استاپ به نقطه ورود (BE) در TP1</td>
                                 <td style="text-align:center; color:#a7f3d0; font-size:12px;">سود ۰.۰۲ لات در TP1 ذخیره شد + ۰.۰۲ لات باقیمانده بدون ضرر روی نقطه ورود خارج شد (سود خالص!)</td>
-                                <td style="text-align:center; color:#00e676; font-weight:bold;">+$766.02</td>
-                                <td style="text-align:center; color:#cbd5e1;">$254.40</td>
-                                <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">+$511.62 دلار نقد 🚀</td>
-                                <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (+۱۸۱.۲۲ دلار سود بیشتر)</td>
+                                <td style="text-align:center; color:#00e676; font-weight:bold;">+$678.82</td>
+                                <td style="text-align:center; color:#cbd5e1;">$233.28</td>
+                                <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">+$445.54 دلار نقد 🚀</td>
+                                <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (+۱۶۶.۹۸ دلار سود بیشتر)</td>
                             </tr>
                             <tr style="background:#450a0a22; border: 1px solid #7f1d1d;">
                                 <td style="color:#f87171; font-weight:bold; font-size:13.5px;">❌ حالت دوم: انتقال استاپ به نقطه ورود (BE) فقط در TP2</td>
                                 <td style="text-align:center; color:#fca5a5; font-size:12px;">سود ۰.۰۲ لات گرفته شد، اما چون استاپ دست نخورده بود، ۰.۰۲ لات باقیمانده برگشت و استاپ اولیه را زد!</td>
-                                <td style="text-align:center; color:#f87171; font-weight:bold;">+$584.80</td>
-                                <td style="text-align:center; color:#cbd5e1;">$254.40</td>
-                                <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">+$330.40 دلار</td>
-                                <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (حدود ۱۸۱ دلار سود کمتر!)</td>
+                                <td style="text-align:center; color:#f87171; font-weight:bold;">+$511.84</td>
+                                <td style="text-align:center; color:#cbd5e1;">$233.28</td>
+                                <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">+$278.56 دلار</td>
+                                <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (حدود ۱۶۷ دلار سود کمتر!)</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
                 <div style="background:#09304a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-top:12px; font-size:12px; color:#e0f2fe; line-height:1.5;">
-                    💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>۲۲.۸٪ معاملات (۱۲۱ معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن ۱۸۱.۲۲ دلار سود شما می‌شود و سود کل سیستم را به <b>+$511.62 دلار نقد خالص</b> می‌رساند!
+                    💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>۲۱.۶٪ معاملات (۱۰۵ معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن ۱۶۶.۹۸ دلار سود شما می‌شود و سود کل سیستم را به <b>+$445.54 دلار نقد خالص</b> می‌رساند!
                 </div>
             </div>
         </div>
