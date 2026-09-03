@@ -309,8 +309,8 @@ def build_dashboard():
     for r in closed:
         tf_role_map[(r.get('Timeframe', 'M1'), r.get('Role', 'Unknown'))].append(r)
 
-    tf_role_rows = []
-    for (tf, role), t_list in sorted(tf_role_map.items(), key=lambda x: (x[0][0], -len(x[1]))):
+    computed_tf_roles = []
+    for (tf, role), t_list in tf_role_map.items():
         cnt = len(t_list)
         w1 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 1])
         w2 = len([r for r in t_list if int(r.get('HitTargetRatio', 0)) >= 2])
@@ -320,21 +320,43 @@ def build_dashboard():
 
         w1_p = w1 / cnt * 100
         w2_p = w2 / cnt * 100
+        w3_p = w3 / cnt * 100
+        w4_p = w4 / cnt * 100
         sl_p = sl / cnt * 100
         ev_item = (w2_p / 100.0 * 2.0) - (sl_p / 100.0 * 1.0)
+        computed_tf_roles.append({
+            'tf': tf, 'role': role, 'cnt': cnt,
+            'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
+            'ev_item': ev_item
+        })
+
+    # Sort by EV descending by default, breaking ties with trade count
+    computed_tf_roles.sort(key=lambda x: (x['ev_item'], x['cnt']), reverse=True)
+
+    tf_role_rows = []
+    for item in computed_tf_roles:
+        tf = item['tf']
+        role = item['role']
+        cnt = item['cnt']
+        w1_p = item['w1_p']
+        w2_p = item['w2_p']
+        w3_p = item['w3_p']
+        w4_p = item['w4_p']
+        sl_p = item['sl_p']
+        ev_item = item['ev_item']
         ev_col = "#00e676" if ev_item >= 0.2 else ("#38bdf8" if ev_item >= 0 else "#ef4444")
 
         tf_role_rows.append(f"""
-        <tr class="tf-row" data-tf="{tf}">
+        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-ev="{ev_item:.3f}">
             <td style="color:#38bdf8;font-weight:bold;">{tf}</td>
             <td style="color:#facc15;font-weight:bold;">{role}</td>
             <td style="text-align:center;font-weight:bold;">{cnt}</td>
             <td style="text-align:center;color:#00e676;font-weight:bold;">{w1_p:.1f}%</td>
             <td style="text-align:center;color:#00e676;font-weight:bold;">{w2_p:.1f}%</td>
-            <td style="text-align:center;color:#38bdf8;">{w3/cnt*100:.1f}%</td>
-            <td style="text-align:center;color:#c084fc;">{w4/cnt*100:.1f}%</td>
+            <td style="text-align:center;color:#38bdf8;">{w3_p:.1f}%</td>
+            <td style="text-align:center;color:#c084fc;">{w4_p:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl_p:.1f}%</td>
-            <td style="text-align:center;color:{ev_col};font-weight:bold;">{ev_item:+.2f} R</td>
+            <td style="text-align:center;color:{ev_col};font-weight:bold;font-size:14px;">{ev_item:+.2f} R</td>
         </tr>
         """)
 
@@ -835,19 +857,30 @@ def build_dashboard():
                     </div>
                 </div>
 
-                <div style="overflow-x:auto;margin-top:12px;">
+                <!-- Quick Combined Sorting Buttons -->
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;background:#0f172a;padding:8px 12px;border-radius:8px;border:1px solid #334155;">
+                    <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
+                    <button class="sort-btn active" id="btnSortEV" onclick="sortTableByAttr('tfTable', 'data-ev', true, true, this)">🚀 بیشترین امید ریاضی (EV)</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-cnt', true, true, this)">📦 بیشترین تعداد معامله</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-sl', true, false, this)">🛡️ کمترین باخت (SL)</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-tf', false, false, this)">🕒 بر اساس تایم‌فریم</button>
+                </div>
+
+                <div style="overflow-x:auto;margin-top:6px;">
                     <table id="tfTable">
                         <thead>
                             <tr>
-                                <th>تایم‌فریم</th>
-                                <th>موجودیت باکس / سواپ</th>
-                                <th style="text-align:center;">تعداد معامله</th>
-                                <th style="text-align:center;">TP 1:1</th>
-                                <th style="text-align:center;">TP 1:2</th>
-                                <th style="text-align:center;">TP 1:3</th>
-                                <th style="text-align:center;">TP 1:4</th>
-                                <th style="text-align:center;">باخت (SL)</th>
-                                <th style="text-align:center;">امید ریاضی</th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-tf', false, false)" data-sort="data-tf" style="cursor:pointer;" title="کلیک برای مرتب‌سازی صعودی/نزولی">تایم‌فریم <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-role', false, false)" data-sort="data-role" style="cursor:pointer;" title="کلیک برای مرتب‌سازی">موجودیت باکس / سواپ <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-cnt', true, true)" data-sort="data-cnt" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">تعداد معامله <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w1', true, true)" data-sort="data-w1" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:1 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w2', true, true)" data-sort="data-w2" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:2 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w3', true, true)" data-sort="data-w3" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:3 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-ev', true, true)" data-sort="data-ev" style="cursor:pointer;text-align:center;color:#38bdf8;background:#1e293b;" title="مرتب‌سازی شده بر اساس امید ریاضی">امید ریاضی (EV) <span class="sort-icon">▼</span></th>
                             </tr>
                         </thead>
                         <tbody>
