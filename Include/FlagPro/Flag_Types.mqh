@@ -19,9 +19,9 @@ enum ENUM_LABEL_STYLE
 
 enum ENUM_BOX_DISPLAY_FILTER
 {
-   FILTER_SHOW_ALL = 0,               // نمایش همه باکس‌ها (بدون فیلتر)
-   FILTER_TOP_WINNERS_ONLY = 1,        // فقط برترین الگوهای طلایی برنده (Top Winners Only)
-   FILTER_CUSTOM_SELECTED_ONLY = 2     // انتخاب دستی الگوها (Custom Selection)
+   FILTER_TOP_WINNERS_ONLY = 0,        // فقط برترین الگوهای طلایی برنده (Top Winners Only - پیش‌فرض)
+   FILTER_CUSTOM_SELECTED_ONLY = 1,    // انتخاب دستی الگوها (Custom Selection)
+   FILTER_SHOW_ALL = 2                 // نمایش همه باکس‌ها (بدون فیلتر)
 };
 
 // ساختار نگهداری مشخصات باکس‌ها

@@ -47,9 +47,9 @@ input color            InpColorTF7 = clrYellow;
 input int              InpM1DaysBack = 90;          // تاریخچه ۱ دقیقه (۹۰ روز - ۳ ماهه)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
-input bool             InpShowMacroAlways       = true;   // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
-input bool             InpShowOnlyRSMicroBoxes  = false;  // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
-input bool             InpShowNormalMicroBoxes  = true;   // رسم کامل همه باکس‌های ۳۰ روز گذشته
+input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
+input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
+input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های ۳۰ روز گذشته
 input string           InpRSTagPrefix           = "RS";   // پیشوند تگ‌های هوشمند (RS)
 
 input group "=== 🏆 فیلتر نمایش برترین الگوهای برنده (Top Winners Filter) ==="
@@ -67,7 +67,7 @@ input bool InpFilterNightHours   = true;   // 🛡️ فیلتر ۲: مسدود�
 input bool InpFilterPreLondonHunt= true;   // 🛡️ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ قبل لندن (دقت: ۵۸.۷٪ | از هر ۱۰ تا، ۶ تا استاپ بود)
 input bool InpFilterToxicPatterns= true;   // 🛡️ فیلتر ۴: حذف زنجیره‌های سمی (دقت: ۷۰.۶٪ | از هر ۱۰ تا، ۷ تا استاپ بود)
 input bool InpFilterPureFlags    = true;   // 🛡️ فیلتر ۵: حذف فلگ‌های بدون تلاقی (دقت: ۶۰.۳٪ | از هر ۵ تا، ۳ تا استاپ بود)
-input bool InpHideFilteredBoxes  = false;  // مخفی‌سازی کامل باکس‌های فیلترشده از روی چارت (پیش‌فرض: خاموش)
+input bool InpHideFilteredBoxes  = true;   // مخفی‌سازی کامل باکس‌های فیلترشده از روی چارت (پیش‌فرض: روشن)
 
 input group "=== 💰 فیلتر اقتصادی و اصطکاک کارمزد (Friction & Commission Filter) ==="
 input bool   InpFilterLowRewardVsFriction = true;   // 💰 فیلتر عدم ورود اگر سود TP1 کمتر یا سربه‌سر با کمیسیون باشد
