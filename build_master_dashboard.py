@@ -1074,7 +1074,7 @@ def build_dashboard(custom_csv=None):
     # EQUITY & BALANCE CURVE ENGINE (منحنی رشد سرمایه و بالانس به سبک متاتریدر)
     # =========================================================================
     sorted_closed = sorted(closed, key=lambda x: x.get('ExitTime', x.get('EntryTime', '')))
-    bal_initial = 10000.0
+    bal_initial = 100.0
     bal_k = bal_initial
     bal_a = bal_initial
 
@@ -1239,7 +1239,7 @@ def build_dashboard(custom_csv=None):
                 dropped = set(sorted_kings_by_pf[:drop_n]) if drop_n > 0 else set()
                 active_kings = all_dataset_kings_set - dropped
                 for (trig, sk, day, cb_label) in circuit_breaker_candidates:
-                    bal = 10000.0; peak = bal; max_dd = 0.0; wins = 0; total = 0; gp = 0.0; gl = 0.0
+                    bal = 100.0; peak = bal; max_dd = 0.0; wins = 0; total = 0; gp = 0.0; gl = 0.0
                     consec_loss = 0; skips = 0
                     for t in trades_sim_list:
                         if t['k'] != 1: continue
@@ -1261,7 +1261,7 @@ def build_dashboard(custom_csv=None):
                     if total < min_15pct_trades: continue
                     wr = (wins / total * 100) if total > 0 else 0
                     pf = (gp / gl) if gl > 0 else 999.0
-                    net = bal - 10000.0
+                    net = bal - 100.0
                     avg = net / total if total > 0 else 0
                     # Composite score: high PF, high WR, high Avg, low DD
                     score = (pf ** 1.3) * (wr / 50.0) * max(0.5, avg) / max(12.0, max_dd) * 100
@@ -1333,7 +1333,7 @@ def build_dashboard(custom_csv=None):
             'badge': '☀️ اوج نقدینگی روزانه',
             'badge_bg': '#0c4a6e',
             'badge_col': '#7dd3fc',
-            'strategy_desc': f'معامله در ساعات پرقدرت روز با اسپرد پایین و تاییدیه مومنتوم - PF {opt_p3["pf"]:.2f} و افت ${opt_p3["max_dd"]:.2f}',
+            'strategy_desc': f'معامله در ساعات پرقدرت روز با اسپرد پایین و تاییدیه مومنتوم - PF {opt_p3["pf"]:.2f} و افت ${opt_p3["max_dd"]:.0f}',
             'filter_desc': f'کف سود: <b>${opt_p3["pot"]:.2f}+</b> | ساعات: <b>{opt_p3["h_label"]}</b>',
             'min_pot': opt_p3['pot'],
             'hours': opt_p3['h_arr'],
@@ -1348,7 +1348,7 @@ def build_dashboard(custom_csv=None):
             'id': 'preset-shield',
             'idx': 3,
             'title': '۴. سپر محافظتی کمترین افت سرمایه (Ultra-Low DD Shield 🛡️)',
-            'badge': f'🛡️ حداقل افت: ${opt_p4["max_dd"]:.2f}',
+            'badge': f'🛡️ حداقل افت: ${opt_p4["max_dd"]:.0f}',
             'badge_bg': '#064e3b',
             'badge_col': '#34d399',
             'strategy_desc': f'کمترین ریسک دلاری ممکن روی حساب ({symbol}) با حفظ پرافیت فاکتور عالی {opt_p4["pf"]:.2f} و وین‌ریت {opt_p4["wr"]:.1f}٪',
@@ -1415,8 +1415,8 @@ def build_dashboard(custom_csv=None):
         gl = sum(abs(t['p']) for t in sub if t['p'] <= 0)
         pf = (gp / gl) if gl > 0 else 999.0
         
-        bal = 10000.0
-        peak = 10000.0
+        bal = 100.0
+        peak = 100.0
         max_dd = 0.0
         for t in sub:
             bal += t['p']
@@ -1476,10 +1476,10 @@ def build_dashboard(custom_csv=None):
                 ${avg:+.2f}
             </td>
             <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">
-                ${max_dd:.2f}
+                ${max_dd:.0f}
             </td>
             <td style="text-align:center;padding:7px 6px;font-weight:bold;color:{net_col};font-size:13.5px;background:#064e3b22;white-space:nowrap;">
-                ${nt:+,.2f}
+                {'+$' if nt>=0 else '-$'}{abs(nt):,.0f}
             </td>
             <td style="text-align:center;padding:7px 6px;">
                 <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);">
@@ -2000,23 +2000,23 @@ def build_dashboard(custom_csv=None):
             <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;margin-bottom:10px;">
                 <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">💵 بالانس شروع حساب</div>
-                    <div class="kpi-value" style="color:#f1f5f9;font-size:16px;">${bal_initial:,.2f}</div>
+                    <div class="kpi-value" style="color:#f1f5f9;font-size:16px;">${bal_initial:,.0f}</div>
                     <div class="kpi-sub" style="font-size:9.5px;">شروع از {date_start_str}</div>
                 </div>
                 <div class="kpi-card" style="border-color:#00e676;padding:6px 10px;">
-                    <div class="kpi-title" style="font-size:9.5px;">📈 بالانس نهایی شبیه‌سازی</div>
-                    <div class="kpi-value" id="eqKpiFinalBal" style="color:#00e676;font-size:16px;">${bal_k:,.2f}</div>
-                    <div class="kpi-sub" id="eqKpiNetSub" style="font-size:9.5px;">سود خالص: ${net_k:+,.2f} ({net_k_pct:+.2f}٪)</div>
+                    <div class="kpi-title" style="font-size:9.5px;">📈 سود خالص کل</div>
+                    <div class="kpi-value" id="eqKpiNetVal" style="color:#00e676;font-size:16px;">{'+$' if net_k>=0 else '-$'}{abs(net_k):,.0f}</div>
+                    <div class="kpi-sub" id="eqKpiNetSub" style="font-size:9.5px;">نرخ رشد حساب: {net_k_pct:+.1f}٪</div>
                 </div>
                 <div class="kpi-card" style="border-color:#facc15;padding:6px 10px;">
-                    <div class="kpi-title" style="font-size:9.5px;">🏔️ سقف سرمایه (Peak)</div>
-                    <div class="kpi-value" id="eqKpiPeak" style="color:#facc15;font-size:16px;">${peak_k:,.2f}</div>
-                    <div class="kpi-sub" id="eqKpiPeakSub" style="font-size:9.5px;">ثبت رکورد در پایان بازه</div>
+                    <div class="kpi-title" style="font-size:9.5px;">🏁 بالانس نهایی حساب</div>
+                    <div class="kpi-value" id="eqKpiFinalBal" style="color:#facc15;font-size:16px;">${bal_k:,.0f}</div>
+                    <div class="kpi-sub" id="eqKpiPeakSub" style="font-size:9.5px;">سقف سرمایه: ${peak_k:,.0f}</div>
                 </div>
                 <div class="kpi-card" style="border-color:#ef4444;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">🛡️ حداکثر افت (Max DD)</div>
-                    <div class="kpi-value" id="eqKpiMaxDD" style="color:#fca5a5;font-size:16px;">${max_dd_k:.2f} ({max_dd_k_pct:.2f}٪)</div>
-                    <div class="kpi-sub" id="eqKpiMaxDDSub" style="font-size:9.5px;">مدیریت ریسک بی‌نقص</div>
+                    <div class="kpi-value" id="eqKpiMaxDD" style="color:#fca5a5;font-size:16px;">${max_dd_k:.0f} ({max_dd_k_pct:.1f}٪)</div>
+                    <div class="kpi-sub" id="eqKpiMaxDDSub" style="font-size:9.5px;">مدیریت ریسک کنترل‌شده</div>
                 </div>
                 <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">⚖️ پرافیت فاکتور (PF)</div>
@@ -2072,7 +2072,7 @@ def build_dashboard(custom_csv=None):
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#38bdf8;border-radius:2px;"></span> رشد بالانس</span>
-                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#475569;border-radius:2px;"></span> تراز پایه ($10K)</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#475569;border-radius:2px;"></span> تراز پایه ($100)</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span>نقاط: <b id="lblEqPts" style="color:#facc15;">{len(pts_kings)-1}</b></span>
@@ -2519,21 +2519,21 @@ def build_dashboard(custom_csv=None):
                             <tr style="border-bottom:1px solid #334155;">
                                 <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین {len(qualified_kings)} گانه (گزینش هوشمند)</td>
                                 <td style="text-align:center;font-weight:bold;">{len(pts_kings)-1}</td>
-                                <td style="text-align:center;">${bal_initial:,.2f}</td>
-                                <td style="text-align:center;font-weight:bold;color:#00e676;">${bal_k:,.2f}</td>
-                                <td style="text-align:center;font-weight:bold;color:#00e676;">${net_k:+,.2f}</td>
-                                <td style="text-align:center;font-weight:bold;color:#00e676;">{net_k_pct:+.2f}٪</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">${max_dd_k:.2f} ({max_dd_k_pct:.2f}٪)</td>
+                                <td style="text-align:center;">${bal_initial:,.0f}</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">${bal_k:,.0f}</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">{'+$' if net_k>=0 else '-$'}{abs(net_k):,.0f}</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">{net_k_pct:+.1f}٪</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">${max_dd_k:.0f} ({max_dd_k_pct:.1f}٪)</td>
                                 <td style="text-align:center;"><span style="background:#064e3b;color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">💎 رشد مستمر و اکوئیتی صعودی</span></td>
                             </tr>
                             <tr>
                                 <td style="font-weight:bold;color:#94a3b8;">🌐 کل ساختارهای خام چارت (بدون فیلتر)</td>
                                 <td style="text-align:center;font-weight:bold;">{len(pts_all)-1}</td>
-                                <td style="text-align:center;">${bal_initial:,.2f}</td>
-                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">${bal_a:,.2f}</td>
-                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">${net_a:+,.2f}</td>
-                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">{net_a_pct:+.2f}٪</td>
-                                <td style="text-align:center;color:#ef4444;font-weight:bold;">${max_dd_a:.2f} ({max_dd_a_pct:.2f}٪)</td>
+                                <td style="text-align:center;">${bal_initial:,.0f}</td>
+                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">${bal_a:,.0f}</td>
+                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">{'+$' if net_a>=0 else '-$'}{abs(net_a):,.0f}</td>
+                                <td style="text-align:center;font-weight:bold;color:{'#00e676' if net_a>=0 else '#ef4444'};">{net_a_pct:+.1f}٪</td>
+                                <td style="text-align:center;color:#ef4444;font-weight:bold;">${max_dd_a:.0f} ({max_dd_a_pct:.1f}٪)</td>
                                 <td style="text-align:center;"><span style="background:#451a03;color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">⚠️ فرسایش ناشی از نویزها</span></td>
                             </tr>
                         </tbody>
@@ -3683,14 +3683,14 @@ def build_dashboard(custom_csv=None):
             let elPF = document.getElementById('eqKpiPF');
             let elAvg = document.getElementById('eqKpiAvgTrade');
             let elMaxDD = document.getElementById('eqKpiMaxDD');
-            let elNet = document.getElementById('eqKpiNetSub');
+            let elNet = document.getElementById('eqKpiNetVal') || document.getElementById('eqKpiNetSub');
 
             let tradesStr = elCnt ? elCnt.textContent : '0 معامله';
             let wrStr = elWR ? elWR.textContent : '0%';
             let pfStr = elPF ? elPF.textContent : '0.00';
             let avgStr = elAvg ? elAvg.textContent : '$0.00';
             let ddStr = elMaxDD ? elMaxDD.textContent : '$0.00';
-            let netStr = elNet ? elNet.textContent.replace('سود خالص: ', '').replace('سود: ', '') : '$0.00';
+            let netStr = elNet ? elNet.textContent.replace('سود خالص: ', '').replace('سود: ', '') : '$0';
 
             document.getElementById('modalPreviewMinProfit').textContent = '$' + simState.minProfit.toFixed(2);
             document.getElementById('modalPreviewHours').textContent = activeHoursCount + ' ساعت فعال';
@@ -3789,7 +3789,7 @@ def build_dashboard(custom_csv=None):
                 let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
                 let pf = gl > 0 ? (gp / gl) : 999;
 
-                let bal = 10000.0, peak = 10000.0, max_dd = 0.0;
+                let bal = 100.0, peak = 100.0, max_dd = 0.0;
                 for (let j = 0; j < sub.length; j++) {{
                     bal += sub[j].p;
                     if (bal > peak) peak = bal;
@@ -3827,10 +3827,10 @@ def build_dashboard(custom_csv=None):
                         '$' + avg.toFixed(2) +
                     '</td>' +
                     '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">' +
-                        '$' + max_dd.toFixed(2) +
+                        '$' + Math.round(max_dd).toLocaleString() +
                     '</td>' +
                     '<td style="text-align:center;padding:7px 6px;font-weight:bold;color:' + netCol + ';font-size:13.5px;background:#064e3b22;white-space:nowrap;">' +
-                        (nt >= 0 ? '+' : '') + '$' + nt.toFixed(2) +
+                        (nt >= 0 ? '+' : '') + '$' + Math.round(nt).toLocaleString() +
                     '</td>' +
                     '<td style="text-align:center;padding:7px 6px;white-space:nowrap;">' +
                         '<div style="display:flex;gap:3px;justify-content:center;align-items:center;">' +
@@ -4332,8 +4332,8 @@ def build_dashboard(custom_csv=None):
         }}
 
         function runEquitySimulation() {{
-            let pts = [{{ idx: 0, t: '2026.03.09 00:00', b: 10000.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)' }}];
-            let bal = 10000.0;
+            let pts = [{{ idx: 0, t: '2026.03.09 00:00', b: 100.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)' }}];
+            let bal = 100.0;
             let peak = bal;
             let maxDD = 0.0;
             let winCnt = 0;
@@ -4431,17 +4431,19 @@ def build_dashboard(custom_csv=None):
             let totalLossStreaks = lossStreaks.length;
             let avgLossStreak = totalLossStreaks > 0 ? (lossStreaks.reduce((a, b) => a + b, 0) / totalLossStreaks) : 0;
 
-            let net = bal - 10000.0;
-            let netPct = (net / 10000.0) * 100;
+            let net = bal - 100.0;
+            let netPct = (net / 100.0) * 100;
             let maxDDPct = peak > 0 ? ((maxDD / peak) * 100) : 0;
             let pf = grossL > 0 ? (grossP / grossL) : (grossP > 0 ? 999.0 : 1.0);
             let wr = totalTrades > 0 ? ((winCnt / totalTrades) * 100) : 0;
             let avgTrade = totalTrades > 0 ? (net / totalTrades) : 0;
 
             // Update KPI Banner
-            let elBal = document.getElementById('eqKpiFinalBal');
+            let elNetVal = document.getElementById('eqKpiNetVal');
             let elNetSub = document.getElementById('eqKpiNetSub');
+            let elBal = document.getElementById('eqKpiFinalBal');
             let elPeak = document.getElementById('eqKpiPeak');
+            let elPeakSub = document.getElementById('eqKpiPeakSub');
             let elMaxDD = document.getElementById('eqKpiMaxDD');
             let elMaxDDSub = document.getElementById('eqKpiMaxDDSub');
             let elPF = document.getElementById('eqKpiPF');
@@ -4449,18 +4451,25 @@ def build_dashboard(custom_csv=None):
             let elCnt = document.getElementById('eqKpiCnt');
             let elAvg = document.getElementById('eqKpiAvgTrade');
 
-            if (elBal) {{
-                let sign = bal >= 10000 ? '' : '-';
-                elBal.textContent = '$' + bal.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
-                elBal.style.color = bal >= 10000 ? '#00e676' : '#ef4444';
+            if (elNetVal) {{
+                let sign = net >= 0 ? '+' : '-';
+                elNetVal.textContent = sign + '$' + Math.abs(Math.round(net)).toLocaleString('en-US');
+                elNetVal.style.color = net >= 0 ? '#00e676' : '#ef4444';
             }}
             if (elNetSub) {{
-                let sign = net >= 0 ? '+' : '';
-                elNetSub.textContent = 'سود خالص: $' + sign + net.toFixed(2) + ' (' + sign + netPct.toFixed(2) + '٪)';
+                let sign = netPct >= 0 ? '+' : '';
+                elNetSub.textContent = 'نرخ رشد حساب: ' + sign + netPct.toFixed(1) + '٪';
             }}
-            if (elPeak) elPeak.textContent = '$' + peak.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
-            if (elMaxDD) elMaxDD.textContent = '$' + maxDD.toFixed(2) + ' (' + maxDDPct.toFixed(2) + '٪)';
-            if (elMaxDDSub) elMaxDDSub.textContent = 'افت از سقف $' + peak.toFixed(0);
+            if (elBal) {{
+                elBal.textContent = '$' + Math.round(bal).toLocaleString('en-US');
+                elBal.style.color = bal >= 100 ? '#facc15' : '#ef4444';
+            }}
+            if (elPeakSub) {{
+                elPeakSub.textContent = 'سقف سرمایه: $' + Math.round(peak).toLocaleString('en-US');
+            }}
+            if (elPeak) elPeak.textContent = '$' + Math.round(peak).toLocaleString('en-US');
+            if (elMaxDD) elMaxDD.textContent = '$' + Math.round(maxDD).toLocaleString('en-US') + ' (' + maxDDPct.toFixed(1) + '٪)';
+            if (elMaxDDSub) elMaxDDSub.textContent = 'افت از سقف $' + Math.round(peak).toLocaleString('en-US');
             if (elPF) elPF.textContent = pf >= 900 ? '∞ قطعی' : pf.toFixed(2);
             if (elWR) elWR.textContent = wr.toFixed(1) + '٪ (' + winCnt + ' برد)';
             if (elCnt) elCnt.textContent = totalTrades.toLocaleString() + ' معامله';
@@ -4597,8 +4606,8 @@ def build_dashboard(custom_csv=None):
 
             ctx.setLineDash([]);
 
-            // Baseline ($10,000)
-            let baseVal = 10000.0;
+            // Baseline ($100)
+            let baseVal = 100.0;
             if (baseVal >= minBal && baseVal <= maxBal) {{
                 let baseY = padTop + plotH - ((baseVal - minBal) / balRange) * plotH;
                 ctx.strokeStyle = '#475569';
@@ -4716,7 +4725,7 @@ def build_dashboard(custom_csv=None):
                     tt.style.display = 'block';
                     let pnlCol = pt.p >= 0 ? '#00e676' : '#ef4444';
                     let pnlSign = pt.p >= 0 ? '+' : '';
-                    let totProfit = pt.b - 10000.0;
+                    let totProfit = pt.b - 100.0;
                     let totCol = totProfit >= 0 ? '#00e676' : '#ef4444';
                     let totSign = totProfit >= 0 ? '+' : '';
 
@@ -4724,8 +4733,8 @@ def build_dashboard(custom_csv=None):
                         <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">معامله #${{pt.idx}} - ${{pt.n}}</div>
                         <div style="color:#94a3b8;font-size:11px;">🕒 زمان: <span style="direction:ltr;display:inline-block;font-family:monospace;color:#f1f5f9;">${{pt.t}}</span></div>
                         <div style="margin-top:4px;">سود این معامله: <b style="color:${{pnlCol}};">${{pnlSign}}$${{pt.p.toFixed(2)}}</b></div>
-                        <div>بالانس حساب: <b style="color:#38bdf8;">$${{pt.b.toFixed(2)}}</b></div>
-                        <div>رشد کل: <b style="color:${{totCol}};">${{totSign}}$${{totProfit.toFixed(2)}} (${{(totProfit/100).toFixed(2)}}%)</b></div>
+                        <div>بالانس حساب: <b style="color:#38bdf8;">$${{Math.round(pt.b).toLocaleString()}}</b></div>
+                        <div>رشد کل: <b style="color:${{totCol}};">${{totSign}}$${{Math.round(totProfit).toLocaleString()}} (${{(totProfit).toFixed(1)}}%)</b></div>
                     `;
 
                     let ttX = target.x + 15;
@@ -4986,7 +4995,7 @@ def build_dashboard(custom_csv=None):
                         for (let d = 0; d < dropN; d++) activeKings.delete(sortedKings[d]);
 
                         for (let cb of cbs) {{
-                            let bal = 10000.0, peak = bal, maxDD = 0.0, wins = 0, total = 0, gp = 0.0, gl = 0.0;
+                            let bal = 100.0, peak = bal, maxDD = 0.0, wins = 0, total = 0, gp = 0.0, gl = 0.0;
                             let consecLoss = 0, skips = 0;
 
                             for (let t of kingTrades) {{
@@ -5013,7 +5022,7 @@ def build_dashboard(custom_csv=None):
                             if (total < min15) continue;
                             let wr = (wins / total) * 100;
                             let pf = gl > 0 ? (gp / gl) : 999;
-                            let net = bal - 10000.0;
+                            let net = bal - 100.0;
                             let avg = net / total;
                             let score = Math.pow(pf, 1.3) * (wr / 50.0) * Math.max(0.5, avg) / Math.max(12.0, maxDD) * 100;
 
@@ -5041,8 +5050,8 @@ def build_dashboard(custom_csv=None):
                 '🔹 وین‌ریت: ' + best.wr.toFixed(1) + '٪',
                 '🔹 پرافیت فاکتور: ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX'),
                 '🔹 میانگین سود هر ترید: $' + best.avg.toFixed(2),
-                '🔹 حداکثر افت سرمایه (DD): $' + best.maxDD.toFixed(2),
-                '🔹 سود خالص: $' + best.net.toFixed(2),
+                '🔹 حداکثر افت سرمایه (DD): $' + Math.round(best.maxDD).toLocaleString(),
+                '🔹 سود خالص: $' + Math.round(best.net).toLocaleString(),
                 '🔹 تنظیمات: کف سود $' + best.pot.toFixed(2) + ' | ' + best.kings.length + ' سلطان فعال' + (best.cb.trig > 0 ? ' | وقفه بعد از ۲ استاپ' : ''),
                 '',
                 'آیا مایلید این چیدمان بلافاصله روی نمودار و فیلترها اعمال شود؟'
