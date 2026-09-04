@@ -531,6 +531,21 @@ def build_dashboard():
         is_perfect = (cnt >= 2 and sl == 0)
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
 
+        # Calculate Net Profit with 0.04 scale-out
+        gross = 0.0
+        for r in t_list:
+            pts = float(r.get('RiskPoints', 0.0))
+            hr = int(r.get('HitTargetRatio', 0))
+            if hr == 0:
+                gross -= pts * 0.04
+            else:
+                if hr >= 1: gross += pts * 1.0 * 0.01
+                if hr >= 2: gross += pts * 2.0 * 0.01
+                if hr >= 3: gross += pts * 3.0 * 0.01
+                if hr >= 4: gross += pts * 4.0 * 0.01
+        fric = cnt * friction_04_per_trade
+        net = gross - fric
+
         # Institutional Metrics (Chronological Max Drawdown, Profit Factor, Return/DD Ratio)
         cum_pnl = 0.0
         peak = 0.0
