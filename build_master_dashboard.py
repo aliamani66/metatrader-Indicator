@@ -463,10 +463,26 @@ def build_dashboard():
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
         is_proven = (cnt >= 20)
 
+        # Calculate Net Profit with 0.04 scale-out
+        gross = 0.0
+        for r in t_list:
+            pts = float(r.get('RiskPoints', 0.0))
+            hr = int(r.get('HitTargetRatio', 0))
+            if hr == 0:
+                gross -= pts * 0.04
+            else:
+                if hr >= 1: gross += pts * 1.0 * 0.01
+                if hr >= 2: gross += pts * 2.0 * 0.01
+                if hr >= 3: gross += pts * 3.0 * 0.01
+                if hr >= 4: gross += pts * 4.0 * 0.01
+        fric = cnt * friction_04_per_trade
+        net = gross - fric
+
         computed_tf_roles.append({
             'tf': tf, 'role': role, 'cnt': cnt,
             'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
-            'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner
+            'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner,
+            'gross': gross, 'fric': fric, 'net': net
         })
 
     # Sort by King Score descending by default, breaking ties with trade count
@@ -483,6 +499,8 @@ def build_dashboard():
         w4_p = item['w4_p']
         sl_p = item['sl_p']
         score = item['score']
+        net = item['net']
+        net_col = "#00e676" if net >= 0 else "#ef4444"
 
         badge_html = ""
         if item['is_perfect']:
@@ -500,7 +518,7 @@ def build_dashboard():
             score_html = f"<span style='color:#ef4444;font-size:13px;'>{score:.1f}</span>"
 
         tf_role_rows.append(f"""
-        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-score="{score:.2f}">
+        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-net="{net:.2f}" data-score="{score:.2f}">
             <td style="color:#38bdf8;font-weight:bold;">{tf}</td>
             <td style="color:#facc15;font-weight:bold;">{role}{badge_html}</td>
             <td style="text-align:center;font-weight:bold;">{cnt}</td>
@@ -509,6 +527,7 @@ def build_dashboard():
             <td style="text-align:center;color:#38bdf8;">{w3_p:.1f}%</td>
             <td style="text-align:center;color:#c084fc;">{w4_p:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl_p:.1f}%</td>
+            <td style="text-align:center;color:{net_col};font-weight:bold;font-size:14px;background:#064e3b18;">${net:+.2f}</td>
             <td style="text-align:center;">{score_html}</td>
         </tr>
         """)
@@ -1597,6 +1616,7 @@ def build_dashboard():
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;background:#0f172a;padding:8px 12px;border-radius:8px;border:1px solid #334155;">
                     <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
                     <button class="sort-btn active" id="btnSortScore" onclick="sortTableByAttr('tfTable', 'data-score', true, true, this)">👑 بیشترین امتیاز سلطان (Score)</button>
+                    <button class="sort-btn" id="btnSortNet" style="border-color:#00e676;color:#00e676;" onclick="sortTableByAttr('tfTable', 'data-net', true, true, this)">💵 بیشترین سود خالص دلاری</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w4', true, true, this)">🚀 بیشترین تارگت دونده (TP4)</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
@@ -1617,6 +1637,7 @@ def build_dashboard():
                                 <th onclick="sortTableByAttr('tfTable', 'data-w3', true, true)" data-sort="data-w3" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:3 <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-net', true, true)" data-sort="data-net" style="cursor:pointer;text-align:center;color:#00e676;background:#064e3b33;" title="کلیک برای مرتب‌سازی بر اساس سود خالص دلاری">💵 سود خالص دلاری <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-score', true, true)" data-sort="data-score" style="cursor:pointer;text-align:center;color:#facc15;background:#1e293b;" title="مرتب‌سازی شده بر مبنای فرمول شاخص سلطان">امتیاز سلطان (Score) <span class="sort-icon">▼</span></th>
                             </tr>
                         </thead>
