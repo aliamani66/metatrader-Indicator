@@ -170,7 +170,37 @@ def build_dashboard():
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
         is_proven = (cnt >= 20)
 
-        # 5-Pillar Smart King Score Formula:
+        # Institutional Metrics (Chronological Max Drawdown, Profit Factor, Return/DD Ratio)
+        cum_pnl = 0.0
+        peak = 0.0
+        max_dd = 0.0
+        gross_win = 0.0
+        gross_loss = 0.0
+        sorted_trades = sorted(t_list, key=lambda x: x.get('EntryTime', ''))
+        for r in sorted_trades:
+            pts = float(r.get('RiskPoints', 0.0))
+            hr = int(r.get('HitTargetRatio', 0))
+            if hr == 0:
+                pnl = -pts * 0.04 - friction_04_per_trade
+                gross_loss += abs(pnl)
+            else:
+                pnl = -friction_04_per_trade
+                if hr >= 1: pnl += pts * 1.0 * 0.01
+                if hr >= 2: pnl += pts * 2.0 * 0.01
+                if hr >= 3: pnl += pts * 3.0 * 0.01
+                if hr >= 4: pnl += pts * 4.0 * 0.01
+                gross_win += max(pnl, 0.0)
+                if pnl < 0: gross_loss += abs(pnl)
+
+            cum_pnl += pnl
+            if cum_pnl > peak: peak = cum_pnl
+            dd = peak - cum_pnl
+            if dd > max_dd: max_dd = dd
+
+        pf = gross_win / gross_loss if gross_loss > 0 else (99.0 if gross_win > 0 else 0.0)
+        ret_dd = net / max_dd if max_dd > 0 else (net if net > 0 else 0.0)
+
+        # 7-Pillar Institutional King Score Formula:
         profit_per_trade = net / max(cnt, 1)
 
         if net <= 0:
@@ -202,7 +232,21 @@ def build_dashboard():
             # Pillar 5: 📊 Statistical Confidence (0 to 50 pts)
             f_rel = min(math.log10(cnt + 9) * 20.0, 50.0)
 
-            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel
+            # Pillar 6: ⚖️ Institutional Profit Factor (0 to 100 pts)
+            if sl == 0 and cnt >= 2:
+                f_pf = 100.0
+            else:
+                f_pf = min(max(pf - 1.0, 0.0) * 50.0, 100.0)
+
+            # Pillar 7: 🛡️ Drawdown Resistance & Recovery Factor (0 to 100 pts)
+            if sl == 0 and cnt >= 2:
+                f_rec = 100.0
+            else:
+                f_rec = min(ret_dd * 6.0, 100.0)
+                if max_dd > 30.0:
+                    f_rec = max(f_rec - (max_dd - 30.0) * 1.5, 0.0)
+
+            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel + f_pf + f_rec
 
         stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in t_list]
         min_sl = min(stops) if stops else 0.0
@@ -218,7 +262,9 @@ def build_dashboard():
                 'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
                 'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner, 'is_proven': is_proven,
                 'min_sl': min_sl, 'max_sl': max_sl, 'avg_sl': avg_sl,
-                'gross': gross, 'fric': fric, 'net': net, 'trades': t_list
+                'gross': gross, 'fric': fric, 'net': net,
+                'max_dd': max_dd, 'pf': pf, 'ret_dd': ret_dd,
+                'trades': t_list
             })
 
     # Sort Kings by Score descending
@@ -245,6 +291,12 @@ def build_dashboard():
             badge_html = " <span style='background:#312e81;color:#a5b4fc;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #4338ca;'>🚀 دونده</span>"
 
         net_col = "#00e676" if k['net'] >= 0 else "#ef4444"
+        pf = k['pf']
+        pf_str = "<span style='color:#00e676;'>MAX</span>" if pf >= 90 else f"{pf:.2f}"
+        max_dd = k['max_dd']
+        dd_col = "#00e676" if max_dd == 0 else ("#fbbf24" if max_dd <= 25 else "#f87171")
+        ret_dd = k['ret_dd']
+        ret_str = f"{ret_dd:.1f}x"
 
         kings_rows_html.append(f"""
         <tr>
@@ -258,6 +310,9 @@ def build_dashboard():
             <td style="text-align:center;color:#38bdf8;">{k['w3_p']:.1f}%</td>
             <td style="text-align:center;color:#c084fc;">{k['w4_p']:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{k['sl_p']:.1f}%</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:13px;">{pf_str}</td>
+            <td style="text-align:center;color:{dd_col};font-weight:bold;font-size:13px;">${max_dd:.2f}</td>
+            <td style="text-align:center;color:#facc15;font-weight:bold;font-size:13px;">{ret_str}</td>
             <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:13px;">${k['gross']:+.2f}</td>
             <td style="text-align:center;color:#f87171;font-weight:bold;font-size:13px;">${k['fric']:.2f}-</td>
             <td style="text-align:center;color:{net_col};font-weight:bold;font-size:15px;background:#064e3b22;">${k['net']:+.2f} دلار</td>
@@ -476,22 +531,37 @@ def build_dashboard():
         is_perfect = (cnt >= 2 and sl == 0)
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
 
-        # Calculate Net Profit with 0.04 scale-out
-        gross = 0.0
-        for r in t_list:
+        # Institutional Metrics (Chronological Max Drawdown, Profit Factor, Return/DD Ratio)
+        cum_pnl = 0.0
+        peak = 0.0
+        max_dd = 0.0
+        gross_win = 0.0
+        gross_loss = 0.0
+        sorted_trades = sorted(t_list, key=lambda x: x.get('EntryTime', ''))
+        for r in sorted_trades:
             pts = float(r.get('RiskPoints', 0.0))
             hr = int(r.get('HitTargetRatio', 0))
             if hr == 0:
-                gross -= pts * 0.04
+                pnl = -pts * 0.04 - friction_04_per_trade
+                gross_loss += abs(pnl)
             else:
-                if hr >= 1: gross += pts * 1.0 * 0.01
-                if hr >= 2: gross += pts * 2.0 * 0.01
-                if hr >= 3: gross += pts * 3.0 * 0.01
-                if hr >= 4: gross += pts * 4.0 * 0.01
-        fric = cnt * friction_04_per_trade
-        net = gross - fric
+                pnl = -friction_04_per_trade
+                if hr >= 1: pnl += pts * 1.0 * 0.01
+                if hr >= 2: pnl += pts * 2.0 * 0.01
+                if hr >= 3: pnl += pts * 3.0 * 0.01
+                if hr >= 4: pnl += pts * 4.0 * 0.01
+                gross_win += max(pnl, 0.0)
+                if pnl < 0: gross_loss += abs(pnl)
 
-        # 5-Pillar Smart King Score Formula:
+            cum_pnl += pnl
+            if cum_pnl > peak: peak = cum_pnl
+            dd = peak - cum_pnl
+            if dd > max_dd: max_dd = dd
+
+        pf = gross_win / gross_loss if gross_loss > 0 else (99.0 if gross_win > 0 else 0.0)
+        ret_dd = net / max_dd if max_dd > 0 else (net if net > 0 else 0.0)
+
+        # 7-Pillar Institutional King Score Formula:
         profit_per_trade = net / max(cnt, 1)
 
         if net <= 0:
@@ -523,13 +593,28 @@ def build_dashboard():
             # Pillar 5: 📊 Statistical Confidence (0 to 50 pts)
             f_rel = min(math.log10(cnt + 9) * 20.0, 50.0)
 
-            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel
+            # Pillar 6: ⚖️ Institutional Profit Factor (0 to 100 pts)
+            if sl == 0 and cnt >= 2:
+                f_pf = 100.0
+            else:
+                f_pf = min(max(pf - 1.0, 0.0) * 50.0, 100.0)
+
+            # Pillar 7: 🛡️ Drawdown Resistance & Recovery Factor (0 to 100 pts)
+            if sl == 0 and cnt >= 2:
+                f_rec = 100.0
+            else:
+                f_rec = min(ret_dd * 6.0, 100.0)
+                if max_dd > 30.0:
+                    f_rec = max(f_rec - (max_dd - 30.0) * 1.5, 0.0)
+
+            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel + f_pf + f_rec
 
         computed_tf_roles.append({
             'tf': tf, 'role': role, 'cnt': cnt,
             'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
             'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner,
-            'gross': gross, 'fric': fric, 'net': net
+            'gross': gross, 'fric': fric, 'net': net,
+            'max_dd': max_dd, 'pf': pf, 'ret_dd': ret_dd
         })
 
     # Sort by King Score descending by default, breaking ties with trade count
@@ -549,6 +634,13 @@ def build_dashboard():
         net = item['net']
         net_col = "#00e676" if net >= 0 else "#ef4444"
 
+        pf = item['pf']
+        pf_str = "<span style='color:#00e676;'>MAX</span>" if pf >= 90 else f"{pf:.2f}"
+        max_dd = item['max_dd']
+        dd_str = f"<span style='color:#00e676;'>$0.00</span>" if max_dd == 0 else (f"<span style='color:#fbbf24;'>${max_dd:.2f}</span>" if max_dd <= 25 else f"<span style='color:#f87171;'>${max_dd:.2f}</span>")
+        ret_dd = item['ret_dd']
+        ret_str = f"<span style='color:#facc15;font-weight:bold;'>{ret_dd:.1f}x</span>"
+
         badge_html = ""
         if item['is_perfect']:
             badge_html += " <span style='background:#064e3b;color:#34d399;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #059669;'>💎 ۱۰۰٪ قطعی</span>"
@@ -565,7 +657,7 @@ def build_dashboard():
             score_html = f"<span style='color:#ef4444;font-size:13px;'>{score:.1f}</span>"
 
         tf_role_rows.append(f"""
-        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-net="{net:.2f}" data-score="{score:.2f}">
+        <tr class="tf-row" data-tf="{tf}" data-role="{role}" data-cnt="{cnt}" data-w1="{w1_p:.2f}" data-w2="{w2_p:.2f}" data-w3="{w3_p:.2f}" data-w4="{w4_p:.2f}" data-sl="{sl_p:.2f}" data-net="{net:.2f}" data-pf="{pf:.2f}" data-dd="{max_dd:.2f}" data-retdd="{ret_dd:.2f}" data-score="{score:.2f}">
             <td style="color:#38bdf8;font-weight:bold;">{tf}</td>
             <td style="color:#facc15;font-weight:bold;">{role}{badge_html}</td>
             <td style="text-align:center;font-weight:bold;">{cnt}</td>
@@ -575,6 +667,9 @@ def build_dashboard():
             <td style="text-align:center;color:#c084fc;">{w4_p:.1f}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">{sl_p:.1f}%</td>
             <td style="text-align:center;color:{net_col};font-weight:bold;font-size:14px;background:#064e3b18;">${net:+.2f}</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{pf_str}</td>
+            <td style="text-align:center;font-weight:bold;">{dd_str}</td>
+            <td style="text-align:center;font-weight:bold;">{ret_str}</td>
             <td style="text-align:center;">{score_html}</td>
         </tr>
         """)
@@ -1392,14 +1487,14 @@ def build_dashboard():
                 </div>
 
                 <!-- Formula Highlight Banner -->
-                <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:gap;gap:10px;">
                     <div>
-                        <b style="color:#facc15;font-size:13px;">📐 شاخص هوشمند ۵ ستونه سلطان (5-Pillar Smart King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:12px;font-weight:bold;">Score = 🛡️خلوص وین‌ریت (تا ۵۰۰) + 🎯وین‌ریت ۱:۲ (ضریب ۴) + ⚡پیشروی تارگت‌ها + 💰بهره‌وری دلاری هر ترید + 📊اعتبار آماری</span>
+                        <b style="color:#facc15;font-size:13px;">🏛️ شاخص ۷ ستونه هج‌فاندی سلطان (7-Pillar Institutional King Score):</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:11.5px;font-weight:bold;">Score = 🛡️خلوص(۵۰۰) + 🎯تارگت۲(۴۰۰) + ⚡پیشروی(۲۵۰) + 💰بهره‌وری(۲۰۰) + 📊اعتبار(۵۰) + ⚖️پرافیت فاکتور(۱۰۰) + 🛡️کنترل افت و ریکاوری(۱۰۰)</span>
                     </div>
                     <div style="display:flex;gap:6px;">
-                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">👑 ۱۰۰٪ وین‌ریت بدون SL (+۵۰۰ امتیاز قطعی)</span>
-                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4338ca;">🎯 اولویت دوم: وین‌ریت ۱:۲ (وزن ۴x)</span>
+                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ امتیاز قطعی)</span>
+                        <span style="background:#1e3a8a;color:#93c5fd;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #3b82f6;">⚖️ کنترل دراوداون و پرافیت فاکتور</span>
                     </div>
                 </div>
 
@@ -1417,6 +1512,9 @@ def build_dashboard():
                                 <th style="text-align:center;">وین‌ریت TP 1:3</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:4</th>
                                 <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;color:#38bdf8;" title="نسبت سود ناخالص به زیان ناخالص (Profit Factor)">⚖️ پرافیت فاکتور (PF)</th>
+                                <th style="text-align:center;color:#f87171;" title="حداکثر افت موقت بالانس در طول معاملات (Max Drawdown)">🛡️ حداکثر افت (Max DD)</th>
+                                <th style="text-align:center;color:#facc15;" title="نسبت سود خالص نهایی به حداکثر افت (Recovery Factor)">🚀 بازدهی/افت (Ret/DD)</th>
                                 <th style="text-align:center;color:#38bdf8;" title="مجموع سود بدون کسر اسپرد">سود ناخالص (Gross)</th>
                                 <th style="text-align:center;color:#f87171;" title="مجموع کل اسپرد و کمیسیون پرداخت شده به ازای هر ترید 0.04 لات ($0.48)">🧾 کل اصطکاک (اسپرد)</th>
                                 <th style="text-align:center;color:#00e676;background:#064e3b44;" title="سود قطعی واریزی به حساب بعد از پرداخت کل اسپرد و کمیسیون">💵 سود خالص واقعی (Net)</th>
@@ -1429,7 +1527,7 @@ def build_dashboard():
                             <tr style="background:#261e07;border-top:2px solid #facc15;font-weight:bold;">
                                 <td colspan="4" style="text-align:center;color:#facc15;font-size:14px;">👑 مجموع عملکرد کل سلاطین برگزیده ({len(qualified_kings)} گره برتر)</td>
                                 <td style="text-align:center;color:#facc15;font-size:15px;">{tot_k_cnt}</td>
-                                <td colspan="5" style="text-align:center;color:#94a3b8;font-size:11px;">مبتنی بر استراتژی خروج چهارپله‌ای 0.04 لات</td>
+                                <td colspan="8" style="text-align:center;color:#94a3b8;font-size:11px;">مبتنی بر استراتژی خروج چهارپله‌ای 0.04 لات و پایش دقیق دراوداون</td>
                                 <td style="text-align:center;color:#38bdf8;font-size:14px;">${tot_k_gross:+.2f}</td>
                                 <td style="text-align:center;color:#f87171;font-size:14px;">${tot_k_fric:.2f}-</td>
                                 <td style="text-align:center;color:#00e676;font-size:16px;background:#064e3b;">${tot_k_net:+.2f} دلار نقد خالص</td>
@@ -1650,12 +1748,12 @@ def build_dashboard():
                 <!-- Formula Explainer Box -->
                 <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                     <div>
-                        <b style="color:#facc15;">📐 شاخص هوشمند ۵ ستونه سلطان (5-Pillar Smart King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = 🛡️خلوص وین‌ریت (تا ۵۰۰) + 🎯وین‌ریت ۱:۲ (ضریب ۴) + ⚡عمق تارگت‌ها + 💰سود به ازای هر معامله + 📊اعتبار آماری</span>
+                        <b style="color:#facc15;">🏛️ شاخص ۷ ستونه هج‌فاندی سلطان (7-Pillar Institutional King Score):</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = 🛡️خلوص(۵۰۰) + 🎯وین‌ریت ۱:۲(۴۰۰) + ⚡عمق تارگت‌ها + 💰راندمان ترید + 📊اعتبار + ⚖️پرافیت فاکتور(۱۰۰) + 🛡️کنترل افت و ریکاوری(۱۰۰)</span>
                     </div>
                     <div>
                         <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ قطعی)</span>
-                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #4338ca;">🎯 قدرت ۱:۲ (اولویت دوم)</span>
+                        <span style="background:#1e3a8a;color:#93c5fd;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #3b82f6;">⚖️ کنترل دراوداون و پرافیت فاکتور</span>
                     </div>
                 </div>
 
@@ -1664,6 +1762,9 @@ def build_dashboard():
                     <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
                     <button class="sort-btn active" id="btnSortScore" onclick="sortTableByAttr('tfTable', 'data-score', true, true, this)">👑 بیشترین امتیاز سلطان (Score)</button>
                     <button class="sort-btn" id="btnSortNet" style="border-color:#00e676;color:#00e676;" onclick="sortTableByAttr('tfTable', 'data-net', true, true, this)">💵 بیشترین سود خالص دلاری</button>
+                    <button class="sort-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="sortTableByAttr('tfTable', 'data-pf', true, true, this)">⚖️ بیشترین پرافیت فاکتور (PF)</button>
+                    <button class="sort-btn" style="border-color:#f87171;color:#f87171;" onclick="sortTableByAttr('tfTable', 'data-dd', true, false, this)">🛡️ کمترین افت (Max DD)</button>
+                    <button class="sort-btn" style="border-color:#facc15;color:#facc15;" onclick="sortTableByAttr('tfTable', 'data-retdd', true, true, this)">🚀 نسبت سود به افت (Ret/DD)</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w4', true, true, this)">🚀 بیشترین تارگت دونده (TP4)</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
                     <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
@@ -1685,6 +1786,9 @@ def build_dashboard():
                                 <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-net', true, true)" data-sort="data-net" style="cursor:pointer;text-align:center;color:#00e676;background:#064e3b33;" title="کلیک برای مرتب‌سازی بر اساس سود خالص دلاری">💵 سود خالص دلاری <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-pf', true, true)" data-sort="data-pf" style="cursor:pointer;text-align:center;color:#38bdf8;" title="کلیک برای مرتب‌سازی بر اساس Profit Factor">⚖️ PF <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-dd', true, false)" data-sort="data-dd" style="cursor:pointer;text-align:center;color:#f87171;" title="کلیک برای مرتب‌سازی بر اساس کمترین افت سرمایه (Max DD)">🛡️ Max DD <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-retdd', true, true)" data-sort="data-retdd" style="cursor:pointer;text-align:center;color:#facc15;" title="کلیک برای مرتب‌سازی بر اساس Recovery Factor (سود به افت)">🚀 Ret/DD <span class="sort-icon">⬍</span></th>
                                 <th onclick="sortTableByAttr('tfTable', 'data-score', true, true)" data-sort="data-score" style="cursor:pointer;text-align:center;color:#facc15;background:#1e293b;" title="مرتب‌سازی شده بر مبنای فرمول شاخص سلطان">امتیاز سلطان (Score) <span class="sort-icon">▼</span></th>
                             </tr>
                         </thead>
