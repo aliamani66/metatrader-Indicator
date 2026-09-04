@@ -18,10 +18,10 @@ double g_dummyBuffer[];
 //+------------------------------------------------------------------+
 //| INPUT PARAMETERS                                                 |
 //+------------------------------------------------------------------+
-input group "=== 🎯 تنظیم جامع و واحد (تاریخچه، رسم باکس‌ها و معاملات) ==="
-input ENUM_HISTORY_MODE InpHistoryMode        = HIST_START_DATE;         // ⚙️ مبنای بازه تاریخی (تاریخ شروع / تعداد روز گذشته / کل تاریخچه)
-input datetime          InpHistoryStartDate   = D'2025.01.01 00:00';    // 📅 تاریخ شروع واحد (رسم باکس‌ها + معاملات + بک‌تست + خروجی CSV)
-input int               InpHistoryDays        = 365;                    // ⏳ یا تعداد روز گذشته (در صورت انتخاب حالت Days Back)
+input group "=== 🎯 تنظیم بازه تاریخی (رسم باکس‌ها، معاملات و خروجی CSV) ==="
+input ENUM_HISTORY_MODE InpHistoryMode        = HIST_START_DATE;         // ⚙️ مبنای بازه تاریخی (تاریخ شروع دلخواه / تعداد روز گذشته / کل تاریخچه)
+input datetime          InpHistoryStartDate   = D'2025.01.01 00:00';    // 📅 تاریخ شروع دلخواه (مثلاً 2026.08.01 برای یک ماه پیش)
+input int               InpHistoryDays        = 365;                    // ⏳ یا تعداد روز گذشته (مثلاً 30 برای ۱ ماه اخیر، 15 برای ۱۵ روز)
 input bool              InpShowBoxes          = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (کلید B برای سوئیچ سریع)
 input bool              InpAutoDrawTrades     = true;                   // 🎯 رسم معاملات (خطوط ورود، حد ضرر، تارگت‌ها و نتیجه) روی چارت
 input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار فایل CSV برای داشبورد
@@ -194,7 +194,7 @@ int OnInit()
    ChartRedraw(0);
    g_forceRecalc = true;
    IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro v1.00");
-   PrintFormat("🚀 FlagPro v1.00: بازه فعال: %s (%d روز) | کندل‌ها: %d | باکس‌ها: %s | معاملات: %s",
+   PrintFormat("🚀 [FlagPro v1.00] بازه فعال: از تاریخ %s (%d روز گذشته) | کندل‌های پردازش: %d | باکس‌ها: %s | معاملات: %s",
                (g_effectiveStartDate > 0 ? TimeToString(g_effectiveStartDate, TIME_DATE) : "کل تاریخچه"),
                g_effectiveDaysBack, g_effectiveTargetBars,
                (InpShowBoxes ? "روشن" : "خاموش"),
@@ -285,9 +285,12 @@ int OnCalculate(const int rates_total,
    ArraySetAsSeries(fullLow,   false);
    ArraySetAsSeries(fullClose, false);
 
-   int targetBars = MathMax(g_effectiveTargetBars, rates_total);
+   int targetBars = g_effectiveTargetBars;
+   if(InpHistoryMode == HIST_ALL_AVAILABLE) targetBars = rates_total;
+   if(targetBars > rates_total) targetBars = rates_total;
+
    int totalCopied = CopyTime(_Symbol, _Period, 0, targetBars, fullTime);
-   if(totalCopied > rates_total)
+   if(totalCopied > 0)
    {
       CopyHigh(_Symbol, _Period, 0, totalCopied, fullHigh);
       CopyLow(_Symbol, _Period, 0, totalCopied, fullLow);

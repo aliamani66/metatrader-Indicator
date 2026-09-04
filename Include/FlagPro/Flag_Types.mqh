@@ -49,32 +49,74 @@ int      InpMaxBarsTF         = 2000000;
 void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
 {
    datetime now = TimeCurrent();
-   if(mode == HIST_START_DATE)
+   if(now <= 0) now = TimeTradeServer();
+   if(now <= 0) now = TimeLocal();
+   datetime lastBar[1];
+   if(CopyTime(_Symbol, _Period, 0, 1, lastBar) > 0 && lastBar[0] > 0)
    {
-      g_effectiveStartDate = (startDate > 0) ? startDate : D'2025.01.01 00:00';
-      if(now > g_effectiveStartDate)
-         g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 15;
-      else
-         g_effectiveDaysBack = 1000;
+      if(lastBar[0] > now || now <= 0) now = lastBar[0];
    }
-   else if(mode == HIST_DAYS_BACK)
-   {
-      g_effectiveDaysBack = (daysBack > 0) ? daysBack : 30;
-      g_effectiveStartDate = now - g_effectiveDaysBack * 86400;
-   }
-   else // HIST_ALL_AVAILABLE
+
+   // تشخیص کاملاً هوشمند تنظیمات کاربر:
+   // ۱. اگر کاربر تعداد روز گذشته را تغییر داده باشد (مثلاً ۳۰ برای یک ماه پیش یا ۱۵ روز)
+   bool userChangedDays = (daysBack > 0 && daysBack != 365);
+   // ۲. اگر کاربر تاریخ شروع را تغییر داده و جلو آورده باشد (مثلاً 2026.08.01)
+   bool userChangedDate = (startDate > D'2025.01.01 00:00');
+
+   if(mode == HIST_ALL_AVAILABLE)
    {
       g_effectiveStartDate = 0;
       g_effectiveDaysBack  = 5000;
+   }
+   else if(mode == HIST_DAYS_BACK || (mode == HIST_START_DATE && userChangedDays && !userChangedDate))
+   {
+      // اولویت با تعداد روزهای دستی تنظیم‌شده توسط کاربر (مثلاً ۳۰ روز برای ۱ ماه پیش)
+      g_effectiveDaysBack  = (daysBack > 0) ? daysBack : 30;
+      g_effectiveStartDate = (now > g_effectiveDaysBack * 86400) ? (now - g_effectiveDaysBack * 86400) : 0;
+   }
+   else // HIST_START_DATE
+   {
+      if(userChangedDate)
+      {
+         g_effectiveStartDate = startDate;
+         if(now > g_effectiveStartDate)
+            g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
+         else
+            g_effectiveDaysBack = 30;
+      }
+      else if(userChangedDays)
+      {
+         g_effectiveDaysBack  = daysBack;
+         g_effectiveStartDate = (now > g_effectiveDaysBack * 86400) ? (now - g_effectiveDaysBack * 86400) : 0;
+      }
+      else
+      {
+         g_effectiveStartDate = (startDate > 0) ? startDate : D'2025.01.01 00:00';
+         if(now > g_effectiveStartDate)
+            g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
+         else
+            g_effectiveDaysBack = 365;
+      }
    }
 
    InpBacktestStartDate = g_effectiveStartDate;
    InpBacktestDays      = g_effectiveDaysBack;
 
-   long neededBars = (long)g_effectiveDaysBack * 1440 + 50000;
-   if(neededBars < 2000000) neededBars = 2000000;
-   if(mode == HIST_ALL_AVAILABLE) neededBars = 10000000;
-   g_effectiveTargetBars = (int)MathMin(neededBars, 20000000);
+   int secPerBar = PeriodSeconds(_Period);
+   if(secPerBar <= 0) secPerBar = 60;
+
+   long neededBars = 0;
+   if(mode == HIST_ALL_AVAILABLE)
+   {
+      neededBars = 5000000;
+   }
+   else
+   {
+      neededBars = (long)((g_effectiveDaysBack * 86400) / secPerBar) + 3000;
+   }
+
+   if(neededBars < 3000) neededBars = 3000;
+   g_effectiveTargetBars = (int)MathMin(neededBars, 5000000);
    InpMaxBarsTF = g_effectiveTargetBars;
 }
 

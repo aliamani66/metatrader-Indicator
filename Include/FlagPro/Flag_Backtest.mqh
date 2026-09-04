@@ -609,6 +609,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       g_drawnBoxes[b].hasTradeEntered = false;
       if(g_drawnBoxes[b].top <= 0) continue;
       if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
+      if(g_effectiveStartDate > 0 && g_drawnBoxes[b].t1 < g_effectiveStartDate) continue;
 
       string role = "Flag";
       bool isSwap = g_drawnBoxes[b].isSwap;
@@ -1175,8 +1176,9 @@ void ExportAllTradesToCSV()
       if(startDays > effectiveBacktestDays) effectiveBacktestDays = startDays;
    }
 
-   int barsToCopy = MathMax(InpMaxBarsTF, effectiveBacktestDays * 1440 * 2 + 10000);
-   if(barsToCopy < 2000000) barsToCopy = 2000000;
+   int secPerBar = PeriodSeconds(_Period);
+   if(secPerBar <= 0) secPerBar = 60;
+   int barsToCopy = MathMax(InpMaxBarsTF, (int)((effectiveBacktestDays * 86400) / secPerBar) + 5000);
    int copied = CopyTime(_Symbol, _Period, 0, barsToCopy, chartTime);
    CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
    CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);
