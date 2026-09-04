@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import math
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -51,18 +52,48 @@ def is_low_reward_vs_friction(risk_pts, comm_per_lot=6.0, spread_pips=0.8, min_r
     min_pts = total_friction_pips * min_ratio * 10.0
     return (risk_pts <= min_pts)
 
-def build_dashboard():
-    csv_file = CSV_PATH_PRIMARY if os.path.exists(CSV_PATH_PRIMARY) else CSV_PATH_FALLBACK
-    if not os.path.exists(csv_file):
-        print(f"CSV not found: {csv_file}")
-        return
+def build_dashboard(custom_csv=None):
+    if custom_csv and os.path.exists(custom_csv):
+        csv_file = custom_csv
+    elif len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+        csv_file = sys.argv[1]
+    else:
+        files_dir = os.path.dirname(CSV_PATH_PRIMARY)
+        cands = [os.path.join(files_dir, f) for f in os.listdir(files_dir) 
+                 if (f.startswith('flagpro_trades') or f.startswith('flag_trades')) and f.endswith('.csv')]
+        if cands:
+            cands.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+            csv_file = cands[0]
+        elif os.path.exists(CSV_PATH_PRIMARY):
+            csv_file = CSV_PATH_PRIMARY
+        elif os.path.exists(CSV_PATH_FALLBACK):
+            csv_file = CSV_PATH_FALLBACK
+        else:
+            print(f"CSV not found in: {files_dir}")
+            return
+
+    print(f"📂 در حال پردازش فایل دیتا: {csv_file}")
 
     all_raw_rows = []
     with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
         for r in csv.DictReader(f):
             all_raw_rows.append(r)
 
-    rows = [r for r in all_raw_rows if r.get('Timeframe') in ['M1', 'M5', 'M15']]
+    # Dynamic Symbol Detection
+    symbol = 'EURUSD'
+    if all_raw_rows and all_raw_rows[0].get('Symbol'):
+        symbol = all_raw_rows[0].get('Symbol').strip()
+    else:
+        m = re.search(r'flagpro_trades_([A-Za-z0-9_]+)\.csv', os.path.basename(csv_file))
+        if m: symbol = m.group(1).upper()
+
+    clean_symbol = re.sub(r'[^A-Za-z0-9]', '', symbol) or 'EURUSD'
+
+    available_tfs = sorted(list(set(r.get('Timeframe') for r in all_raw_rows if r.get('Timeframe'))))
+    if not available_tfs: available_tfs = ['M1', 'M5', 'M15']
+    tfs_str = ', '.join(available_tfs)
+
+    rows = [r for r in all_raw_rows if r.get('Timeframe') in available_tfs]
     total_setups = len(rows)
     entered = [r for r in rows if r.get('Outcome') != 'Pending']
     closed = [r for r in entered if r.get('IsClosed') == 'True']
@@ -439,7 +470,7 @@ def build_dashboard():
 
     # 1. Golden Kings Strategy per Timeframe (The actual system being traded)
     tf_kings_rows = []
-    for tf_name in ['M1', 'M5', 'M15']:
+    for tf_name in available_tfs:
         t_sub = [r for r in kings_trades if r.get('Timeframe') == tf_name]
         d = calc_tf_metrics(t_sub)
         if not d: continue
@@ -459,7 +490,9 @@ def build_dashboard():
         </tr>
         """)
 
-    d_tot_kings = calc_tf_metrics(kings_trades)
+    d_tot_kings = calc_tf_metrics(kings_trades) or {
+        'cnt': 0, 'w1_p': 0.0, 'w2_p': 0.0, 'w3_p': 0.0, 'w4_p': 0.0, 'sl_p': 0.0, 'gross': 0.0, 'fric': 0.0, 'net': 0.0
+    }
     tot_kings_col = "#00e676" if d_tot_kings['net'] >= 0 else "#ef4444"
     tf_kings_rows.append(f"""
     <tr style="background:#1e293b;border-top:2px solid #38bdf8;">
@@ -478,7 +511,7 @@ def build_dashboard():
 
     # 2. Raw noise summary (All 40+ patterns) for direct comparison
     tf_raw_rows = []
-    for tf_name in ['M1', 'M5', 'M15']:
+    for tf_name in available_tfs:
         t_sub = [r for r in closed if r.get('Timeframe') == tf_name]
         d = calc_tf_metrics(t_sub)
         if not d: continue
@@ -496,7 +529,9 @@ def build_dashboard():
         </tr>
         """)
 
-    d_tot_raw = calc_tf_metrics(closed)
+    d_tot_raw = calc_tf_metrics(closed) or {
+        'cnt': 0, 'w1_p': 0.0, 'w2_p': 0.0, 'w3_p': 0.0, 'w4_p': 0.0, 'sl_p': 0.0, 'gross': 0.0, 'fric': 0.0, 'net': 0.0
+    }
     tot_raw_col = "#00e676" if d_tot_raw['net'] >= 0 else "#ef4444"
     tf_raw_rows.append(f"""
     <tr style="background:#1c1917;border-top:1px solid #44403c;">
@@ -1157,122 +1192,192 @@ def build_dashboard():
         })
     json_trades_sim = json.dumps(trades_sim_list, separators=(',', ':'))
 
-    # ==================== SMART PRESETS OPTIMIZER ====================
+    # ==================== DYNAMIC AUTO-OPTIMIZER ENGINE ====================
     all_sim_k_keys = [k['kk'] for k in kings_sim_list]
-    
-    # Preset 1: Base All Kings 24h
-    h_24 = [True] * 24
-    
-    # Preset 2: Golden Balance (User Sweet-spot: ~70% WR, PF ~2.4+, Avg ~$1.8+, Low DD)
-    h_nonight = [False if h in [22, 23, 0, 1, 2, 3] else True for h in range(24)]
-    k_golden = [k['kk'] for k in kings_sim_list if ((k['net'] / k['cnt']) if k['cnt'] > 0 else 0) >= 0.70 and k['pf'] >= 1.5]
-    if not k_golden: k_golden = all_sim_k_keys
+    total_base_trades = len(trades_sim_list)
+    min_15pct_trades = max(20, int(total_base_trades * 0.15))
+    min_35pct_trades = max(35, int(total_base_trades * 0.35))
 
-    # Preset 3: High Quality & Low Noise Patterns (PF > 2.5, Avg > $2.00)
-    k_hq = [k['kk'] for k in kings_sim_list if ((k['net'] / k['cnt']) if k['cnt'] > 0 else 0) >= 1.0 and k['pf'] >= 1.8]
-    if not k_hq: k_hq = k_golden
+    # 1. Rank Kings of this dataset dynamically by Profit Factor
+    k_eval_stats = {}
+    for t in trades_sim_list:
+        if t['k'] != 1: continue
+        kk = t['kk']
+        if kk not in k_eval_stats: k_eval_stats[kk] = {'p': 0.0, 'wins': 0, 'cnt': 0, 'gp': 0.0, 'gl': 0.0}
+        k_eval_stats[kk]['cnt'] += 1
+        k_eval_stats[kk]['p'] += t['p']
+        if t['p'] > 0:
+            k_eval_stats[kk]['wins'] += 1
+            k_eval_stats[kk]['gp'] += t['p']
+        else:
+            k_eval_stats[kk]['gl'] += abs(t['p'])
 
-    # Preset 4: Day Session Sniper (London & NY peak liquidity 07:00 - 19:59)
-    h_day = [True if 7 <= h < 20 else False for h in range(24)]
+    for kk, s in k_eval_stats.items():
+        s['pf'] = (s['gp'] / s['gl']) if s['gl'] > 0 else 999.0
+        s['wr'] = (s['wins'] / s['cnt'] * 100) if s['cnt'] > 0 else 0
+        s['avg'] = (s['p'] / s['cnt']) if s['cnt'] > 0 else 0
 
-    # Preset 5: Elite Runners & 100% Perfect Wins (TP4 Seekers)
-    k_elite = [k['kk'] for k in kings_sim_list if k['perf'] == 1 or k['run'] == 1 or k['score'] >= 600]
-    if not k_elite: k_elite = all_sim_k_keys
+    sorted_kings_by_pf = sorted(k_eval_stats.keys(), key=lambda k: k_eval_stats[k]['pf'])
+    all_dataset_kings_set = set(k_eval_stats.keys())
 
-    # Preset 1: Super Sniper (User's Exact Sweet-Spot: PF 4.04, WR 77.8%, Avg $3.77, DD $27.10)
-    h_day13 = [True if 7 <= h <= 19 else False for h in range(24)]
-    excluded_user = {'OInner-BU > RS-BE|M1', 'Flag-BU|M1', 'OInner-BU|M1', 'OInner-BE > RS-BU|M1', 'OInner-BU > RS-BU|M1', 'S-RS|M1'}
-    k_super_sniper = [k for k in all_sim_k_keys if k not in excluded_user]
+    # Hours Definitions
+    hours_map = {
+        'all': ('۲۴ ساعته', set(range(24)), [True]*24),
+        'no_night': ('حذف شب (۰۴ تا ۲۲)', set(range(4, 22)), [False if h in [22,23,0,1,2,3] else True for h in range(24)]),
+        'lon_ny': ('سشن روز (۰۷ تا ۲۰)', set(range(7, 20)), [True if 7 <= h < 20 else False for h in range(24)]),
+        'core_day': ('اوج سشن (۰۸ تا ۱۸)', set(range(8, 19)), [True if 8 <= h <= 18 else False for h in range(24)])
+    }
+
+    min_pot_candidates = [0.0, 1.0, 1.5, 2.0, 2.5, 3.0]
+    circuit_breaker_candidates = [(0, 0, False, 'بدون وقفه'), (2, 1, False, '۲ استاپ -> رد معامله ۳')]
+
+    # Grid search across parameter space
+    evaluated_combos = []
+    for h_key, (h_label, h_set, h_arr) in hours_map.items():
+        for pot in min_pot_candidates:
+            for drop_n in range(0, min(8, max(1, len(sorted_kings_by_pf) - 5))):
+                dropped = set(sorted_kings_by_pf[:drop_n]) if drop_n > 0 else set()
+                active_kings = all_dataset_kings_set - dropped
+                for (trig, sk, day, cb_label) in circuit_breaker_candidates:
+                    bal = 10000.0; peak = bal; max_dd = 0.0; wins = 0; total = 0; gp = 0.0; gl = 0.0
+                    consec_loss = 0; skips = 0
+                    for t in trades_sim_list:
+                        if t['k'] != 1: continue
+                        if t['kk'] not in active_kings: continue
+                        if t['h'] not in h_set: continue
+                        if t['pot'] < pot: continue
+                        if skips > 0: skips -= 1; continue
+                        total += 1
+                        bal += t['p']
+                        if bal > peak: peak = bal
+                        dd = peak - bal
+                        if dd > max_dd: max_dd = dd
+                        if t['p'] > 0:
+                            wins += 1; gp += t['p']; consec_loss = 0
+                        else:
+                            gl += abs(t['p']); consec_loss += 1
+                            if trig > 0 and consec_loss >= trig: skips = sk; consec_loss = 0
+
+                    if total < min_15pct_trades: continue
+                    wr = (wins / total * 100) if total > 0 else 0
+                    pf = (gp / gl) if gl > 0 else 999.0
+                    net = bal - 10000.0
+                    avg = net / total if total > 0 else 0
+                    # Composite score: high PF, high WR, high Avg, low DD
+                    score = (pf ** 1.3) * (wr / 50.0) * max(0.5, avg) / max(12.0, max_dd) * 100
+                    evaluated_combos.append({
+                        'h_key': h_key, 'h_label': h_label, 'h_arr': h_arr,
+                        'pot': pot, 'dropped_n': drop_n, 'kings': list(active_kings), 'kings_cnt': len(active_kings),
+                        'trig': trig, 'sk': sk, 'day': day, 'cb_label': cb_label,
+                        'total': total, 'wr': wr, 'pf': pf, 'net': net, 'avg': avg, 'max_dd': max_dd, 'score': score
+                    })
+
+    evaluated_combos.sort(key=lambda x: x['score'], reverse=True)
+
+    # 1. Champion (Best score >= 15% trades)
+    opt_p1 = evaluated_combos[0] if evaluated_combos else None
+
+    # 2. Golden Balance (Best score with >= 35% trades)
+    cands_p2 = [r for r in evaluated_combos if r['total'] >= min_35pct_trades and r['h_key'] in ['no_night', 'all']]
+    opt_p2 = cands_p2[0] if cands_p2 else (evaluated_combos[1] if len(evaluated_combos) > 1 else opt_p1)
+
+    # 3. Day Session (Best score in Day Session 07-20)
+    cands_p3 = [r for r in evaluated_combos if r['h_key'] == 'lon_ny' and r['pot'] <= 2.0]
+    opt_p3 = cands_p3[0] if cands_p3 else opt_p1
+
+    # 4. Ultra-Low DD (Lowest DD with PF >= 2.5 and >= 15% trades)
+    cands_p4 = sorted([r for r in evaluated_combos if r['pf'] >= 2.5 and r['total'] >= min_15pct_trades and r['total'] != opt_p1['total']], key=lambda x: x['max_dd'])
+    opt_p4 = cands_p4[0] if cands_p4 else opt_p1
 
     smart_presets_defs = [
         {
-            'id': 'preset-super-sniper',
+            'id': 'preset-champion',
             'idx': 0,
-            'title': '۱. الماس و سوپر اسنایپر (Super Sniper - چیدمان شاهکار شما 🎯)',
-            'badge': '🏆 شاهکار چارت: PF 4.04 & WR 78%',
+            'title': f'۱. الماس و سوپر اسنایپر خودکار (AI Champion Sniper 🎯)',
+            'badge': f'🏆 قهرمان کشف‌شده: PF {opt_p1["pf"]:.2f} & WR {opt_p1["wr"]:.0f}%',
             'badge_bg': '#831843',
             'badge_col': '#fbcfe8',
-            'strategy_desc': 'پرافیت فاکتور خارق‌العاده ۴.۰۴، وین‌ریت ۷۷.۸٪، میانگین سود ۳.۷۷$ و افت ناچیز ۲۷.۱۰$ (۲۱۲ ترید)',
-            'filter_desc': 'کف سود: <b>$3.00+</b> | ساعات: <b>سشن روز (۰۷ تا ۱۹)</b>',
-            'min_pot': 3.0,
-            'hours': h_day13,
-            'hours_name': 'lon_ny',
-            'kings': k_super_sniper,
+            'strategy_desc': f'بهترین ترکیب هوشمند داده‌های {symbol} با شرط حداقل ۱۵٪ معاملات - پرافیت فاکتور {opt_p1["pf"]:.2f}، وین‌ریت {opt_p1["wr"]:.1f}٪، میانگین سود ${opt_p1["avg"]:.2f} و افت ${opt_p1["max_dd"]:.2f} ({opt_p1["total"]} ترید)',
+            'filter_desc': f'کف سود: <b>${opt_p1["pot"]:.2f}+</b> | ساعات: <b>{opt_p1["h_label"]}</b> | وقفه: <b>{opt_p1["cb_label"]}</b>',
+            'min_pot': opt_p1['pot'],
+            'hours': opt_p1['h_arr'],
+            'hours_name': opt_p1['h_key'],
+            'kings': opt_p1['kings'],
+            'consec_trig': opt_p1['trig'],
+            'consec_sk': opt_p1['sk'],
+            'consec_day': opt_p1['day'],
             'is_featured': True
         },
         {
             'id': 'preset-golden',
             'idx': 1,
-            'title': '۲. تعادل طلایی هج‌فاند (Golden Balance ⚖️)',
-            'badge': '⭐ بالانس بهینه',
+            'title': '۲. تعادل طلایی حجم و سود (Golden Balance ⚖️)',
+            'badge': f'⭐ بالانس بهینه ({opt_p2["total"]} ترید)',
             'badge_bg': '#854d0e',
             'badge_col': '#fef08a',
-            'strategy_desc': 'وین‌ریت ~۷۰٪، پرافیت فاکتور ۲.۴۴، سود خالص ۱,۴۹۸$، میانگین سود ۱.۸۶$ و افت ۳۰.۵۶$',
-            'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
-            'min_pot': 2.0,
-            'hours': h_nonight,
-            'hours_name': 'no_night',
-            'kings': k_golden,
-            'is_featured': False
-        },
-        {
-            'id': 'preset-hq',
-            'idx': 2,
-            'title': '۳. پترن‌های فوق‌باکیفیت (High Quality & PF 3.0)',
-            'badge': '💎 حاشیه سود اعلا',
-            'badge_bg': '#064e3b',
-            'badge_col': '#34d399',
-            'strategy_desc': 'حذف الگوهای کم‌حاشیه - پرافیت فاکتور نزدیک به ۳ و میانگین سود بالای ۲.۴$',
-            'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
-            'min_pot': 2.0,
-            'hours': h_nonight,
-            'hours_name': 'no_night',
-            'kings': k_hq,
+            'strategy_desc': f'تعادل عالی میان تعداد ترید بالا ({opt_p2["total"]} معامله) و پرافیت فاکتور {opt_p2["pf"]:.2f} با میانگین سود ${opt_p2["avg"]:.2f}',
+            'filter_desc': f'کف سود: <b>${opt_p2["pot"]:.2f}+</b> | ساعات: <b>{opt_p2["h_label"]}</b>',
+            'min_pot': opt_p2['pot'],
+            'hours': opt_p2['h_arr'],
+            'hours_name': opt_p2['h_key'],
+            'kings': opt_p2['kings'],
+            'consec_trig': opt_p2['trig'],
+            'consec_sk': opt_p2['sk'],
+            'consec_day': opt_p2['day'],
             'is_featured': False
         },
         {
             'id': 'preset-day',
-            'idx': 3,
-            'title': '۴. اسنایپر سشن روزانه لندن و نیویورک (Day Session)',
-            'badge': '☀️ اوج نقدینگی',
+            'idx': 2,
+            'title': '۳. اسنایپر سشن روزانه لندن و نیویورک (Day Session ☀️)',
+            'badge': '☀️ اوج نقدینگی روزانه',
             'badge_bg': '#0c4a6e',
             'badge_col': '#7dd3fc',
-            'strategy_desc': 'معامله فقط در ساعات پرقدرت روز (۰۷:۰۰ تا ۲۰:۰۰) با کمترین اسپرد و افت سرمایه ۲۶.۸۳$',
-            'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>سشن روز (۰۷ تا ۲۰)</b>',
-            'min_pot': 2.0,
-            'hours': h_day,
-            'hours_name': 'lon_ny',
-            'kings': all_sim_k_keys,
+            'strategy_desc': f'معامله در ساعات پرقدرت روز با اسپرد پایین و تاییدیه مومنتوم - PF {opt_p3["pf"]:.2f} و افت ${opt_p3["max_dd"]:.2f}',
+            'filter_desc': f'کف سود: <b>${opt_p3["pot"]:.2f}+</b> | ساعات: <b>{opt_p3["h_label"]}</b>',
+            'min_pot': opt_p3['pot'],
+            'hours': opt_p3['h_arr'],
+            'hours_name': opt_p3['h_key'],
+            'kings': opt_p3['kings'],
+            'consec_trig': opt_p3['trig'],
+            'consec_sk': opt_p3['sk'],
+            'consec_day': opt_p3['day'],
             'is_featured': False
         },
         {
-            'id': 'preset-elite',
-            'idx': 4,
-            'title': '۵. سلاطین دونده و کمال‌گرا (Elite Runners & Perfect)',
-            'badge': '🚀 پرتابی تا TP4',
-            'badge_bg': '#3b0764',
-            'badge_col': '#e9d5ff',
-            'strategy_desc': 'تمرکز بر ساختارهای بدون باخت (۱۰۰٪) و پترن‌های دارای پرتاب‌های بزرگ تا تارگت ۴',
-            'filter_desc': 'کف سود: <b>$1.50+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
-            'min_pot': 1.5,
-            'hours': h_nonight,
-            'hours_name': 'no_night',
-            'kings': k_elite,
+            'id': 'preset-shield',
+            'idx': 3,
+            'title': '۴. سپر محافظتی کمترین افت سرمایه (Ultra-Low DD Shield 🛡️)',
+            'badge': f'🛡️ حداقل افت: ${opt_p4["max_dd"]:.2f}',
+            'badge_bg': '#064e3b',
+            'badge_col': '#34d399',
+            'strategy_desc': f'کمترین ریسک دلاری ممکن روی حساب ({symbol}) با حفظ پرافیت فاکتور عالی {opt_p4["pf"]:.2f} و وین‌ریت {opt_p4["wr"]:.1f}٪',
+            'filter_desc': f'کف سود: <b>${opt_p4["pot"]:.2f}+</b> | ساعات: <b>{opt_p4["h_label"]}</b> | وقفه: <b>{opt_p4["cb_label"]}</b>',
+            'min_pot': opt_p4['pot'],
+            'hours': opt_p4['h_arr'],
+            'hours_name': opt_p4['h_key'],
+            'kings': opt_p4['kings'],
+            'consec_trig': opt_p4['trig'],
+            'consec_sk': opt_p4['sk'],
+            'consec_day': opt_p4['day'],
             'is_featured': False
         },
         {
             'id': 'preset-base',
-            'idx': 5,
-            'title': '۶. سبد جامع پایه (تمام سلاطین ۲۴ ساعته)',
+            'idx': 4,
+            'title': f'۵. سبد جامع پایه {symbol} (تمام سلاطین ۲۴ ساعته 🌐)',
             'badge': '🌐 مبنای کل چارت',
             'badge_bg': '#1e293b',
             'badge_col': '#94a3b8',
-            'strategy_desc': 'شبیه‌سازی کامل تمام سلاطین بدون فیلتر سود یا زمان - بیشترین حجم معامله (۱,۲۳۳ ترید)',
+            'strategy_desc': f'شبیه‌سازی کامل تمام سلاطین بدون فیلتر سود یا زمان - بالاترین حجم آماری ({len(pts_kings)-1} ترید)',
             'filter_desc': 'کف سود: <b>$0.00</b> | ساعات: <b>۲۴ ساعته کامل</b>',
             'min_pot': 0.0,
-            'hours': h_24,
+            'hours': [True]*24,
             'hours_name': 'all',
             'kings': all_sim_k_keys,
+            'consec_trig': 0,
+            'consec_sk': 1,
+            'consec_day': False,
             'is_featured': False
         }
     ]
@@ -1282,7 +1387,24 @@ def build_dashboard():
 
     for p in smart_presets_defs:
         k_set = set(p['kings'])
-        sub = [t for t in trades_sim_list if t['k'] == 1 and t['kk'] in k_set and t['pot'] >= p['min_pot'] and p['hours'][t['h']]]
+        consec_loss = 0
+        skips = 0
+        sub = []
+        for t in trades_sim_list:
+            if t['k'] != 1 or t['kk'] not in k_set or t['pot'] < p['min_pot'] or not p['hours'][t['h']]:
+                continue
+            if skips > 0:
+                skips -= 1
+                continue
+            sub.append(t)
+            if t['p'] <= 0:
+                consec_loss += 1
+                if p.get('consec_trig', 0) > 0 and consec_loss >= p['consec_trig']:
+                    skips = p.get('consec_sk', 1)
+                    consec_loss = 0
+            else:
+                consec_loss = 0
+
         c = len(sub)
         if c == 0: continue
         nt = sum(t['p'] for t in sub)
@@ -1310,6 +1432,9 @@ def build_dashboard():
             'hours': p['hours'],
             'hours_name': p['hours_name'],
             'kings': p['kings'],
+            'consec_trig': p.get('consec_trig', 0),
+            'consec_sk': p.get('consec_sk', 1),
+            'consec_day': p.get('consec_day', False),
             'cnt': c,
             'wr': round(wr, 1),
             'pf': round(pf, 2) if pf < 900 else 999.0,
@@ -1798,7 +1923,7 @@ def build_dashboard():
                 <div style="font-size:22px;">🎯</div>
                 <div>
                     <div class="sidebar-brand-title">FlagPro Master</div>
-                    <div class="sidebar-brand-sub">EURUSD | M1, M5, M15</div>
+                    <div class="sidebar-brand-sub">{symbol} | {tfs_str}</div>
                 </div>
             </div>
 
@@ -1855,7 +1980,7 @@ def build_dashboard():
                 </div>
                 <div>
                     <span style="background:#081420;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;color:#38bdf8;">
-                        EURUSD (M1/M5/M15)
+                        {symbol} ({tfs_str})
                     </span>
                 </div>
             </div>
@@ -1974,7 +2099,10 @@ def build_dashboard():
                     </button>
                 </div>
                 <div style="display:flex;gap:6px;">
-                    <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:5px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:bold;">💾 ذخیره چیدمان فعلی</button>
+                    <button onclick="runClientAutoOptimizer()" style="background:linear-gradient(135deg, #7c3aed, #a855f7);border:1px solid #c084fc;color:#fff;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 10px rgba(168,85,247,0.4);display:flex;align-items:center;gap:6px;">
+                            <span>🤖 کشف خودکار بهترین چیدمان این دیتا (AI Optimizer)</span>
+                        </button>
+                        <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:5px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:bold;">💾 ذخیره چیدمان فعلی</button>
                     <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:bold;">🔄 بازنشانی (Reset)</button>
                 </div>
             </div>
@@ -3592,6 +3720,19 @@ def build_dashboard():
             // 4. Set enabled kings
             simState.enabledKings = new Set(p.kings);
 
+            // 4B. Consecutive Loss Circuit Breaker from Preset
+            if (p.consec_trig !== undefined) {{
+                simState.consecLossTrigger = p.consec_trig;
+                simState.consecLossSkipCount = p.consec_sk || 1;
+                simState.consecLossSkipDay = !!p.consec_day;
+                syncConsecButtonsUI();
+            }} else {{
+                simState.consecLossTrigger = 0;
+                simState.consecLossSkipCount = 1;
+                simState.consecLossSkipDay = false;
+                syncConsecButtonsUI();
+            }}
+
             // 5. Update UI components
             renderSimKingsGrid();
             renderSimHoursBar();
@@ -4884,6 +5025,141 @@ def build_dashboard():
         }}
 
         
+        
+        // ====================================================
+        // 🤖 CLIENT-SIDE AI AUTO-OPTIMIZER ENGINE
+        // ====================================================
+        function runClientAutoOptimizer() {{
+            let kingTrades = simTrades.filter(t => t.k === 1);
+            let totalBase = kingTrades.length;
+            if (totalBase === 0) {{
+                alert('هیچ معامله‌ای برای بهینه‌سازی یافت نشد.');
+                return;
+            }}
+
+            let min15 = Math.max(20, Math.floor(totalBase * 0.15));
+
+            // Calculate king PF stats
+            let kStats = {{}};
+            for (let t of kingTrades) {{
+                if (!kStats[t.kk]) kStats[t.kk] = {{ gp: 0, gl: 0, p: 0, wins: 0, cnt: 0 }};
+                kStats[t.kk].cnt++;
+                kStats[t.kk].p += t.p;
+                if (t.p > 0) {{ kStats[t.kk].wins++; kStats[t.kk].gp += t.p; }}
+                else {{ kStats[t.kk].gl += Math.abs(t.p); }}
+            }}
+            for (let kk in kStats) {{
+                kStats[kk].pf = kStats[kk].gl > 0 ? (kStats[kk].gp / kStats[kk].gl) : 999;
+            }}
+            let sortedKings = Object.keys(kStats).sort((a, b) => kStats[a].pf - kStats[b].pf);
+            let allKingsSet = new Set(Object.keys(kStats));
+
+            let hoursMap = {{
+                'all': new Array(24).fill(true),
+                'no_night': Array.from({{length: 24}}, (_, h) => !(h >= 22 || h <= 3)),
+                'lon_ny': Array.from({{length: 24}}, (_, h) => (h >= 7 && h < 20)),
+                'core_day': Array.from({{length: 24}}, (_, h) => (h >= 8 && h <= 18))
+            }};
+
+            let pots = [0.0, 1.0, 1.5, 2.0, 2.5, 3.0];
+            let cbs = [{{trig: 0, sk: 0}}, {{trig: 2, sk: 1}}];
+
+            let best = null;
+            let bestScore = -999999;
+
+            for (let hKey in hoursMap) {{
+                let hArr = hoursMap[hKey];
+                for (let pot of pots) {{
+                    for (let dropN = 0; dropN <= Math.min(7, sortedKings.length - 5); dropN++) {{
+                        let activeKings = new Set(allKingsSet);
+                        for (let d = 0; d < dropN; d++) activeKings.delete(sortedKings[d]);
+
+                        for (let cb of cbs) {{
+                            let bal = 10000.0, peak = bal, maxDD = 0.0, wins = 0, total = 0, gp = 0.0, gl = 0.0;
+                            let consecLoss = 0, skips = 0;
+
+                            for (let t of kingTrades) {{
+                                if (!activeKings.has(t.kk)) continue;
+                                if (!hArr[t.h]) continue;
+                                if (t.pot < pot) continue;
+                                if (skips > 0) {{ skips--; continue; }}
+
+                                total++;
+                                bal += t.p;
+                                if (bal > peak) peak = bal;
+                                let dd = peak - bal;
+                                if (dd > maxDD) maxDD = dd;
+                                if (t.p > 0) {{
+                                    wins++; gp += t.p; consecLoss = 0;
+                                }} else {{
+                                    gl += Math.abs(t.p); consecLoss++;
+                                    if (cb.trig > 0 && consecLoss >= cb.trig) {{
+                                        skips = cb.sk; consecLoss = 0;
+                                    }}
+                                }}
+                            }}
+
+                            if (total < min15) continue;
+                            let wr = (wins / total) * 100;
+                            let pf = gl > 0 ? (gp / gl) : 999;
+                            let net = bal - 10000.0;
+                            let avg = net / total;
+                            let score = Math.pow(pf, 1.3) * (wr / 50.0) * Math.max(0.5, avg) / Math.max(12.0, maxDD) * 100;
+
+                            if (score > bestScore) {{
+                                bestScore = score;
+                                best = {{
+                                    hKey: hKey, hArr: hArr, pot: pot, kings: Array.from(activeKings),
+                                    cb: cb, total: total, wr: wr, pf: pf, avg: avg, maxDD: maxDD, net: net
+                                }};
+                            }}
+                        }}
+                    }}
+                }}
+            }}
+
+            if (!best) {{
+                alert('هیچ ترکیب متناسبی با شرط حداقل ۱۵٪ معاملات یافت نشد.');
+                return;
+            }}
+
+            let msg = [
+                '🏆 بهترین ترکیب کشف‌شده توسط هوش مصنوعی (شرط حداقل ۱۵٪ = ' + min15 + ' معامله):',
+                '',
+                '🔹 تعداد معامله: ' + best.total + ' (' + ((best.total/totalBase)*100).toFixed(1) + '٪ کل چارت)',
+                '🔹 وین‌ریت: ' + best.wr.toFixed(1) + '٪',
+                '🔹 پرافیت فاکتور: ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX'),
+                '🔹 میانگین سود هر ترید: $' + best.avg.toFixed(2),
+                '🔹 حداکثر افت سرمایه (DD): $' + best.maxDD.toFixed(2),
+                '🔹 سود خالص: $' + best.net.toFixed(2),
+                '🔹 تنظیمات: کف سود $' + best.pot.toFixed(2) + ' | ' + best.kings.length + ' سلطان فعال' + (best.cb.trig > 0 ? ' | وقفه بعد از ۲ استاپ' : ''),
+                '',
+                'آیا مایلید این چیدمان بلافاصله روی نمودار و فیلترها اعمال شود؟'
+            ].join('\\n');
+
+            if (confirm(msg)) {{
+                simState.mode = 'kings';
+                simState.minProfit = best.pot;
+                simState.allowedHours = [...best.hArr];
+                simState.enabledKings = new Set(best.kings);
+                simState.consecLossTrigger = best.cb.trig;
+                simState.consecLossSkipCount = best.cb.sk;
+                simState.consecLossSkipDay = false;
+
+                // Sync UI elements
+                let slider = document.getElementById('simProfitSlider');
+                if (slider) slider.value = best.pot;
+                let sliderVal = document.getElementById('simProfitSliderVal');
+                if (sliderVal) sliderVal.textContent = '$' + best.pot.toFixed(2);
+
+                renderSimKingsGrid();
+                renderSimHoursBar();
+                syncConsecButtonsUI();
+                runEquitySimulation();
+                alert('✅ چیدمان قهرمان هوش مصنوعی با موفقیت اعمال شد!');
+            }}
+        }}
+
         function toggleTwoColLayout() {{
             let container = document.getElementById('eqTwoColContainer');
             let btn = document.getElementById('btnToggleTwoCol');
@@ -5274,7 +5550,12 @@ def build_dashboard():
 </html>
 """
 
-    for out_path in OUT_PATHS:
+    dyn_out_paths = [
+        os.path.join(os.path.dirname(csv_file), f"{clean_symbol.lower()}_performance_report.html"),
+        os.path.join(os.path.dirname(csv_file), "flagpro_performance_dashboard.html"),
+        r"C:\Users\USER\Desktop\FlagPro_Dashboard.html"
+    ]
+    for out_path in dyn_out_paths:
         try:
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             with open(out_path, mode='w', encoding='utf-8') as f:
