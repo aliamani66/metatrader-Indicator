@@ -27,35 +27,105 @@ function getAvailableTesterScenarios() {
     let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
     let spList = sData.smart_presets || (typeof smartPresets !== 'undefined' ? smartPresets : []);
     let allKings = sData.kings_sim_list || [];
+    if (!allKings.length && typeof kingsSimList !== 'undefined' && kingsSimList && kingsSimList.length) {
+        allKings = kingsSimList;
+    }
+    if (!allKings.length && window.ALL_SYMBOLS_DATA) {
+        for (let k in window.ALL_SYMBOLS_DATA) {
+            if (window.ALL_SYMBOLS_DATA[k] && window.ALL_SYMBOLS_DATA[k].kings_sim_list && window.ALL_SYMBOLS_DATA[k].kings_sim_list.length) {
+                allKings = window.ALL_SYMBOLS_DATA[k].kings_sim_list;
+                break;
+            }
+        }
+    }
 
-    function formatHours(hArr, hName) {
-        if (!hArr || hArr.length < 24) return hName || '۲۴ ساعته';
-        let trueCount = hArr.filter(Boolean).length;
+    function formatHours(hArr, hName, hStr) {
+        let boolArr = null;
+        if (Array.isArray(hArr)) {
+            if (hArr.length === 24 && typeof hArr[0] === 'boolean') {
+                boolArr = hArr;
+            } else {
+                boolArr = new Array(24).fill(false);
+                hArr.forEach(h => {
+                    let n = parseInt(h);
+                    if (!isNaN(n) && n >= 0 && n < 24) boolArr[n] = true;
+                });
+            }
+        } else if (typeof hStr === 'string' && hStr.trim()) {
+            boolArr = new Array(24).fill(false);
+            hStr.split(/[,;\s]+/).forEach(h => {
+                let n = parseInt(h);
+                if (!isNaN(n) && n >= 0 && n < 24) boolArr[n] = true;
+            });
+        } else if (typeof hArr === 'string' && hArr.trim()) {
+            boolArr = new Array(24).fill(false);
+            hArr.split(/[,;\s]+/).forEach(h => {
+                let n = parseInt(h);
+                if (!isNaN(n) && n >= 0 && n < 24) boolArr[n] = true;
+            });
+        }
+
+        if (!boolArr) {
+            return hName || '۲۴ ساعته (بدون محدودیت)';
+        }
+
+        let trueCount = boolArr.filter(Boolean).length;
         if (trueCount === 24) return '۲۴ ساعته کامل (00 الی 23)';
+        if (trueCount === 0) return 'هیچ ساعتی فعال نیست';
+
         let ranges = [];
         let cur = [];
         for (let i = 0; i < 24; i++) {
-            if (hArr[i]) {
+            if (boolArr[i]) {
                 cur.push(i);
             } else if (cur.length) {
-                ranges.push((cur[0] < 10 ? '0' + cur[0] : cur[0]) + ' الی ' + (cur[cur.length-1] < 10 ? '0' + cur[cur.length-1] : cur[cur.length-1]));
+                let s = (cur[0] < 10 ? '0' + cur[0] : cur[0]) + ':00';
+                let e = (cur[cur.length - 1] < 10 ? '0' + cur[cur.length - 1] : cur[cur.length - 1]) + ':00';
+                ranges.push(s === e ? s : `${s} الی ${e}`);
                 cur = [];
             }
         }
-        if (cur.length) ranges.push((cur[0] < 10 ? '0' + cur[0] : cur[0]) + ' الی ' + (cur[cur.length-1] < 10 ? '0' + cur[cur.length-1] : cur[cur.length-1]));
-        return ranges.join(' و ');
+        if (cur.length) {
+            let s = (cur[0] < 10 ? '0' + cur[0] : cur[0]) + ':00';
+            let e = (cur[cur.length - 1] < 10 ? '0' + cur[cur.length - 1] : cur[cur.length - 1]) + ':00';
+            ranges.push(s === e ? s : `${s} الی ${e}`);
+        }
+
+        let rangeStr = ranges.join(' و ');
+        let prefix = (hName && !hName.includes('سفارشی') && !hName.includes('custom') && !hName.includes('۲۴')) ? (hName + ' - ') : '';
+        return `${prefix}${rangeStr} (${trueCount} ساعت)`;
     }
 
-    function formatDisabledKings(kList) {
-        if (!kList || !kList.length || !allKings.length) return 'بدون مسدودی';
-        let kSet = new Set(kList);
-        let disabled = [];
-        for (let k of allKings) {
-            if (!kSet.has(k.kk)) {
-                disabled.push(k.kk.replace(/\|(M\d+)/, ' [$1]'));
+    function formatDisabledKings(kList, cp) {
+        if (cp && cp.disabled_kings_str && cp.disabled_kings_str.trim()) {
+            return cp.disabled_kings_str.trim();
+        }
+        if (cp && Array.isArray(cp.disabled_kings) && cp.disabled_kings.length) {
+            return cp.disabled_kings.map(k => (typeof k === 'string' ? k.replace(/\|(M\d+)/, ' [$1]') : '')).join(', ');
+        }
+
+        let activeList = kList || (cp && cp.kings);
+        if (activeList && Array.isArray(activeList)) {
+            if (allKings.length > 0) {
+                let activeSet = new Set(activeList.map(k => (typeof k === 'string' ? k : (k.kk || ''))));
+                let disabled = [];
+                for (let k of allKings) {
+                    let kk = typeof k === 'string' ? k : (k.kk || '');
+                    if (kk && !activeSet.has(kk)) {
+                        disabled.push(kk.replace(/\|(M\d+)/, ' [$1]'));
+                    }
+                }
+                if (disabled.length > 0) {
+                    return disabled.join(', ');
+                } else {
+                    return 'بدون مسدودی (تمام ' + allKings.length + ' سلطان فعال)';
+                }
+            } else {
+                return 'فعال: ' + activeList.length + ' سلطان (' + activeList.map(k => (typeof k === 'string' ? k.replace(/\|(M\d+)/, ' [$1]') : '')).join(', ') + ')';
             }
         }
-        return disabled.length ? disabled.join(', ') : 'بدون مسدودی';
+
+        return 'بدون مسدودی (تمام سلاطین فعال)';
     }
 
     let pChamp = spList.find(p => p.idx === 0 || (p.title && (p.title.includes('الماس') || p.title.includes('Champion'))));
@@ -179,20 +249,36 @@ function getAvailableTesterScenarios() {
     try {
         let custom = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
         custom.forEach((cp, idx) => {
+            let hDisp = formatHours(cp.hours, cp.hours_name, cp.hours_str);
+            let dKings = formatDisabledKings(cp.kings, cp);
+            let potVal = (cp.min_pot !== undefined && !isNaN(Number(cp.min_pot))) ? Number(cp.min_pot) : 0.0;
+            
+            // Build raw hours array for matching
+            let hArr = null;
+            if (Array.isArray(cp.hours) && cp.hours.length === 24 && typeof cp.hours[0] === 'boolean') {
+                hArr = cp.hours;
+            } else if (Array.isArray(cp.hours)) {
+                hArr = new Array(24).fill(false);
+                cp.hours.forEach(h => { let n = parseInt(h); if (!isNaN(n) && n >= 0 && n < 24) hArr[n] = true; });
+            }
+
             list.push({
                 id: 'custom_' + (cp.id || idx),
-                name: '⭐ سناریوی شخصی: ' + (cp.name || ('سفارشی ' + (idx + 1))),
+                name: '⭐ سناریوی شخصی: ' + (cp.title || cp.name || ('سفارشی ' + (idx + 1))),
                 badge: 'دست‌ساز کاربر',
-                minPot: cp.min_pot || 0.0,
-                minPotDisplay: '$' + (cp.min_pot || 0).toFixed(2),
-                tfM1: 'غیرفعال (False)',
-                hoursDisplay: cp.hours_name || 'ساعات سفارشی',
-                disabledKings: 'انتخابی کاربر',
+                minPot: potVal,
+                minPotDisplay: '$' + potVal.toFixed(2),
+                tfM1: 'غیرفعال (False) - بدون معامله در M1',
+                hoursDisplay: hDisp,
+                hours: hArr,
+                hours_str: cp.hours_str || (hArr ? hArr.map((v, i) => v ? (i < 10 ? '0' + i : '' + i) : null).filter(Boolean).join(',') : ''),
+                disabledKings: dKings,
+                kings: cp.kings || [],
                 beBuffer: (cp.be_buffer !== undefined ? cp.be_buffer + ' pips' : '0.0 pips'),
-                maxDev: '2.5 pips',
-                simWinRate: cp.wr || 60.0,
-                simPf: cp.pf || 2.0,
-                simNetR: '+100.0R'
+                maxDev: (cp.max_dev !== undefined ? cp.max_dev + ' pips' : '2.0 pips'),
+                simWinRate: cp.wr || 65.0,
+                simPf: cp.pf || 2.2,
+                simNetR: (cp.net ? ((cp.net >= 0 ? '+$' : '-$') + Math.abs(cp.net).toFixed(2)) : '+100.0R')
             });
         });
     } catch(e) {}
@@ -520,13 +606,82 @@ function renderParameterDriftTable(report, scenarioKey) {
     let potDiff = Math.abs(actPot - scenario.minPot);
     let potStatus = potDiff <= 0.5 ? 'match' : (actPot < scenario.minPot ? 'severe' : 'warn');
 
+    // 1. Evaluate Hours Status & Impact
+    let actHours = (p.InpAllowedTradingHours || '').trim();
+    let isAct24H = !actHours || actHours.length === 0 || actHours.toLowerCase() === 'all';
+    let isExp24H = !scenario.hours || scenario.hoursDisplay.includes('۲۴ ساعته') || (Array.isArray(scenario.hours) && scenario.hours.filter(Boolean).length === 24);
+
+    let hoursStatus = 'warn';
+    let hoursImpact = '';
+    if (isAct24H && isExp24H) {
+        hoursStatus = 'match';
+        hoursImpact = 'معاملات ۲۴ ساعته کامل طبق برنامه سناریو اعمال شده است.';
+    } else if (!isAct24H && !isExp24H) {
+        let actHoursList = actHours.split(/[,;\s]+/).map(h => parseInt(h)).filter(n => !isNaN(n));
+        let actHoursSet = new Set(actHoursList);
+        let expHoursMatchCount = 0;
+        let totalExpHours = 0;
+        if (Array.isArray(scenario.hours)) {
+            scenario.hours.forEach((v, idx) => {
+                if (v) {
+                    totalExpHours++;
+                    if (actHoursSet.has(idx)) expHoursMatchCount++;
+                }
+            });
+        }
+        if (totalExpHours > 0 && expHoursMatchCount === totalExpHours && actHoursList.length === totalExpHours) {
+            hoursStatus = 'match';
+            hoursImpact = 'ساعات مجاز معاملاتی در تستر متاتریدر ۵ کاملاً منطبق بر این سناریو است.';
+        } else if (expHoursMatchCount > 0) {
+            hoursStatus = 'warn';
+            hoursImpact = `تطابق جزئی در ساعات: ${expHoursMatchCount} از ${totalExpHours} ساعت سناریو در تستر فعال بوده است.`;
+        } else {
+            hoursStatus = 'severe';
+            hoursImpact = 'ساعات معاملاتی ست‌شده در تستر با ساعات این سناریو مغایرت دارد.';
+        }
+    } else if (isAct24H && !isExp24H) {
+        hoursStatus = 'severe';
+        hoursImpact = 'در متاتریدر ۵ تستر به صورت ۲۴ ساعته اجرا شده، در حالی که این سناریو نیازمند فیلتر ساعات غیرفعال است.';
+    } else {
+        hoursStatus = 'warn';
+        hoursImpact = 'در تستر ساعت محدود شده اما سناریو ۲۴ ساعته است.';
+    }
+
+    // 2. Evaluate Disabled Kings Status & Impact
+    let actDis = (p.InpDisabledKingsList || '').trim();
+    let isActNoDis = !actDis || actDis.toLowerCase() === 'none' || actDis.length <= 3;
+    let isExpNoDis = !scenario.disabledKings || scenario.disabledKings.includes('بدون مسدودی');
+
+    let kingsStatus = 'warn';
+    let kingsImpact = '';
+    if (isActNoDis && isExpNoDis) {
+        kingsStatus = 'match';
+        kingsImpact = 'تمامی سلاطین طبق انتظار سناریو در تستر مجاز و فعال بوده‌اند.';
+    } else if (!isActNoDis && !isExpNoDis) {
+        let actDisClean = actDis.replace(/\s+|\[|\]/g, '');
+        let expDisClean = scenario.disabledKings.replace(/\s+|\[|\]/g, '');
+        if (actDisClean === expDisClean || actDisClean.includes(expDisClean) || expDisClean.includes(actDisClean)) {
+            kingsStatus = 'match';
+            kingsImpact = 'سلاطین پرریسک به درستی طبق سناریو در تستر MT5 مسدود شده‌اند.';
+        } else {
+            kingsStatus = 'warn';
+            kingsImpact = 'سلاطین مسدودشده در تستر با لیست مسدودی این سناریو تفاوت دارد.';
+        }
+    } else if (isActNoDis && !isExpNoDis) {
+        kingsStatus = 'severe';
+        kingsImpact = 'در تستر هیچ سلطانی مسدود نشده است، در حالی که این سناریو نیازمند مسدودسازی سلاطین پرریسک است.';
+    } else {
+        kingsStatus = 'warn';
+        kingsImpact = 'در تستر برخی سلاطین مسدود شده‌اند اما سناریو همه سلاطین را مجاز می‌داند.';
+    }
+
     let rows = [
         {
             name: 'سناریوی معاملاتی (InpScenarioName)',
             actual: p.InpScenarioName || 'Default (تنظیمات پیش‌فرض)',
             expected: scenario.name,
-            status: (p.InpScenarioName && p.InpScenarioName.toLowerCase().includes(scenario.id)) ? 'match' : ((!p.InpScenarioName || p.InpScenarioName.includes('Default')) ? 'severe' : 'warn'),
-            impact: (p.InpScenarioName && p.InpScenarioName.toLowerCase().includes(scenario.id))
+            status: (p.InpScenarioName && (p.InpScenarioName.toLowerCase().includes(scenario.id) || (scenario.id.startsWith('custom_') && p.InpScenarioName.includes('سفارشی')))) ? 'match' : ((!p.InpScenarioName || p.InpScenarioName.includes('Default')) ? 'severe' : 'warn'),
+            impact: (p.InpScenarioName && (p.InpScenarioName.toLowerCase().includes(scenario.id) || (scenario.id.startsWith('custom_') && p.InpScenarioName.includes('سفارشی'))))
                 ? 'نام سناریو در متاتریدر ۵ با این تنظیمات مطابقت دارد.'
                 : 'در تستر MT5 مقدار «' + (p.InpScenarioName || 'Default') + '» تنظیم شده بود.'
         },
@@ -552,19 +707,15 @@ function renderParameterDriftTable(report, scenarioKey) {
             name: 'ساعات مجاز معامله (InpAllowedTradingHours)',
             actual: p.InpAllowedTradingHours || '۲۴ ساعته (تمام شبانه‌روز)',
             expected: scenario.hoursDisplay,
-            status: (p.InpAllowedTradingHours && (scenario.id === 'day' || scenario.id === 'champion')) ? 'match' : (!p.InpAllowedTradingHours && (scenario.id === 'golden' || scenario.id === 'base') ? 'match' : 'warn'),
-            impact: (p.InpAllowedTradingHours && (scenario.id === 'day' || scenario.id === 'champion'))
-                ? 'فیلتر ساعات پرنقدینگی در تستر فعال بوده و معاملات کم‌عمق شبانه حذف شده‌اند.'
-                : 'اختلاف در ساعات مجاز معامله میان تستر متاتریدر و این سناریو.'
+            status: hoursStatus,
+            impact: hoursImpact
         },
         {
             name: 'لیست سلاطین غیرمجاز (InpDisabledKingsList)',
-            actual: (p.InpDisabledKingsList && p.InpDisabledKingsList.length > 5) ? p.InpDisabledKingsList : 'None (هیچ سلطانی مسدود نبود)',
+            actual: (p.InpDisabledKingsList && p.InpDisabledKingsList.length > 3) ? p.InpDisabledKingsList : 'None (هیچ سلطانی مسدود نبود)',
             expected: scenario.disabledKings,
-            status: (p.InpDisabledKingsList && p.InpDisabledKingsList.length > 5) ? 'match' : (scenario.disabledKings.includes('بدون مسدودی') ? 'match' : 'warn'),
-            impact: (p.InpDisabledKingsList && p.InpDisabledKingsList.length > 5)
-                ? 'الگوهای پرریسک و باخت‌ساز در تستر مسدود شده بودند.'
-                : (scenario.disabledKings.includes('بدون مسدودی') ? 'مجاز بودن تمام سلاطین طبق انتظار سناریو است.' : 'سلاطین پرریسک مسدود نشده بودند و موجب باخت شدند.')
+            status: kingsStatus,
+            impact: kingsImpact
         },
         {
             name: 'بافر بریک‌ایون (InpBEBufferPips)',
@@ -856,9 +1007,14 @@ function drawTesterCompareChart(report, scenarioKey) {
                     isAllowed = false;
                     filterReason = 'فیلتر نویز M1';
                 }
-                if (isAllowed && scenario.id !== 'base' && scenario.id !== 'golden') {
+                if (isAllowed) {
                     let h = tEntryTime.length >= 13 ? parseInt(tEntryTime.substring(11, 13)) : 0;
-                    if (scenario.id === 'day' && (h < 7 || h >= 20)) {
+                    if (Array.isArray(scenario.hours) && scenario.hours.length === 24) {
+                        if (!scenario.hours[h]) {
+                            isAllowed = false;
+                            filterReason = 'ساعت غیرمجاز (ساعت ' + (h < 10 ? '0' + h : h) + ':00)';
+                        }
+                    } else if (scenario.id === 'day' && (h < 7 || h >= 20)) {
                         isAllowed = false;
                         filterReason = 'خارج از سشن روز (ساعت ' + h + ')';
                     } else if (scenario.id === 'champion' && (h >= 22 || h < 4)) {
@@ -866,18 +1022,27 @@ function drawTesterCompareChart(report, scenarioKey) {
                         filterReason = 'فیلتر ساعات شب (ساعت ' + h + ')';
                     }
                 }
-                if (isAllowed && scenario.minPot > 0 && match) {
-                    let potVal = match.pts ? (match.pts * 0.04) : 0;
-                    if (potVal < scenario.minPot) {
+                if (isAllowed && scenario.minPot > 0) {
+                    let potVal = match && match.pts ? (match.pts * 0.04) : 0;
+                    if (potVal > 0 && potVal < scenario.minPot) {
                         isAllowed = false;
                         filterReason = 'کف سود زیر ' + scenario.minPotDisplay;
                     }
                 }
-                if (isAllowed && scenario.disabledKings && !scenario.disabledKings.includes('بدون مسدودی')) {
-                    let patName = t.pattern || (match ? match.role : '');
-                    if (scenario.disabledKings.includes(patName)) {
-                        isAllowed = false;
-                        filterReason = 'سلطان مسدود';
+                if (isAllowed) {
+                    let patName = (t.pattern || (match ? match.role : '') || '').trim();
+                    let patKey = patName ? (patName + (tTF ? '|' + tTF : '')) : '';
+                    if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
+                        let kSet = new Set(scenario.kings);
+                        if (!kSet.has(patName) && !kSet.has(patKey)) {
+                            isAllowed = false;
+                            filterReason = 'سلطان غیرفعال در سناریو (' + (patName || 'الگو') + ')';
+                        }
+                    } else if (scenario.disabledKings && !scenario.disabledKings.includes('بدون مسدودی')) {
+                        if (patName && (scenario.disabledKings.includes(patName) || (patKey && scenario.disabledKings.includes(patKey)))) {
+                            isAllowed = false;
+                            filterReason = 'سلطان مسدود (' + patName + ')';
+                        }
                     }
                 }
 
