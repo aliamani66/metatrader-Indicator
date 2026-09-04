@@ -63,12 +63,13 @@ input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
 input bool             InpUseTF4  = false;          // محاسبه یک‌ساعته (H1)
 input color            InpColorTF4 = clrYellow;
 
-input group "=== 🎯 تنظیم جامع و واحد (تاریخچه، رسم باکس‌ها و معاملات) ==="
-input ENUM_HISTORY_MODE InpHistoryMode        = HIST_START_DATE;         // ⚙️ مبنای بازه تاریخی (تاریخ شروع / تعداد روز گذشته / کل تاریخچه)
-input datetime          InpHistoryStartDate   = D'2025.01.01 00:00';    // 📅 تاریخ شروع واحد (رسم باکس‌ها + معاملات + بک‌تست + خروجی CSV)
-input int               InpHistoryDays        = 365;                    // ⏳ یا تعداد روز گذشته (در صورت انتخاب حالت Days Back)
-input bool              InpShowBoxes          = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (پیش‌فرض: خاموش)
-input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار فایل CSV برای داشبورد
+input group "=== ⚡ تنظیم سرعت، عمق پردازش و بازه زمانی (Performance & History) ==="
+input int               InpLookbackBars           = 5000;                   // ⚡ عمق اسکن کندل‌ها در لحظه (۵۰۰۰ کندل = تست ۱ ساله زیر ۱ دقیقه)
+input ENUM_HISTORY_MODE InpHistoryMode            = HIST_START_DATE;         // ⚙️ مبنای بازه تاریخی (تاریخ شروع / تعداد روز گذشته / کل تاریخچه)
+input datetime          InpHistoryStartDate       = D'2025.01.01 00:00';    // 📅 تاریخ شروع اختیاری (در تستر از بخش Dates تنظیم می‌شود)
+input int               InpHistoryDays            = 365;                    // ⏳ بازه روز گذشته (جهت سازگاری کانفیگ)
+input bool              InpShowBoxes              = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (پیش‌فرض: خاموش)
+input bool              InpExportCSV              = false;                  // 📁 استخراج خودکار فایل CSV (پیش‌فرض اکسپرت: خاموش)
 
 input group "=== Active Trading Timeframes (تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
@@ -569,12 +570,28 @@ bool IsConsecutiveLossAllowed()
 
 void OnTick()
 {
+   // ۱. مدیریت تریل و بریک‌ایون تمام معاملات باز روی هر تیک (فوق سریع و سبک)
+   ManageActiveTradeGroups();
+
+   // ۲. بررسی باز شدن کندل جدید (پردازش سنگین فقط و فقط یک‌بار در ابتدای هر کندل جدید انجام می‌شود)
    static datetime lastCandleTime = 0;
    datetime currentCandleTime = iTime(_Symbol, _Period, 0);
+   if(currentCandleTime == lastCandleTime)
+      return; // در طول نوسانات کندل جاری، دیتایی کپی نشده و هیچ الگویی مجدداً پردازش نمی‌گردد
+
+   lastCandleTime = currentCandleTime;
+
+   // ۳. بررسی محدودیت تعداد گروه‌های پوزیشن باز
+   if(CountOpenPositionGroups() >= InpMaxOpenGroups)
+      return;
+
+   // ۴. تعیین تعداد کندل‌های اسکن بهینه (پنجره شناور) جهت حداکثر سرعت در تستر و لایو
+   int targetBars = InpLookbackBars;
+   if(targetBars < 1000) targetBars = 1000;
+   if(targetBars > 30000) targetBars = 30000;
 
    MqlRates rates[];
    ArraySetAsSeries(rates, false);
-   int targetBars = ((bool)MQLInfoInteger(MQL_TESTER)) ? InpMaxBarsTF : 5000;
    int ratesTotal = CopyRates(_Symbol, _Period, 0, targetBars, rates);
    if(ratesTotal < 20) return;
 
@@ -593,54 +610,47 @@ void OnTick()
       chartClose[i] = rates[i].close;
    }
 
-   if(currentCandleTime != lastCandleTime)
+   ArrayResize(g_drawnBoxes, 0);
+   g_boxCount = 0;
+   ArrayResize(g_indepPivots, 0);
+   g_indepCount = 0;
+
+   ENUM_TIMEFRAMES tfArr[7]      = {PERIOD_D1, PERIOD_W1, PERIOD_H4, PERIOD_H1, InpTF5, InpTF6, InpTF7};
+   bool            useArr[7]     = {false, false, false, false, InpUseTF5, InpUseTF6, InpUseTF7};
+   color           tfColorArr[7] = {clrNONE, clrNONE, clrNONE, clrNONE, InpColorTF5, InpColorTF6, InpColorTF7};
+
+   // تنظیم بازه عمق بررسی متناسب با targetBars جهت جلوگیری از افت سرعت در تست‌های طولانی
+   int effectiveDays = (int)(targetBars / 1440) + 3;
+   int daysBackArr[7];
+   for(int s = 0; s < 7; s++) daysBackArr[s] = effectiveDays;
+   InpBacktestStartDate = 0;
+   InpBacktestDays = effectiveDays;
+   InpMaxBarsTF = targetBars;
+
+   for(int i = 0; i < 7; i++)
    {
-      lastCandleTime = currentCandleTime;
-
-      ArrayResize(g_drawnBoxes, 0);
-      g_boxCount = 0;
-      ArrayResize(g_indepPivots, 0);
-      g_indepCount = 0;
-
-      ENUM_TIMEFRAMES tfArr[7]      = {PERIOD_D1, PERIOD_W1, PERIOD_H4, PERIOD_H1, InpTF5, InpTF6, InpTF7};
-      bool            useArr[7]     = {false, false, false, false, InpUseTF5, InpUseTF6, InpUseTF7};
-      color           tfColorArr[7] = {clrNONE, clrNONE, clrNONE, clrNONE, InpColorTF5, InpColorTF6, InpColorTF7};
-      InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
-      int daysBackArr[7];
-      int effectiveDays = ((bool)MQLInfoInteger(MQL_TESTER)) ? g_effectiveDaysBack : 30;
-      for(int s = 0; s < 7; s++) daysBackArr[s] = effectiveDays;
-
-      for(int i = 0; i < 7; i++)
-      {
-         if(!useArr[i]) continue;
-         ProcessTF(tfArr[i], InpSwingBars, tfColorArr[i],
-                   chartTime, chartHigh, chartLow, ratesTotal, daysBackArr[i]);
-      }
-
-      ProcessRSLinesFromLSBoxes(chartTime, chartHigh, chartLow, ratesTotal);
-      ProcessOInnerBoxes();
-      ProcessUniversalSwapLines(chartTime, chartHigh, chartLow, ratesTotal);
-
-      RenderAutoTradeSetups(chartTime, chartHigh, chartLow, chartClose, ratesTotal);
-
-      if(!InpShowBoxes)
-      {
-         ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
-         ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
-      }
-      if(!InpShowTradeShading)
-      {
-         DeleteAllTradeShadings();
-      }
+      if(!useArr[i]) continue;
+      ProcessTF(tfArr[i], InpSwingBars, tfColorArr[i],
+                chartTime, chartHigh, chartLow, ratesTotal, daysBackArr[i]);
    }
 
-   // مدیریت تریل و بریک‌ایون تمام معاملات باز روی هر تیک
-   ManageActiveTradeGroups();
+   ProcessRSLinesFromLSBoxes(chartTime, chartHigh, chartLow, ratesTotal);
+   ProcessOInnerBoxes();
+   ProcessUniversalSwapLines(chartTime, chartHigh, chartLow, ratesTotal);
 
-   // بررسی ارسال پوزیشن‌های جدید
-   if(CountOpenPositionGroups() >= InpMaxOpenGroups)
-      return;
+   RenderAutoTradeSetups(chartTime, chartHigh, chartLow, chartClose, ratesTotal);
 
+   if(!InpShowBoxes)
+   {
+      ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
+      ObjectsDeleteAll(0, FP_PREFIX + "LBL_");
+   }
+   if(!InpShowTradeShading)
+   {
+      DeleteAllTradeShadings();
+   }
+
+   // ۵. بررسی و ارسال سفارشات ستاپ‌های تایید شده
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
 
    for(int t = 0; t < g_tradeCount; t++)
