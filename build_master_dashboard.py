@@ -7953,5 +7953,20 @@ def build_dashboard(custom_csv=None):
         except Exception as e:
             print(f"❌ خطا در نوشتن {out_path}: {e}")
 
+    # Also sync FlagPro_Modular_App initial data & bundled dist
+    try:
+        modular_data_file = os.path.join(repo_root, "FlagPro_Modular_App", "data", "initial_data.js")
+        if os.path.exists(os.path.dirname(modular_data_file)):
+            with open(modular_data_file, mode='w', encoding='utf-8') as f:
+                f.write(f"window.ALL_SYMBOLS_DATA = {json_symbols_payload};\nwindow.TESTER_REPORTS = {json_tester_reports_payload};\n")
+            print(f"✅ داده‌های پروژه ماژولار به‌روزرسانی شد: {modular_data_file}")
+
+            bundler_script = os.path.join(repo_root, "FlagPro_Modular_App", "tools", "bundler.py")
+            if os.path.exists(bundler_script):
+                import subprocess
+                subprocess.run([sys.executable, bundler_script], check=False)
+    except Exception as e:
+        print(f"⚠️ همگام‌سازی پروژه ماژولار: {e}")
+
 if __name__ == "__main__":
     build_dashboard()

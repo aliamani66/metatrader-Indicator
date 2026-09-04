@@ -118,6 +118,9 @@ function initApp() {
     if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
         drawWeeklyBarChart(currentWeeklyBarMode);
     }
+    if (typeof updateValidationStatus === 'function') {
+        updateValidationStatus();
+    }
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
