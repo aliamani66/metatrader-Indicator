@@ -1626,6 +1626,22 @@ def build_dashboard(custom_csv=None):
             z-index: 1000;
             box-shadow: -4px 0 20px rgba(0,0,0,0.5);
             user-select: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }}
+        .sidebar.collapsed {{
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            padding: 0 !important;
+            border-left: none !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            box-shadow: none !important;
         }}
         .sidebar-brand {{
             padding: 14px 12px;
@@ -1926,13 +1942,18 @@ def build_dashboard(custom_csv=None):
 <body>
     <div class="app-layout">
         <!-- 📌 COMPACT SIDEBAR NAVIGATION (RIGHT SIDE IN RTL) -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="mainSidebar">
             <div class="sidebar-brand">
-                <div style="font-size:22px;">🎯</div>
-                <div>
-                    <div class="sidebar-brand-title">FlagPro Master</div>
-                    <div class="sidebar-brand-sub">{symbol} | {tfs_str}</div>
+                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                    <div style="font-size:20px;flex-shrink:0;">🎯</div>
+                    <div style="overflow:hidden;white-space:nowrap;">
+                        <div class="sidebar-brand-title">FlagPro Master</div>
+                        <div class="sidebar-brand-sub">{symbol} | {tfs_str}</div>
+                    </div>
                 </div>
+                <button onclick="toggleSidebar()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;width:26px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all 0.2s;" title="بستن منو (تمام‌صفحه)" onmouseover="this.style.color='#fff';this.style.borderColor='#38bdf8'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='#334155'">
+                    ◀
+                </button>
             </div>
 
             <div class="sidebar-menu">
@@ -1980,10 +2001,16 @@ def build_dashboard(custom_csv=None):
         <main class="main-workspace">
             <!-- Workspace Top Bar -->
             <div class="workspace-header">
-                <div>
-                    <h1>🎯 سیستم جامع معاملاتی FlagPro</h1>
-                    <div style="margin-top:3px;color:#94a3b8;font-size:11.5px;">
-                        بازه داده‌ها: <b>{min_date}</b> تا <b>{max_date}</b> | حجم: <b>0.04 لات پلکانی</b>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button id="btnToggleSidebarHeader" onclick="toggleSidebar()" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="تغییر وضعیت منوی کناری (تمام‌صفحه / منو)" onmouseover="this.style.borderColor='#38bdf8';this.style.background='#1e293b'" onmouseout="this.style.borderColor='#334155';this.style.background='#0f172a'">
+                        <span id="btnToggleSidebarIcon">☰</span>
+                        <span id="btnToggleSidebarText">منو</span>
+                    </button>
+                    <div>
+                        <h1>🎯 سیستم جامع معاملاتی FlagPro</h1>
+                        <div style="margin-top:3px;color:#94a3b8;font-size:11.5px;">
+                            بازه داده‌ها: <b>{min_date}</b> تا <b>{max_date}</b> | حجم: <b>0.04 لات پلکانی</b>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -5080,6 +5107,26 @@ def build_dashboard(custom_csv=None):
             }}
         }}
 
+        function toggleSidebar() {{
+            let sb = document.getElementById('mainSidebar');
+            let icon = document.getElementById('btnToggleSidebarIcon');
+            let txt = document.getElementById('btnToggleSidebarText');
+            if (!sb) return;
+            sb.classList.toggle('collapsed');
+            let isCollapsed = sb.classList.contains('collapsed');
+            try {{
+                localStorage.setItem('flagpro_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+            }} catch(e) {{}}
+            if (icon) icon.textContent = isCollapsed ? '📑' : '☰';
+            if (txt) txt.textContent = isCollapsed ? 'نمایش منو' : 'منو';
+
+            // Re-render charts on resize
+            setTimeout(() => {{
+                if (typeof drawEquityChart === 'function') drawEquityChart();
+                if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') drawWeeklyBarChart(currentWeeklyBarMode);
+            }}, 260);
+        }}
+
         function toggleTwoColLayout() {{
             let container = document.getElementById('eqTwoColContainer');
             let btn = document.getElementById('btnToggleTwoCol');
@@ -5415,6 +5462,16 @@ def build_dashboard(custom_csv=None):
 
         // Initial render of trades journal and simulator
         setTimeout(() => {{
+            try {{
+                if (localStorage.getItem('flagpro_sidebar_collapsed') === 'true') {{
+                    let sb = document.getElementById('mainSidebar');
+                    let icon = document.getElementById('btnToggleSidebarIcon');
+                    let txt = document.getElementById('btnToggleSidebarText');
+                    if (sb) sb.classList.add('collapsed');
+                    if (icon) icon.textContent = '📑';
+                    if (txt) txt.textContent = 'نمایش منو';
+                }}
+            }} catch(e) {{}}
             initEquityCanvasEvents();
             initSimUI();
             renderTrades();
