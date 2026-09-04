@@ -921,9 +921,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       }
    }
 
-   // مرحله ۲: بروزرسانی و رسم تمام معاملات ثبت‌شده (معاملات هرگز محو نمی‌شوند)
-   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
-
+   // مرحله ۲: بروزرسانی وضعیت معاملات باز
    for(int t = 0; t < g_tradeCount; t++)
    {
       double tps[4];
@@ -994,7 +992,17 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(!g_tradeSetups[t].isClosed)
             g_tradeSetups[t].exitTime = chartTime[ratesTotal - 1];
       }
+   }
 
+   // مرحله ۳: رسم گرافیک معاملات بر روی چارت (اولویت قطعی با جدیدترین معاملات از امروز به گذشته)
+   // جهت جلوگیری از پر شدن حافظه اشیاء متاتریدر و تضمین رسم کامل معاملات روزها و ماه‌های اخیر
+   ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
+
+   int drawnCount = 0;
+   int maxTradesToDraw = 250;
+
+   for(int t = g_tradeCount - 1; t >= 0; t--)
+   {
       // 👑 فقط رسم معاملات ۱۸ سلطان برگزیده بر اساس تایم‌فریم
       if(InpOnlyTradeKings && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
          continue;
@@ -1002,6 +1010,17 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       datetime t1 = g_tradeSetups[t].entryTime;
       if(g_effectiveStartDate > 0 && t1 < g_effectiveStartDate)
          continue;
+
+      if(drawnCount >= maxTradesToDraw)
+         break;
+
+      drawnCount++;
+
+      double tps[4];
+      tps[0] = g_tradeSetups[t].tp1;
+      tps[1] = g_tradeSetups[t].tp2;
+      tps[2] = g_tradeSetups[t].tp3;
+      tps[3] = g_tradeSetups[t].tp4;
 
       datetime t2 = g_tradeSetups[t].exitTime;
       if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;

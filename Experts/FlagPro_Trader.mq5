@@ -574,7 +574,8 @@ void OnTick()
 
    MqlRates rates[];
    ArraySetAsSeries(rates, false);
-   int ratesTotal = CopyRates(_Symbol, _Period, 0, InpMaxBarsTF, rates);
+   int targetBars = ((bool)MQLInfoInteger(MQL_TESTER)) ? InpMaxBarsTF : 5000;
+   int ratesTotal = CopyRates(_Symbol, _Period, 0, targetBars, rates);
    if(ratesTotal < 20) return;
 
    datetime chartTime[];
@@ -606,7 +607,8 @@ void OnTick()
       color           tfColorArr[7] = {clrNONE, clrNONE, clrNONE, clrNONE, InpColorTF5, InpColorTF6, InpColorTF7};
       InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
       int daysBackArr[7];
-      for(int s = 0; s < 7; s++) daysBackArr[s] = g_effectiveDaysBack;
+      int effectiveDays = ((bool)MQLInfoInteger(MQL_TESTER)) ? g_effectiveDaysBack : 30;
+      for(int s = 0; s < 7; s++) daysBackArr[s] = effectiveDays;
 
       for(int i = 0; i < 7; i++)
       {
