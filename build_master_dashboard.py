@@ -1484,10 +1484,15 @@ def build_dashboard(custom_csv=None):
             <td style="text-align:center;padding:7px 6px;font-weight:bold;color:{net_col};font-size:13.5px;background:#064e3b22;white-space:nowrap;">
                 {'+$' if nt>=0 else '-$'}{abs(nt):,.0f}
             </td>
-            <td style="text-align:center;padding:7px 6px;">
-                <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);">
-                    ⚡ اعمال
-                </button>
+            <td style="text-align:center;padding:7px 6px;white-space:nowrap;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                    <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی داشبورد">
+                        ⚡ اعمال
+                    </button>
+                    <button onclick="exportPresetToMT5({p['idx']})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:5px 7px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل تنظیمات متاتریدر (.set) برای این سناریو">
+                        <span>🤖 خروجی EA</span>
+                    </button>
+                </div>
             </td>
         </tr>
         """)
@@ -2146,6 +2151,9 @@ def build_dashboard(custom_csv=None):
                         <span>🤖 بهینه‌ساز خودکار (AI)</span>
                     </button>
                     <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;">💾 ذخیره چیدمان</button>
+                    <button onclick="exportCurrentStateToMT5()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:4px;" title="خروجی مستقیم فیلترهای فعال فعلی به عنوان فایل .set برای اکسپرت FlagPro_Trader">
+                        <span>📥 خروجی اکسپرت (.set)</span>
+                    </button>
                     <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;">🔄 بازنشانی</button>
                 </div>
             </div>
@@ -3709,6 +3717,187 @@ def build_dashboard(custom_csv=None):
         // 💾 CUSTOM PRESETS MANAGEMENT SYSTEM (LOCALSTORAGE)
         // ==========================================
         let customPresetsList = [];
+
+        let currentExportConfig = null;
+
+        function generateSetFileText(cfg) {{
+            let lines = [
+                ';+------------------------------------------------------------------+',
+                ';| FlagPro_Trader EA Settings File (.set)                           |',
+                ';| Auto-generated from FlagPro Strategy Dashboard                   |',
+                ';| Scenario: ' + cfg.title + ' |',
+                ';+------------------------------------------------------------------+',
+                'InpScenarioName=' + cfg.title,
+                'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
+                'InpAllowedTradingHours=' + (cfg.hours_str || ''),
+                'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
+                'InpConsecLossAction=' + parseInt(cfg.consec_action || 1),
+                'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+                'InpOnlyTradeKings=true',
+                'InpEnableScaleOut=true',
+                'InpLot_TP1=0.01',
+                'InpLot_TP2=0.01',
+                'InpLot_TP3=0.01',
+                'InpLot_TP4=0.01',
+                'InpMoveToBreakEven=true',
+                'InpBEBufferPips=1.0',
+                'InpTrailToTP1=true',
+                'InpTrailToTP2=true',
+                'InpMaxOpenGroups=5',
+                'InpMagicNumber=777123',
+                'InpBacktestStartDate=2025.01.01 00:00:00',
+                'InpBacktestDays=1000',
+                'InpMaxBarsTF=2000000'
+            ];
+            return lines.join(String.fromCharCode(13, 10));
+        }}
+
+        function downloadSetFile(filename, text) {{
+            let blob = new Blob([text], {{ type: 'text/plain;charset=utf-8' }});
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }}
+
+        function exportPresetToMT5(idx) {{
+            let p = smartPresets.find(x => x.idx === idx);
+            if (!p) return;
+
+            let allowedHours = [];
+            if (p.hours) {{
+                for (let h = 0; h < 24; h++) {{
+                    if (p.hours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+                }}
+            }}
+            let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+            let disabledKings = [];
+            let enabledSet = new Set(p.kings || []);
+            for (let k of kingsSimList) {{
+                if (!enabledSet.has(k.kk)) {{
+                    disabledKings.push(k.kk);
+                }}
+            }}
+            let disabledStr = disabledKings.join(', ');
+
+            let actionInt = p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1);
+            if (!p.consec_trig || p.consec_trig <= 0) actionInt = 0;
+
+            let config = {{
+                title: p.title.replace(/[^a-zA-Z0-9_\\s\\-\\u0600-\\u06FF]/gi, '').trim(),
+                min_pot: p.min_pot || 0,
+                hours_str: hoursStr,
+                consec_trig: p.consec_trig || 0,
+                consec_action: actionInt,
+                disabled_kings_str: disabledStr,
+                cnt: p.cnt,
+                wr: p.wr,
+                pf: p.pf,
+                net: p.net
+            }};
+
+            openMT5ExportModal(config);
+        }}
+
+        function exportCurrentStateToMT5() {{
+            let allowedHours = [];
+            for (let h = 0; h < 24; h++) {{
+                if (simState.allowedHours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+            }}
+            let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+            let disabledKings = [];
+            for (let k of kingsSimList) {{
+                if (!simState.enabledKings.has(k.kk)) {{
+                    disabledKings.push(k.kk);
+                }}
+            }}
+            let disabledStr = disabledKings.join(', ');
+
+            let actionInt = simState.consecLossSkipDay ? 3 : (simState.consecLossSkipCount === 2 ? 2 : 1);
+            if (!simState.consecLossTrigger || simState.consecLossTrigger <= 0) actionInt = 0;
+
+            let elNet = document.getElementById('eqKpiNetVal');
+            let elWr = document.getElementById('eqKpiWR');
+            let elPf = document.getElementById('eqKpiPF');
+            let elCnt = document.getElementById('eqKpiCnt');
+
+            let config = {{
+                title: 'چیدمان فعال من (' + new Date().toLocaleDateString('fa-IR') + ')',
+                min_pot: simState.minProfit || 0,
+                hours_str: hoursStr,
+                consec_trig: simState.consecLossTrigger || 0,
+                consec_action: actionInt,
+                disabled_kings_str: disabledStr,
+                cnt: elCnt ? elCnt.textContent : '-',
+                wr: elWr ? elWr.textContent : '-',
+                pf: elPf ? elPf.textContent : '-',
+                net: elNet ? elNet.textContent : '-'
+            }};
+
+            openMT5ExportModal(config);
+        }}
+
+        function openMT5ExportModal(cfg) {{
+            currentExportConfig = cfg;
+            let modal = document.getElementById('mt5ExportModal');
+            if (!modal) return;
+
+            document.getElementById('mt5ModalTitle').textContent = cfg.title;
+            document.getElementById('mt5ParamMinPot').textContent = '$' + cfg.min_pot.toFixed(2);
+            document.getElementById('mt5ParamHours').textContent = cfg.hours_str ? cfg.hours_str : '۲۴ ساعته (بدون محدودیت)';
+            document.getElementById('mt5ParamConsec').textContent = cfg.consec_trig > 0 ? (cfg.consec_trig + ' استاپ متوالی') : 'خاموش';
+            
+            let actName = 'بدون اقدام';
+            if (cfg.consec_action === 1) actName = 'رد کردن ۱ معامله بعدی';
+            else if (cfg.consec_action === 2) actName = 'رد کردن ۲ معامله بعدی';
+            else if (cfg.consec_action === 3) actName = 'توقف تا پایان روز جاری';
+            document.getElementById('mt5ParamConsecAct').textContent = actName;
+
+            document.getElementById('mt5ParamDisabled').textContent = cfg.disabled_kings_str ? cfg.disabled_kings_str : 'هیچ‌کدام (تمام سلاطین فعال)';
+
+            let fullText = generateSetFileText(cfg);
+            let codeBox = document.getElementById('mt5ConfigCodeBox');
+            if (codeBox) codeBox.textContent = fullText;
+
+            modal.style.display = 'flex';
+        }}
+
+        function closeMT5ExportModal() {{
+            let modal = document.getElementById('mt5ExportModal');
+            if (modal) modal.style.display = 'none';
+        }}
+
+        function downloadCurrentMT5SetFile() {{
+            if (!currentExportConfig) return;
+            let text = generateSetFileText(currentExportConfig);
+            let filename = 'FlagPro_' + currentExportConfig.title.replace(/[^a-zA-Z0-9_\\-]/g, '_') + '.set';
+            downloadSetFile(filename, text);
+        }}
+
+        function copyMT5ConfigText() {{
+            if (!currentExportConfig) return;
+            let text = generateSetFileText(currentExportConfig);
+            navigator.clipboard.writeText(text).then(() => {{
+                alert('📋 تمام پارامترهای اکسپرت با موفقیت کپی شد! می‌توانید در متاتریدر استفاده کنید.');
+            }}).catch(() => {{
+                let box = document.getElementById('mt5ConfigCodeBox');
+                if (box) {{
+                    let range = document.createRange();
+                    range.selectNodeContents(box);
+                    let sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    document.execCommand('copy');
+                    alert('📋 پارامترها کپی شد!');
+                }}
+            }});
+        }}
 
         function openSavePresetModal() {{
             let activeHoursCount = simState.allowedHours.filter(Boolean).length;
@@ -5656,6 +5845,66 @@ def build_dashboard(custom_csv=None):
         }}, 60);
     </script>
         </main>
+    </div>
+
+    <!-- 🤖 MT5 EXPORT & SCENARIO GUIDE MODAL -->
+    <div id="mt5ExportModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;align-items:center;justify-content:center;backdrop-filter:blur(6px);direction:rtl;">
+        <div style="background:#0f172a;border:2px solid #10b981;border-radius:14px;padding:24px;width:90%;max-width:620px;box-shadow:0 20px 40px rgba(0,0,0,0.9);color:#f1f5f9;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
+                <h3 style="margin:0;color:#34d399;font-size:17px;display:flex;align-items:center;gap:8px;">
+                    <span>🤖 خروجی مستقیم برای اکسپرت متاتریدر ۵ (FlagPro_Trader EA)</span>
+                </h3>
+                <button onclick="closeMT5ExportModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">✖</button>
+            </div>
+
+            <div style="background:#064e3b22;border:1px solid #059669;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+                <div style="font-weight:bold;color:#facc15;font-size:13.5px;margin-bottom:6px;">🏷️ سناریوی انتخابی: <span id="mt5ModalTitle" style="color:#6ee7b7;">-</span></div>
+                <div style="font-size:12px;color:#cbd5e1;line-height:1.7;">
+                    این تنظیمات تمام فیلترهای بهینه‌شده (کف سود، ساعات معاملاتی، فیوز استاپ و سلاطین فعال) را عیناً به اکسپرت معامله‌گر شما منتقل می‌کند.
+                </div>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div style="background:#080d1a;border:1px solid #1e293b;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;">
+                <div style="font-weight:bold;color:#38bdf8;margin-bottom:8px;border-bottom:1px solid #1e293b;padding-bottom:5px;">📋 متغیرهای تنظیمی متاتریدر (MT5 Inputs):</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;color:#cbd5e1;">
+                    <div>💰 کف سود دلاری (<code style="color:#facc15;">InpMinTradePotential</code>): <b id="mt5ParamMinPot" style="color:#34d399;">-</b></div>
+                    <div>⏰ ساعات معامله (<code style="color:#facc15;">InpAllowedTradingHours</code>): <b id="mt5ParamHours" style="color:#38bdf8;">-</b></div>
+                    <div>🚨 فیوز استاپ (<code style="color:#facc15;">InpConsecLossTrigger</code>): <b id="mt5ParamConsec" style="color:#fca5a5;">-</b></div>
+                    <div>⚡ اکشن فیوز (<code style="color:#facc15;">InpConsecLossAction</code>): <b id="mt5ParamConsecAct" style="color:#c084fc;">-</b></div>
+                    <div style="grid-column:span 2;">🚫 سلاطین غیرمجاز (<code style="color:#facc15;">InpDisabledKingsList</code>): <span id="mt5ParamDisabled" style="color:#94a3b8;font-size:11px;direction:ltr;display:inline-block;">-</span></div>
+                </div>
+            </div>
+
+            <!-- 3 Step Quick Guide -->
+            <div style="background:#1e1b4b22;border:1px solid #6366f1;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:12px;">
+                <div style="font-weight:bold;color:#a5b4fc;margin-bottom:6px;">🚀 نحوه اعمال در متاتریدر ۵ (در ۳ ثانیه):</div>
+                <ol style="margin:0;padding-right:20px;color:#e2e8f0;line-height:1.8;">
+                    <li>روی دکمه سبز زیر کلیک کنید تا فایل <b><code>.set</code></b> دانلود شود.</li>
+                    <li>در متاتریدر روی چارت کلید <b>F7</b> را بزنید (یا پنجره تنظیمات FlagPro_Trader را باز کنید).</li>
+                    <li>دکمه <b>Load...</b> را بزنید و این فایل را انتخاب کنید، سپس <b>OK</b> را بزنید. تمام! ✅</li>
+                </ol>
+            </div>
+
+            <!-- Preview Code Box (Collapsible) -->
+            <details style="margin-bottom:18px;background:#050811;border:1px solid #1e293b;border-radius:6px;padding:8px 12px;font-size:11px;">
+                <summary style="cursor:pointer;color:#94a3b8;font-weight:bold;">👁️ مشاهده متن فایل تنظیمات (.set content)</summary>
+                <pre id="mt5ConfigCodeBox" style="margin-top:8px;direction:ltr;text-align:left;color:#4ade80;font-family:Consolas, monospace;white-space:pre-wrap;font-size:11px;user-select:all;"></pre>
+            </details>
+
+            <!-- Modal Action Buttons -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <button onclick="copyMT5ConfigText()" style="background:#1e293b;border:1px solid #64748b;color:#f1f5f9;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                    <span>📋 کپی متن کانفیگ</span>
+                </button>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="closeMT5ExportModal()" style="background:#1e293b;border:1px solid #475569;color:#cbd5e1;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;">بستن</button>
+                    <button onclick="downloadCurrentMT5SetFile()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;gap:6px;">
+                        <span>📥 دانلود فایل تنظیمات متاتریدر (.set)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 💾 SAVE PRESET MODAL DIALOG -->

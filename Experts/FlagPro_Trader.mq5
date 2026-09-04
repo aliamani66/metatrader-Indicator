@@ -30,7 +30,23 @@ input int              InpMaxOpenGroups          = 5;            // حداکثر
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
 
-input group "=== Macro Timeframes (غیرفعال) ==="
+enum ENUM_CONSEC_ACTION
+{
+   CONSEC_ACTION_NONE     = 0, // بدون فیوز (غیرفعال)
+   CONSEC_ACTION_SKIP_1   = 1, // رد کردن ۱ معامله بعدی (Skip 1 Trade)
+   CONSEC_ACTION_SKIP_2   = 2, // رد کردن ۲ معامله بعدی (Skip 2 Trades)
+   CONSEC_ACTION_SKIP_DAY = 3  // توقف معاملات تا پایان امروز (Pause Today)
+};
+
+input group "=== 🎛️ اعمال سناریوهای فیلتر داشبورد (Dashboard Scenario Config) ==="
+input string             InpScenarioName          = "Default";   // 🏷️ نام سناریوی تنظیمی (جهت لاگ)
+input double             InpMinTradePotential     = 0.0;         // 💰 حداقل کف سود دلاری معامله (اسلایدر داشبورد)
+input string             InpAllowedTradingHours   = "";          // ⏰ ساعات مجاز معامله (مثلاً "10,11,12,13,14,15,16,17,18,19" - خالی = ۲۴ ساعته)
+input int                InpConsecLossTrigger     = 0;           // 🚨 فیوز استاپ‌های متوالی (۰ = خاموش، ۲ = توقف بعد از ۲ استاپ)
+input ENUM_CONSEC_ACTION InpConsecLossAction      = CONSEC_ACTION_SKIP_1; // ⚡ اقدام فیوز پس از حد ضررهای متوالی
+input string             InpDisabledKingsList     = "";          // 🚫 لیست سلاطین غیرمجاز (جدا شده با کاما، مثلاً "OInner-BE [M1]")
+
+input group "=== Macro Timeframes (غیرفعال) ===" 
 input ENUM_TIMEFRAMES InpTF1      = PERIOD_D1;
 input bool             InpUseTF1  = false;          // محاسبه روزانه (D1)
 input color            InpColorTF1 = clrMagenta;
@@ -436,6 +452,124 @@ void ManageActiveTradeGroups()
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| فیلتر ۱ سناریو: بررسی مجاز بودن سلطان معاملاتی                    |
+//+------------------------------------------------------------------+
+bool IsKingAllowedByScenario(ENUM_TIMEFRAMES tf, string role)
+{
+   if(StringLen(InpDisabledKingsList) == 0) return true;
+   string kKey1 = role + "|" + TFName(tf);
+   string kKey2 = role + " [" + TFName(tf) + "]";
+   if(StringFind(InpDisabledKingsList, kKey1) >= 0 || StringFind(InpDisabledKingsList, kKey2) >= 0)
+      return false;
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| فیلتر ۲ سناریو: بررسی ساعات مجاز معامله طبق سناریو                |
+//+------------------------------------------------------------------+
+bool IsHourAllowedByScenario(datetime t)
+{
+   if(StringLen(InpAllowedTradingHours) == 0) return true;
+   MqlDateTime dt;
+   TimeToStruct(t, dt);
+   string h2 = StringFormat("%02d", dt.hour);
+   string h1 = IntegerToString(dt.hour);
+
+   if(StringFind(InpAllowedTradingHours, h2) >= 0 || StringFind(InpAllowedTradingHours, h1) >= 0)
+      return true;
+
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| فیلتر ۳ سناریو: بررسی حداقل پتانسیل سود معامله (اسلایدر کف سود)  |
+//+------------------------------------------------------------------+
+bool IsPotentialAllowedByScenario(double riskPoints)
+{
+   if(InpMinTradePotential <= 0.0) return true;
+   double pot = (riskPoints * 0.04) * 2.5 - 0.44;
+   return (pot >= InpMinTradePotential);
+}
+
+//+------------------------------------------------------------------+
+//| فیلتر ۴ سناریو: بررسی فیوز استاپ‌های متوالی (Circuit Breaker)     |
+//+------------------------------------------------------------------+
+int      g_skippedSetupsCount = 0;
+datetime g_lastLossTradeTime = 0;
+
+bool IsConsecutiveLossAllowed()
+{
+   if(InpConsecLossTrigger <= 0) return true;
+
+   HistorySelect(TimeCurrent() - 14 * 86400, TimeCurrent());
+   int totalDeals = HistoryDealsTotal();
+   int consecLoss = 0;
+   datetime latestDealTime = 0;
+
+   for(int i = totalDeals - 1; i >= 0; i--)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket <= 0) continue;
+      long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+      if(magic != InpMagicNumber) continue;
+      long entryType = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+      if(entryType != DEAL_ENTRY_OUT && entryType != DEAL_ENTRY_INOUT) continue;
+
+      double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT) 
+                    + HistoryDealGetDouble(ticket, DEAL_SWAP) 
+                    + HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+
+      if(profit < -0.001)
+      {
+         consecLoss++;
+         if(latestDealTime == 0)
+            latestDealTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+      }
+      else if(profit > 0.001)
+      {
+         break;
+      }
+   }
+
+   if(consecLoss >= InpConsecLossTrigger)
+   {
+      if(InpConsecLossAction == CONSEC_ACTION_SKIP_DAY)
+      {
+         MqlDateTime dtDeal, dtNow;
+         TimeToStruct(latestDealTime, dtDeal);
+         TimeToStruct(TimeCurrent(), dtNow);
+         if(dtDeal.day == dtNow.day && dtDeal.mon == dtNow.mon && dtDeal.year == dtNow.year)
+         {
+            return false;
+         }
+      }
+      else if(InpConsecLossAction == CONSEC_ACTION_SKIP_1 || InpConsecLossAction == CONSEC_ACTION_SKIP_2)
+      {
+         int maxSkips = (InpConsecLossAction == CONSEC_ACTION_SKIP_1) ? 1 : 2;
+         if(latestDealTime != g_lastLossTradeTime)
+         {
+            g_lastLossTradeTime = latestDealTime;
+            g_skippedSetupsCount = 0;
+         }
+
+         if(g_skippedSetupsCount < maxSkips)
+         {
+            g_skippedSetupsCount++;
+            PrintFormat("🚨 فیوز هوشمند فعال شد: %d استاپ متوالی! ستاپ جاری رد شد (%d از %d معافیت).",
+                        consecLoss, g_skippedSetupsCount, maxSkips);
+            return false;
+         }
+      }
+   }
+   else
+   {
+      g_skippedSetupsCount = 0;
+   }
+
+   return true;
+}
+
 void OnTick()
 {
    static datetime lastCandleTime = 0;
@@ -518,6 +652,22 @@ void OnTick()
    {
       // 👑 فیلتر سلاطین برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
       if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+         continue;
+
+      // 🚫 فیلتر سناریوی داشبورد: بررسی سلاطین غیرمجاز انتخابی کاربر
+      if(!IsKingAllowedByScenario(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+         continue;
+
+      // ⏰ فیلتر سناریوی داشبورد: ساعات مجاز معامله
+      if(!IsHourAllowedByScenario(g_tradeSetups[t].entryTime))
+         continue;
+
+      // 💰 فیلتر سناریوی داشبورد: کف سود دلاری معامله
+      if(!IsPotentialAllowedByScenario(g_tradeSetups[t].risk / _Point))
+         continue;
+
+      // 🚨 فیلتر سناریوی داشبورد: فیوز قطع معاملات پس از استاپ‌های متوالی
+      if(!IsConsecutiveLossAllowed())
          continue;
 
       // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها)
