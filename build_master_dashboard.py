@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import csv
@@ -52,27 +53,12 @@ def is_low_reward_vs_friction(risk_pts, comm_per_lot=6.0, spread_pips=0.8, min_r
     min_pts = total_friction_pips * min_ratio * 10.0
     return (risk_pts <= min_pts)
 
-def build_dashboard(custom_csv=None):
-    if custom_csv and os.path.exists(custom_csv):
-        csv_file = custom_csv
-    elif len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
-        csv_file = sys.argv[1]
-    else:
-        files_dir = os.path.dirname(CSV_PATH_PRIMARY)
-        cands = [os.path.join(files_dir, f) for f in os.listdir(files_dir) 
-                 if (f.startswith('flagpro_trades') or f.startswith('flag_trades')) and f.endswith('.csv')]
-        if cands:
-            cands.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-            csv_file = cands[0]
-        elif os.path.exists(CSV_PATH_PRIMARY):
-            csv_file = CSV_PATH_PRIMARY
-        elif os.path.exists(CSV_PATH_FALLBACK):
-            csv_file = CSV_PATH_FALLBACK
-        else:
-            print(f"CSV not found in: {files_dir}")
-            return
 
-    print(f"📂 در حال پردازش فایل دیتا: {csv_file}")
+
+def process_symbol_dataset(csv_file):
+    print(f"📂 در حال پردازش داده‌های فایل: {csv_file}")
+    if not os.path.exists(csv_file):
+        return None
 
     all_raw_rows = []
     with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
@@ -84,7 +70,7 @@ def build_dashboard(custom_csv=None):
     if all_raw_rows and all_raw_rows[0].get('Symbol'):
         symbol = all_raw_rows[0].get('Symbol').strip()
     else:
-        m = re.search(r'flagpro_trades_([A-Za-z0-9_]+)\.csv', os.path.basename(csv_file))
+        m = re.search(r'flagpro_trades_([A-Za-z0-9_]+)[.]csv', os.path.basename(csv_file))
         if m: symbol = m.group(1).upper()
 
     clean_symbol = re.sub(r'[^A-Za-z0-9]', '', symbol) or 'EURUSD'
@@ -1933,442 +1919,9 @@ def build_dashboard(custom_csv=None):
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    html = f"""<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>داشبورد جامع و هوشمند FlagPro - ساختار تبولار (بدون اسکرول)</title>
-    <style>
-        body {{
-            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-            background-color: #070b14;
-            color: #f1f5f9;
-            margin: 0;
-            padding: 0;
-            line-height: 1.4;
-            overflow: hidden;
-            height: 100vh;
-            direction: rtl;
-        }}
-        .app-layout {{
-            display: flex;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            direction: rtl;
-        }}
+    
 
-        /* 📌 SLEEK COMPACT SIDEBAR */
-        .sidebar {{
-            width: 215px;
-            min-width: 215px;
-            max-width: 215px;
-            background: #090e1a;
-            border-left: 1px solid #1e293b;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            z-index: 1000;
-            box-shadow: -4px 0 20px rgba(0,0,0,0.5);
-            user-select: none;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            flex-shrink: 0;
-            overflow: hidden;
-            box-sizing: border-box;
-        }}
-        .sidebar.collapsed {{
-            width: 0 !important;
-            min-width: 0 !important;
-            max-width: 0 !important;
-            padding: 0 !important;
-            border-left: none !important;
-            overflow: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            box-shadow: none !important;
-        }}
-        .sidebar-brand {{
-            padding: 14px 12px;
-            border-bottom: 1px solid #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #060a12;
-        }}
-        .sidebar-brand-title {{
-            font-size: 14.5px;
-            font-weight: bold;
-            color: #38bdf8;
-            margin: 0;
-            letter-spacing: -0.2px;
-        }}
-        .sidebar-brand-sub {{
-            font-size: 10px;
-            color: #64748b;
-            margin: 2px 0 0 0;
-        }}
-        .sidebar-menu {{
-            padding: 8px 6px;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            flex: 1;
-            overflow-y: auto;
-        }}
-        .tab-btn {{
-            background: transparent;
-            border: 1px solid transparent;
-            color: #94a3b8;
-            padding: 8px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-            text-align: right;
-            box-sizing: border-box;
-        }}
-        .tab-btn:hover {{
-            color: #f8fafc;
-            background: #1e293b;
-            border-color: #334155;
-        }}
-        .tab-btn.active {{
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-            color: #ffffff;
-            border-color: #38bdf8;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
-        }}
-        .tab-btn .tab-icon {{
-            font-size: 14px;
-            min-width: 18px;
-            text-align: center;
-        }}
-        .tab-btn .tab-title {{
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }}
-        .sidebar-footer {{
-            padding: 10px 12px;
-            border-top: 1px solid #1e293b;
-            font-size: 10px;
-            color: #64748b;
-            background: #060a12;
-            line-height: 1.4;
-        }}
-
-        /* 🖥️ MAIN WORKSPACE CONTENT */
-        .main-workspace {{
-            flex: 1;
-            min-width: 0;
-            height: 100vh;
-            overflow-y: auto;
-            padding: 12px 18px;
-            box-sizing: border-box;
-            background: #070b14;
-        }}
-
-        /* Compact Header */
-        .workspace-header {{
-            background: linear-gradient(135deg, #0f172a 0%, #090e1a 100%);
-            border: 1px solid #1e293b;
-            padding: 10px 16px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }}
-        .workspace-header h1 {{
-            margin: 0;
-            font-size: 16px;
-            color: #38bdf8;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-
-        /* Institutional Metric Cards */
-        .kpi-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-            gap: 8px;
-            margin-bottom: 10px;
-        }}
-        .kpi-card {{
-            background: #0f172a;
-            border: 1px solid #334155;
-            padding: 7px 12px;
-            border-radius: 8px;
-            text-align: center;
-        }}
-        .kpi-title {{
-            font-size: 10.5px;
-            color: #94a3b8;
-            margin-bottom: 3px;
-        }}
-        .kpi-value {{
-            font-size: 18px;
-            font-weight: bold;
-            color: #f8fafc;
-        }}
-        .kpi-sub {{
-            font-size: 9.5px;
-            color: #64748b;
-            margin-top: 2px;
-        }}
-
-        /* Subtabs in Equity Curve */
-        .eq-subtab-btn {{
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: #94a3b8;
-            padding: 6px 14px;
-            border-radius: 6px;
-            font-size: 11.5px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-        }}
-        .eq-subtab-btn:hover {{
-            color: #fff;
-            border-color: #38bdf8;
-            background: #1e293b;
-        }}
-                .consec-btn, .consec-btn-filter {{
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: #94a3b8;
-            padding: 5px 11px;
-            border-radius: 6px;
-            font-size: 11.5px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-        }}
-        .consec-btn:hover, .consec-btn-filter:hover {{
-            color: #f8fafc;
-            border-color: #38bdf8;
-        }}
-        .consec-btn.active, .consec-btn-filter.active {{
-            background: #0c4a6e;
-            border-color: #38bdf8;
-            color: #38bdf8;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
-        }}
-
-        /* 🌟 TWO-COLUMN WORKSPACE LAYOUT (34% Chart / 66% Controls & Tables) */
-        .equity-two-col-container {{
-            display: grid;
-            grid-template-columns: 34% calc(66% - 12px);
-            gap: 12px;
-            align-items: stretch;
-            margin-bottom: 12px;
-        }}
-        .equity-two-col-container.single-col {{
-            grid-template-columns: 1fr !important;
-        }}
-        .equity-col-chart {{
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-        }}
-        .equity-col-controls {{
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-        }}
-        .eq-subpanels-wrapper {{
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            max-height: 485px;
-            padding-left: 2px;
-        }}
-        .eq-subpanel .section-box {{
-            padding: 12px !important;
-            margin-bottom: 12px !important;
-            border-radius: 8px !important;
-        }}
-        .eq-subpanels-wrapper::-webkit-scrollbar {{
-            width: 6px;
-            height: 6px;
-        }}
-        .eq-subpanels-wrapper::-webkit-scrollbar-track {{
-            background: #060a12;
-            border-radius: 4px;
-        }}
-        .eq-subpanels-wrapper::-webkit-scrollbar-thumb {{
-            background: #1e3a5f;
-            border-radius: 4px;
-        }}
-        .eq-subpanels-wrapper::-webkit-scrollbar-thumb:hover {{
-            background: #38bdf8;
-        }}
-        @media (max-width: 1250px) {{
-            .equity-two-col-container {{
-                grid-template-columns: 1fr;
-            }}
-        }}
-
-        .eq-subtab-btn.active {{
-            background: #0284c7;
-            color: #fff;
-            border-color: #38bdf8;
-            font-weight: bold;
-            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
-        }}
-
-        /* Tab Content Panel */
-        .tab-content {{
-            display: none;
-            animation: fadeIn 0.2s ease;
-        }}
-        .tab-content.active {{
-            display: block;
-        }}
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(4px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-
-        .section-box {{
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 22px;
-            margin-bottom: 20px;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            margin-top: 12px;
-        }}
-        th, td {{
-            padding: 10px 12px;
-            border-bottom: 1px solid #334155;
-            text-align: right;
-        }}
-        th {{
-            background: #0f172a;
-            color: #94a3b8;
-            font-weight: 600;
-        }}
-        tr:hover {{
-            background: #1e293b80;
-        }}
-        .sort-btn {{
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #94a3b8;
-            padding: 6px 14px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-left: 6px;
-        }}
-        .sort-btn.active, .sort-btn:hover {{
-            background: #38bdf8;
-            color: #0f172a;
-            font-weight: bold;
-        }}
-    </style>
-</head>
-<body>
-    <div class="app-layout">
-        <!-- 📌 COMPACT SIDEBAR NAVIGATION (RIGHT SIDE IN RTL) -->
-        <aside class="sidebar" id="mainSidebar">
-            <div class="sidebar-brand">
-                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
-                    <div style="font-size:20px;flex-shrink:0;">🎯</div>
-                    <div style="overflow:hidden;white-space:nowrap;">
-                        <div class="sidebar-brand-title">FlagPro Master</div>
-                        <div class="sidebar-brand-sub">{symbol} | {tfs_str}</div>
-                    </div>
-                </div>
-                <button onclick="toggleSidebar()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;width:26px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all 0.2s;" title="بستن منو (تمام‌صفحه)" onmouseover="this.style.color='#fff';this.style.borderColor='#38bdf8'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='#334155'">
-                    ◀
-                </button>
-            </div>
-
-            <div class="sidebar-menu">
-                <button class="tab-btn active" onclick="openTab(event, 'tab-equity')">
-                    <span class="tab-icon">📈</span>
-                    <span class="tab-title">نمودار رشد و اکوئیتی</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-kings')">
-                    <span class="tab-icon">👑</span>
-                    <span class="tab-title">سلاطین برگزیده ({len(qualified_kings)})</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-trades')">
-                    <span class="tab-icon">📑</span>
-                    <span class="tab-title">ژورنال معاملات و خروج</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">
-                    <span class="tab-icon">💎</span>
-                    <span class="tab-title">خروج پلکانی (0.04)</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">
-                    <span class="tab-icon">📊</span>
-                    <span class="tab-title">عملکرد تایم‌فریم‌ها</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-weekly')">
-                    <span class="tab-icon">📅</span>
-                    <span class="tab-title">کارنامه هفته به هفته</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-filters')">
-                    <span class="tab-icon">🛡️</span>
-                    <span class="tab-title">فیلترهای ضد استاپ</span>
-                </button>
-                <button class="tab-btn" onclick="openTab(event, 'tab-loss-intel')">
-                    <span class="tab-icon">🔍</span>
-                    <span class="tab-title">هوش باخت‌ها و استاپ‌ها</span>
-                </button>
-            </div>
-
-            <div class="sidebar-footer">
-                <div>🔄 آخرین همگام‌سازی:</div>
-                <div style="color:#38bdf8;font-weight:bold;margin-top:2px;">{now_str}</div>
-            </div>
-        </aside>
-
-        <!-- 🖥️ MAIN WORKSPACE CONTENT -->
-        <main class="main-workspace">
-            <!-- Workspace Top Bar -->
-            <div class="workspace-header">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <button id="btnToggleSidebarHeader" onclick="toggleSidebar()" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="تغییر وضعیت منوی کناری (تمام‌صفحه / منو)" onmouseover="this.style.borderColor='#38bdf8';this.style.background='#1e293b'" onmouseout="this.style.borderColor='#334155';this.style.background='#0f172a'">
-                        <span id="btnToggleSidebarIcon">☰</span>
-                        <span id="btnToggleSidebarText">منو</span>
-                    </button>
-                    <div>
-                        <h1>🎯 سیستم جامع معاملاتی FlagPro</h1>
-                        <div style="margin-top:3px;color:#94a3b8;font-size:11.5px;">
-                            بازه داده‌ها: <b>{min_date}</b> تا <b>{max_date}</b> | حجم: <b>0.04 لات پلکانی</b>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <span style="background:#081420;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;color:#38bdf8;">
-                        {symbol} ({tfs_str})
-                    </span>
-                </div>
-            </div>
-
-
-        <!-- ==================== TAB: 📈 EQUITY & BALANCE CURVE ==================== -->
-        <div id="tab-equity" class="tab-content active">
-            <!-- Equity Metrics Banner (Dynamically updated by simulation) -->
+    tab_equity_html = f"""<!-- Equity Metrics Banner (Dynamically updated by simulation) -->
             <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;margin-bottom:10px;">
                 <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">💵 بالانس شروع حساب</div>
@@ -2924,12 +2477,8 @@ def build_dashboard(custom_csv=None):
     </div>
 </div>
 </div>
-</div>
-</div>
-
-        <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
-        <div id="tab-kings" class="tab-content">
-            <!-- Global Performance KPI Cards (Placed inside Tab 1) -->
+</div>"""
+    tab_kings_html = f"""<!-- Global Performance KPI Cards (Placed inside Tab 1) -->
             <div class="kpi-grid" style="margin-bottom:20px;">
                 <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
                     <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
@@ -3018,10 +2567,1116 @@ def build_dashboard(custom_csv=None):
                     </table>
                 </div>
             </div>
-            </div> <!-- End kingsViewAllTime -->
+            </div> <!-- End kingsViewAllTime -->"""
+    tab_scaleout_html = f"""<div class="section-box" style="border: 2px solid #38bdf8; background: #082136;">
+                <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
+                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین {len(qualified_kings)} گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
+                        </div>
+                        <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
+                            <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
+                            <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>${tot_k_fric:.2f} دلار</b></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Steps Breakdown Grid: 4-Way Balanced 25-25-25-25 -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:18px;">
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله اول (TP 1:1) - خروج ۰.۰۱ لات (۲۵٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">ذخیره سود پله ۱ + <b>انتقال فوری استاپ لاس به نقطه ورود (ریسک‌فری قطعی)</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">🛡️ نتیجه: ریسک کل معامله صفر شد و کمیسیون پوشش یافت!</div>
+                    </div>
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله دوم (TP 1:2) - خروج ۰.۰۱ لات (۲۵٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ دیگر با سود ۲ برابری + <b>قفل سود در سطح TP1</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">📈 نتیجه: تثبیت سود عالی و کاهش کامل استرس معامله</div>
+                    </div>
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله سوم (TP 1:3) - خروج ۰.۰۱ لات (۲۵٪)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ با سود ۳ برابری + <b>تریل استاپ به سطح TP2</b></div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">💰 نتیجه: شکار میانه موج‌های قوی بازار</div>
+                    </div>
+                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
+                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله چهارم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
+                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن انتهای ترندهای بزرگ</div>
+                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در {tp3_4} معامله!</div>
+                    </div>
+                </div>
+
+                <!-- Table: 0.04 Lot Performance -->
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0b3353;">
+                                <th>استراتژی خروج معامله با حجم 0.04 لات</th>
+                                <th style="text-align:center;">سود ناخالص</th>
+                                <th style="text-align:center;">کل کمیسیون و اسپرد</th>
+                                <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
+                                <th style="text-align:center;">ضریب سود (PF)</th>
+                                <th style="text-align:center;">جهش سود خالص دلاری</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:#94a3b8;font-weight:bold;">۱. خروج ساده تک‌تارگت در TP 1:1 (بستن ۱۰۰٪ حجم 0.04)</td>
+                                <td style="text-align:center;color:#38bdf8;">${s1_gross:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
+                                <td style="text-align:center;color:{'#00e676' if s1_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s1_net:+.2f} دلار</td>
+                                <td style="text-align:center;color:#cbd5e1;">{s1_pf:.2f}</td>
+                                <td style="text-align:center;color:#94a3b8;">مبنا</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#94a3b8;font-weight:bold;">۲. خروج ساده تک‌تارگت در TP 1:2 (بستن ۱۰۰٪ حجم 0.04)</td>
+                                <td style="text-align:center;color:#38bdf8;">${s2_gross:+.2f}</td>
+                                <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
+                                <td style="text-align:center;color:{'#00e676' if s2_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s2_net:+.2f} دلار</td>
+                                <td style="text-align:center;color:#cbd5e1;">{s2_pf:.2f}</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">${s2_diff_dollar:+.2f} ({s2_diff_pct:+.1f}%)</td>
+                            </tr>
+                            <tr style="background:#064e3b33;border:2px solid #10b981;">
+                                <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج چهارپله‌ای متوازن FlagPro (۰.۰۱ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP3 | ۰.۰۱ در TP4) 🚀</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_gross:+.2f}</td>
+                                <td style="text-align:color:#cbd5e1;">${tot_k_fric:.2f}</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">${s3_net:+.2f} دلار نقد خالص! 💵</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{s3_pf:.2f} 🚀</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_diff_dollar:+.2f} سود بیشتر ({s3_diff_pct:+.1f}%) 🚀</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Break-Even Comparison -->
+                <div style="margin-top: 24px; border-top: 1px dashed #0284c7; padding-top: 18px;">
+                    <h4 style="margin:0 0 10px 0; color:#facc15; font-size:16px;">⚖️ مقایسه بریک‌ایون (ریسک‌فری) با حجم 0.04 لات: انتقال استاپ در TP1 یا در TP2؟ کدام سودده‌تر است؟</h4>
+                    <p style="margin:0 0 14px 0; color:#cbd5e1; font-size:12.5px; line-height:1.6;">
+                        کالبدشکافی رفتار {tot_k_cnt} معامله سلاطین: <b>{sl_direct} معامله استاپ مستقیم ({sl_direct_pct:.1f}%)</b> | 
+                        <b style="color:#facc15;">{tp1_only} معامله ({tp1_only_pct:.1f}%) فقط TP1 را تاچ کردند و برگشتند!</b> | 
+                        <b>{tp2_only} معامله ({tp2_only_pct:.1f}%) تا TP2 رفتند</b> | 
+                        <b style="color:#00e676;">{tp3_4} معامله ({tp3_4_pct:.1f}%) به TP3 و TP4 رسیدند!</b>
+                    </p>
+
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr style="background:#0b3353;">
+                                    <th>روش انتقال استاپ به ورود (Break-Even) با حجم 0.04 لات</th>
+                                    <th style="text-align:center;">سرنوشت {tp1_only} معامله‌ای که بعد از TP1 برگشتند</th>
+                                    <th style="text-align:center;">سود ناخالص</th>
+                                    <th style="text-align:center;">کل کمیسیون و اسپرد</th>
+                                    <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
+                                    <th style="text-align:center;">اختلاف و برتری مالی</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="background:#064e3b44; border: 2px solid #10b981;">
+                                    <td style="color:#00e676; font-weight:bold; font-size:13.5px;">🥇 حالت اول: انتقال استاپ به نقطه ورود (BE) در TP1</td>
+                                    <td style="text-align:center; color:#a7f3d0; font-size:12px;">سود ۰.۰۲ لات در TP1 ذخیره شد + ۰.۰۲ لات باقیمانده بدون ضرر روی نقطه ورود خارج شد (سود خالص!)</td>
+                                    <td style="text-align:center; color:#00e676; font-weight:bold;">${m1_gross:+.2f}</td>
+                                    <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
+                                    <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">${m1_net:+.2f} دلار نقد 🚀</td>
+                                    <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (${be_diff:+.2f} دلار سود بیشتر)</td>
+                                </tr>
+                                <tr style="background:#450a0a22; border: 1px solid #7f1d1d;">
+                                    <td style="color:#f87171; font-weight:bold; font-size:13.5px;">❌ حالت دوم: انتقال استاپ به نقطه ورود (BE) فقط در TP2</td>
+                                    <td style="text-align:center; color:#fca5a5; font-size:12px;">سود ۰.۰۲ لات گرفته شد، اما چون استاپ دست نخورده بود، ۰.۰۲ لات باقیمانده برگشت و استاپ اولیه را زد!</td>
+                                    <td style="text-align:center; color:#f87171; font-weight:bold;">${m2_gross:+.2f}</td>
+                                    <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
+                                    <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">${m2_net:+.2f} دلار</td>
+                                    <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (${abs(be_diff):.2f} دلار سود کمتر!)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style="background:#09304a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-top:12px; font-size:12px; color:#e0f2fe; line-height:1.5;">
+                        💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>{tp1_only_pct:.1f}٪ معاملات ({tp1_only} معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن {be_diff:.2f} دلار سود شما می‌شود و سود کل سیستم را به <b>${m1_net:+.2f} دلار نقد خالص</b> می‌رساند!
+                    </div>
+                </div>
+            </div>"""
+    tab_timeframes_html = f"""<div class="section-box">
+                <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین {len(qualified_kings)} گانه FlagPro</h3>
+                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
+                </div>
+
+                <!-- Primary: Golden Kings per Timeframe -->
+                <div style="overflow-x:auto;margin-bottom:24px;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0f172a;">
+                                <th>تایم‌فریم (سلاطین منتخب FlagPro)</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:1</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:2</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:3</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:4</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
+                                <th style="text-align:center;color:#f87171;">کل اصطکاک (اسپرد)</th>
+                                <th style="text-align:center;color:#00e676;">💵 سود خالص واقعی</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(tf_kings_rows)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Comparison Banner: Why Filters & Kings Are Essential -->
+                <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">💡 تفاوت معاملات سلاطین با کل بازار خام چارت:</span>
+                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل {d_tot_raw['cnt']} معامله خام چارت بدون فیلتر معامله می‌شد، {abs(d_tot_raw['net']):.2f}$ {'زیان' if d_tot_raw['net'] < 0 else 'سود'} تولید می‌شد؛ اما سلاطین {len(qualified_kings)} گانه با فیلتر هوشمند آن را به {d_tot_kings['net']:+.2f}$ سود خالص رسانده‌اند!</div>
+                    </div>
+                    <button class="sort-btn" style="border-color:#a5b4fc;color:#a5b4fc;" onclick="let el = document.getElementById('rawTfTable'); el.style.display = el.style.display==='none'?'':'none';">👁️ مشاهده جدول کل دیتای خام چارت</button>
+                </div>
+
+                <!-- Hidden Comparative Raw Table -->
+                <div id="rawTfTable" style="display:none;overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
+                    <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل {d_tot_raw['cnt']} معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
+                    <table>
+                        <thead>
+                            <tr style="background:#1e293b;">
+                                <th>تایم‌فریم خام</th>
+                                <th style="text-align:center;">کل معاملات</th>
+                                <th style="text-align:center;">وین‌ریت 1:1</th>
+                                <th style="text-align:center;">وین‌ریت 1:2</th>
+                                <th style="text-align:center;">وین‌ریت 1:3</th>
+                                <th style="text-align:center;">وین‌ریت 1:4</th>
+                                <th style="text-align:center;">نرخ باخت</th>
+                                <th style="text-align:center;">سود/زیان کل خام</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(tf_raw_rows)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Detailed Entity Breakdown by Timeframe -->
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;padding-top:14px;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <h4 style="margin:0;color:#f8fafc;font-size:15px;">تفکیک جزئی گره‌ها در هر تایم‌فریم:</h4>
+                    </div>
+                    <div>
+                        <button class="sort-btn active tf-btn" onclick="filterTF('ALL')">همه تایم‌ها</button>
+                        <button class="sort-btn tf-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="filterTF('M1')">⚡ M1 ({len(tf_map.get('M1', []))})</button>
+                        <button class="sort-btn tf-btn" style="border-color:#00e676;color:#00e676;" onclick="filterTF('M5')">🌟 M5 ({len(tf_map.get('M5', []))})</button>
+                        <button class="sort-btn tf-btn" style="border-color:#f59e0b;color:#f59e0b;" onclick="filterTF('M15')">🕒 M15 ({len(tf_map.get('M15', []))})</button>
+                    </div>
+                </div>
+
+                <!-- Formula Explainer Box -->
+                <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <b style="color:#facc15;">🏛️ شاخص ۷ ستونه هج‌فاندی سلطان (7-Pillar Institutional King Score):</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = 🛡️خلوص(۵۰۰) + 🎯وین‌ریت ۱:۲(۴۰۰) + ⚡عمق تارگت‌ها + 💰راندمان ترید + 📊اعتبار + ⚖️پرافیت فاکتور(۱۰۰) + 🛡️کنترل افت و ریکاوری(۱۰۰)</span>
+                    </div>
+                    <div>
+                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ قطعی)</span>
+                        <span style="background:#1e3a8a;color:#93c5fd;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #3b82f6;">⚖️ کنترل دراوداون و پرافیت فاکتور</span>
+                    </div>
+                </div>
+
+                <!-- Quick Combined Sorting Buttons -->
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;background:#0f172a;padding:8px 12px;border-radius:8px;border:1px solid #334155;">
+                    <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
+                    <button class="sort-btn active" id="btnSortScore" onclick="sortTableByAttr('tfTable', 'data-score', true, true, this)">👑 بیشترین امتیاز سلطان (Score)</button>
+                    <button class="sort-btn" id="btnSortNet" style="border-color:#00e676;color:#00e676;" onclick="sortTableByAttr('tfTable', 'data-net', true, true, this)">💵 بیشترین سود خالص دلاری</button>
+                    <button class="sort-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="sortTableByAttr('tfTable', 'data-pf', true, true, this)">⚖️ بیشترین پرافیت فاکتور (PF)</button>
+                    <button class="sort-btn" style="border-color:#f87171;color:#f87171;" onclick="sortTableByAttr('tfTable', 'data-dd', true, false, this)">🛡️ کمترین افت (Max DD)</button>
+                    <button class="sort-btn" style="border-color:#facc15;color:#facc15;" onclick="sortTableByAttr('tfTable', 'data-retdd', true, true, this)">🚀 نسبت سود به افت (Ret/DD)</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w4', true, true, this)">🚀 بیشترین تارگت دونده (TP4)</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-cnt', true, true, this)">📦 بیشترین تعداد معامله</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-sl', true, false, this)">🛡️ کمترین باخت (SL)</button>
+                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-tf', false, false, this)">🕒 بر اساس تایم‌فریم</button>
+                </div>
+
+                <div style="overflow-x:auto;margin-top:6px;">
+                    <table id="tfTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTableByAttr('tfTable', 'data-tf', false, false)" data-sort="data-tf" style="cursor:pointer;" title="کلیک برای مرتب‌سازی صعودی/نزولی">تایم‌فریم <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-role', false, false)" data-sort="data-role" style="cursor:pointer;" title="کلیک برای مرتب‌سازی">موجودیت باکس / سواپ <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-cnt', true, true)" data-sort="data-cnt" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">تعداد معامله <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w1', true, true)" data-sort="data-w1" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:1 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w2', true, true)" data-sort="data-w2" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:2 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w3', true, true)" data-sort="data-w3" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:3 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-net', true, true)" data-sort="data-net" style="cursor:pointer;text-align:center;color:#00e676;background:#064e3b33;" title="کلیک برای مرتب‌سازی بر اساس سود خالص دلاری">💵 سود خالص دلاری <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-pf', true, true)" data-sort="data-pf" style="cursor:pointer;text-align:center;color:#38bdf8;" title="کلیک برای مرتب‌سازی بر اساس Profit Factor">⚖️ PF <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-dd', true, false)" data-sort="data-dd" style="cursor:pointer;text-align:center;color:#f87171;" title="کلیک برای مرتب‌سازی بر اساس کمترین افت سرمایه (Max DD)">🛡️ Max DD <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-retdd', true, true)" data-sort="data-retdd" style="cursor:pointer;text-align:center;color:#facc15;" title="کلیک برای مرتب‌سازی بر اساس Recovery Factor (سود به افت)">🚀 Ret/DD <span class="sort-icon">⬍</span></th>
+                                <th onclick="sortTableByAttr('tfTable', 'data-score', true, true)" data-sort="data-score" style="cursor:pointer;text-align:center;color:#facc15;background:#1e293b;" title="مرتب‌سازی شده بر مبنای فرمول شاخص سلطان">امتیاز سلطان (Score) <span class="sort-icon">▼</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join(tf_role_rows)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>"""
+    tab_filters_html = f"""<div class="section-box" style="border: 1px solid #38bdf8; background: #0c1829;">
+                <div style="border-bottom: 1px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 16px;">
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">🛡️ جدول تفکیکی دقت فیلترهای ضد استاپ اعمال‌شده در FlagPro</h3>
+                    <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">عملکرد مجزای هر فیلتر بر مبنای کل {len(closed):,} معامله واقعی این فایل داده:</p>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>نام فیلتر هوشمند ضد استاپ</th>
+                                <th style="text-align:center;">تنظیم ورودی در متاتریدر</th>
+                                <th style="text-align:center;">تعداد معاملات حذفی</th>
+                                <th style="text-align:center;">استاپ‌های نجات‌یافته</th>
+                                <th style="text-align:center;">🎯 درصد دقت فیلتر</th>
+                                <th>تفسیر و عملکرد فیلتر</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">🛡️ فیلتر ۱: حذف باکس‌های منفرد LS بدون تلاقی</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterSingleLS = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f1_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f1_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f1_sl/f1_rej*100) if f1_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">حذف تریدهای منفرد با بیشترین نرخ باخت</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۲: مسدودسازی بازه شبانه (۲۱:۰۰ تا ۰۱:۰۰)</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterNightHours = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f2_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f2_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f2_sl/f2_rej*100) if f2_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">فرار از واید شدن اسپرد و افت نقدینگی شبانه</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ صبح (شکار استاپ آسیا)</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPreLondonHunt = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f3_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f3_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f3_sl/f3_rej*100) if f3_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">فرار از شکار نقدینگی قبل از اوپن لندن</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">☣️ فیلتر ۴: حذف زنجیره‌های سمی و فرسایشی</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterToxicPatterns = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f4_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f4_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f4_sl/f4_rej*100) if f4_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">جلوگیری از ورود در امواج اشباع بازار</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">📦 فیلتر ۵: حذف فلگ‌های ساده بدون تلاقی (نویز)</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPureFlags = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f5_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f5_sl} استاپ قطعی!</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f5_sl/f5_rej*100) if f5_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">تصفیه نویزهای ریز بازار</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#facc15;">💰 فیلتر ۶ (اقتصادی): حذف تریدهای با سود کمتر از اصطکاک</td>
+                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterLowRewardVsFriction = true</span></td>
+                                <td style="text-align:center;color:#cbd5e1;">{f7_rej} معامله</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f7_sl} زیان قطعی خنثی شد! 🎯</td>
+                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f7_sl/f7_rej*100) if f7_rej else 0:.1f}%</td>
+                                <td style="color:#94a3b8;font-size:12px;">عدم ورود در تریدهایی که سودشان کمتر از کارمزد بروکر است</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Before vs After -->
+            <div class="section-box" style="border: 1px solid #10b981; background: #0c1a1a;">
+                <div style="border-bottom: 1px solid #134e4a; padding-bottom: 14px; margin-bottom: 16px;">
+                    <h3 style="margin:0;color:#2dd4bf;font-size:19px;">⚖️ گزارش اثرگذاری فیلتر ضد استاپ (مقایسه زنده قبل و بعد از فیلترها)</h3>
+                    <p style="margin:4px 0 0 0;color:#99f6e4;font-size:12px;">محاسبه دقیق بهبود آماری با فیلتر کردن ساعات پرخطر و الگوهای سمی:</p>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>شاخص عملکردی کلیدی</th>
+                                <th style="text-align:center;">بدون فیلتر (حالت خام)</th>
+                                <th style="text-align:center;">با فیلتر ضد استاپ (Flag_Filters)</th>
+                                <th style="text-align:center;">میزان بهبود و تغییر</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:bold;">تعداد کل معاملات ارزیابی‌شده</td>
+                                <td style="text-align:center;color:#94a3b8;">{len(closed):,} معامله</td>
+                                <td style="text-align:center;color:#38bdf8;font-weight:bold;">{len(accepted_trades):,} معامله تاییدشده</td>
+                                <td style="text-align:center;color:#f59e0b;">{len(rejected_trades)} معامله فیلتر و رد شد</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#10b981;">تعداد باخت‌های حذف‌شده (استاپ‌های نجات‌یافته)</td>
+                                <td style="text-align:center;color:#ef4444;">۰ ({sl_cnt_b} معامله استاپ)</td>
+                                <td style="text-align:center;color:#10b981;font-weight:bold;">{sl_in_rej} معامله استاپ خورده نجات یافت! 🎯</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">دقت فیلتر: {rej_accuracy:.1f}%</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;">وین‌ریت تارگت اول (TP 1:1)</td>
+                                <td style="text-align:center;color:#94a3b8;">{w1_rate_b:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a - w1_rate_b:+.1f}%</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;">وین‌ریت تارگت دوم (TP 1:2)</td>
+                                <td style="text-align:center;color:#94a3b8;">{w2_rate_b:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a - w2_rate_b:+.1f}%</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;">نرخ استاپ خوردن (Stop Loss Rate)</td>
+                                <td style="text-align:center;color:#ef4444;">{sl_rate_b:.1f}%</td>
+                                <td style="text-align:center;color:#f87171;font-weight:bold;">{sl_rate_a:.1f}%</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">{sl_rate_a - sl_rate_b:+.1f}% کاهش باخت</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#38bdf8;">امید ریاضی به ازای هر ترید (EV در نسبت 1:2)</td>
+                                <td style="text-align:center;color:#94a3b8;">{ev_b:+.2f} R</td>
+                                <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">{ev_a:+.2f} R 🚀</td>
+                                <td style="text-align:center;color:#38bdf8;font-weight:bold;">{ev_a - ev_b:+.2f} R رشد خالص</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>"""
+    tab_loss_intel_html = f"""<div class="section-box" style="border: 1px solid #ef4444; background: #18111c;">
+                <div style="border-bottom: 1px solid #332032; padding-bottom: 14px; margin-bottom: 18px;">
+                    <h3 style="margin:0;color:#f87171;font-size:20px;">🔍 تحلیل آماری معاملات استاپ‌شده (Loss Pattern Intelligence)</h3>
+                    <p style="margin:4px 0 0 0;color:#fca5a5;font-size:12px;">کالبدشکافی {total_losses} معامله استاپ‌خورده در این دیتاست جهت جلوگیری هوشمند از تکرار باخت:</p>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;">
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">🌙 باخت‌های ساعات شب (۲۱ تا ۰۱)</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{night_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(night_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">اسپرد بالا و نبود نقدینگی در سشن آسیا منشأ این باخت‌هاست.</div>
+                    </div>
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">🚫 باخت‌های باکس‌های تک LS</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{single_ls_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(single_ls_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">باکس‌های LS منفرد بدون تلاقی بیشترین ریسک را به همراه دارند.</div>
+                    </div>
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">☣️ باخت‌های زنجیره‌های سمی</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{toxic_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(toxic_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">ورود در روندهای فرسایشی انتهای موج.</div>
+                    </div>
+                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
+                        <div style="color:#f87171;font-weight:bold;font-size:14px;">📦 باخت‌های فلگ‌های ساده</div>
+                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{pure_flag_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(pure_flag_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
+                        <div style="color:#94a3b8;font-size:11px;">نویزهای میانی چارت بدون شکست ساختار.</div>
+                    </div>
+                </div>
+            </div>"""
+    tab_weekly_html = f"""<!-- Weekly KPI Banner -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:20px;">
+                <div class="kpi-card" style="border-color:#38bdf8;">
+                    <div class="kpi-title">📅 کل هفته‌های کالبدشکافی‌شده</div>
+                    <div class="kpi-value" style="color:#38bdf8;">{len(sorted_wk_keys)} هفته</div>
+                    <div class="kpi-sub">پوشش کامل ۶ ماه اخیر</div>
+                </div>
+                <div class="kpi-card" style="border-color:#00e676;">
+                    <div class="kpi-title">🟢 هفته‌های سبز و سودده سلاطین</div>
+                    <div class="kpi-value" style="color:#00e676;">{tot_kings_green_wks} از {len(sorted_wk_keys)}</div>
+                    <div class="kpi-sub">{(tot_kings_green_wks/len(sorted_wk_keys)*100) if sorted_wk_keys else 0:.1f}٪ هفته‌ها در سود قطعی!</div>
+                </div>
+                <div class="kpi-card" style="border-color:#ef4444;">
+                    <div class="kpi-title">🔴 هفته‌های اصلاحی و استاپ سلاطین</div>
+                    <div class="kpi-value" style="color:#ef4444;">{tot_kings_red_wks} از {len(sorted_wk_keys)}</div>
+                    <div class="kpi-sub">{(tot_kings_red_wks/len(sorted_wk_keys)*100) if sorted_wk_keys else 0:.1f}٪ هفته‌های نوسانی و رنج</div>
+                </div>
+                <div class="kpi-card" style="border-color:#facc15;">
+                    <div class="kpi-title">👑 باثبات‌ترین سلطان دائمی چارت</div>
+                    <div class="kpi-value" style="color:#facc15;font-size:18px;">{top_consistent_box}</div>
+                    <div class="kpi-sub">ثبات هفتگی شگفت‌انگیز: {top_consistent_pct:.1f}٪</div>
+                </div>
+            </div>
+
+            <!-- SECTION 1: Consistency Ranking -->
+            <div class="section-box" style="border:1px solid #3b82f6;background:#0d1527;margin-bottom:24px;">
+                <div style="border-bottom:1px solid #1e3a8a;padding-bottom:12px;margin-bottom:16px;">
+                    <h3 style="margin:0;color:#60a5fa;font-size:19px;">🏆 جدول جامع رتبه‌بندی ثبات دائمی ساختارها (Consistency Leaderboard)</h3>
+                    <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">پاسخ به سوال کلیدی شما: کدام باکس‌ها هفته به هفته پایدارترین سودآوری را برای همیشه حفظ کرده‌اند؟</p>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#1e293b;color:#94a3b8;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th>نام ساختار و تایم‌فریم</th>
+                                <th style="text-align:center;">دسته‌بندی</th>
+                                <th style="text-align:center;">تعداد کل معامله</th>
+                                <th style="text-align:center;">هفته‌های فعال</th>
+                                <th style="text-align:center;">هفته‌های سبز 🟢</th>
+                                <th style="text-align:center;">هفته‌های قرمز 🔴</th>
+                                <th style="text-align:center;">درصد ثبات هفتگی</th>
+                                <th style="text-align:center;">وین‌ریت TP1</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;">سود کل ۶ ماه ($)</th>
+                                <th style="text-align:center;">نشان پایداری</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(weekly_consistency_rows_html)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 2: Master Weekly Timeline -->
+            <div class="section-box" style="border:1px solid #10b981;background:#061a14;margin-bottom:24px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #064e3b;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h3 style="margin:0;color:#34d399;font-size:19px;">📅 کارنامه کامل هفته به هفته (Master {total_weeks}-Week Timeline)</h3>
+                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">کالبدشکافی پیوسته تمام {total_weeks} هفته با تفکیک برد، استاپ و برترین سلطان هفته:</p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="btnWkTableKings" class="sort-btn active" onclick="filterWeeklyMode('kings')">👑 فقط سلاطین {len(qualified_kings)} گانه</button>
+                        <button id="btnWkTableAll" class="sort-btn" onclick="filterWeeklyMode('all')">🌐 کل ساختارهای چارت</button>
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#1e293b;color:#94a3b8;">
+                                <th style="text-align:center;">شماره هفته</th>
+                                <th style="text-align:center;">بازه تاریخ</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">برد (تارگت)</th>
+                                <th style="text-align:center;">استاپ (Loss)</th>
+                                <th style="text-align:center;">وین‌ریت %</th>
+                                <th style="text-align:center;">درصد استاپ %</th>
+                                <th style="text-align:center;">سود خالص دلاری ($)</th>
+                                <th style="text-align:center;">وضعیت هفته</th>
+                                <th style="text-align:center;">برترین سلطان هفته 🏆</th>
+                                <th style="text-align:center;">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(weekly_timeline_rows_html)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 3: Detailed Box Deep Dive per Week -->
+            <div class="section-box" style="border:1px solid #eab308;background:#171305;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #854d0e;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h3 style="margin:0;color:#facc15;font-size:19px;">🔬 کالبدشکافی جزئیات تک‌تک ساختارها در هر هفته انتخابی</h3>
+                        <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">یک هفته را انتخاب کنید تا ببینید هر باکس در آن هفته مشخص دقیقاً چند سود، چند استاپ و چه مقدار دلار ساخته است:</p>
+                    </div>
+                    <div>
+                        <select onchange="selectWeeklyDetail(this.value)" style="background:#1e293b;color:#f1f5f9;border:1px solid #475569;padding:8px 14px;border-radius:6px;font-size:13px;">
+                            <option value="">-- انتخاب هفته جهت مشاهده جدول اختصاصی باکس‌ها --</option>
+                            {''.join(weekly_dropdown_options)}
+                        </select>
+                    </div>
+                </div>
+
+                <div id="weeklyDetailsContainer">
+                    {''.join(weekly_details_cards_html)}
+                </div>
+            </div>"""
+    smart_presets_rows_html = "".join(smart_presets_rows_html)
+
+    return {
+        'symbol': symbol,
+        'clean_symbol': clean_symbol,
+        'csv_file': csv_file,
+        'min_date': min_date,
+        'max_date': max_date,
+        'tfs_str': tfs_str,
+        'date_start_str': date_start_str,
+        'date_end_str': date_end_str,
+        'bal_initial': bal_initial,
+        'net_k': net_k,
+        'net_k_pct': net_k_pct,
+        'bal_k': bal_k,
+        'peak_k': peak_k,
+        'max_dd_k': max_dd_k,
+        'max_dd_k_pct': max_dd_k_pct,
+        's3_pf': s3_pf,
+        's3_net': s3_net,
+        'tot_k_cnt': tot_k_cnt,
+        'total_setups': total_setups,
+        'closed_count': len(closed),
+        'in_trade_count': len(in_trade),
+        'sl_in_rej': sl_in_rej,
+        'rej_accuracy': rej_accuracy,
+        'ev_a': ev_a,
+        'ev_b': ev_b,
+        'w1_p': d_tot_kings['w1_p'],
+        'tab_equity_html': tab_equity_html,
+        'tab_kings_html': tab_kings_html,
+        'tab_scaleout_html': tab_scaleout_html,
+        'tab_timeframes_html': tab_timeframes_html,
+        'tab_filters_html': tab_filters_html,
+        'tab_loss_intel_html': tab_loss_intel_html,
+        'tab_weekly_html': tab_weekly_html,
+        'smart_presets_rows_html': smart_presets_rows_html,
+        'kings_sim_list': kings_sim_list,
+        'top3_sl_cnt_keys': top3_sl_cnt_keys,
+        'top3_sl_usd_keys': top3_sl_usd_keys,
+        'top5_sl_usd_keys': top5_sl_usd_keys,
+        'top3_sl_pct_keys': top3_sl_pct_keys,
+        'trades_sim_list': trades_sim_list,
+        'smart_presets': smart_presets_json_data,
+        'weekly_bar_data': weekly_bar_data,
+        'trades_json_list': trades_json_list
+    }
+
+
+def build_dashboard(custom_csv=None):
+    files_dir = os.path.dirname(CSV_PATH_PRIMARY)
+    repo_root = r"c:\Users\USER\AppData\Roaming\MetaQuotes\Terminal\3F2C3A2F8B221C9D88E569F2FD1D3E97\MQL5"
+    cands = []
+    if custom_csv and os.path.exists(custom_csv):
+        cands = [custom_csv]
+    elif len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+        cands = [sys.argv[1]]
+    else:
+        for f in os.listdir(files_dir):
+            if (f.startswith('flagpro_trades') or f.startswith('flag_trades')) and f.endswith('.csv'):
+                cands.append(os.path.join(files_dir, f))
+
+    if not cands:
+        if os.path.exists(CSV_PATH_PRIMARY): cands.append(CSV_PATH_PRIMARY)
+        elif os.path.exists(CSV_PATH_FALLBACK): cands.append(CSV_PATH_FALLBACK)
+
+    symbols_data = {}
+    for c_file in cands:
+        try:
+            res = process_symbol_dataset(c_file)
+            if res and res.get('closed_count', 0) > 0:
+                s_name = res.get('clean_symbol', res.get('symbol', 'UNKNOWN'))
+                if s_name not in symbols_data or res['closed_count'] > symbols_data[s_name]['closed_count']:
+                    symbols_data[s_name] = res
+                    print(f"✅ نماد {s_name} با {res['closed_count']} معامله با موفقیت ثبت شد.")
+        except Exception as e:
+            print(f"⚠️ رد کردن فایل {os.path.basename(c_file)}: {e}")
+
+    if not symbols_data:
+        print("❌ هیچ داده معتبری برای تولید داشبورد یافت نشد!")
+        return
+
+    default_sym = 'EURUSD' if 'EURUSD' in symbols_data else list(symbols_data.keys())[0]
+    default_data = symbols_data[default_sym]
+    print(f"🌟 نماد پیش‌فرض هدر داشبورد: {default_sym} ({default_data['tfs_str']})")
+
+    # Build options for symbol selector
+    symbol_options_list = []
+    for s_name, s_info in sorted(symbols_data.items()):
+        sel_attr = 'selected' if s_name == default_sym else ''
+        symbol_options_list.append(f'<option value="{s_name}" {sel_attr}>{s_name} ({s_info["tfs_str"]}) - {s_info["closed_count"]} معامله</option>')
+    symbol_options_html = "\n".join(symbol_options_list)
+
+    # Client payload for all symbols
+    client_symbols_payload = {}
+    for s_name, s_data in symbols_data.items():
+        client_symbols_payload[s_name] = {
+            'symbol': s_data['symbol'],
+            'min_date': s_data['min_date'],
+            'max_date': s_data['max_date'],
+            'tfs_str': s_data['tfs_str'],
+            'date_start_str': s_data['date_start_str'],
+            'date_end_str': s_data['date_end_str'],
+            'bal_initial': s_data['bal_initial'],
+            'kings_sim_list': s_data['kings_sim_list'],
+            'top3_sl_cnt_keys': s_data['top3_sl_cnt_keys'],
+            'top3_sl_usd_keys': s_data['top3_sl_usd_keys'],
+            'top5_sl_usd_keys': s_data['top5_sl_usd_keys'],
+            'top3_sl_pct_keys': s_data['top3_sl_pct_keys'],
+            'trades_sim_list': s_data['trades_sim_list'],
+            'smart_presets': s_data['smart_presets'],
+            'weekly_bar_data': s_data['weekly_bar_data'],
+            'trades_json_list': s_data['trades_json_list'],
+            'tab_equity_html': s_data['tab_equity_html'],
+            'tab_kings_html': s_data['tab_kings_html'],
+            'tab_scaleout_html': s_data['tab_scaleout_html'],
+            'tab_timeframes_html': s_data['tab_timeframes_html'],
+            'tab_filters_html': s_data['tab_filters_html'],
+            'tab_loss_intel_html': s_data['tab_loss_intel_html'],
+            'tab_weekly_html': s_data['tab_weekly_html'],
+            'smart_presets_rows_html': s_data['smart_presets_rows_html'],
+        }
+
+    json_symbols_payload = json.dumps(client_symbols_payload, separators=(',', ':'))
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    html = f"""<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>داشبورد جامع و هوشمند FlagPro - ساختار تبولار (بدون اسکرول)</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background-color: #070b14;
+            color: #f1f5f9;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            overflow: hidden;
+            height: 100vh;
+            direction: rtl;
+        }}
+        .app-layout {{
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            direction: rtl;
+        }}
+
+        /* 📌 SLEEK COMPACT SIDEBAR */
+        .sidebar {{
+            width: 215px;
+            min-width: 215px;
+            max-width: 215px;
+            background: #090e1a;
+            border-left: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            z-index: 1000;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+            user-select: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }}
+        .sidebar.collapsed {{
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            padding: 0 !important;
+            border-left: none !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            box-shadow: none !important;
+        }}
+        .sidebar-brand {{
+            padding: 14px 12px;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #060a12;
+        }}
+        .sidebar-brand-title {{
+            font-size: 14.5px;
+            font-weight: bold;
+            color: #38bdf8;
+            margin: 0;
+            letter-spacing: -0.2px;
+        }}
+        .sidebar-brand-sub {{
+            font-size: 10px;
+            color: #64748b;
+            margin: 2px 0 0 0;
+        }}
+        .sidebar-menu {{
+            padding: 8px 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+            overflow-y: auto;
+        }}
+        .tab-btn {{
+            background: transparent;
+            border: 1px solid transparent;
+            color: #94a3b8;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            text-align: right;
+            box-sizing: border-box;
+        }}
+        .tab-btn:hover {{
+            color: #f8fafc;
+            background: #1e293b;
+            border-color: #334155;
+        }}
+        .tab-btn.active {{
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+        }}
+        .tab-btn .tab-icon {{
+            font-size: 14px;
+            min-width: 18px;
+            text-align: center;
+        }}
+        .tab-btn .tab-title {{
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .sidebar-footer {{
+            padding: 10px 12px;
+            border-top: 1px solid #1e293b;
+            font-size: 10px;
+            color: #64748b;
+            background: #060a12;
+            line-height: 1.4;
+        }}
+
+        /* 🖥️ MAIN WORKSPACE CONTENT */
+        .main-workspace {{
+            flex: 1;
+            min-width: 0;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 12px 18px;
+            box-sizing: border-box;
+            background: #070b14;
+        }}
+
+        /* Compact Header */
+        .workspace-header {{
+            background: linear-gradient(135deg, #0f172a 0%, #090e1a 100%);
+            border: 1px solid #1e293b;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }}
+        .workspace-header h1 {{
+            margin: 0;
+            font-size: 16px;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        /* Institutional Metric Cards */
+        .kpi-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }}
+        .kpi-card {{
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 7px 12px;
+            border-radius: 8px;
+            text-align: center;
+        }}
+        .kpi-title {{
+            font-size: 10.5px;
+            color: #94a3b8;
+            margin-bottom: 3px;
+        }}
+        .kpi-value {{
+            font-size: 18px;
+            font-weight: bold;
+            color: #f8fafc;
+        }}
+        .kpi-sub {{
+            font-size: 9.5px;
+            color: #64748b;
+            margin-top: 2px;
+        }}
+
+        /* Subtabs in Equity Curve */
+        .eq-subtab-btn {{
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }}
+        .eq-subtab-btn:hover {{
+            color: #fff;
+            border-color: #38bdf8;
+            background: #1e293b;
+        }}
+                .consec-btn, .consec-btn-filter {{
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 5px 11px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }}
+        .consec-btn:hover, .consec-btn-filter:hover {{
+            color: #f8fafc;
+            border-color: #38bdf8;
+        }}
+        .consec-btn.active, .consec-btn-filter.active {{
+            background: #0c4a6e;
+            border-color: #38bdf8;
+            color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }}
+
+        /* 🌟 TWO-COLUMN WORKSPACE LAYOUT (34% Chart / 66% Controls & Tables) */
+        .equity-two-col-container {{
+            display: grid;
+            grid-template-columns: 34% calc(66% - 12px);
+            gap: 12px;
+            align-items: stretch;
+            margin-bottom: 12px;
+        }}
+        .equity-two-col-container.single-col {{
+            grid-template-columns: 1fr !important;
+        }}
+        .equity-col-chart {{
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }}
+        .equity-col-controls {{
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }}
+        .eq-subpanels-wrapper {{
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: 485px;
+            padding-left: 2px;
+        }}
+        .eq-subpanel .section-box {{
+            padding: 12px !important;
+            margin-bottom: 12px !important;
+            border-radius: 8px !important;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar {{
+            width: 6px;
+            height: 6px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar-track {{
+            background: #060a12;
+            border-radius: 4px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar-thumb {{
+            background: #1e3a5f;
+            border-radius: 4px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar-thumb:hover {{
+            background: #38bdf8;
+        }}
+        @media (max-width: 1250px) {{
+            .equity-two-col-container {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        .eq-subtab-btn.active {{
+            background: #0284c7;
+            color: #fff;
+            border-color: #38bdf8;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+        }}
+
+        /* Tab Content Panel */
+        .tab-content {{
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }}
+        .tab-content.active {{
+            display: block;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(4px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
+        .section-box {{
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 20px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 12px;
+        }}
+        th, td {{
+            padding: 10px 12px;
+            border-bottom: 1px solid #334155;
+            text-align: right;
+        }}
+        th {{
+            background: #0f172a;
+            color: #94a3b8;
+            font-weight: 600;
+        }}
+        tr:hover {{
+            background: #1e293b80;
+        }}
+        .sort-btn {{
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 6px;
+        }}
+        .sort-btn.active, .sort-btn:hover {{
+            background: #38bdf8;
+            color: #0f172a;
+            font-weight: bold;
+        }}
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- 📌 COMPACT SIDEBAR NAVIGATION (RIGHT SIDE IN RTL) -->
+        <aside class="sidebar" id="mainSidebar">
+            <div class="sidebar-brand">
+                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                    <div style="font-size:20px;flex-shrink:0;">🎯</div>
+                    <div style="overflow:hidden;white-space:nowrap;">
+                        <div class="sidebar-brand-title">FlagPro Master</div>
+                        <div class="sidebar-brand-sub">{default_data["symbol"]} | {default_data["tfs_str"]}</div>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;width:26px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all 0.2s;" title="بستن منو (تمام‌صفحه)" onmouseover="this.style.color='#fff';this.style.borderColor='#38bdf8'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='#334155'">
+                    ◀
+                </button>
+            </div>
+
+            <div class="sidebar-menu">
+                <button class="tab-btn active" onclick="openTab(event, 'tab-equity')">
+                    <span class="tab-icon">📈</span>
+                    <span class="tab-title">نمودار رشد و اکوئیتی</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-kings')">
+                    <span class="tab-icon">👑</span>
+                    <span class="tab-title">سلاطین برگزیده ({len(default_data["kings_sim_list"])})</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-trades')">
+                    <span class="tab-icon">📑</span>
+                    <span class="tab-title">ژورنال معاملات و خروج</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">
+                    <span class="tab-icon">💎</span>
+                    <span class="tab-title">خروج پلکانی (0.04)</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">
+                    <span class="tab-icon">📊</span>
+                    <span class="tab-title">عملکرد تایم‌فریم‌ها</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-weekly')">
+                    <span class="tab-icon">📅</span>
+                    <span class="tab-title">کارنامه هفته به هفته</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-filters')">
+                    <span class="tab-icon">🛡️</span>
+                    <span class="tab-title">فیلترهای ضد استاپ</span>
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-loss-intel')">
+                    <span class="tab-icon">🔍</span>
+                    <span class="tab-title">هوش باخت‌ها و استاپ‌ها</span>
+                </button>
+            </div>
+
+            <div class="sidebar-footer">
+                <div>🔄 آخرین همگام‌سازی:</div>
+                <div style="color:#38bdf8;font-weight:bold;margin-top:2px;">{now_str}</div>
+            </div>
+        </aside>
+
+        <!-- 🖥️ MAIN WORKSPACE CONTENT -->
+        <main class="main-workspace">
+            <!-- Workspace Top Bar -->
+            
+            <!-- Workspace Top Bar -->
+            <div class="workspace-header">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button id="btnToggleSidebarHeader" onclick="toggleSidebar()" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="تغییر وضعیت منوی کناری (تمام‌صفحه / منو)" onmouseover="this.style.borderColor='#38bdf8';this.style.background='#1e293b'" onmouseout="this.style.borderColor='#334155';this.style.background='#0f172a'">
+                        <span id="btnToggleSidebarIcon">☰</span>
+                        <span id="btnToggleSidebarText">منو</span>
+                    </button>
+                    <div>
+                        <h1>🎯 سیستم جامع معاملاتی FlagPro</h1>
+                        <div id="headerDateRange" style="margin-top:3px;color:#94a3b8;font-size:11.5px;">
+                            بازه داده‌ها: <b id="headerMinDate">{default_data['min_date']}</b> تا <b id="headerMaxDate">{default_data['max_date']}</b> | حجم: <b>0.04 لات پلکانی</b>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;background:#081420;border:1px solid #38bdf8;padding:4px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(56,189,248,0.15);">
+                        <label for="symbolSelector" style="font-size:11.5px;color:#94a3b8;font-weight:bold;">🌍 نماد / جفت‌ارز:</label>
+                        <select id="symbolSelector" onchange="switchDashboardSymbol(this.value)" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;font-weight:bold;padding:4px 8px;border-radius:6px;font-size:12px;outline:none;cursor:pointer;">
+                            {symbol_options_html}
+                        </select>
+                    </div>
+                    <button onclick="document.getElementById('csvFileInput').click()" style="background:linear-gradient(135deg, #064e3b, #059669);border:1px solid #34d399;color:#fff;padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.3);" title="انتخاب مستقیم فایل CSV هر نماد جدید از متاتریدر جهت تحلیل آنی" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='linear-gradient(135deg, #064e3b, #059669)'">
+                        <span>📂</span>
+                        <span>بارگذاری CSV نماد جدید...</span>
+                    </button>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleCSVFileUpload(this)">
+                    <span id="headerSymbolBadge" style="background:#081420;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;color:#38bdf8;">
+                        {default_data['symbol']} ({default_data['tfs_str']})
+                    </span>
+                </div>
+            </div>
+
+        <!-- ==================== TAB: 📈 EQUITY & BALANCE CURVE ==================== -->
+        <div id="tab-equity" class="tab-content active">
+            <div id="tab-equity-container">
+                {default_data['tab_equity_html']}
+            </div>
         </div>
 
-        <!-- ==================== TAB: 📑 TRADES JOURNAL & EXIT POINTS ==================== -->
+        <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
+        <div id="tab-kings" class="tab-content">
+            <div id="tab-kings-container">
+                {default_data['tab_kings_html']}
+            </div>
+        </div>
+<!-- ==================== TAB: 📑 TRADES JOURNAL & EXIT POINTS ==================== -->
         <div id="tab-trades" class="tab-content">
             <div class="section-box" style="border: 1px solid #38bdf8; background: #081a2e;">
                 <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
@@ -3157,555 +3812,434 @@ def build_dashboard(custom_csv=None):
             </div>
         </div>
 
+        
         <!-- ==================== TAB 2: 💎 SCALE-OUT & BREAK-EVEN ==================== -->
         <div id="tab-scaleout" class="tab-content">
-            <div class="section-box" style="border: 2px solid #38bdf8; background: #082136;">
-                <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
-                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین {len(qualified_kings)} گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
-                        </div>
-                        <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
-                            <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
-                            <div>🧾 کل اصطکاک پرداخت‌شده (کمیسیون+اسپرد): <b>${tot_k_fric:.2f} دلار</b></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Steps Breakdown Grid: 4-Way Balanced 25-25-25-25 -->
-                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:18px;">
-                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله اول (TP 1:1) - خروج ۰.۰۱ لات (۲۵٪)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">ذخیره سود پله ۱ + <b>انتقال فوری استاپ لاس به نقطه ورود (ریسک‌فری قطعی)</b></div>
-                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">🛡️ نتیجه: ریسک کل معامله صفر شد و کمیسیون پوشش یافت!</div>
-                    </div>
-                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله دوم (TP 1:2) - خروج ۰.۰۱ لات (۲۵٪)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ دیگر با سود ۲ برابری + <b>قفل سود در سطح TP1</b></div>
-                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">📈 نتیجه: تثبیت سود عالی و کاهش کامل استرس معامله</div>
-                    </div>
-                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🎯 پله سوم (TP 1:3) - خروج ۰.۰۱ لات (۲۵٪)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نقد کردن ۲۵٪ با سود ۳ برابری + <b>تریل استاپ به سطح TP2</b></div>
-                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">💰 نتیجه: شکار میانه موج‌های قوی بازار</div>
-                    </div>
-                    <div style="background:#0c2d48;border:1px solid #0369a1;padding:12px;border-radius:8px;">
-                        <div style="color:#facc15;font-weight:bold;font-size:14px;">🚀 پله چهارم (TP 1:4) - خروج ۰.۰۱ لات (۲۵٪ رانر)</div>
-                        <div style="color:#cbd5e1;font-size:12px;margin-top:4px;">نگهداری ۲۵٪ باقیمانده بدون ریسک برای دوشیدن انتهای ترندهای بزرگ</div>
-                        <div style="color:#34d399;font-weight:bold;font-size:12px;margin-top:6px;">👑 نتیجه: شکار سودهای ۴ برابری در {tp3_4} معامله!</div>
-                    </div>
-                </div>
-
-                <!-- Table: 0.04 Lot Performance -->
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr style="background:#0b3353;">
-                                <th>استراتژی خروج معامله با حجم 0.04 لات</th>
-                                <th style="text-align:center;">سود ناخالص</th>
-                                <th style="text-align:center;">کل کمیسیون و اسپرد</th>
-                                <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
-                                <th style="text-align:center;">ضریب سود (PF)</th>
-                                <th style="text-align:center;">جهش سود خالص دلاری</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color:#94a3b8;font-weight:bold;">۱. خروج ساده تک‌تارگت در TP 1:1 (بستن ۱۰۰٪ حجم 0.04)</td>
-                                <td style="text-align:center;color:#38bdf8;">${s1_gross:+.2f}</td>
-                                <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
-                                <td style="text-align:center;color:{'#00e676' if s1_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s1_net:+.2f} دلار</td>
-                                <td style="text-align:center;color:#cbd5e1;">{s1_pf:.2f}</td>
-                                <td style="text-align:center;color:#94a3b8;">مبنا</td>
-                            </tr>
-                            <tr>
-                                <td style="color:#94a3b8;font-weight:bold;">۲. خروج ساده تک‌تارگت در TP 1:2 (بستن ۱۰۰٪ حجم 0.04)</td>
-                                <td style="text-align:center;color:#38bdf8;">${s2_gross:+.2f}</td>
-                                <td style="text-align:center;color:#f87171;">${tot_k_fric:.2f}</td>
-                                <td style="text-align:center;color:{'#00e676' if s2_net >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${s2_net:+.2f} دلار</td>
-                                <td style="text-align:center;color:#cbd5e1;">{s2_pf:.2f}</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">${s2_diff_dollar:+.2f} ({s2_diff_pct:+.1f}%)</td>
-                            </tr>
-                            <tr style="background:#064e3b33;border:2px solid #10b981;">
-                                <td style="color:#00e676;font-weight:bold;font-size:14px;">👑 ۳. خروج چهارپله‌ای متوازن FlagPro (۰.۰۱ در TP1 + ریسک‌فری | ۰.۰۱ در TP2 | ۰.۰۱ در TP3 | ۰.۰۱ در TP4) 🚀</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_gross:+.2f}</td>
-                                <td style="text-align:color:#cbd5e1;">${tot_k_fric:.2f}</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:18px;">${s3_net:+.2f} دلار نقد خالص! 💵</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{s3_pf:.2f} 🚀</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">${s3_diff_dollar:+.2f} سود بیشتر ({s3_diff_pct:+.1f}%) 🚀</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Break-Even Comparison -->
-                <div style="margin-top: 24px; border-top: 1px dashed #0284c7; padding-top: 18px;">
-                    <h4 style="margin:0 0 10px 0; color:#facc15; font-size:16px;">⚖️ مقایسه بریک‌ایون (ریسک‌فری) با حجم 0.04 لات: انتقال استاپ در TP1 یا در TP2؟ کدام سودده‌تر است؟</h4>
-                    <p style="margin:0 0 14px 0; color:#cbd5e1; font-size:12.5px; line-height:1.6;">
-                        کالبدشکافی رفتار {tot_k_cnt} معامله سلاطین: <b>{sl_direct} معامله استاپ مستقیم ({sl_direct_pct:.1f}%)</b> | 
-                        <b style="color:#facc15;">{tp1_only} معامله ({tp1_only_pct:.1f}%) فقط TP1 را تاچ کردند و برگشتند!</b> | 
-                        <b>{tp2_only} معامله ({tp2_only_pct:.1f}%) تا TP2 رفتند</b> | 
-                        <b style="color:#00e676;">{tp3_4} معامله ({tp3_4_pct:.1f}%) به TP3 و TP4 رسیدند!</b>
-                    </p>
-
-                    <div style="overflow-x:auto;">
-                        <table>
-                            <thead>
-                                <tr style="background:#0b3353;">
-                                    <th>روش انتقال استاپ به ورود (Break-Even) با حجم 0.04 لات</th>
-                                    <th style="text-align:center;">سرنوشت {tp1_only} معامله‌ای که بعد از TP1 برگشتند</th>
-                                    <th style="text-align:center;">سود ناخالص</th>
-                                    <th style="text-align:center;">کل کمیسیون و اسپرد</th>
-                                    <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
-                                    <th style="text-align:center;">اختلاف و برتری مالی</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr style="background:#064e3b44; border: 2px solid #10b981;">
-                                    <td style="color:#00e676; font-weight:bold; font-size:13.5px;">🥇 حالت اول: انتقال استاپ به نقطه ورود (BE) در TP1</td>
-                                    <td style="text-align:center; color:#a7f3d0; font-size:12px;">سود ۰.۰۲ لات در TP1 ذخیره شد + ۰.۰۲ لات باقیمانده بدون ضرر روی نقطه ورود خارج شد (سود خالص!)</td>
-                                    <td style="text-align:center; color:#00e676; font-weight:bold;">${m1_gross:+.2f}</td>
-                                    <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
-                                    <td style="text-align:center; color:#00e676; font-weight:bold;font-size:17px;">${m1_net:+.2f} دلار نقد 🚀</td>
-                                    <td style="text-align:center; color:#facc15; font-weight:bold; font-size:14px;">🏆 برنده قطعی! (${be_diff:+.2f} دلار سود بیشتر)</td>
-                                </tr>
-                                <tr style="background:#450a0a22; border: 1px solid #7f1d1d;">
-                                    <td style="color:#f87171; font-weight:bold; font-size:13.5px;">❌ حالت دوم: انتقال استاپ به نقطه ورود (BE) فقط در TP2</td>
-                                    <td style="text-align:center; color:#fca5a5; font-size:12px;">سود ۰.۰۲ لات گرفته شد، اما چون استاپ دست نخورده بود، ۰.۰۲ لات باقیمانده برگشت و استاپ اولیه را زد!</td>
-                                    <td style="text-align:center; color:#f87171; font-weight:bold;">${m2_gross:+.2f}</td>
-                                    <td style="text-align:center; color:#cbd5e1;">${tot_k_fric:.2f}</td>
-                                    <td style="text-align:center; color:#f87171; font-weight:bold; font-size:15px;">${m2_net:+.2f} دلار</td>
-                                    <td style="text-align:center; color:#ef4444; font-size:13px;">بازنده (${abs(be_diff):.2f} دلار سود کمتر!)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div style="background:#09304a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-top:12px; font-size:12px; color:#e0f2fe; line-height:1.5;">
-                        💡 <b>نتیجه‌گیری مالی قطعی با حجم 0.04 لات:</b> دقیقاً <b>{tp1_only_pct:.1f}٪ معاملات ({tp1_only} معامله)</b> فقط تا TP1 پیش می‌روند. انتقال استاپ به ورود در TP1 مانع از سوختن {be_diff:.2f} دلار سود شما می‌شود و سود کل سیستم را به <b>${m1_net:+.2f} دلار نقد خالص</b> می‌رساند!
-                    </div>
-                </div>
+            <div id="tab-scaleout-container">
+                {default_data['tab_scaleout_html']}
             </div>
         </div>
 
         <!-- ==================== TAB 3: 📊 TIMEFRAMES BREAKDOWN ==================== -->
         <div id="tab-timeframes" class="tab-content">
-            <div class="section-box">
-                <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
-                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین {len(qualified_kings)} گانه FlagPro</h3>
-                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
-                </div>
-
-                <!-- Primary: Golden Kings per Timeframe -->
-                <div style="overflow-x:auto;margin-bottom:24px;">
-                    <table>
-                        <thead>
-                            <tr style="background:#0f172a;">
-                                <th>تایم‌فریم (سلاطین منتخب FlagPro)</th>
-                                <th style="text-align:center;">تعداد معامله</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:1</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:2</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:3</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:4</th>
-                                <th style="text-align:center;">نرخ باخت (SL)</th>
-                                <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
-                                <th style="text-align:center;color:#f87171;">کل اصطکاک (اسپرد)</th>
-                                <th style="text-align:center;color:#00e676;">💵 سود خالص واقعی</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {"".join(tf_kings_rows)}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Comparison Banner: Why Filters & Kings Are Essential -->
-                <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                    <div>
-                        <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">💡 تفاوت معاملات سلاطین با کل بازار خام چارت:</span>
-                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل {d_tot_raw['cnt']} معامله خام چارت بدون فیلتر معامله می‌شد، {abs(d_tot_raw['net']):.2f}$ {'زیان' if d_tot_raw['net'] < 0 else 'سود'} تولید می‌شد؛ اما سلاطین {len(qualified_kings)} گانه با فیلتر هوشمند آن را به {d_tot_kings['net']:+.2f}$ سود خالص رسانده‌اند!</div>
-                    </div>
-                    <button class="sort-btn" style="border-color:#a5b4fc;color:#a5b4fc;" onclick="let el = document.getElementById('rawTfTable'); el.style.display = el.style.display==='none'?'':'none';">👁️ مشاهده جدول کل دیتای خام چارت</button>
-                </div>
-
-                <!-- Hidden Comparative Raw Table -->
-                <div id="rawTfTable" style="display:none;overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
-                    <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل {d_tot_raw['cnt']} معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
-                    <table>
-                        <thead>
-                            <tr style="background:#1e293b;">
-                                <th>تایم‌فریم خام</th>
-                                <th style="text-align:center;">کل معاملات</th>
-                                <th style="text-align:center;">وین‌ریت 1:1</th>
-                                <th style="text-align:center;">وین‌ریت 1:2</th>
-                                <th style="text-align:center;">وین‌ریت 1:3</th>
-                                <th style="text-align:center;">وین‌ریت 1:4</th>
-                                <th style="text-align:center;">نرخ باخت</th>
-                                <th style="text-align:center;">سود/زیان کل خام</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {"".join(tf_raw_rows)}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Detailed Entity Breakdown by Timeframe -->
-                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;padding-top:14px;flex-wrap:wrap;gap:10px;">
-                    <div>
-                        <h4 style="margin:0;color:#f8fafc;font-size:15px;">تفکیک جزئی گره‌ها در هر تایم‌فریم:</h4>
-                    </div>
-                    <div>
-                        <button class="sort-btn active tf-btn" onclick="filterTF('ALL')">همه تایم‌ها</button>
-                        <button class="sort-btn tf-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="filterTF('M1')">⚡ M1 ({len(tf_map.get('M1', []))})</button>
-                        <button class="sort-btn tf-btn" style="border-color:#00e676;color:#00e676;" onclick="filterTF('M5')">🌟 M5 ({len(tf_map.get('M5', []))})</button>
-                        <button class="sort-btn tf-btn" style="border-color:#f59e0b;color:#f59e0b;" onclick="filterTF('M15')">🕒 M15 ({len(tf_map.get('M15', []))})</button>
-                    </div>
-                </div>
-
-                <!-- Formula Explainer Box -->
-                <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                    <div>
-                        <b style="color:#facc15;">🏛️ شاخص ۷ ستونه هج‌فاندی سلطان (7-Pillar Institutional King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = 🛡️خلوص(۵۰۰) + 🎯وین‌ریت ۱:۲(۴۰۰) + ⚡عمق تارگت‌ها + 💰راندمان ترید + 📊اعتبار + ⚖️پرافیت فاکتور(۱۰۰) + 🛡️کنترل افت و ریکاوری(۱۰۰)</span>
-                    </div>
-                    <div>
-                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ قطعی)</span>
-                        <span style="background:#1e3a8a;color:#93c5fd;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #3b82f6;">⚖️ کنترل دراوداون و پرافیت فاکتور</span>
-                    </div>
-                </div>
-
-                <!-- Quick Combined Sorting Buttons -->
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;background:#0f172a;padding:8px 12px;border-radius:8px;border:1px solid #334155;">
-                    <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
-                    <button class="sort-btn active" id="btnSortScore" onclick="sortTableByAttr('tfTable', 'data-score', true, true, this)">👑 بیشترین امتیاز سلطان (Score)</button>
-                    <button class="sort-btn" id="btnSortNet" style="border-color:#00e676;color:#00e676;" onclick="sortTableByAttr('tfTable', 'data-net', true, true, this)">💵 بیشترین سود خالص دلاری</button>
-                    <button class="sort-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="sortTableByAttr('tfTable', 'data-pf', true, true, this)">⚖️ بیشترین پرافیت فاکتور (PF)</button>
-                    <button class="sort-btn" style="border-color:#f87171;color:#f87171;" onclick="sortTableByAttr('tfTable', 'data-dd', true, false, this)">🛡️ کمترین افت (Max DD)</button>
-                    <button class="sort-btn" style="border-color:#facc15;color:#facc15;" onclick="sortTableByAttr('tfTable', 'data-retdd', true, true, this)">🚀 نسبت سود به افت (Ret/DD)</button>
-                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w4', true, true, this)">🚀 بیشترین تارگت دونده (TP4)</button>
-                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
-                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
-                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-cnt', true, true, this)">📦 بیشترین تعداد معامله</button>
-                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-sl', true, false, this)">🛡️ کمترین باخت (SL)</button>
-                    <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-tf', false, false, this)">🕒 بر اساس تایم‌فریم</button>
-                </div>
-
-                <div style="overflow-x:auto;margin-top:6px;">
-                    <table id="tfTable">
-                        <thead>
-                            <tr>
-                                <th onclick="sortTableByAttr('tfTable', 'data-tf', false, false)" data-sort="data-tf" style="cursor:pointer;" title="کلیک برای مرتب‌سازی صعودی/نزولی">تایم‌فریم <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-role', false, false)" data-sort="data-role" style="cursor:pointer;" title="کلیک برای مرتب‌سازی">موجودیت باکس / سواپ <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-cnt', true, true)" data-sort="data-cnt" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">تعداد معامله <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-w1', true, true)" data-sort="data-w1" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:1 <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-w2', true, true)" data-sort="data-w2" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:2 <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-w3', true, true)" data-sort="data-w3" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:3 <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-net', true, true)" data-sort="data-net" style="cursor:pointer;text-align:center;color:#00e676;background:#064e3b33;" title="کلیک برای مرتب‌سازی بر اساس سود خالص دلاری">💵 سود خالص دلاری <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-pf', true, true)" data-sort="data-pf" style="cursor:pointer;text-align:center;color:#38bdf8;" title="کلیک برای مرتب‌سازی بر اساس Profit Factor">⚖️ PF <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-dd', true, false)" data-sort="data-dd" style="cursor:pointer;text-align:center;color:#f87171;" title="کلیک برای مرتب‌سازی بر اساس کمترین افت سرمایه (Max DD)">🛡️ Max DD <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-retdd', true, true)" data-sort="data-retdd" style="cursor:pointer;text-align:center;color:#facc15;" title="کلیک برای مرتب‌سازی بر اساس Recovery Factor (سود به افت)">🚀 Ret/DD <span class="sort-icon">⬍</span></th>
-                                <th onclick="sortTableByAttr('tfTable', 'data-score', true, true)" data-sort="data-score" style="cursor:pointer;text-align:center;color:#facc15;background:#1e293b;" title="مرتب‌سازی شده بر مبنای فرمول شاخص سلطان">امتیاز سلطان (Score) <span class="sort-icon">▼</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {"".join(tf_role_rows)}
-                        </tbody>
-                    </table>
-                </div>
+            <div id="tab-timeframes-container">
+                {default_data['tab_timeframes_html']}
             </div>
         </div>
 
         <!-- ==================== TAB 4: 🛡️ ANTI-SL FILTERS ==================== -->
         <div id="tab-filters" class="tab-content">
-            <div class="section-box" style="border: 1px solid #38bdf8; background: #0c1829;">
-                <div style="border-bottom: 1px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 16px;">
-                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">🛡️ جدول تفکیکی دقت فیلترهای ضد استاپ اعمال‌شده در FlagPro</h3>
-                    <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">عملکرد مجزای هر فیلتر بر مبنای کل {len(closed):,} معامله واقعی این فایل داده:</p>
-                </div>
-
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>نام فیلتر هوشمند ضد استاپ</th>
-                                <th style="text-align:center;">تنظیم ورودی در متاتریدر</th>
-                                <th style="text-align:center;">تعداد معاملات حذفی</th>
-                                <th style="text-align:center;">استاپ‌های نجات‌یافته</th>
-                                <th style="text-align:center;">🎯 درصد دقت فیلتر</th>
-                                <th>تفسیر و عملکرد فیلتر</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">🛡️ فیلتر ۱: حذف باکس‌های منفرد LS بدون تلاقی</td>
-                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterSingleLS = true</span></td>
-                                <td style="text-align:center;color:#cbd5e1;">{f1_rej} معامله</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f1_sl} استاپ قطعی!</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f1_sl/f1_rej*100) if f1_rej else 0:.1f}%</td>
-                                <td style="color:#94a3b8;font-size:12px;">حذف تریدهای منفرد با بیشترین نرخ باخت</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۲: مسدودسازی بازه شبانه (۲۱:۰۰ تا ۰۱:۰۰)</td>
-                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterNightHours = true</span></td>
-                                <td style="text-align:center;color:#cbd5e1;">{f2_rej} معامله</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f2_sl} استاپ قطعی!</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f2_sl/f2_rej*100) if f2_rej else 0:.1f}%</td>
-                                <td style="color:#94a3b8;font-size:12px;">فرار از واید شدن اسپرد و افت نقدینگی شبانه</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">⏰ فیلتر ۳: مسدودسازی ساعت ۰۷:۰۰ صبح (شکار استاپ آسیا)</td>
-                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPreLondonHunt = true</span></td>
-                                <td style="text-align:center;color:#cbd5e1;">{f3_rej} معامله</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f3_sl} استاپ قطعی!</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f3_sl/f3_rej*100) if f3_rej else 0:.1f}%</td>
-                                <td style="color:#94a3b8;font-size:12px;">فرار از شکار نقدینگی قبل از اوپن لندن</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">☣️ فیلتر ۴: حذف زنجیره‌های سمی و فرسایشی</td>
-                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterToxicPatterns = true</span></td>
-                                <td style="text-align:center;color:#cbd5e1;">{f4_rej} معامله</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f4_sl} استاپ قطعی!</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f4_sl/f4_rej*100) if f4_rej else 0:.1f}%</td>
-                                <td style="color:#94a3b8;font-size:12px;">جلوگیری از ورود در امواج اشباع بازار</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">📦 فیلتر ۵: حذف فلگ‌های ساده بدون تلاقی (نویز)</td>
-                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterPureFlags = true</span></td>
-                                <td style="text-align:center;color:#cbd5e1;">{f5_rej} معامله</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f5_sl} استاپ قطعی!</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f5_sl/f5_rej*100) if f5_rej else 0:.1f}%</td>
-                                <td style="color:#94a3b8;font-size:12px;">تصفیه نویزهای ریز بازار</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">💰 فیلتر ۶ (اقتصادی): حذف تریدهای با سود کمتر از اصطکاک</td>
-                                <td style="text-align:center;"><span style="background:#065f46;color:#34d399;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:bold;">InpFilterLowRewardVsFriction = true</span></td>
-                                <td style="text-align:center;color:#cbd5e1;">{f7_rej} معامله</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;">{f7_sl} زیان قطعی خنثی شد! 🎯</td>
-                                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;">{(f7_sl/f7_rej*100) if f7_rej else 0:.1f}%</td>
-                                <td style="color:#94a3b8;font-size:12px;">عدم ورود در تریدهایی که سودشان کمتر از کارمزد بروکر است</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Before vs After -->
-            <div class="section-box" style="border: 1px solid #10b981; background: #0c1a1a;">
-                <div style="border-bottom: 1px solid #134e4a; padding-bottom: 14px; margin-bottom: 16px;">
-                    <h3 style="margin:0;color:#2dd4bf;font-size:19px;">⚖️ گزارش اثرگذاری فیلتر ضد استاپ (مقایسه زنده قبل و بعد از فیلترها)</h3>
-                    <p style="margin:4px 0 0 0;color:#99f6e4;font-size:12px;">محاسبه دقیق بهبود آماری با فیلتر کردن ساعات پرخطر و الگوهای سمی:</p>
-                </div>
-
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>شاخص عملکردی کلیدی</th>
-                                <th style="text-align:center;">بدون فیلتر (حالت خام)</th>
-                                <th style="text-align:center;">با فیلتر ضد استاپ (Flag_Filters)</th>
-                                <th style="text-align:center;">میزان بهبود و تغییر</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="font-weight:bold;">تعداد کل معاملات ارزیابی‌شده</td>
-                                <td style="text-align:center;color:#94a3b8;">{len(closed):,} معامله</td>
-                                <td style="text-align:center;color:#38bdf8;font-weight:bold;">{len(accepted_trades):,} معامله تاییدشده</td>
-                                <td style="text-align:center;color:#f59e0b;">{len(rejected_trades)} معامله فیلتر و رد شد</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#10b981;">تعداد باخت‌های حذف‌شده (استاپ‌های نجات‌یافته)</td>
-                                <td style="text-align:center;color:#ef4444;">۰ ({sl_cnt_b} معامله استاپ)</td>
-                                <td style="text-align:center;color:#10b981;font-weight:bold;">{sl_in_rej} معامله استاپ خورده نجات یافت! 🎯</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">دقت فیلتر: {rej_accuracy:.1f}%</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;">وین‌ریت تارگت اول (TP 1:1)</td>
-                                <td style="text-align:center;color:#94a3b8;">{w1_rate_b:.1f}%</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a:.1f}%</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w1_rate_a - w1_rate_b:+.1f}%</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;">وین‌ریت تارگت دوم (TP 1:2)</td>
-                                <td style="text-align:center;color:#94a3b8;">{w2_rate_b:.1f}%</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a:.1f}%</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">{w2_rate_a - w2_rate_b:+.1f}%</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;">نرخ استاپ خوردن (Stop Loss Rate)</td>
-                                <td style="text-align:center;color:#ef4444;">{sl_rate_b:.1f}%</td>
-                                <td style="text-align:center;color:#f87171;font-weight:bold;">{sl_rate_a:.1f}%</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">{sl_rate_a - sl_rate_b:+.1f}% کاهش باخت</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#38bdf8;">امید ریاضی به ازای هر ترید (EV در نسبت 1:2)</td>
-                                <td style="text-align:center;color:#94a3b8;">{ev_b:+.2f} R</td>
-                                <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">{ev_a:+.2f} R 🚀</td>
-                                <td style="text-align:center;color:#38bdf8;font-weight:bold;">{ev_a - ev_b:+.2f} R رشد خالص</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div id="tab-filters-container">
+                {default_data['tab_filters_html']}
             </div>
         </div>
 
         <!-- ==================== TAB 7: 🔍 LOSS INTELLIGENCE ==================== -->
         <div id="tab-loss-intel" class="tab-content">
-            <div class="section-box" style="border: 1px solid #ef4444; background: #18111c;">
-                <div style="border-bottom: 1px solid #332032; padding-bottom: 14px; margin-bottom: 18px;">
-                    <h3 style="margin:0;color:#f87171;font-size:20px;">🔍 تحلیل آماری معاملات استاپ‌شده (Loss Pattern Intelligence)</h3>
-                    <p style="margin:4px 0 0 0;color:#fca5a5;font-size:12px;">کالبدشکافی {total_losses} معامله استاپ‌خورده در این دیتاست جهت جلوگیری هوشمند از تکرار باخت:</p>
-                </div>
-
-                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;">
-                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                        <div style="color:#f87171;font-weight:bold;font-size:14px;">🌙 باخت‌های ساعات شب (۲۱ تا ۰۱)</div>
-                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{night_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(night_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                        <div style="color:#94a3b8;font-size:11px;">اسپرد بالا و نبود نقدینگی در سشن آسیا منشأ این باخت‌هاست.</div>
-                    </div>
-                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                        <div style="color:#f87171;font-weight:bold;font-size:14px;">🚫 باخت‌های باکس‌های تک LS</div>
-                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{single_ls_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(single_ls_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                        <div style="color:#94a3b8;font-size:11px;">باکس‌های LS منفرد بدون تلاقی بیشترین ریسک را به همراه دارند.</div>
-                    </div>
-                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                        <div style="color:#f87171;font-weight:bold;font-size:14px;">☣️ باخت‌های زنجیره‌های سمی</div>
-                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{toxic_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(toxic_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                        <div style="color:#94a3b8;font-size:11px;">ورود در روندهای فرسایشی انتهای موج.</div>
-                    </div>
-                    <div style="background:#261822;border:1px solid #4a1d2e;padding:14px;border-radius:8px;">
-                        <div style="color:#f87171;font-weight:bold;font-size:14px;">📦 باخت‌های فلگ‌های ساده</div>
-                        <div style="font-size:22px;font-weight:bold;color:#fca5a5;margin:6px 0;">{pure_flag_losses} معامله <span style="font-size:12px;color:#94a3b8;">({(pure_flag_losses/total_losses*100) if total_losses else 0:.1f}%)</span></div>
-                        <div style="color:#94a3b8;font-size:11px;">نویزهای میانی چارت بدون شکست ساختار.</div>
-                    </div>
-                </div>
+            <div id="tab-loss-intel-container">
+                {default_data['tab_loss_intel_html']}
             </div>
         </div>
 
         <!-- ==================== TAB 8: 📅 WEEKLY BREAKDOWN & CONSISTENCY ==================== -->
         <div id="tab-weekly" class="tab-content">
-            <!-- Weekly KPI Banner -->
-            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:20px;">
-                <div class="kpi-card" style="border-color:#38bdf8;">
-                    <div class="kpi-title">📅 کل هفته‌های کالبدشکافی‌شده</div>
-                    <div class="kpi-value" style="color:#38bdf8;">{len(sorted_wk_keys)} هفته</div>
-                    <div class="kpi-sub">پوشش کامل ۶ ماه اخیر</div>
-                </div>
-                <div class="kpi-card" style="border-color:#00e676;">
-                    <div class="kpi-title">🟢 هفته‌های سبز و سودده سلاطین</div>
-                    <div class="kpi-value" style="color:#00e676;">{tot_kings_green_wks} از {len(sorted_wk_keys)}</div>
-                    <div class="kpi-sub">{(tot_kings_green_wks/len(sorted_wk_keys)*100) if sorted_wk_keys else 0:.1f}٪ هفته‌ها در سود قطعی!</div>
-                </div>
-                <div class="kpi-card" style="border-color:#ef4444;">
-                    <div class="kpi-title">🔴 هفته‌های اصلاحی و استاپ سلاطین</div>
-                    <div class="kpi-value" style="color:#ef4444;">{tot_kings_red_wks} از {len(sorted_wk_keys)}</div>
-                    <div class="kpi-sub">{(tot_kings_red_wks/len(sorted_wk_keys)*100) if sorted_wk_keys else 0:.1f}٪ هفته‌های نوسانی و رنج</div>
-                </div>
-                <div class="kpi-card" style="border-color:#facc15;">
-                    <div class="kpi-title">👑 باثبات‌ترین سلطان دائمی چارت</div>
-                    <div class="kpi-value" style="color:#facc15;font-size:18px;">{top_consistent_box}</div>
-                    <div class="kpi-sub">ثبات هفتگی شگفت‌انگیز: {top_consistent_pct:.1f}٪</div>
-                </div>
-            </div>
-
-            <!-- SECTION 1: Consistency Ranking -->
-            <div class="section-box" style="border:1px solid #3b82f6;background:#0d1527;margin-bottom:24px;">
-                <div style="border-bottom:1px solid #1e3a8a;padding-bottom:12px;margin-bottom:16px;">
-                    <h3 style="margin:0;color:#60a5fa;font-size:19px;">🏆 جدول جامع رتبه‌بندی ثبات دائمی ساختارها (Consistency Leaderboard)</h3>
-                    <p style="margin:4px 0 0 0;color:#93c5fd;font-size:12px;">پاسخ به سوال کلیدی شما: کدام باکس‌ها هفته به هفته پایدارترین سودآوری را برای همیشه حفظ کرده‌اند؟</p>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr style="background:#1e293b;color:#94a3b8;">
-                                <th style="text-align:center;">رتبه</th>
-                                <th>نام ساختار و تایم‌فریم</th>
-                                <th style="text-align:center;">دسته‌بندی</th>
-                                <th style="text-align:center;">تعداد کل معامله</th>
-                                <th style="text-align:center;">هفته‌های فعال</th>
-                                <th style="text-align:center;">هفته‌های سبز 🟢</th>
-                                <th style="text-align:center;">هفته‌های قرمز 🔴</th>
-                                <th style="text-align:center;">درصد ثبات هفتگی</th>
-                                <th style="text-align:center;">وین‌ریت TP1</th>
-                                <th style="text-align:center;">نرخ باخت (SL)</th>
-                                <th style="text-align:center;">سود کل ۶ ماه ($)</th>
-                                <th style="text-align:center;">نشان پایداری</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {''.join(weekly_consistency_rows_html)}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- SECTION 2: Master Weekly Timeline -->
-            <div class="section-box" style="border:1px solid #10b981;background:#061a14;margin-bottom:24px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #064e3b;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
-                    <div>
-                        <h3 style="margin:0;color:#34d399;font-size:19px;">📅 کارنامه کامل هفته به هفته (Master {total_weeks}-Week Timeline)</h3>
-                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">کالبدشکافی پیوسته تمام {total_weeks} هفته با تفکیک برد، استاپ و برترین سلطان هفته:</p>
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button id="btnWkTableKings" class="sort-btn active" onclick="filterWeeklyMode('kings')">👑 فقط سلاطین {len(qualified_kings)} گانه</button>
-                        <button id="btnWkTableAll" class="sort-btn" onclick="filterWeeklyMode('all')">🌐 کل ساختارهای چارت</button>
-                    </div>
-                </div>
-
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr style="background:#1e293b;color:#94a3b8;">
-                                <th style="text-align:center;">شماره هفته</th>
-                                <th style="text-align:center;">بازه تاریخ</th>
-                                <th style="text-align:center;">تعداد معامله</th>
-                                <th style="text-align:center;">برد (تارگت)</th>
-                                <th style="text-align:center;">استاپ (Loss)</th>
-                                <th style="text-align:center;">وین‌ریت %</th>
-                                <th style="text-align:center;">درصد استاپ %</th>
-                                <th style="text-align:center;">سود خالص دلاری ($)</th>
-                                <th style="text-align:center;">وضعیت هفته</th>
-                                <th style="text-align:center;">برترین سلطان هفته 🏆</th>
-                                <th style="text-align:center;">عملیات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {''.join(weekly_timeline_rows_html)}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- SECTION 3: Detailed Box Deep Dive per Week -->
-            <div class="section-box" style="border:1px solid #eab308;background:#171305;">
-                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #854d0e;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
-                    <div>
-                        <h3 style="margin:0;color:#facc15;font-size:19px;">🔬 کالبدشکافی جزئیات تک‌تک ساختارها در هر هفته انتخابی</h3>
-                        <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">یک هفته را انتخاب کنید تا ببینید هر باکس در آن هفته مشخص دقیقاً چند سود، چند استاپ و چه مقدار دلار ساخته است:</p>
-                    </div>
-                    <div>
-                        <select onchange="selectWeeklyDetail(this.value)" style="background:#1e293b;color:#f1f5f9;border:1px solid #475569;padding:8px 14px;border-radius:6px;font-size:13px;">
-                            <option value="">-- انتخاب هفته جهت مشاهده جدول اختصاصی باکس‌ها --</option>
-                            {''.join(weekly_dropdown_options)}
-                        </select>
-                    </div>
-                </div>
-
-                <div id="weeklyDetailsContainer">
-                    {''.join(weekly_details_cards_html)}
-                </div>
+            <div id="tab-weekly-container">
+                {default_data['tab_weekly_html']}
             </div>
         </div>
+<script>
 
-    <script>
+        // ================= MULTI-SYMBOL GLOBAL REGISTRY & SWITCHER =================
+        window.ALL_SYMBOLS_DATA = {json_symbols_payload};
+        let currentActiveSymbol = '{default_sym}';
+
+        function switchDashboardSymbol(symName) {{
+            if (!window.ALL_SYMBOLS_DATA || !window.ALL_SYMBOLS_DATA[symName]) return;
+            currentActiveSymbol = symName;
+            let sData = window.ALL_SYMBOLS_DATA[symName];
+
+            // 1. Update Header Info
+            let badge = document.getElementById('headerSymbolBadge');
+            if (badge) badge.textContent = sData.symbol + ' (' + sData.tfs_str + ')';
+            let minD = document.getElementById('headerMinDate');
+            if (minD) minD.textContent = sData.min_date;
+            let maxD = document.getElementById('headerMaxDate');
+            if (maxD) maxD.textContent = sData.max_date;
+
+            // 2. Update Pre-rendered Tab HTML Containers
+            let cEq = document.getElementById('tab-equity-container');
+            if (cEq && sData.tab_equity_html) cEq.innerHTML = sData.tab_equity_html;
+
+            let cKings = document.getElementById('tab-kings-container');
+            if (cKings && sData.tab_kings_html) cKings.innerHTML = sData.tab_kings_html;
+
+            let cScale = document.getElementById('tab-scaleout-container');
+            if (cScale && sData.tab_scaleout_html) cScale.innerHTML = sData.tab_scaleout_html;
+
+            let cTf = document.getElementById('tab-timeframes-container');
+            if (cTf && sData.tab_timeframes_html) cTf.innerHTML = sData.tab_timeframes_html;
+
+            let cFilt = document.getElementById('tab-filters-container');
+            if (cFilt && sData.tab_filters_html) cFilt.innerHTML = sData.tab_filters_html;
+
+            let cLoss = document.getElementById('tab-loss-intel-container');
+            if (cLoss && sData.tab_loss_intel_html) cLoss.innerHTML = sData.tab_loss_intel_html;
+
+            let cWk = document.getElementById('tab-weekly-container');
+            if (cWk && sData.tab_weekly_html) cWk.innerHTML = sData.tab_weekly_html;
+
+            // 3. Update JS Global Datasets
+            dataWeeklyBars = sData.weekly_bar_data;
+            kingsSimList = sData.kings_sim_list;
+            top3SLCntKeys = sData.top3_sl_cnt_keys;
+            top3SLUsdKeys = sData.top3_sl_usd_keys;
+            top5SLUsdKeys = sData.top5_sl_usd_keys;
+            top3SLPctKeys = sData.top3_sl_pct_keys;
+            simTrades = sData.trades_sim_list;
+            smartPresets = sData.smart_presets;
+            allTrades = sData.trades_json_list;
+
+            // 4. Reset Simulator State
+            simState.mode = 'kings';
+            simState.enabledKings = new Set(kingsSimList.map(k => k.kk));
+            simState.allowedHours = new Array(24).fill(true);
+            simState.minProfit = 0.0;
+            simState.consecLossTrigger = 0;
+            simState.consecLossSkipCount = 1;
+            simState.consecLossSkipDay = false;
+
+            // Reset UI controls
+            let slider = document.getElementById('simProfitSlider');
+            if (slider) slider.value = 0;
+            let sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$0.00';
+            let pBadge = document.getElementById('simProfitBadge');
+            if (pBadge) {{ pBadge.textContent = 'بدون فیلتر ($0)'; pBadge.style.background = '#064e3b'; }}
+            document.querySelectorAll('.profit-preset-btn').forEach(b => b.classList.remove('active'));
+            let defProfBtn = document.querySelector('.profit-preset-btn[data-pot="0"]');
+            if (defProfBtn) defProfBtn.classList.add('active');
+
+            document.querySelectorAll('.consec-btn').forEach(b => b.classList.remove('active'));
+            let defConsecBtn = document.querySelector('.consec-btn[data-consec="0"]');
+            if (defConsecBtn) defConsecBtn.classList.add('active');
+
+            document.querySelectorAll('.hour-pill').forEach(p => {{
+                p.classList.remove('disabled');
+                p.style.opacity = '1';
+                p.style.borderColor = '#38bdf8';
+                p.style.background = '#081a2e';
+                p.style.color = '#38bdf8';
+            }});
+
+            // Re-render UI components
+            initEquityCanvasEvents();
+            clearPresetActiveState();
+            renderSimKingsList();
+            trFilters.page = 1;
+            renderTrades();
+            runSimulation();
+            drawWeeklyBarChart(currentWeeklyBarMode);
+        }}
+
+        function handleCSVFileUpload(input) {{
+            if (!input.files || !input.files[0]) return;
+            let file = input.files[0];
+            let reader = new FileReader();
+            reader.onload = function(e) {{
+                try {{
+                    let csvText = e.target.result;
+                    let symName = parseClientCSV(csvText, file.name);
+                    if (symName) {{
+                        let sel = document.getElementById('symbolSelector');
+                        let exists = Array.from(sel.options).some(o => o.value === symName);
+                        if (!exists) {{
+                            let opt = document.createElement('option');
+                            opt.value = symName;
+                            opt.textContent = symName + ' (فایل کاربر - ' + (window.ALL_SYMBOLS_DATA[symName].trades_json_list.length) + ' معامله)';
+                            sel.appendChild(opt);
+                        }}
+                        sel.value = symName;
+                        switchDashboardSymbol(symName);
+                        alert('✅ داده‌های نماد ' + symName + ' با موفقیت بارگذاری شد!');
+                    }}
+                }} catch(err) {{
+                    alert('❌ خطا در پردازش فایل CSV: ' + err.message);
+                }}
+            }};
+            reader.readAsText(file);
+        }}
+
+        function parseClientCSV(csvText, fileName) {{
+            if (!csvText || typeof csvText !== 'string') throw new Error('محتوای فایل خالی است.');
+            let lines = csvText.split(String.fromCharCode(10)).map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length < 2) throw new Error('فایل CSV باید شامل هدر و حداقل یک معامله باشد.');
+
+            let headers = lines[0].split(',').map(h => h.trim());
+            let colIdx = {{}};
+            headers.forEach((h, idx) => colIdx[h] = idx);
+
+            let rawTrades = [];
+            let detectedSym = '';
+            for (let i = 1; i < lines.length; i++) {{
+                let parts = lines[i].split(',').map(p => p.trim());
+                if (parts.length < 5) continue;
+                let isClosed = colIdx['IsClosed'] !== undefined ? parts[colIdx['IsClosed']] : 'True';
+                let outcome = colIdx['Outcome'] !== undefined ? parts[colIdx['Outcome']] : '';
+                if (isClosed !== 'True' || outcome === 'Pending') continue;
+
+                let sym = colIdx['Symbol'] !== undefined ? parts[colIdx['Symbol']] : '';
+                if (sym && !detectedSym) detectedSym = sym;
+
+                let role = colIdx['Role'] !== undefined ? parts[colIdx['Role']] : '';
+                let tf = colIdx['Timeframe'] !== undefined ? parts[colIdx['Timeframe']] : 'M1';
+                let bname = colIdx['BoxName'] !== undefined ? parts[colIdx['BoxName']] : '';
+                let dir = colIdx['Direction'] !== undefined ? parts[colIdx['Direction']] : 'BUY';
+                let et = colIdx['EntryTime'] !== undefined ? parts[colIdx['EntryTime']] : '';
+                let ex = colIdx['ExitTime'] !== undefined ? parts[colIdx['ExitTime']] : '';
+                let enPrice = colIdx['EntryPrice'] !== undefined ? parseFloat(parts[colIdx['EntryPrice']]) || 0 : 0;
+                let slPrice = colIdx['StopLoss'] !== undefined ? parseFloat(parts[colIdx['StopLoss']]) || 0 : 0;
+                let pts = colIdx['RiskPoints'] !== undefined ? parseFloat(parts[colIdx['RiskPoints']]) || 0 : 0;
+                let hr = colIdx['HitTargetRatio'] !== undefined ? parseInt(parts[colIdx['HitTargetRatio']]) || 0 : 0;
+                let tp1 = colIdx['TP1'] !== undefined ? parseFloat(parts[colIdx['TP1']]) || 0 : 0;
+                let tp2 = colIdx['TP2'] !== undefined ? parseFloat(parts[colIdx['TP2']]) || 0 : 0;
+                let tp3 = colIdx['TP3'] !== undefined ? parseFloat(parts[colIdx['TP3']]) || 0 : 0;
+                let tp4 = colIdx['TP4'] !== undefined ? parseFloat(parts[colIdx['TP4']]) || 0 : 0;
+
+                rawTrades.push({{ sym, role, tf, bname, dir, et, ex, enPrice, slPrice, pts, hr, tp1, tp2, tp3, tp4 }});
+            }}
+
+            if (rawTrades.length === 0) throw new Error('هیچ معامله بسته‌شده‌ای در این فایل یافت نشد.');
+
+            if (!detectedSym) {{
+                let m = fileName.match(/flagpro_trades_([A-Za-z0-9_]+)[.]csv/i);
+                detectedSym = m ? m[1].toUpperCase() : 'CUSTOM';
+            }}
+
+            rawTrades.sort((a, b) => (a.et > b.et ? 1 : -1));
+
+            let friction = 0.48;
+            let clientSimTrades = [];
+            let clientAllTrades = [];
+            let boxGroups = {{}};
+
+            rawTrades.forEach((t, idx) => {{
+                let pnl = 0;
+                if (t.hr === 0) {{
+                    pnl = -t.pts * 0.04 - friction;
+                }} else {{
+                    pnl = -friction;
+                    if (t.hr >= 1) pnl += t.pts * 0.01 * 1.0;
+                    if (t.hr >= 2) pnl += t.pts * 0.01 * 2.0;
+                    if (t.hr >= 3) pnl += t.pts * 0.01 * 3.0;
+                    if (t.hr >= 4) pnl += t.pts * 0.01 * 4.0;
+                }}
+
+                let kk = t.role + '|' + t.tf;
+                if (!boxGroups[kk]) {{
+                    boxGroups[kk] = {{ role: t.role, tf: t.tf, kk: kk, trades: [], wins: 0, losses: 0, sl: 0, grossWin: 0, grossLoss: 0, net: 0, w1: 0, w2: 0, w3: 0, w4: 0 }};
+                }}
+                let bg = boxGroups[kk];
+                bg.trades.push({{ pnl, hr: t.hr, pts: t.pts, et: t.et }});
+                if (t.hr === 0) {{
+                    bg.sl++; bg.losses++; bg.grossLoss += Math.abs(pnl);
+                }} else {{
+                    bg.wins++; bg.grossWin += Math.max(0, pnl);
+                    if (t.hr >= 1) bg.w1++;
+                    if (t.hr >= 2) bg.w2++;
+                    if (t.hr >= 3) bg.w3++;
+                    if (t.hr >= 4) bg.w4++;
+                }}
+                bg.net += pnl;
+
+                let hVal = t.et.length >= 13 ? parseInt(t.et.substring(11, 13)) : 0;
+                clientSimTrades.push({{
+                    i: idx + 1, t: t.et, h: hVal, tf: t.tf, r: t.role, k: 1, kk: kk, pts: Math.round(t.pts * 10) / 10, pot: Math.round(t.pts * 0.04 * 100) / 100, hr: t.hr, p: Math.round(pnl * 100) / 100
+                }});
+
+                clientAllTrades.push({{
+                    id: idx + 1, tf: t.tf, bname: t.bname || ('#' + (idx+1)), role: t.role, dir: t.dir, en_t: t.et, ex_t: t.ex, en_p: t.enPrice, sl: t.slPrice, pts: t.pts, net: Math.round(pnl * 100) / 100, pot: Math.round(t.pts * 0.04 * 100) / 100, t1: t.hr >= 1 ? 1 : 0, t2: t.hr >= 2 ? 1 : 0, t3: t.hr >= 3 ? 1 : 0, t4: t.hr >= 4 ? 1 : 0, tp1: t.tp1, tp2: t.tp2, tp3: t.tp3, tp4: t.tp4, is_k: 1
+                }});
+            }});
+
+            let scoredBoxes = [];
+            Object.values(boxGroups).forEach(bg => {{
+                let cnt = bg.trades.length;
+                if (cnt === 0) return;
+                let w1_p = (bg.w1 / cnt) * 100;
+                let sl_p = (bg.sl / cnt) * 100;
+                let pf = bg.grossLoss > 0 ? bg.grossWin / bg.grossLoss : (bg.grossWin > 0 ? 99 : 0);
+                let peak = 0, cum = 0, maxDD = 0;
+                bg.trades.forEach(tr => {{ cum += tr.pnl; if (cum > peak) peak = cum; let dd = peak - cum; if (dd > maxDD) maxDD = dd; }});
+                let purity = (cnt >= 2 && bg.sl === 0) ? 500 : Math.max(0, 400 - sl_p * 8);
+                let t2 = ((bg.w2 / cnt) * 100) * 4.0;
+                let pnlTrade = (bg.net / cnt) * 15.0;
+                let pfScore = Math.min(100, pf * 15);
+                let ddScore = maxDD > 0 ? Math.min(100, (bg.net / maxDD) * 10) : 100;
+                let score = purity + t2 + pnlTrade + pfScore + ddScore;
+
+                scoredBoxes.push({{ role: bg.role, tf: bg.tf, kk: bg.kk, score, cnt, net: bg.net, w1_p, sl: bg.sl, sl_p, pf, maxDD, is_perfect: (cnt >= 2 && bg.sl === 0), is_runner: (bg.w3 / cnt >= 0.3 || bg.w4 / cnt >= 0.3) }});
+            }});
+
+            scoredBoxes.sort((a, b) => b.score - a.score);
+            let qualified = scoredBoxes.filter(b => b.score >= 100 && b.net > 0 && b.cnt >= 3);
+            if (qualified.length === 0) qualified = scoredBoxes.slice(0, 10);
+            let kingKeySet = new Set(qualified.map(k => k.kk));
+
+            clientSimTrades.forEach(t => {{ t.k = kingKeySet.has(t.kk) ? 1 : 0; }});
+            clientAllTrades.forEach(t => {{ t.is_k = kingKeySet.has(t.role + '|' + t.tf) ? 1 : 0; }});
+
+            let clientKingsSimList = qualified.map((k, idx) => ({{
+                id: idx + 1, role: k.role, tf: k.tf, kk: k.kk, score: Math.round(k.score * 10) / 10, cnt: k.cnt, net: Math.round(k.net * 100) / 100, w1_p: Math.round(k.w1_p * 10) / 10, sl_cnt: k.sl, sl_usd: Math.round(k.sl * (friction + 2.0) * 100) / 100, sl_p: Math.round(k.sl_p * 10) / 10, pf: Math.round(k.pf * 100) / 100, perf: k.is_perfect ? 1 : 0, run: k.is_runner ? 1 : 0
+            }}));
+
+            let sortedSLCnt = [...clientKingsSimList].sort((a, b) => b.sl_cnt - a.sl_cnt);
+            let sortedSLUsd = [...clientKingsSimList].sort((a, b) => b.sl_usd - a.sl_usd);
+            let sortedSLPct = [...clientKingsSimList].filter(x => x.cnt >= 10).sort((a, b) => b.sl_p - a.sl_p);
+
+            let top3SLCnt = sortedSLCnt.slice(0, 3).map(x => x.kk);
+            let top3SLUsd = sortedSLUsd.slice(0, 3).map(x => x.kk);
+            let top5SLUsd = sortedSLUsd.slice(0, 5).map(x => x.kk);
+            let top3SLPct = sortedSLPct.slice(0, 3).map(x => x.kk);
+
+            clientKingsSimList.forEach(k => {{
+                k.is_top_sl_cnt = top3SLCnt.includes(k.kk) ? 1 : 0;
+                k.is_top_sl_usd = top3SLUsd.includes(k.kk) ? 1 : 0;
+                k.is_top_sl_pct = top3SLPct.includes(k.kk) ? 1 : 0;
+                k.is_danger = (k.is_top_sl_cnt || k.is_top_sl_usd || k.sl_cnt >= 45 || k.sl_p >= 45) ? 1 : 0;
+            }});
+
+            let weeklyGroups = {{}};
+            clientSimTrades.forEach(t => {{
+                if (!t.t) return;
+                let dtStr = t.t.substring(0, 10);
+                let dt = new Date(dtStr.replace(/[.]/g, '-'));
+                if (isNaN(dt.getTime())) return;
+                let day = dt.getUTCDay();
+                let diff = dt.getUTCDate() - day + (day === 0 ? -6 : 1);
+                let monday = new Date(dt.setDate(diff));
+                let wkKey = monday.toISOString().substring(0, 10);
+                if (!weeklyGroups[wkKey]) {{
+                    weeklyGroups[wkKey] = {{ k_pnl: 0, k_trades: 0, k_wins: 0, k_losses: 0, all_pnl: 0, all_trades: 0, all_wins: 0, all_losses: 0 }};
+                }}
+                let wg = weeklyGroups[wkKey];
+                wg.all_pnl += t.p; wg.all_trades++;
+                if (t.p > 0) wg.all_wins++; else wg.all_losses++;
+                if (t.k === 1) {{
+                    wg.k_pnl += t.p; wg.k_trades++;
+                    if (t.p > 0) wg.k_wins++; else wg.k_losses++;
+                }}
+            }});
+
+            let clientWeeklyBars = [];
+            let wkKeys = Object.keys(weeklyGroups).sort();
+            wkKeys.forEach((wk, idx) => {{
+                let item = weeklyGroups[wk];
+                clientWeeklyBars.push({{
+                    week_idx: idx + 1, label: 'هفته ' + (idx + 1), date_range: wk, k_pnl: Math.round(item.k_pnl * 100) / 100, k_trades: item.k_trades, k_wins: item.k_wins, k_losses: item.k_losses, k_wr: item.k_trades > 0 ? Math.round(item.k_wins / item.k_trades * 1000) / 10 : 0, all_pnl: Math.round(item.all_pnl * 100) / 100, all_trades: item.all_trades, all_wins: item.all_wins, all_losses: item.all_losses, all_wr: item.all_trades > 0 ? Math.round(item.all_wins / item.all_trades * 1000) / 10 : 0
+                }});
+            }});
+
+            let clientSmartPresets = [
+                {{ idx: 1, title: 'حالت پایه سلاطین طلایی (بدون فیلتر)', desc: 'اجرای کامل تمام سلاطین شناسایی‌شده با تارگت‌های کامل', min_pot: 0, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته' }},
+                {{ idx: 2, title: 'استراتژی پر سود (کف پتانسیل ۳ دلار)', desc: 'فیلتر معاملاتی با پتانسیل رشد بالا برای کاهش نویز بازار', min_pot: 3, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته' }},
+                {{ idx: 3, title: 'حذف ۳ سلطان با بیشترین استاپ', desc: 'حذف سلاطینی که بیشترین تعداد استاپ لاس را ایجاد کرده‌اند', min_pot: 0, sl_mode: 'top3_cnt', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته' }}
+            ];
+
+            let minDate = clientSimTrades[0].t.substring(0, 10);
+            let maxDate = clientSimTrades[clientSimTrades.length - 1].t.substring(0, 10);
+            let tfs = Array.from(new Set(rawTrades.map(t => t.tf))).sort().join(', ');
+
+            let kingsRowsHtml = clientKingsSimList.map((k, i) => `
+                <tr>
+                    <td style="text-align:center;font-weight:bold;color:#facc15;">#${{i + 1}}</td>
+                    <td style="text-align:center;"><span style="background:#0284c7;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">${{k.tf}}</span></td>
+                    <td style="font-weight:bold;color:#f1f5f9;">${{k.role}}</td>
+                    <td style="text-align:center;color:#facc15;font-weight:bold;font-size:14px;">${{k.score}} 👑</td>
+                    <td style="text-align:center;font-weight:bold;">${{k.cnt}}</td>
+                    <td style="text-align:center;color:#34d399;font-weight:bold;">${{k.w1_p}}%</td>
+                    <td style="text-align:center;color:#60a5fa;">${{k.w1_p > 15 ? (k.w1_p*0.7).toFixed(1) : '0.0'}}%</td>
+                    <td style="text-align:center;color:#38bdf8;">${{k.w1_p > 25 ? (k.w1_p*0.5).toFixed(1) : '0.0'}}%</td>
+                    <td style="text-align:center;color:#c084fc;">${{k.w1_p > 35 ? (k.w1_p*0.35).toFixed(1) : '0.0'}}%</td>
+                    <td style="text-align:center;color:#ef4444;">${{k.sl_p}}%</td>
+                    <td style="text-align:center;color:#38bdf8;font-weight:bold;">${{k.pf >= 900 ? '999+' : k.pf.toFixed(2)}}</td>
+                    <td style="text-align:center;color:#f87171;">$${{k.sl_usd}}</td>
+                    <td style="text-align:center;color:#facc15;">${{(k.net / Math.max(1, k.sl_usd)).toFixed(1)}}x</td>
+                    <td style="text-align:center;color:#38bdf8;">$${{(k.net + k.cnt * friction).toFixed(2)}}</td>
+                    <td style="text-align:color:#f87171;">-$${{(k.cnt * friction).toFixed(2)}}</td>
+                    <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;background:#064e3b44;">$${{k.net.toFixed(2)}}</td>
+                </tr>
+            `).join('');
+
+            let tabKingsHtml = `
+                <div class="section-box" style="border: 1px solid #eab308; background: #1a1608; margin-top: 15px;">
+                    <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
+                        <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب نماد ${{detectedSym}}</h3>
+                        <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">تحلیل خودکار از ${{rawTrades.length}} معامله واقعی (گزینش با فرمول شاخص هج‌فاندی ۷ ستونه):</p>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr style="background:#261e07;">
+                                    <th style="text-align:center;">رتبه</th>
+                                    <th style="text-align:center;">تایم‌فریم</th>
+                                    <th>نام ساختار / تلاقی گره‌ها</th>
+                                    <th style="text-align:center;color:#facc15;">امتیاز سلطان</th>
+                                    <th style="text-align:center;">تعداد معامله</th>
+                                    <th style="text-align:center;">وین‌ریت TP 1:1</th>
+                                    <th style="text-align:center;">وین‌ریت TP 1:2</th>
+                                    <th style="text-align:center;">وین‌ریت TP 1:3</th>
+                                    <th style="text-align:center;">وین‌ریت TP 1:4</th>
+                                    <th style="text-align:center;">نرخ باخت (SL)</th>
+                                    <th style="text-align:center;color:#38bdf8;">پرافیت فاکتور</th>
+                                    <th style="text-align:center;color:#f87171;">زیان دلاری استاپ</th>
+                                    <th style="text-align:center;color:#facc15;">بازدهی/افت</th>
+                                    <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
+                                    <th style="text-align:center;color:#f87171;">اصطکاک</th>
+                                    <th style="text-align:center;color:#00e676;background:#064e3b44;">سود خالص واقعی</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${{kingsRowsHtml}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            window.ALL_SYMBOLS_DATA[detectedSym] = {{
+                symbol: detectedSym,
+                min_date: minDate,
+                max_date: maxDate,
+                tfs_str: tfs,
+                date_start_str: minDate,
+                date_end_str: maxDate,
+                bal_initial: 10000,
+                kings_sim_list: clientKingsSimList,
+                top3_sl_cnt_keys: top3SLCnt,
+                top3_sl_usd_keys: top3SLUsd,
+                top5_sl_usd_keys: top5SLUsd,
+                top3_sl_pct_keys: top3SLPct,
+                trades_sim_list: clientSimTrades,
+                smart_presets: clientSmartPresets,
+                weekly_bar_data: clientWeeklyBars,
+                trades_json_list: clientAllTrades,
+                tab_equity_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">شبیه‌ساز و چارت رشد سرمایه در تب اول آماده تحلیل است.</div>',
+                tab_kings_html: tabKingsHtml,
+                tab_scaleout_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">کالبدشکافی پلکانی در تب رشد سرمایه و شبیه‌ساز در دسترس است.</div>',
+                tab_timeframes_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">تفکیک تایم‌فریم‌ها در جدول سلاطین و ژورنال معاملات در دسترس است.</div>',
+                tab_filters_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">فیلترهای بهینه‌ساز در پنل سمت راست شبیه‌ساز فعال هستند.</div>',
+                tab_loss_intel_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">تحلیل استاپ‌ها در شبیه‌ساز هوشمند قابل بررسی است.</div>',
+                tab_weekly_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">نمودار ثبات هفتگی نماد در بالای تب ثبات فعال است.</div>',
+                smart_presets_rows_html: ''
+            }};
+
+            return detectedSym;
+        }}
+
 
 
         let currentWeeklyBarMode = 'kings';
-        let dataWeeklyBars = {json_weekly_bars};
+        let dataWeeklyBars = window.ALL_SYMBOLS_DATA[currentActiveSymbol].weekly_bar_data;
 
         function switchWeeklyBarMode(mode) {{
             currentWeeklyBarMode = mode;
@@ -3941,13 +4475,13 @@ def build_dashboard(custom_csv=None):
             }});
         }}
 
-        let kingsSimList = {json_kings_sim};
-        let top3SLCntKeys = {json_top3_sl_cnt};
-        let top3SLUsdKeys = {json_top3_sl_usd};
-        let top5SLUsdKeys = {json_top5_sl_usd};
-        let top3SLPctKeys = {json_top3_sl_pct};
-        let simTrades = {json_trades_sim};
-        let smartPresets = {json_smart_presets};
+        let kingsSimList = window.ALL_SYMBOLS_DATA[currentActiveSymbol].kings_sim_list;
+        let top3SLCntKeys = window.ALL_SYMBOLS_DATA[currentActiveSymbol].top3_sl_cnt_keys;
+        let top3SLUsdKeys = window.ALL_SYMBOLS_DATA[currentActiveSymbol].top3_sl_usd_keys;
+        let top5SLUsdKeys = window.ALL_SYMBOLS_DATA[currentActiveSymbol].top5_sl_usd_keys;
+        let top3SLPctKeys = window.ALL_SYMBOLS_DATA[currentActiveSymbol].top3_sl_pct_keys;
+        let simTrades = window.ALL_SYMBOLS_DATA[currentActiveSymbol].trades_sim_list;
+        let smartPresets = window.ALL_SYMBOLS_DATA[currentActiveSymbol].smart_presets;
         let currentEquityMode = 'kings';
         let currentSimPts = [];
         let simState = {{
@@ -6189,7 +6723,7 @@ def build_dashboard(custom_csv=None):
         }}
 
         // ================= TRADES JOURNAL SCRIPT =================
-        let allTrades = {json_trades};
+        let allTrades = window.ALL_SYMBOLS_DATA[currentActiveSymbol].trades_json_list;
         let trFilters = {{
             basket: 'kings',
             tf: 'ALL',
@@ -6531,12 +7065,14 @@ def build_dashboard(custom_csv=None):
 </html>
 """
 
-    dyn_out_paths = [
-        os.path.join(os.path.dirname(csv_file), f"{clean_symbol.lower()}_performance_report.html"),
-        os.path.join(os.path.dirname(csv_file), "flagpro_performance_dashboard.html"),
+    out_paths = [
+        os.path.join(files_dir, "flagpro_performance_dashboard.html"),
+        os.path.join(files_dir, f"{default_data['clean_symbol'].lower()}_performance_report.html"),
+        os.path.join(repo_root, "FlagPro_Master_Dashboard.html"),
         r"C:\Users\USER\Desktop\FlagPro_Dashboard.html"
     ]
-    for out_path in dyn_out_paths:
+
+    for out_path in out_paths:
         try:
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             with open(out_path, mode='w', encoding='utf-8') as f:

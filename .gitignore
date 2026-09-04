@@ -2,7 +2,8 @@
 Experts/*
 !Experts/FlagPro_Trader.mq5
 !Experts/FlagPro_VisualTester.mq5
-Files/
+Files/*
+!Files/flagpro_performance_dashboard.html
 Images/
 Include/*
 !Include/FlagPro/
