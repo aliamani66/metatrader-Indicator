@@ -102,6 +102,36 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 res = {"success": False, "error": str(e)}
                 self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+
+        elif path == '/rebuild':
+            try:
+                payload = json.loads(post_body.decode('utf-8'))
+                filename = payload.get('filename', '')
+                content = payload.get('content', '')
+
+                if filename and content:
+                    files_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Files")
+                    os.makedirs(files_dir, exist_ok=True)
+                    csv_target = os.path.join(files_dir, filename)
+                    with open(csv_target, 'w', encoding='utf-8') as f:
+                        f.write(content)
+
+                import build_master_dashboard
+                build_master_dashboard.build_dashboard()
+
+                self.send_response(200)
+                self._send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {"success": True, "message": "Dashboard rebuilt successfully!"}
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self._send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {"success": False, "error": str(e)}
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
         else:
             self.send_response(404)
             self._send_cors_headers()

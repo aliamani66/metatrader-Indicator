@@ -96,10 +96,11 @@ def bundle_to_single_html():
     html = js_pattern.sub(replace_js, html)
 
     # Write output to Desktop and MQL5/Files
+    # Never overwrite the user's Master Dashboard on Desktop!
+    dist_dir = os.path.join(PROJECT_DIR, "dist")
+    os.makedirs(dist_dir, exist_ok=True)
     out_targets = [
-        os.path.join(DESKTOP_DIR, "FlagPro_Dashboard.html"),
-        os.path.join(MQL5_DIR, "FlagPro_Master_Dashboard.html"),
-        os.path.join(FILES_DIR, "flagpro_performance_dashboard.html")
+        os.path.join(dist_dir, "FlagPro_Modular_Preview.html")
     ]
 
     for target in out_targets:

@@ -4384,8 +4384,30 @@ def build_dashboard(custom_csv=None):
             }}
         }}
 
-        function processUploadedFile(file) {{
+        async function processUploadedFile(file) {{
             if (!file) return;
+
+            // 1. Try Bridge Server for 100% full rebuild of all tabs and metrics
+            try {{
+                let fileText = await file.text();
+                let resp = await fetch('http://127.0.0.1:8288/rebuild', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ filename: file.name, content: fileText }})
+                }});
+                if (resp.ok) {{
+                    let json = await resp.json();
+                    if (json.success) {{
+                        alert('✅ داده‌های فایل جدید با موفقیت پردازش شدند و تمام صفحات، سلاطین و تایم‌فریم‌ها به‌روزرسانی گردیدند!\n\nصفحه برای نمایش اطلاعات جدید مجدداً بارگذاری می‌شود.');
+                        location.reload();
+                        return;
+                    }}
+                }}
+            }} catch(e) {{
+                // Bridge server offline
+            }}
+
+            // 2. Client-side fallback
             let reader = new FileReader();
             reader.onload = function(e) {{
                 try {{
@@ -4407,7 +4429,7 @@ def build_dashboard(custom_csv=None):
                         }}
                         sel.value = symName;
                         switchDashboardSymbol(symName);
-                        alert('✅ داده‌های نماد ' + symName + ' با موفقیت بارگذاری شد!');
+                        alert('✅ داده‌های جدید روی چارت و ژورنال اعمال شدند.\n\n💡 نکته: برای به‌روزرسانی عمیق تمام تب‌ها (سلاطین همه‌فصول، عملکرد تایم‌فریم‌ها و...)، فایل «به روزرسانی داشبورد FlagPro.bat» را از روی دسکتاپ اجرا نمایید.');
                     }}
                 }} catch(err) {{
                     alert('❌ خطا در پردازش فایل CSV: ' + err.message);
