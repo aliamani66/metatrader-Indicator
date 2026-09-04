@@ -1781,9 +1781,9 @@ def process_symbol_dataset(csv_file):
 
     # ==================== DYNAMIC AUTO-OPTIMIZER ENGINE ====================
     all_sim_k_keys = [k['kk'] for k in kings_sim_list]
-    total_base_trades = len(trades_sim_list)
-    min_15pct_trades = max(20, int(total_base_trades * 0.15))
-    min_35pct_trades = max(35, int(total_base_trades * 0.35))
+    total_kings_trades = len([t for t in trades_sim_list if t.get('k') == 1])
+    min_15pct_trades = max(15, int(total_kings_trades * 0.15))
+    min_35pct_trades = max(25, int(total_kings_trades * 0.35))
 
     # 1. Rank Kings of this dataset dynamically by Profit Factor
     k_eval_stats = {}
@@ -3470,7 +3470,7 @@ def export_preset_set_files(symbols_data):
             pf = p.get('pf', 0.0)
             hours = p.get('hours', [])
             hours_str = ""
-            if hours and len(hours) < 24:
+            if hours and sum(1 for h in hours if h) < 24:
                 hours_str = ",".join(f"{h:02d}" for h in range(24) if hours[h])
 
             p_kings = set(p.get('kings', []))
@@ -3480,6 +3480,11 @@ def export_preset_set_files(symbols_data):
             action_int = 3 if p.get('consec_day') else (2 if p.get('consec_sk') == 2 else 1)
             trig_int = p.get('consec_trig', 0)
             if trig_int <= 0: action_int = 0
+
+            is_base = (clean_title == "AllKings24H")
+            be_buffer = "1.0" if is_base else "0.0"
+            max_dev = "2.5" if is_base else "2.0"
+            use_m1 = "true" if is_base else "false"
 
             filename = f"FlagPro_{sym}_{clean_title}_WR{round(wr)}_PF{pf:.1f}_{now_str}.set"
 
@@ -3506,7 +3511,10 @@ def export_preset_set_files(symbols_data):
                 "InpLot_TP3=0.01",
                 "InpLot_TP4=0.01",
                 "InpMoveToBreakEven=true",
-                "InpBEBufferPips=1.0",
+                f"InpBEBufferPips={be_buffer}",
+                f"InpMaxEntryDeviationPips={max_dev}",
+                f"InpUseTF7={use_m1}",
+                f"InpEnableKingsM1={use_m1}",
                 "InpTrailToTP1=true",
                 "InpTrailToTP2=true",
                 "InpMaxOpenGroups=5",
@@ -3558,11 +3566,11 @@ def export_preset_set_files(symbols_data):
                 f"InpDisabledKingsList={disabled_str}",
                 "InpEnableKingsM15=true",
                 "InpEnableKingsM5=true",
-                "InpEnableKingsM1=true",
+                f"InpEnableKingsM1={use_m1}",
                 "InpTradeOnlyGoldenKings=true",
                 "InpAllowOverlappingTrades=true",
                 "InpSlippagePoints=20",
-                "InpMaxEntryDeviationPips=2.5",
+                f"InpMaxEntryDeviationPips={max_dev}",
                 "InpSLOffsetPips=3.0",
                 "InpMaxSLPips=0.0",
                 "InpMaxOpenGroups=5",
@@ -3573,7 +3581,7 @@ def export_preset_set_files(symbols_data):
                 "InpLot_TP3=0.01",
                 "InpLot_TP4=0.01",
                 "InpMoveToBreakEven=true",
-                "InpBEBufferPips=1.0",
+                f"InpBEBufferPips={be_buffer}",
                 "InpTrailToTP1=true",
                 "InpTrailToTP2=true",
                 f"InpAllowedTradingHours={hours_str}",
@@ -3589,7 +3597,7 @@ def export_preset_set_files(symbols_data):
                 "InpBrokerCommissionPerLot=6.0",
                 "InpEstimatedSpreadPips=0.8",
                 "InpMinNetProfitRatioTP1=1.0",
-                "InpUseTF7=true",
+                f"InpUseTF7={use_m1}",
                 "InpUseTF6=true",
                 "InpUseTF5=true",
                 "InpTradeMacroTFs=false",
@@ -5316,6 +5324,10 @@ def build_dashboard(custom_csv=None):
             let filename = buildMT5SetFilename(cfg);
             let now = new Date();
             let nowStr = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+            let isBase = (cfg.title && (cfg.title.indexOf('AllKings') >= 0 || cfg.title.indexOf('سبد') >= 0 || cfg.title.indexOf('جامع') >= 0 || cfg.title.indexOf('تمام') >= 0 || cfg.title.indexOf('پایه') >= 0));
+            let beBuf = isBase ? '1.0' : '0.0';
+            let maxDev = isBase ? '2.5' : '2.0';
+            let useTF7 = isBase ? 'true' : 'false';
             let lines = [
                 ';+------------------------------------------------------------------+',
                 ';| FlagPro_Trader EA Settings File (.set)                           |',
@@ -5340,7 +5352,10 @@ def build_dashboard(custom_csv=None):
                 'InpLot_TP3=0.01',
                 'InpLot_TP4=0.01',
                 'InpMoveToBreakEven=true',
-                'InpBEBufferPips=1.0',
+                'InpBEBufferPips=' + beBuf,
+                'InpMaxEntryDeviationPips=' + maxDev,
+                'InpUseTF7=' + useTF7,
+                'InpEnableKingsM1=' + useTF7,
                 'InpTrailToTP1=true',
                 'InpTrailToTP2=true',
                 'InpMaxOpenGroups=5',

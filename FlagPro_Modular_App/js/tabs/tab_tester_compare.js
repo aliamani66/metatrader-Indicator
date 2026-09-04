@@ -22,81 +22,123 @@ function copyTesterReportsFolder() {
 }
 
 function getAvailableTesterScenarios() {
+    let sym = window.currentActiveSymbol || 'EURUSD';
+    let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
+    let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
+    let spList = sData.smart_presets || (typeof smartPresets !== 'undefined' ? smartPresets : []);
+    let allKings = sData.kings_sim_list || [];
+
+    function formatHours(hArr, hName) {
+        if (!hArr || hArr.length < 24) return hName || '۲۴ ساعته';
+        let trueCount = hArr.filter(Boolean).length;
+        if (trueCount === 24) return '۲۴ ساعته کامل (00 الی 23)';
+        let ranges = [];
+        let cur = [];
+        for (let i = 0; i < 24; i++) {
+            if (hArr[i]) {
+                cur.push(i);
+            } else if (cur.length) {
+                ranges.push((cur[0] < 10 ? '0' + cur[0] : cur[0]) + ' الی ' + (cur[cur.length-1] < 10 ? '0' + cur[cur.length-1] : cur[cur.length-1]));
+                cur = [];
+            }
+        }
+        if (cur.length) ranges.push((cur[0] < 10 ? '0' + cur[0] : cur[0]) + ' الی ' + (cur[cur.length-1] < 10 ? '0' + cur[cur.length-1] : cur[cur.length-1]));
+        return ranges.join(' و ');
+    }
+
+    function formatDisabledKings(kList) {
+        if (!kList || !kList.length || !allKings.length) return 'بدون مسدودی';
+        let kSet = new Set(kList);
+        let disabled = [];
+        for (let k of allKings) {
+            if (!kSet.has(k.kk)) {
+                disabled.push(k.kk.replace(/\|(M\d+)/, ' [$1]'));
+            }
+        }
+        return disabled.length ? disabled.join(', ') : 'بدون مسدودی';
+    }
+
+    let pChamp = spList.find(p => p.idx === 0 || (p.title && (p.title.includes('الماس') || p.title.includes('Champion'))));
+    let pGolden = spList.find(p => p.idx === 1 || (p.title && (p.title.includes('طلا') || p.title.includes('Golden'))));
+    let pDay = spList.find(p => p.idx === 2 || (p.title && (p.title.includes('روز') || p.title.includes('Day'))));
+    let pShield = spList.find(p => p.idx === 3 || (p.title && (p.title.includes('سپر') || p.title.includes('Shield'))));
+    let pBase = spList.find(p => p.idx === 4 || (p.title && (p.title.includes('پایه') || p.title.includes('جامع') || p.title.includes('Base'))));
+
     let list = [
         {
             id: 'auto',
             name: '🔍 تشخیص خودکار سناریو از فایل تستر (Auto Detect)',
             badge: 'هوشمند',
-            minPot: 0.0,
-            minPotDisplay: '$0.00 (خودکار)',
+            minPot: pChamp ? pChamp.min_pot : 0.0,
+            minPotDisplay: pChamp ? ('$' + pChamp.min_pot.toFixed(2) + ' (خودکار)') : '$0.00 (خودکار)',
             tfM1: 'غیرفعال (False)',
             hoursDisplay: 'هوشمند / طبق تستر',
             disabledKings: 'بررسی هوشمند',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
-            simWinRate: 63.5,
-            simPf: 2.20,
-            simNetR: '+124.5R'
+            simWinRate: pChamp ? pChamp.wr : 63.5,
+            simPf: pChamp ? pChamp.pf : 2.20,
+            simNetR: pChamp ? ((pChamp.net >= 0 ? '+$' : '-$') + Math.abs(pChamp.net).toFixed(2)) : '+124.5R'
         },
         {
             id: 'golden',
             name: '⚖️ تعادل طلایی حجم و سود (Golden Balance)',
             badge: 'بالانس بهینه',
-            minPot: 0.0,
-            minPotDisplay: '$0.00 (بدون محدودیت)',
+            minPot: pGolden ? pGolden.min_pot : 0.0,
+            minPotDisplay: pGolden ? ('$' + pGolden.min_pot.toFixed(2) + '+') : '$0.00 (بدون محدودیت)',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
-            hoursDisplay: '۲۴ ساعته (00 تا 23)',
-            disabledKings: 'بدون مسدودی',
+            hoursDisplay: pGolden ? formatHours(pGolden.hours, pGolden.hours_name) : '۲۴ ساعته (00 تا 23)',
+            disabledKings: pGolden ? formatDisabledKings(pGolden.kings) : 'بدون مسدودی',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
-            simWinRate: 58.5,
-            simPf: 1.85,
-            simNetR: '+98.4R'
+            simWinRate: pGolden ? pGolden.wr : 58.5,
+            simPf: pGolden ? pGolden.pf : 1.85,
+            simNetR: pGolden ? ((pGolden.net >= 0 ? '+$' : '-$') + Math.abs(pGolden.net).toFixed(2)) : '+98.4R'
         },
         {
             id: 'champion',
             name: '🎯 الماس و سوپر اسنایپر خودکار (Champion Sniper)',
             badge: 'بیشترین سود',
-            minPot: 2.0,
-            minPotDisplay: '$2.00+',
+            minPot: pChamp ? pChamp.min_pot : 2.0,
+            minPotDisplay: pChamp ? ('$' + pChamp.min_pot.toFixed(2) + '+') : '$2.00+',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
-            hoursDisplay: 'حذف شب (۰۴ الی ۲۲)',
-            disabledKings: 'OInner-BE (M1), RS-BE (M1)',
+            hoursDisplay: pChamp ? formatHours(pChamp.hours, pChamp.hours_name) : 'حذف شب (۰۴ الی ۲۲)',
+            disabledKings: pChamp ? formatDisabledKings(pChamp.kings) : 'OInner-BE (M1), RS-BE (M1)',
             beBuffer: '0.0 pips',
             maxDev: '2.0 pips',
-            simWinRate: 66.2,
-            simPf: 2.45,
-            simNetR: '+142.1R'
+            simWinRate: pChamp ? pChamp.wr : 66.2,
+            simPf: pChamp ? pChamp.pf : 2.45,
+            simNetR: pChamp ? ((pChamp.net >= 0 ? '+$' : '-$') + Math.abs(pChamp.net).toFixed(2)) : '+142.1R'
         },
         {
             id: 'day',
             name: '☀️ اسنایپر سشن روزانه لندن و نیویورک (Day Session)',
             badge: 'اوج نقدینگی',
-            minPot: 1.5,
-            minPotDisplay: '$1.50+',
+            minPot: pDay ? pDay.min_pot : 1.5,
+            minPotDisplay: pDay ? ('$' + pDay.min_pot.toFixed(2) + '+') : '$1.50+',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
-            hoursDisplay: 'سشن لندن و نیویورک (۰۷ الی ۲۰)',
-            disabledKings: 'بدون مسدودی',
+            hoursDisplay: pDay ? formatHours(pDay.hours, pDay.hours_name) : 'سشن لندن و نیویورک (۰۷ الی ۲۰)',
+            disabledKings: pDay ? formatDisabledKings(pDay.kings) : 'بدون مسدودی',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
-            simWinRate: 64.0,
-            simPf: 2.10,
-            simNetR: '+118.0R'
+            simWinRate: pDay ? pDay.wr : 64.0,
+            simPf: pDay ? pDay.pf : 2.10,
+            simNetR: pDay ? ((pDay.net >= 0 ? '+$' : '-$') + Math.abs(pDay.net).toFixed(2)) : '+118.0R'
         },
         {
             id: 'shield',
             name: '🛡️ سپر کمترین افت سرمایه (Stop Loss Shield)',
             badge: 'کمترین دروداون',
-            minPot: 1.0,
-            minPotDisplay: '$1.00+',
+            minPot: pShield ? pShield.min_pot : 1.0,
+            minPotDisplay: pShield ? ('$' + pShield.min_pot.toFixed(2) + '+') : '$1.00+',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
-            hoursDisplay: '۲۴ ساعته (وقفه بعد ۲ استاپ)',
-            disabledKings: 'حذف ۳ سلطان پرریسک',
+            hoursDisplay: pShield ? formatHours(pShield.hours, pShield.hours_name) : '۲۴ ساعته (وقفه بعد ۲ استاپ)',
+            disabledKings: pShield ? formatDisabledKings(pShield.kings) : 'حذف ۳ سلطان پرریسک',
             beBuffer: '0.0 pips',
             maxDev: '2.0 pips',
-            simWinRate: 67.5,
-            simPf: 2.30,
-            simNetR: '+105.2R'
+            simWinRate: pShield ? pShield.wr : 67.5,
+            simPf: pShield ? pShield.pf : 2.30,
+            simNetR: pShield ? ((pShield.net >= 0 ? '+$' : '-$') + Math.abs(pShield.net).toFixed(2)) : '+105.2R'
         },
         {
             id: 'base',
@@ -109,9 +151,9 @@ function getAvailableTesterScenarios() {
             disabledKings: 'بدون مسدودی',
             beBuffer: '1.0 pips',
             maxDev: '0.0 (نامحدود)',
-            simWinRate: 52.0,
-            simPf: 1.45,
-            simNetR: '+65.0R'
+            simWinRate: pBase ? pBase.wr : 52.0,
+            simPf: pBase ? pBase.pf : 1.45,
+            simNetR: pBase ? ((pBase.net >= 0 ? '+$' : '-$') + Math.abs(pBase.net).toFixed(2)) : '+65.0R'
         }
     ];
 
@@ -268,12 +310,24 @@ function formatTesterOptionLabel(k, r) {
     if (m) {
         let sD = m[1].replace(/[\/-]/g, '.');
         let eD = m[2].replace(/[\/-]/g, '.');
-        datePart = `از ${sD} تا ${eD}`;
+        datePart = `بازه: از ${sD} تا ${eD}`;
     } else if (dr) {
-        datePart = dr;
+        datePart = `بازه: ${dr}`;
     }
     
-    return datePart ? `${title} | ${datePart} | ${cnt} معامله` : `${title} | ${cnt} معامله`;
+    let execTime = r.executionTime || r.fileTime || '';
+    if (!execTime && r.mtime) {
+        let dt = new Date(r.mtime * 1000);
+        let y = dt.getFullYear();
+        let mon = String(dt.getMonth() + 1).padStart(2, '0');
+        let d = String(dt.getDate()).padStart(2, '0');
+        let h = String(dt.getHours()).padStart(2, '0');
+        let min = String(dt.getMinutes()).padStart(2, '0');
+        execTime = `${y}.${mon}.${d} ${h}:${min}`;
+    }
+    let timeBadge = execTime ? ` | ⏱️ انجام تست: ${execTime}` : '';
+
+    return datePart ? `${title} | ${datePart} | ${cnt} معامله${timeBadge}` : `${title} | ${cnt} معامله${timeBadge}`;
 }
 
 function initTesterCompareTab() {
@@ -754,33 +808,18 @@ function drawTesterCompareChart(report, scenarioKey) {
 
             let trades = report.trades || [];
             if (trades.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
                 return;
             }
 
-            let filtered = trades.filter(t => {
-                let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
-                let outcome = t.outcome || (profitPips >= 0 ? 'Win' : 'Loss');
-                let tf = t.timeframe || '';
-                let slip = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
-                let exitCls = t.exitClass || '';
-                let disc = t.discrepancyReason || t.discrepancyLabel || '';
+            let sym = report.symbol || window.currentActiveSymbol || 'EURUSD';
+            let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
+            let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
+            let indTrades = sData.trades_json_list || [];
+            let scenario = resolveActiveScenario(window.currentTesterScenarioKey, report);
 
-                if (filterMode === 'win' && outcome !== 'Win') return false;
-                if (filterMode === 'loss' && outcome !== 'Loss') return false;
-                if (filterMode === 'm1' && tf !== 'M1') return false;
-                if (filterMode === 'slip' && slip < 2.0) return false;
-                if (filterMode === 'be' && !exitCls.includes('BE')) return false;
-                if (searchQuery) {
-                    let q = searchQuery.toLowerCase();
-                    let hay = ((t.pattern || '') + ' ' + tf + ' ' + (t.side || '') + ' ' + (t.entryTime || '') + ' ' + disc).toLowerCase();
-                    if (!hay.includes(q)) return false;
-                }
-                return true;
-            });
-
-            let html = '';
-            filtered.forEach(t => {
+            // Pre-match and prepare trade metadata for 1:1 Deal-by-Deal forensics
+            let processed = trades.map(t => {
                 let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
                 let profitUSD = (t.profitUSD !== undefined && !isNaN(Number(t.profitUSD))) ? Number(t.profitUSD) : ((t.pnlUSD !== undefined && !isNaN(Number(t.pnlUSD))) ? Number(t.pnlUSD) : 0);
                 let slippagePips = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
@@ -790,44 +829,207 @@ function drawTesterCompareChart(report, scenarioKey) {
                 let tp1 = (t.tp1 !== undefined && !isNaN(Number(t.tp1))) ? Number(t.tp1) : 0;
                 let tp4 = (t.tp4 !== undefined && !isNaN(Number(t.tp4))) ? Number(t.tp4) : 0;
 
-                let isWin = (profitPips >= 0);
-                let sideBadge = t.side === 'BUY'
+                let tEntryTime = (t.entryTime || '').substring(0, 16).replace(/-/g, '.');
+                let tTF = (t.timeframe || '').replace('PERIOD_', '');
+                let tDir = (t.side || '').toUpperCase();
+
+                // 1:1 Match with Strategy / Indicator Dataset
+                let match = indTrades.find(it => {
+                    let itEn = (it.en_t || '').substring(0, 16).replace(/-/g, '.');
+                    let itTF = (it.tf || '').replace('PERIOD_', '');
+                    let itDir = (it.dir || '').toUpperCase();
+                    let itPrice = parseFloat(it.en_p || 0);
+
+                    if (tEntryTime && itEn && tEntryTime === itEn && (!tTF || !itTF || tTF === itTF) && (!tDir || !itDir || tDir === itDir)) {
+                        return true;
+                    }
+                    if (boxEntry > 0 && itPrice > 0 && Math.abs(boxEntry - itPrice) < 0.00015 && tEntryTime.substring(0, 10) === itEn.substring(0, 10) && tTF === itTF) {
+                        return true;
+                    }
+                    return false;
+                });
+
+                // Check if trade is allowed by active scenario
+                let isAllowed = true;
+                let filterReason = '';
+                if (tTF === 'M1' && scenario.tfM1 && !scenario.tfM1.includes('فعال (True)')) {
+                    isAllowed = false;
+                    filterReason = 'فیلتر نویز M1';
+                }
+                if (isAllowed && scenario.id !== 'base' && scenario.id !== 'golden') {
+                    let h = tEntryTime.length >= 13 ? parseInt(tEntryTime.substring(11, 13)) : 0;
+                    if (scenario.id === 'day' && (h < 7 || h >= 20)) {
+                        isAllowed = false;
+                        filterReason = 'خارج از سشن روز (ساعت ' + h + ')';
+                    } else if (scenario.id === 'champion' && (h >= 22 || h < 4)) {
+                        isAllowed = false;
+                        filterReason = 'فیلتر ساعات شب (ساعت ' + h + ')';
+                    }
+                }
+                if (isAllowed && scenario.minPot > 0 && match) {
+                    let potVal = match.pts ? (match.pts * 0.04) : 0;
+                    if (potVal < scenario.minPot) {
+                        isAllowed = false;
+                        filterReason = 'کف سود زیر ' + scenario.minPotDisplay;
+                    }
+                }
+                if (isAllowed && scenario.disabledKings && !scenario.disabledKings.includes('بدون مسدودی')) {
+                    let patName = t.pattern || (match ? match.role : '');
+                    if (scenario.disabledKings.includes(patName)) {
+                        isAllowed = false;
+                        filterReason = 'سلطان مسدود';
+                    }
+                }
+
+                // Indicator Theoretical PnL & Outcome
+                let indNet = 0.0;
+                let indTgt = '';
+                let isIndWin = false;
+                if (match) {
+                    indNet = match.net !== undefined ? match.net : (match.t1 ? (match.pts * 0.04) : -(match.pts * 0.04));
+                    isIndWin = (match.t1 === 1 || indNet > 0);
+                    if (match.t4) indTgt = 'TP 1:4 🚀';
+                    else if (match.t3) indTgt = 'TP 1:3 🎯';
+                    else if (match.t2) indTgt = 'TP 1:2 🎯';
+                    else if (match.t1) indTgt = 'TP 1:1 🎯';
+                    else indTgt = 'حد ضرر SL ❌';
+                }
+
+                // Forensic Verdict & Discrepancy Detection
+                let verdictHtml = '';
+                let isDisc = false;
+                let exitCls = t.exitClass || '';
+
+                if (!isAllowed) {
+                    isDisc = true;
+                    verdictHtml = `<span style="color:#fca5a5;font-size:11px;">🛑 <b>ورود اشتباه در تستر (فیلتر سناریو):</b> این ستاپ در سناریوی انتخابی به علت «${filterReason}» فیلتر بوده است اما در تستر به اشتباه باز شده و ${profitUSD < 0 ? 'منجر به باخت شد' : 'بسته شد'}.</span>`;
+                } else if (match && match.t4 && exitCls.includes('BE')) {
+                    isDisc = true;
+                    verdictHtml = `<span style="color:#c7d2fe;font-size:11px;">🛡️ <b>سود بزرگ از دست رفته با بافر BE:</b> در اندیکاتور به تارگت کامل TP4 رسید، ولی در تستر متاتریدر با بافر ۱ پیپ پس از TP1 در اولین اصلاح قطع شد.</span>`;
+                } else if (slippagePips >= 2.0) {
+                    isDisc = true;
+                    verdictHtml = `<span style="color:#fde68a;font-size:11px;">⚡ <b>اسلیپیج شدید ${slippagePips.toFixed(1)} پیپ ورود:</b> لغزش قیمت در ورود مارکت نسبت سود به ریسک را کاهش داده است.</span>`;
+                } else if (match && match.t1 && profitUSD < 0) {
+                    isDisc = true;
+                    verdictHtml = `<span style="color:#fca5a5;font-size:11px;">❌ <b>اختلاف اجرای مارکت:</b> در اندیکاتور TP1 لمس شد اما در تستر به دلیل اسپرد یا نوسان حد ضرر لمس گردید.</span>`;
+                } else if (profitUSD >= 0) {
+                    verdictHtml = `<span style="color:#a7f3d0;font-size:11px;">🟢 <b>انطباق کامل:</b> تارگت در هر دو پلتفرم لمس شده و سود ذخیره گردید.</span>`;
+                } else {
+                    verdictHtml = `<span style="color:#94a3b8;font-size:11px;">همگام (استاپ طبیعی در هر دو پلتفرم).</span>`;
+                }
+
+                return {
+                    raw: t,
+                    profitPips: profitPips,
+                    profitUSD: profitUSD,
+                    slippagePips: slippagePips,
+                    boxEntry: boxEntry,
+                    marketFill: marketFill,
+                    slPrice: slPrice,
+                    tp1: tp1,
+                    tp4: tp4,
+                    tEntryTime: tEntryTime,
+                    tTF: tTF,
+                    tDir: tDir,
+                    pattern: t.pattern || '',
+                    exitClass: exitCls,
+                    match: match,
+                    isAllowed: isAllowed,
+                    filterReason: filterReason,
+                    indNet: indNet,
+                    indTgt: indTgt,
+                    isIndWin: isIndWin,
+                    verdictHtml: verdictHtml,
+                    isDisc: isDisc
+                };
+            });
+
+            // Update Filter Buttons Text & Badge Counts
+            let cntAll = processed.length;
+            let cntWin = processed.filter(x => x.profitUSD >= 0).length;
+            let cntLoss = processed.filter(x => x.profitUSD < 0).length;
+            let cntM1 = processed.filter(x => x.tTF === 'M1').length;
+            let cntSlip = processed.filter(x => x.slippagePips >= 2.0).length;
+            let cntBe = processed.filter(x => x.exitClass.includes('BE')).length;
+            let cntDisc = processed.filter(x => x.isDisc).length;
+
+            let bAll = document.getElementById('tcFilterAll'); if (bAll) bAll.textContent = 'همه (' + cntAll + ')';
+            let bWin = document.getElementById('tcFilterWin'); if (bWin) bWin.textContent = 'بردها (' + cntWin + ')';
+            let bLoss = document.getElementById('tcFilterLoss'); if (bLoss) bLoss.textContent = 'باخت‌ها (' + cntLoss + ')';
+            let bM1 = document.getElementById('tcFilterM1'); if (bM1) bM1.textContent = 'نویز M1 (' + cntM1 + ')';
+            let bSlip = document.getElementById('tcFilterSlip'); if (bSlip) bSlip.textContent = 'اسلیپیج بالا > 2p (' + cntSlip + ')';
+            let bBe = document.getElementById('tcFilterBe'); if (bBe) bBe.textContent = 'خروج در BE (' + cntBe + ')';
+            let bDisc = document.getElementById('tcFilterDisc'); if (bDisc) bDisc.textContent = '⚠️ مغایرت‌ها (' + cntDisc + ')';
+
+            let tblTitle = document.getElementById('tcTradesTableTitle');
+            if (tblTitle) {
+                tblTitle.textContent = 'جدول بازرسی و مقایسه نظیر به نظیر (1:1) معاملات متاتریدر ۵ با اندیکاتور (' + cntAll + ' ستاپ | ' + cntDisc + ' مغایرت ریشه‌ای)';
+            }
+
+            // Apply active filter
+            let filtered = processed.filter(pt => {
+                if (filterMode === 'win' && pt.profitUSD < 0) return false;
+                if (filterMode === 'loss' && pt.profitUSD >= 0) return false;
+                if (filterMode === 'm1' && pt.tTF !== 'M1') return false;
+                if (filterMode === 'slip' && pt.slippagePips < 2.0) return false;
+                if (filterMode === 'be' && !pt.exitClass.includes('BE')) return false;
+                if (filterMode === 'disc' && !pt.isDisc) return false;
+                if (searchQuery) {
+                    let q = searchQuery.toLowerCase();
+                    let hay = (pt.pattern + ' ' + pt.tTF + ' ' + pt.tDir + ' ' + pt.tEntryTime + ' ' + pt.filterReason).toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+
+            let html = '';
+            filtered.forEach(pt => {
+                let isWin = (pt.profitUSD >= 0);
+                let sideBadge = pt.tDir === 'BUY'
                     ? '<span style="color:#34d399;font-weight:bold;">BUY</span>'
                     : '<span style="color:#f87171;font-weight:bold;">SELL</span>';
 
-                let tfBadge = t.timeframe === 'M1'
+                let tfBadge = pt.tTF === 'M1'
                     ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1 (نویز)</span>'
-                    : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + (t.timeframe || '') + '</span>';
+                    : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + pt.tTF + '</span>';
 
-                let pnlPipsColor = isWin ? '#34d399' : '#f87171';
-                let pnlUSDColor = isWin ? '#34d399' : '#f87171';
-                let slipColor = (slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
+                let slipColor = (pt.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
 
-                let discText = t.discrepancyReason || t.discrepancyLabel || 'منطبق';
-                let discBadge = '<span style="background:#1e293b;color:#cbd5e1;padding:2px 6px;border-radius:4px;font-size:10px;">' + discText + '</span>';
-                if (discText.includes('نویز')) {
-                    discBadge = '<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;font-size:10px;">🔴 نویز تایم M1</span>';
-                } else if (discText.includes('اسلیپیج')) {
-                    discBadge = '<span style="background:#78350f;color:#fde68a;padding:2px 6px;border-radius:4px;border:1px solid #b45309;font-size:10px;">⚠️ اسلیپیج شدید ورود</span>';
-                } else if (discText.includes('بریک‌ایون') || discText.includes('ریسک‌فری')) {
-                    discBadge = '<span style="background:#1e1b4b;color:#c7d2fe;padding:2px 6px;border-radius:4px;border:1px solid #4338ca;font-size:10px;">🛡️ قطع زودهنگام در BE</span>';
+                // Column: Status in Scenario
+                let scStatusBadge = pt.isAllowed
+                    ? '<span style="background:#064e3b;color:#a7f3d0;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;">🟢 مجاز در سناریو</span>'
+                    : '<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;font-size:10px;font-weight:bold;">🛑 ' + pt.filterReason + '</span>';
+
+                // Column: Indicator PnL & Target
+                let indResultHtml = '';
+                if (pt.match) {
+                    if (!pt.isAllowed) {
+                        indResultHtml = '<span style="color:#94a3b8;font-size:10.5px;">فیلتر ($0.00)</span> <span style="font-size:9.5px;color:#64748b;">(اندیکاتور: ' + pt.indTgt + ')</span>';
+                    } else if (pt.isIndWin) {
+                        indResultHtml = '<span style="color:#34d399;font-weight:bold;direction:ltr;">+$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:10px;color:#a7f3d0;">(' + pt.indTgt + ')</span>';
+                    } else {
+                        indResultHtml = '<span style="color:#f87171;font-weight:bold;direction:ltr;">-$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:10px;color:#fca5a5;">(استاپ)</span>';
+                    }
+                } else {
+                    indResultHtml = '<span style="color:#64748b;font-size:10px;">عدم تطابق داده</span>';
                 }
 
-                html += `<tr style="border-bottom:1px solid #1e293b;">
-                    <td style="padding:6px 8px;color:#64748b;">${t.setupId || ''}</td>
-                    <td style="padding:6px 8px;font-weight:600;color:#f8fafc;">${t.pattern || ''}</td>
-                    <td style="padding:6px 8px;">${tfBadge}</td>
-                    <td style="padding:6px 8px;">${sideBadge}</td>
-                    <td style="padding:6px 8px;color:#94a3b8;font-size:10.5px;">${t.entryTime || ''}</td>
-                    <td style="padding:6px 8px;color:#cbd5e1;">${boxEntry.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:#38bdf8;">${marketFill.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:${slipColor};font-weight:bold;">${slippagePips.toFixed(1)}p</td>
-                    <td style="padding:6px 8px;color:#f87171;">${slPrice.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:#94a3b8;font-size:10px;">TP1: ${tp1.toFixed(5)} | TP4: ${tp4.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:#e2e8f0;">${t.exitClass || ''}</td>
-                    <td style="padding:6px 8px;color:${pnlPipsColor};font-weight:bold;direction:ltr;text-align:right;">${(profitPips > 0 ? '+' : '')}${profitPips.toFixed(1)}p</td>
-                    <td style="padding:6px 8px;color:${pnlUSDColor};font-weight:bold;direction:ltr;text-align:right;">${(profitUSD > 0 ? '+$' : '-$')}${Math.abs(profitUSD).toFixed(2)}</td>
-                    <td style="padding:6px 8px;">${discBadge}</td>
+                let pnlColor = isWin ? '#34d399' : '#f87171';
+
+                html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
+                    <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
+                    <td style="padding:7px 8px;font-weight:600;color:#f8fafc;">${pt.pattern}</td>
+                    <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
+                    <td style="padding:7px 8px;text-align:center;">${sideBadge}</td>
+                    <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;">${pt.tEntryTime}</td>
+                    <td style="padding:7px 8px;color:#cbd5e1;font-size:10.5px;">${pt.boxEntry.toFixed(5)}</td>
+                    <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;">${pt.marketFill.toFixed(5)}</td>
+                    <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>
+                    <td style="padding:7px 8px;text-align:center;background:#064e3b18;border-left:1px solid #05966933;">${scStatusBadge}</td>
+                    <td style="padding:7px 8px;text-align:center;background:#064e3b18;">${indResultHtml}</td>
+                    <td style="padding:7px 8px;text-align:center;background:#1e3a5f18;border-left:1px solid #0284c733;color:#e2e8f0;font-size:10.5px;">${pt.exitClass}</td>
+                    <td style="padding:7px 8px;text-align:center;background:#1e3a5f18;color:${pnlColor};font-weight:bold;direction:ltr;">${(pt.profitPips > 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p | ${(pt.profitUSD > 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</td>
+                    <td style="padding:7px 10px;border-left:1px solid #334155;">${pt.verdictHtml}</td>
                 </tr>`;
             });
 
@@ -895,6 +1097,16 @@ function drawTesterCompareChart(report, scenarioKey) {
                     }
 
                     if (reportData) {
+                        let dt = new Date(file.lastModified);
+                        let y = dt.getFullYear();
+                        let mon = String(dt.getMonth() + 1).padStart(2, '0');
+                        let d = String(dt.getDate()).padStart(2, '0');
+                        let h = String(dt.getHours()).padStart(2, '0');
+                        let min = String(dt.getMinutes()).padStart(2, '0');
+                        let fileTime = `${y}.${mon}.${d} ${h}:${min}`;
+                        reportData.executionTime = fileTime;
+                        reportData.fileTime = fileTime;
+
                         window.TESTER_REPORTS = window.TESTER_REPORTS || {};
                         let reportKey = 'uploaded_' + Date.now();
                         window.TESTER_REPORTS[reportKey] = reportData;
@@ -903,7 +1115,7 @@ function drawTesterCompareChart(report, scenarioKey) {
                         if (sel) {
                             let opt = document.createElement('option');
                             opt.value = reportKey;
-                            opt.textContent = (reportData.reportTitle || file.name) + ' (' + (reportData.trades ? reportData.trades.length : 0) + ' ترید)';
+                            opt.textContent = formatTesterOptionLabel(reportKey, reportData);
                             opt.selected = true;
                             sel.insertBefore(opt, sel.firstChild);
                             sel.value = reportKey;

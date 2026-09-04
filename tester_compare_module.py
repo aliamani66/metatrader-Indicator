@@ -113,7 +113,12 @@ def load_tester_reports(reports_dir):
                     t['discrepancyReason'] = t['discrepancyLabel']
                 if 'outcome' not in t:
                     t['outcome'] = 'Win' if t.get('profitPips', 0) >= 0 else 'Loss'
+            import datetime
+            exec_time_str = datetime.datetime.fromtimestamp(mtime).strftime('%Y.%m.%d %H:%M')
             data['mtime'] = mtime
+            data['fileTime'] = exec_time_str
+            if 'executionTime' not in data or not data['executionTime']:
+                data['executionTime'] = exec_time_str
             reports[fname] = data
         except Exception as e:
             print(f"⚠️ خطا در پردازش ساختار گزارش تستر {fname}: {e}")
@@ -124,6 +129,7 @@ def get_tester_compare_html(reports_dict, default_key):
     """
     Generates the HTML content for tab-tester-compare.
     """
+    import datetime
     options_html = []
     for k, v in reports_dict.items():
         sel = 'selected' if k == default_key else ''
@@ -139,7 +145,12 @@ def get_tester_compare_html(reports_dict, default_key):
         elif date_range:
             date_part = date_range
         
-        opt_text = f'{title} | {date_part} | {t_count} معامله' if date_part else f'{title} | {t_count} معامله'
+        exec_time = v.get('executionTime') or v.get('fileTime') or ''
+        if not exec_time and v.get('mtime'):
+            exec_time = datetime.datetime.fromtimestamp(v['mtime']).strftime('%Y.%m.%d %H:%M')
+        time_part = f' | ⏱️ انجام تست: {exec_time}' if exec_time else ''
+        
+        opt_text = f'{title} | {date_part} | {t_count} معامله{time_part}' if date_part else f'{title} | {t_count} معامله{time_part}'
         options_html.append(f'<option value="{k}" {sel}>{opt_text}</option>')
     
     if not options_html:
@@ -361,36 +372,39 @@ def get_tester_compare_html(reports_dict, default_key):
         <div class="section-box" style="background:#0b111c;border:1px solid #1e293b;padding:12px 16px;border-radius:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
                 <div style="font-size:13.5px;font-weight:bold;color:#38bdf8;display:flex;align-items:center;gap:6px;">
-                    <span>🔍</span> جدول بازرسی و کالبدشکافی تک‌تک ۵۳ معامله تستر متاتریدر ۵
+                    <span>🔍</span> <span id="tcTradesTableTitle">جدول مقایسه نظیر به نظیر (1:1) معاملات متاتریدر ۵ با شبیه‌ساز استراتژی</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                    <button class="eq-subtab-btn active" onclick="filterTesterTradesTable('all', event)">همه (53)</button>
-                    <button class="eq-subtab-btn" onclick="filterTesterTradesTable('win', event)">بردها (14)</button>
-                    <button class="eq-subtab-btn" onclick="filterTesterTradesTable('loss', event)">باخت‌ها (39)</button>
-                    <button class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">نویز تایم M1 (50)</button>
-                    <button class="eq-subtab-btn" onclick="filterTesterTradesTable('slip', event)">اسلیپیج بالا > 2p (24)</button>
-                    <button class="eq-subtab-btn" onclick="filterTesterTradesTable('be', event)">خروج در BE (14)</button>
-                    <input type="text" id="tcSearchInput" placeholder="جستجوی الگو یا تاریخ..." oninput="onTesterTradeSearch(this.value)" style="background:#1e293b;border:1px solid #334155;color:#fff;padding:5px 10px;border-radius:4px;font-size:11.5px;font-family:inherit;">
+                    <button id="tcFilterAll" class="eq-subtab-btn active" onclick="filterTesterTradesTable('all', event)">همه معاملات</button>
+                    <button id="tcFilterWin" class="eq-subtab-btn" onclick="filterTesterTradesTable('win', event)">بردها</button>
+                    <button id="tcFilterLoss" class="eq-subtab-btn" onclick="filterTesterTradesTable('loss', event)">باخت‌ها</button>
+                    <button id="tcFilterM1" class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">معاملات نویز M1</button>
+                    <button id="tcFilterSlip" class="eq-subtab-btn" onclick="filterTesterTradesTable('slip', event)">اسلیپیج بالا > 2p</button>
+                    <button id="tcFilterBe" class="eq-subtab-btn" onclick="filterTesterTradesTable('be', event)">خروج در BE</button>
+                    <button id="tcFilterDisc" class="eq-subtab-btn" onclick="filterTesterTradesTable('disc', event)" style="border-color:#f59e0b;color:#fde68a;">⚠️ فقط مغایرت‌ها</button>
+                    <input type="text" id="tcSearchInput" placeholder="جستجوی الگو، زمان..." oninput="onTesterTradeSearch(this.value)" style="background:#1e293b;border:1px solid #334155;color:#fff;padding:5px 10px;border-radius:4px;font-size:11.5px;font-family:inherit;">
                 </div>
             </div>
-            <div style="overflow-x:auto;max-height:480px;overflow-y:auto;border:1px solid #1e293b;border-radius:6px;">
+            <div style="overflow-x:auto;max-height:520px;overflow-y:auto;border:1px solid #1e293b;border-radius:6px;">
                 <table id="testerTradesTable" class="data-table" style="width:100%;font-size:11px;border-collapse:collapse;text-align:right;">
                     <thead style="position:sticky;top:0;background:#0d1627;z-index:2;">
                         <tr style="color:#94a3b8;border-bottom:1px solid #334155;">
-                            <th style="padding:7px 8px;width:35px;">#</th>
-                            <th style="padding:7px 8px;">الگو (Pattern)</th>
-                            <th style="padding:7px 8px;">تایم</th>
-                            <th style="padding:7px 8px;">جهت</th>
+                            <th style="padding:7px 8px;width:35px;text-align:center;">#</th>
+                            <th style="padding:7px 8px;">الگو / ستاپ</th>
+                            <th style="padding:7px 8px;text-align:center;">تایم</th>
+                            <th style="padding:7px 8px;text-align:center;">جهت</th>
                             <th style="padding:7px 8px;">زمان ورود</th>
-                            <th style="padding:7px 8px;">لبه باکس</th>
-                            <th style="padding:7px 8px;">ورود تستر</th>
-                            <th style="padding:7px 8px;">لغزش (Slippage)</th>
-                            <th style="padding:7px 8px;">حد ضرر (SL)</th>
-                            <th style="padding:7px 8px;">تارگت‌ها</th>
-                            <th style="padding:7px 8px;">خروج در تستر</th>
-                            <th style="padding:7px 8px;">سود/زیان پیپ</th>
-                            <th style="padding:7px 8px;">سود/زیان دلاری</th>
-                            <th style="padding:7px 8px;">کالبدشکافی علت مغایرت</th>
+                            <th style="padding:7px 8px;">ورود باکس</th>
+                            <th style="padding:7px 8px;">ورود MT5</th>
+                            <th style="padding:7px 8px;text-align:center;">اسلیپیج</th>
+                            <!-- 🔬 ستون‌های شبیه‌ساز اندیکاتور -->
+                            <th style="padding:7px 8px;background:#064e3b44;color:#86efac;text-align:center;border-left:1px solid #059669;">وضعیت در سناریو</th>
+                            <th style="padding:7px 8px;background:#064e3b44;color:#86efac;text-align:center;">سود تئوریک اندیکاتور</th>
+                            <!-- 🤖 ستون‌های واقعی متاتریدر ۵ -->
+                            <th style="padding:7px 8px;background:#1e3a5f44;color:#7dd3fc;text-align:center;border-left:1px solid #0284c7;">خروج MT5</th>
+                            <th style="padding:7px 8px;background:#1e3a5f44;color:#7dd3fc;text-align:center;">سود واقعی MT5</th>
+                            <!-- ⚖️ کالبدشکافی نظیر به نظیر -->
+                            <th style="padding:7px 8px;border-left:1px solid #334155;">کالبدشکافی ریشه‌ای مغایرت نظیر به نظیر (1:1)</th>
                         </tr>
                     </thead>
                     <tbody id="testerTradesBody">

@@ -339,7 +339,11 @@ void ExportTesterRunSummary()
    jsonContent += "  \"symbol\": \"" + _Symbol + "\",\n";
    jsonContent += "  \"timeframe\": \"" + tfName + "\",\n";
    jsonContent += "  \"dateRange\": \"" + TimeToString(startTestTime, TIME_DATE) + " - " + TimeToString(endTestTime, TIME_DATE) + "\",\n";
-   jsonContent += "  \"exportedAt\": \"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES|TIME_SECONDS) + "\",\n";
+   string localExecTime = TimeToString(TimeLocal(), TIME_DATE|TIME_MINUTES|TIME_SECONDS);
+   string simEndTime = TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES|TIME_SECONDS);
+   jsonContent += "  \"exportedAt\": \"" + localExecTime + "\",\n";
+   jsonContent += "  \"executionTime\": \"" + localExecTime + "\",\n";
+   jsonContent += "  \"simulatedAt\": \"" + simEndTime + "\",\n";
 
    // پارامترهای تستر
    jsonContent += "  \"parameters\": {\n";
@@ -353,6 +357,10 @@ void ExportTesterRunSummary()
    jsonContent += "    \"InpTrailToTP1\": " + (InpTrailToTP1 ? "true" : "false") + ",\n";
    jsonContent += "    \"InpTrailToTP2\": " + (InpTrailToTP2 ? "true" : "false") + ",\n";
    jsonContent += "    \"InpMaxEntryDeviationPips\": " + DoubleToString(InpMaxEntryDeviationPips, 1) + ",\n";
+   jsonContent += "    \"InpUseTF7\": " + (InpUseTF7 ? "true" : "false") + ",\n";
+   jsonContent += "    \"InpUseTF6\": " + (InpUseTF6 ? "true" : "false") + ",\n";
+   jsonContent += "    \"InpUseTF5\": " + (InpUseTF5 ? "true" : "false") + ",\n";
+   jsonContent += "    \"InpEnableKingsM1\": " + (InpEnableKingsM1 ? "true" : "false") + ",\n";
    jsonContent += "    \"InpLot_TP1\": " + DoubleToString(InpLot_TP1, 2) + ",\n";
    jsonContent += "    \"InpLot_TP2\": " + DoubleToString(InpLot_TP2, 2) + ",\n";
    jsonContent += "    \"InpLot_TP3\": " + DoubleToString(InpLot_TP3, 2) + ",\n";
