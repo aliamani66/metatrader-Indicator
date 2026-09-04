@@ -158,6 +158,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: pGolden ? ('$' + pGolden.min_pot.toFixed(2) + '+') : '$0.00 (بدون محدودیت)',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pGolden ? formatHours(pGolden.hours, pGolden.hours_name) : '۲۴ ساعته (00 تا 23)',
+            hours: (pGolden && pGolden.hours) ? pGolden.hours : new Array(24).fill(true),
             disabledKings: pGolden ? formatDisabledKings(pGolden.kings) : 'بدون مسدودی',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
@@ -173,6 +174,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: pChamp ? ('$' + pChamp.min_pot.toFixed(2) + '+') : '$2.00+',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pChamp ? formatHours(pChamp.hours, pChamp.hours_name) : 'حذف شب (۰۴ الی ۲۲)',
+            hours: (pChamp && pChamp.hours) ? pChamp.hours : Array.from({length:24}, (_, i) => (i >= 4 && i < 22)),
             disabledKings: pChamp ? formatDisabledKings(pChamp.kings) : 'OInner-BE (M1), RS-BE (M1)',
             beBuffer: '0.0 pips',
             maxDev: '2.0 pips',
@@ -188,6 +190,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: pDay ? ('$' + pDay.min_pot.toFixed(2) + '+') : '$1.50+',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pDay ? formatHours(pDay.hours, pDay.hours_name) : 'سشن لندن و نیویورک (۰۷ الی ۲۰)',
+            hours: (pDay && pDay.hours) ? pDay.hours : Array.from({length:24}, (_, i) => (i >= 7 && i <= 20)),
             disabledKings: pDay ? formatDisabledKings(pDay.kings) : 'بدون مسدودی',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
@@ -203,6 +206,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: pShield ? ('$' + pShield.min_pot.toFixed(2) + '+') : '$1.00+',
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pShield ? formatHours(pShield.hours, pShield.hours_name) : '۲۴ ساعته (وقفه بعد ۲ استاپ)',
+            hours: (pShield && pShield.hours) ? pShield.hours : new Array(24).fill(true),
             disabledKings: pShield ? formatDisabledKings(pShield.kings) : 'حذف ۳ سلطان پرریسک',
             beBuffer: '0.0 pips',
             maxDev: '2.0 pips',
@@ -218,6 +222,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: '$0.00',
             tfM1: 'فعال (True) - تمام تایم‌ها',
             hoursDisplay: '۲۴ ساعته کامل',
+            hours: new Array(24).fill(true),
             disabledKings: 'بدون مسدودی',
             beBuffer: '1.0 pips',
             maxDev: '0.0 (نامحدود)',
@@ -237,6 +242,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: '$' + (ai.min_pot || 1.5).toFixed(2) + '+',
             tfM1: 'غیرفعال (False)',
             hoursDisplay: ai.hours_name || 'ساعات بهینه کشف‌شده',
+            hours: ai.hours || null,
             disabledKings: 'فیلتر هوشمند سلاطین',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
@@ -260,11 +266,27 @@ function getAvailableTesterScenarios() {
             } else if (Array.isArray(cp.hours)) {
                 hArr = new Array(24).fill(false);
                 cp.hours.forEach(h => { let n = parseInt(h); if (!isNaN(n) && n >= 0 && n < 24) hArr[n] = true; });
+            } else if (typeof cp.hours_str === 'string' && cp.hours_str.trim()) {
+                hArr = new Array(24).fill(false);
+                cp.hours_str.split(/[,;\s]+/).forEach(h => { let n = parseInt(h); if (!isNaN(n) && n >= 0 && n < 24) hArr[n] = true; });
+            } else if (typeof cp.hours === 'string' && cp.hours.trim()) {
+                hArr = new Array(24).fill(false);
+                cp.hours.split(/[,;\s]+/).forEach(h => { let n = parseInt(h); if (!isNaN(n) && n >= 0 && n < 24) hArr[n] = true; });
+            } else if (hDisp) {
+                let rm = hDisp.match(/(\d{1,2}):?00?\s*(?:الی|-|تا)\s*(\d{1,2}):?00?/);
+                if (rm) {
+                    hArr = new Array(24).fill(false);
+                    let s = parseInt(rm[1]), e = parseInt(rm[2]);
+                    for (let i = s; i <= e; i++) hArr[i] = true;
+                }
             }
 
+            let rawTitle = cp.title || cp.name || ('سفارشی ' + (idx + 1));
             list.push({
                 id: 'custom_' + (cp.id || idx),
-                name: '⭐ سناریوی شخصی: ' + (cp.title || cp.name || ('سفارشی ' + (idx + 1))),
+                title: rawTitle,
+                rawTitle: rawTitle,
+                name: '⭐ سناریوی شخصی: ' + rawTitle,
                 badge: 'دست‌ساز کاربر',
                 minPot: potVal,
                 minPotDisplay: '$' + potVal.toFixed(2),
@@ -290,11 +312,43 @@ function resolveActiveScenario(scenarioKey, report) {
     let scenarios = getAvailableTesterScenarios();
     if (!scenarioKey || scenarioKey === 'auto') {
         let p = (report && report.parameters) || {};
-        let scName = (p.InpScenarioName || '').toLowerCase();
+        let scName = (p.InpScenarioName || '').trim().toLowerCase();
+        let cleanScName = scName.replace(/[^a-zA-Z0-9_\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
+        
+        // 1. Direct search against all available scenarios (standard + custom)
+        if (cleanScName && cleanScName !== 'default') {
+            for (let s of scenarios) {
+                if (s.id === 'auto') continue;
+                let sTitle = ((s.title || s.rawTitle || s.name || '')).replace(/⭐\s*سناریوی شخصی:\s*/g, '').toLowerCase();
+                let cleanSTitle = sTitle.replace(/[^a-zA-Z0-9_\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
+                
+                if (cleanSTitle && (cleanSTitle === cleanScName || cleanSTitle.includes(cleanScName) || cleanScName.includes(cleanSTitle))) {
+                    return s;
+                }
+                if (s.id && cleanScName.includes(s.id.toLowerCase())) {
+                    return s;
+                }
+            }
+
+            // 2. Token overlap fallback
+            let scTokens = cleanScName.split(/\s+/).filter(w => w.length >= 2);
+            for (let s of scenarios) {
+                if (s.id === 'auto') continue;
+                let sTitle = ((s.title || s.rawTitle || s.name || '')).toLowerCase();
+                let sTokens = sTitle.replace(/[^a-zA-Z0-9_\s\-]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
+                let matched = scTokens.filter(t => sTokens.includes(t));
+                if (matched.length >= 2 || (scTokens.length === 1 && matched.length === 1)) {
+                    return s;
+                }
+            }
+        }
+
         let hours = (p.InpAllowedTradingHours || '');
         let pot = Number(p.InpMinTradePotential || 0);
 
         if (scName.includes('champion') || scName.includes('diamond') || pot >= 2.0) {
+            let customChamp = scenarios.find(s => s.id.startsWith('custom_') && (s.name.toLowerCase().includes('champion') || (s.title && s.title.toLowerCase().includes('champion'))));
+            if (customChamp) return customChamp;
             return scenarios.find(s => s.id === 'champion') || scenarios[1];
         }
         if (scName.includes('day') || scName.includes('london') || (hours.includes('08') && hours.includes('14'))) {
@@ -588,6 +642,69 @@ function renderTesterKPIs(report, scenarioKey) {
     }
 }
 
+function extractHourSet(val, fallbackDisplay) {
+    let set = new Set();
+    if (!val && !fallbackDisplay) return set;
+    
+    if (Array.isArray(val) && val.length === 24 && typeof val[0] === 'boolean') {
+        val.forEach((active, h) => { if (active) set.add(h); });
+        return set;
+    }
+    
+    if (Array.isArray(val)) {
+        val.forEach(h => {
+            let n = parseInt(h);
+            if (!isNaN(n) && n >= 0 && n < 24) set.add(n);
+        });
+        if (set.size > 0) return set;
+    }
+    
+    if (typeof val === 'string' && val.trim()) {
+        let str = val.trim();
+        if (str.toLowerCase() === 'all' || str.includes('۲۴ ساعته') || str.includes('24h') || str.includes('24 ساعته')) {
+            for (let i = 0; i < 24; i++) set.add(i);
+            return set;
+        }
+        let parts = str.split(/[,;\s]+/).map(x => parseInt(x)).filter(n => !isNaN(n) && n >= 0 && n < 24);
+        if (parts.length > 0) {
+            parts.forEach(n => set.add(n));
+            return set;
+        }
+        let rm = str.match(/(\d{1,2}):?00?\s*(?:الی|-|تا)\s*(\d{1,2}):?00?/);
+        if (rm) {
+            let s = parseInt(rm[1]), e = parseInt(rm[2]);
+            if (s <= e) {
+                for (let i = s; i <= e; i++) set.add(i);
+            } else {
+                for (let i = s; i < 24; i++) set.add(i);
+                for (let i = 0; i <= e; i++) set.add(i);
+            }
+            return set;
+        }
+    }
+    
+    if (typeof fallbackDisplay === 'string' && fallbackDisplay.trim()) {
+        let fstr = fallbackDisplay.trim();
+        if (fstr.includes('۲۴ ساعته') || fstr.includes('24h')) {
+            for (let i = 0; i < 24; i++) set.add(i);
+            return set;
+        }
+        let rm = fstr.match(/(\d{1,2}):?00?\s*(?:الی|-|تا)\s*(\d{1,2}):?00?/);
+        if (rm) {
+            let s = parseInt(rm[1]), e = parseInt(rm[2]);
+            if (s <= e) {
+                for (let i = s; i <= e; i++) set.add(i);
+            } else {
+                for (let i = s; i < 24; i++) set.add(i);
+                for (let i = 0; i <= e; i++) set.add(i);
+            }
+            return set;
+        }
+    }
+    
+    return set;
+}
+
 function renderParameterDriftTable(report, scenarioKey) {
     let tbody = document.getElementById('tcParamDriftBody');
     if (!tbody) return;
@@ -606,48 +723,68 @@ function renderParameterDriftTable(report, scenarioKey) {
     let potDiff = Math.abs(actPot - scenario.minPot);
     let potStatus = potDiff <= 0.5 ? 'match' : (actPot < scenario.minPot ? 'severe' : 'warn');
 
-    // 1. Evaluate Hours Status & Impact
+    // 1. Evaluate Scenario Name Status & Impact
+    let actScName = (p.InpScenarioName || '').trim();
+    let actScNameClean = actScName.toLowerCase().replace(/[^a-zA-Z0-9_\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
+    let expScName = (scenario.title || scenario.rawTitle || scenario.name || '').replace(/⭐\s*سناریوی شخصی:\s*/g, '').trim();
+    let expScNameClean = expScName.toLowerCase().replace(/[^a-zA-Z0-9_\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    let nameMatched = false;
+    if (actScNameClean && expScNameClean) {
+        if (actScNameClean === expScNameClean || actScNameClean.includes(expScNameClean) || expScNameClean.includes(actScNameClean)) {
+            nameMatched = true;
+        } else {
+            let actTokens = actScNameClean.split(/\s+/).filter(w => w.length >= 2);
+            let expTokens = expScNameClean.split(/\s+/).filter(w => w.length >= 2);
+            let commonTokens = actTokens.filter(t => expTokens.includes(t));
+            if (commonTokens.length >= 2 || (actTokens.length === 1 && commonTokens.length === 1)) {
+                nameMatched = true;
+            }
+        }
+    }
+    if (!nameMatched && actScName) {
+        if (scenario.id && actScName.toLowerCase().includes(scenario.id.toLowerCase())) nameMatched = true;
+        if (scenario.id.startsWith('custom_') && (actScName.includes('سفارشی') || actScName.toLowerCase().includes('custom') || actScName.toLowerCase().includes('ai'))) nameMatched = true;
+    }
+
+    // 2. Evaluate Hours Status & Impact
     let actHours = (p.InpAllowedTradingHours || '').trim();
-    let isAct24H = !actHours || actHours.length === 0 || actHours.toLowerCase() === 'all';
-    let isExp24H = !scenario.hours || scenario.hoursDisplay.includes('۲۴ ساعته') || (Array.isArray(scenario.hours) && scenario.hours.filter(Boolean).length === 24);
+    let actHoursSet = extractHourSet(actHours);
+    if (!actHours || actHours.length === 0 || actHours.toLowerCase() === 'all') {
+        for (let i = 0; i < 24; i++) actHoursSet.add(i);
+    }
+
+    let expHoursSet = extractHourSet(scenario.hours, scenario.hoursDisplay);
+    if (expHoursSet.size === 0 && (!scenario.hoursDisplay || scenario.hoursDisplay.includes('۲۴ ساعته'))) {
+        for (let i = 0; i < 24; i++) expHoursSet.add(i);
+    }
 
     let hoursStatus = 'warn';
     let hoursImpact = '';
-    if (isAct24H && isExp24H) {
+    if (actHoursSet.size === 24 && expHoursSet.size === 24) {
         hoursStatus = 'match';
         hoursImpact = 'معاملات ۲۴ ساعته کامل طبق برنامه سناریو اعمال شده است.';
-    } else if (!isAct24H && !isExp24H) {
-        let actHoursList = actHours.split(/[,;\s]+/).map(h => parseInt(h)).filter(n => !isNaN(n));
-        let actHoursSet = new Set(actHoursList);
-        let expHoursMatchCount = 0;
-        let totalExpHours = 0;
-        if (Array.isArray(scenario.hours)) {
-            scenario.hours.forEach((v, idx) => {
-                if (v) {
-                    totalExpHours++;
-                    if (actHoursSet.has(idx)) expHoursMatchCount++;
-                }
-            });
-        }
-        if (totalExpHours > 0 && expHoursMatchCount === totalExpHours && actHoursList.length === totalExpHours) {
+    } else {
+        let commonHours = [...actHoursSet].filter(h => expHoursSet.has(h));
+        if (actHoursSet.size === expHoursSet.size && commonHours.length === expHoursSet.size) {
             hoursStatus = 'match';
-            hoursImpact = 'ساعات مجاز معاملاتی در تستر متاتریدر ۵ کاملاً منطبق بر این سناریو است.';
-        } else if (expHoursMatchCount > 0) {
+            hoursImpact = 'ساعات مجاز معاملاتی در تستر متاتریدر ۵ کاملاً منطبق بر این سناریو است (' + actHoursSet.size + ' ساعت فعال).';
+        } else if (commonHours.length === expHoursSet.size && actHoursSet.size > expHoursSet.size) {
             hoursStatus = 'warn';
-            hoursImpact = `تطابق جزئی در ساعات: ${expHoursMatchCount} از ${totalExpHours} ساعت سناریو در تستر فعال بوده است.`;
+            hoursImpact = `ساعات تستر همه ساعات سناریو را پوشش می‌دهد اما ${actHoursSet.size - expHoursSet.size} ساعت اضافه دارد.`;
+        } else if (commonHours.length > 0) {
+            hoursStatus = 'warn';
+            hoursImpact = `تطابق جزئی در ساعات: ${commonHours.length} از ${expHoursSet.size} ساعت سناریو در تستر فعال بوده است.`;
+        } else if (actHoursSet.size === 24 && expHoursSet.size < 24) {
+            hoursStatus = 'severe';
+            hoursImpact = 'در متاتریدر ۵ تستر به صورت ۲۴ ساعته اجرا شده، در حالی که این سناریو نیازمند فیلتر ساعات غیرفعال است.';
         } else {
             hoursStatus = 'severe';
             hoursImpact = 'ساعات معاملاتی ست‌شده در تستر با ساعات این سناریو مغایرت دارد.';
         }
-    } else if (isAct24H && !isExp24H) {
-        hoursStatus = 'severe';
-        hoursImpact = 'در متاتریدر ۵ تستر به صورت ۲۴ ساعته اجرا شده، در حالی که این سناریو نیازمند فیلتر ساعات غیرفعال است.';
-    } else {
-        hoursStatus = 'warn';
-        hoursImpact = 'در تستر ساعت محدود شده اما سناریو ۲۴ ساعته است.';
     }
 
-    // 2. Evaluate Disabled Kings Status & Impact
+    // 3. Evaluate Disabled Kings Status & Impact
     let actDis = (p.InpDisabledKingsList || '').trim();
     let isActNoDis = !actDis || actDis.toLowerCase() === 'none' || actDis.length <= 3;
     let isExpNoDis = !scenario.disabledKings || scenario.disabledKings.includes('بدون مسدودی');
@@ -680,9 +817,9 @@ function renderParameterDriftTable(report, scenarioKey) {
             name: 'سناریوی معاملاتی (InpScenarioName)',
             actual: p.InpScenarioName || 'Default (تنظیمات پیش‌فرض)',
             expected: scenario.name,
-            status: (p.InpScenarioName && (p.InpScenarioName.toLowerCase().includes(scenario.id) || (scenario.id.startsWith('custom_') && p.InpScenarioName.includes('سفارشی')))) ? 'match' : ((!p.InpScenarioName || p.InpScenarioName.includes('Default')) ? 'severe' : 'warn'),
-            impact: (p.InpScenarioName && (p.InpScenarioName.toLowerCase().includes(scenario.id) || (scenario.id.startsWith('custom_') && p.InpScenarioName.includes('سفارشی'))))
-                ? 'نام سناریو در متاتریدر ۵ با این تنظیمات مطابقت دارد.'
+            status: nameMatched ? 'match' : ((!p.InpScenarioName || p.InpScenarioName.includes('Default')) ? 'severe' : 'warn'),
+            impact: nameMatched
+                ? 'نام سناریو در متاتریدر ۵ («' + (p.InpScenarioName || '') + '») کاملاً منطبق بر این سناریو است.'
                 : 'در تستر MT5 مقدار «' + (p.InpScenarioName || 'Default') + '» تنظیم شده بود.'
         },
         {
@@ -1009,8 +1146,9 @@ function drawTesterCompareChart(report, scenarioKey) {
                 }
                 if (isAllowed) {
                     let h = tEntryTime.length >= 13 ? parseInt(tEntryTime.substring(11, 13)) : 0;
-                    if (Array.isArray(scenario.hours) && scenario.hours.length === 24) {
-                        if (!scenario.hours[h]) {
+                    let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
+                    if (scHours.size > 0 && scHours.size < 24) {
+                        if (!scHours.has(h)) {
                             isAllowed = false;
                             filterReason = 'ساعت غیرمجاز (ساعت ' + (h < 10 ? '0' + h : h) + ':00)';
                         }
