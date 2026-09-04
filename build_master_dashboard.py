@@ -5032,95 +5032,117 @@ def build_dashboard(custom_csv=None):
         }}
 
         function applySmartPreset(idx) {{
-            let p = smartPresets.find(x => x.idx === idx);
-            if (!p) return;
+            try {{
+                let p = (smartPresets || []).find(x => x.idx == idx);
+                if (!p && smartPresets && smartPresets.length > 0) {{
+                    p = smartPresets[0];
+                }}
+                if (!p) {{
+                    alert('سناریوی انتخابی یافت نشد!');
+                    return;
+                }}
 
-            // 1. Set mode to kings
-            simState.mode = 'kings';
-            let btnK = document.getElementById('btnEqKings');
-            let btnA = document.getElementById('btnEqAll');
-            if (btnK) btnK.classList.add('active');
-            if (btnA) btnA.classList.remove('active');
+                // 1. Set mode to kings
+                simState.mode = 'kings';
+                let btnK = document.getElementById('btnEqKings');
+                let btnA = document.getElementById('btnEqAll');
+                if (btnK) btnK.classList.add('active');
+                if (btnA) btnA.classList.remove('active');
 
-            // 2. Set min profit
-            simState.minProfit = (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0.0;
-            let slider = document.getElementById('simProfitSlider');
-            if (slider) slider.value = simState.minProfit;
-            let sliderVal = document.getElementById('simProfitSliderVal');
-            if (sliderVal) sliderVal.textContent = '$' + simState.minProfit.toFixed(2);
-            let pBadge = document.getElementById('simProfitBadge');
-            if (pBadge) {{
-                pBadge.textContent = (simState.minProfit === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + simState.minProfit.toFixed(2);
-                pBadge.style.background = (simState.minProfit === 0) ? '#064e3b' : '#0369a1';
+                // 2. Set min profit
+                simState.minProfit = (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0.0;
+                let slider = document.getElementById('simProfitSlider');
+                if (slider) slider.value = simState.minProfit;
+                let sliderVal = document.getElementById('simProfitSliderVal');
+                if (sliderVal) sliderVal.textContent = '$' + simState.minProfit.toFixed(2);
+                let pBadge = document.getElementById('simProfitBadge');
+                if (pBadge) {{
+                    pBadge.textContent = (simState.minProfit === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + simState.minProfit.toFixed(2);
+                    pBadge.style.background = (simState.minProfit === 0) ? '#064e3b' : '#0369a1';
+                }}
+                document.querySelectorAll('.profit-preset-btn').forEach(b => {{
+                    b.classList.remove('active');
+                    if (parseFloat(b.dataset.val) === simState.minProfit) b.classList.add('active');
+                }});
+
+                // 3. Set allowed hours
+                if (Array.isArray(p.hours) && p.hours.length === 24) {{
+                    simState.allowedHours = [...p.hours];
+                }} else {{
+                    simState.allowedHours = new Array(24).fill(true);
+                }}
+                document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
+                let hName = p.hours_name || 'all';
+                if (hName === 'all') {{
+                    let b = document.getElementById('btnHAll');
+                    if (b) b.classList.add('active');
+                }} else if (hName === 'no_night') {{
+                    let b = document.getElementById('btnHNoNight');
+                    if (b) b.classList.add('active');
+                }} else if (hName === 'lon_ny') {{
+                    let b = document.getElementById('btnHLonNy');
+                    if (b) b.classList.add('active');
+                }}
+
+                // 4. Set enabled kings
+                if (Array.isArray(p.kings) && p.kings.length > 0) {{
+                    simState.enabledKings = new Set(p.kings);
+                }} else if (p.sl_mode === 'top3_cnt') {{
+                    let sortedBySl = [...(kingsSimList || [])].sort((a, b) => (b.sl_usd || b.sl_cnt || 0) - (a.sl_usd || a.sl_cnt || 0));
+                    let bad = new Set(sortedBySl.slice(0, 3).map(k => k.kk));
+                    simState.enabledKings = new Set((kingsSimList || []).filter(k => !bad.has(k.kk)).map(k => k.kk));
+                }} else {{
+                    simState.enabledKings = new Set((kingsSimList || []).map(k => k.kk));
+                }}
+
+                // 4B. Consecutive Loss Circuit Breaker from Preset
+                if (p.consec_trig !== undefined) {{
+                    simState.consecLossTrigger = p.consec_trig;
+                    simState.consecLossSkipCount = p.consec_sk || 1;
+                    simState.consecLossSkipDay = !!p.consec_day;
+                    if (typeof syncConsecButtonsUI === 'function') syncConsecButtonsUI();
+                }} else {{
+                    simState.consecLossTrigger = 0;
+                    simState.consecLossSkipCount = 1;
+                    simState.consecLossSkipDay = false;
+                    if (typeof syncConsecButtonsUI === 'function') syncConsecButtonsUI();
+                }}
+
+                // 5. Update UI components
+                if (typeof renderSimKingsGrid === 'function') renderSimKingsGrid();
+                if (typeof renderSimHoursBar === 'function') renderSimHoursBar();
+
+                // 6. Highlight active preset row
+                clearPresetActiveState();
+                let activeRow = document.getElementById('presetRow' + idx);
+                if (activeRow) {{
+                    activeRow.style.outline = '2px solid #38bdf8';
+                    activeRow.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.4)';
+                }}
+                let activeBtn = document.getElementById('btnApplyPreset' + idx);
+                if (activeBtn) {{
+                    activeBtn.innerHTML = '✅ سناریوی فعال';
+                    activeBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+                    activeBtn.style.borderColor = '#34d399';
+                }}
+
+                // 7. Run equity simulation
+                if (typeof runEquitySimulation === 'function') runEquitySimulation();
+
+                // 8. Smoothly scroll up to the equity chart
+                let eqCanvas = document.getElementById('equityCanvas') || document.getElementById('equityChartSection');
+                if (eqCanvas && typeof eqCanvas.scrollIntoView === 'function') {{
+                    eqCanvas.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                }}
+
+                // 9. Display prominent toast notification
+                if (typeof showSaveNotification === 'function') {{
+                    showSaveNotification('⚡ سناریوی «' + (p.title || '') + '» با موفقیت روی نمودار اعمال و شبیه‌سازی شد!');
+                }}
+            }} catch(err) {{
+                console.error('Error in applySmartPreset:', err);
+                if (typeof alert === 'function') alert('خطا در اعمال سناریو: ' + err.message);
             }}
-            document.querySelectorAll('.profit-preset-btn').forEach(b => {{
-                b.classList.remove('active');
-                if (parseFloat(b.dataset.val) === simState.minProfit) b.classList.add('active');
-            }});
-
-            // 3. Set allowed hours
-            if (Array.isArray(p.hours) && p.hours.length === 24) {{
-                simState.allowedHours = [...p.hours];
-            }} else {{
-                simState.allowedHours = new Array(24).fill(true);
-            }}
-            document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
-            let hName = p.hours_name || 'all';
-            if (hName === 'all') {{
-                let b = document.getElementById('btnHAll');
-                if (b) b.classList.add('active');
-            }} else if (hName === 'no_night') {{
-                let b = document.getElementById('btnHNoNight');
-                if (b) b.classList.add('active');
-            }} else if (hName === 'lon_ny') {{
-                let b = document.getElementById('btnHLonNy');
-                if (b) b.classList.add('active');
-            }}
-
-            // 4. Set enabled kings
-            if (Array.isArray(p.kings) && p.kings.length > 0) {{
-                simState.enabledKings = new Set(p.kings);
-            }} else if (p.sl_mode === 'top3_cnt') {{
-                let sortedBySl = [...kingsSimList].sort((a, b) => (b.sl_usd || b.sl_cnt || 0) - (a.sl_usd || a.sl_cnt || 0));
-                let bad = new Set(sortedBySl.slice(0, 3).map(k => k.kk));
-                simState.enabledKings = new Set(kingsSimList.filter(k => !bad.has(k.kk)).map(k => k.kk));
-            }} else {{
-                simState.enabledKings = new Set(kingsSimList.map(k => k.kk));
-            }}
-
-            // 4B. Consecutive Loss Circuit Breaker from Preset
-            if (p.consec_trig !== undefined) {{
-                simState.consecLossTrigger = p.consec_trig;
-                simState.consecLossSkipCount = p.consec_sk || 1;
-                simState.consecLossSkipDay = !!p.consec_day;
-                syncConsecButtonsUI();
-            }} else {{
-                simState.consecLossTrigger = 0;
-                simState.consecLossSkipCount = 1;
-                simState.consecLossSkipDay = false;
-                syncConsecButtonsUI();
-            }}
-
-            // 5. Update UI components
-            renderSimKingsGrid();
-            renderSimHoursBar();
-
-            // 6. Highlight active preset row
-            clearPresetActiveState();
-            let activeRow = document.getElementById('presetRow' + idx);
-            if (activeRow) {{
-                activeRow.style.outline = '2px solid #38bdf8';
-                activeRow.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.4)';
-            }}
-            let activeBtn = document.getElementById('btnApplyPreset' + idx);
-            if (activeBtn) {{
-                activeBtn.innerHTML = '✅ سناریوی فعال';
-                activeBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
-                activeBtn.style.borderColor = '#34d399';
-            }}
-
-            // 7. Run equity simulation
-            runEquitySimulation();
         }}
 
 
@@ -5227,125 +5249,164 @@ def build_dashboard(custom_csv=None):
         }}
 
         function exportPresetToMT5(idx) {{
-            let p = smartPresets.find(x => x.idx === idx);
-            if (!p) return;
-
-            let allowedHours = [];
-            if (p.hours) {{
-                for (let h = 0; h < 24; h++) {{
-                    if (p.hours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+            try {{
+                let p = (smartPresets || []).find(x => x.idx == idx);
+                if (!p && smartPresets && smartPresets.length > 0) {{
+                    p = smartPresets[0];
                 }}
-            }}
-            let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
-
-            let disabledKings = [];
-            let enabledSet = new Set(p.kings || []);
-            for (let k of kingsSimList) {{
-                if (!enabledSet.has(k.kk)) {{
-                    disabledKings.push(k.kk);
+                if (!p) {{
+                    if (typeof alert === 'function') alert('سناریو برای خروجی متاتریدر یافت نشد!');
+                    return;
                 }}
+
+                let allowedHours = [];
+                if (p.hours) {{
+                    for (let h = 0; h < 24; h++) {{
+                        if (p.hours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+                    }}
+                }}
+                let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+                let disabledKings = [];
+                let enabledSet = new Set(p.kings || []);
+                for (let k of (kingsSimList || [])) {{
+                    if (k && k.kk && !enabledSet.has(k.kk)) {{
+                        disabledKings.push(k.kk);
+                    }}
+                }}
+                let disabledStr = disabledKings.join(', ');
+
+                let actionInt = p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1);
+                if (!p.consec_trig || p.consec_trig <= 0) actionInt = 0;
+
+                let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
+                let config = {{
+                    title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\\s\\-\\u0600-\\u06FF]/gi, '').trim(),
+                    min_pot: (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0,
+                    hours_str: hoursStr,
+                    consec_trig: p.consec_trig || 0,
+                    consec_action: actionInt,
+                    disabled_kings_str: disabledStr,
+                    cnt: p.cnt || p.count || '-',
+                    wr: p.wr || 0,
+                    pf: p.pf || 0,
+                    avg: p.avg || 0,
+                    net: p.net || 0,
+                    kings_count: (p.kings ? p.kings.length : (kingsSimList ? kingsSimList.length : 0)),
+                    symbol: sym
+                }};
+
+                openMT5ExportModal(config);
+            }} catch(err) {{
+                console.error('Error in exportPresetToMT5:', err);
+                if (typeof alert === 'function') alert('خطا در خروجی متاتریدر: ' + err.message);
             }}
-            let disabledStr = disabledKings.join(', ');
-
-            let actionInt = p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1);
-            if (!p.consec_trig || p.consec_trig <= 0) actionInt = 0;
-
-            let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
-            let config = {{
-                title: p.title.replace(/[^a-zA-Z0-9_\\s\\-\\u0600-\\u06FF]/gi, '').trim(),
-                min_pot: p.min_pot || 0,
-                hours_str: hoursStr,
-                consec_trig: p.consec_trig || 0,
-                consec_action: actionInt,
-                disabled_kings_str: disabledStr,
-                cnt: p.cnt,
-                wr: p.wr,
-                pf: p.pf,
-                avg: p.avg,
-                net: p.net,
-                kings_count: (p.kings ? p.kings.length : kingsSimList.length),
-                symbol: sym
-            }};
-
-            openMT5ExportModal(config);
         }}
 
         function exportCurrentStateToMT5() {{
-            let allowedHours = [];
-            for (let h = 0; h < 24; h++) {{
-                if (simState.allowedHours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
-            }}
-            let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
-
-            let disabledKings = [];
-            for (let k of kingsSimList) {{
-                if (!simState.enabledKings.has(k.kk)) {{
-                    disabledKings.push(k.kk);
+            try {{
+                let allowedHours = [];
+                for (let h = 0; h < 24; h++) {{
+                    if (simState.allowedHours && simState.allowedHours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
                 }}
+                let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+                let disabledKings = [];
+                for (let k of (kingsSimList || [])) {{
+                    if (k && k.kk && simState.enabledKings && !simState.enabledKings.has(k.kk)) {{
+                        disabledKings.push(k.kk);
+                    }}
+                }}
+                let disabledStr = disabledKings.join(', ');
+
+                let actionInt = simState.consecLossSkipDay ? 3 : (simState.consecLossSkipCount === 2 ? 2 : 1);
+                if (!simState.consecLossTrigger || simState.consecLossTrigger <= 0) actionInt = 0;
+
+                let elNet = document.getElementById('eqKpiNetVal');
+                let elWr = document.getElementById('eqKpiWR');
+                let elPf = document.getElementById('eqKpiPF');
+                let elCnt = document.getElementById('eqKpiCnt');
+                let elAvg = document.getElementById('eqKpiAvgTrade');
+
+                let wrVal = elWr ? parseFloat(elWr.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
+                let pfVal = elPf ? parseFloat(elPf.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
+                let avgVal = elAvg ? parseFloat(elAvg.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+                let kingsCount = simState.enabledKings ? simState.enabledKings.size : (kingsSimList ? kingsSimList.length : 0);
+                let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
+
+                let config = {{
+                    title: 'چیدمان فعال (' + sym + ')',
+                    min_pot: simState.minProfit || 0,
+                    hours_str: hoursStr,
+                    consec_trig: simState.consecLossTrigger || 0,
+                    consec_action: actionInt,
+                    disabled_kings_str: disabledStr,
+                    cnt: elCnt ? elCnt.textContent : '-',
+                    wr: wrVal,
+                    pf: pfVal,
+                    avg: avgVal,
+                    net: elNet ? elNet.textContent : '-',
+                    kings_count: kingsCount,
+                    symbol: sym
+                }};
+
+                openMT5ExportModal(config);
+            }} catch(err) {{
+                console.error('Error in exportCurrentStateToMT5:', err);
+                if (typeof alert === 'function') alert('خطا در خروجی تنظیمات فعال: ' + err.message);
             }}
-            let disabledStr = disabledKings.join(', ');
-
-            let actionInt = simState.consecLossSkipDay ? 3 : (simState.consecLossSkipCount === 2 ? 2 : 1);
-            if (!simState.consecLossTrigger || simState.consecLossTrigger <= 0) actionInt = 0;
-
-            let elNet = document.getElementById('eqKpiNetVal');
-            let elWr = document.getElementById('eqKpiWR');
-            let elPf = document.getElementById('eqKpiPF');
-            let elCnt = document.getElementById('eqKpiCnt');
-            let elAvg = document.getElementById('eqKpiAvgTrade');
-
-            let wrVal = elWr ? parseFloat(elWr.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
-            let pfVal = elPf ? parseFloat(elPf.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
-            let avgVal = elAvg ? parseFloat(elAvg.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
-            let kingsCount = simState.enabledKings ? simState.enabledKings.size : kingsSimList.length;
-            let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
-
-            let config = {{
-                title: 'چیدمان فعال (' + sym + ')',
-                min_pot: simState.minProfit || 0,
-                hours_str: hoursStr,
-                consec_trig: simState.consecLossTrigger || 0,
-                consec_action: actionInt,
-                disabled_kings_str: disabledStr,
-                cnt: elCnt ? elCnt.textContent : '-',
-                wr: wrVal,
-                pf: pfVal,
-                avg: avgVal,
-                net: elNet ? elNet.textContent : '-',
-                kings_count: kingsCount,
-                symbol: sym
-            }};
-
-            openMT5ExportModal(config);
         }}
 
         function openMT5ExportModal(cfg) {{
-            currentExportConfig = cfg;
-            let modal = document.getElementById('mt5ExportModal');
-            if (!modal) return;
+            try {{
+                currentExportConfig = cfg;
+                let modal = document.getElementById('mt5ExportModal');
+                if (!modal) {{
+                    console.error('mt5ExportModal not found!');
+                    if (typeof alert === 'function') alert('خطا: پنجره خروجی متاتریدر در صفحه پیدا نشد.');
+                    return;
+                }}
 
-            let filename = buildMT5SetFilename(cfg);
-            document.getElementById('mt5ModalTitle').textContent = cfg.title;
-            let fileBadge = document.getElementById('mt5ModalFilename');
-            if (fileBadge) fileBadge.textContent = filename;
+                // Display modal prominently
+                modal.style.display = 'flex';
+                modal.style.zIndex = '99999999';
 
-            document.getElementById('mt5ParamMinPot').textContent = '$' + cfg.min_pot.toFixed(2);
-            document.getElementById('mt5ParamHours').textContent = cfg.hours_str ? cfg.hours_str : '۲۴ ساعته (بدون محدودیت)';
-            document.getElementById('mt5ParamConsec').textContent = cfg.consec_trig > 0 ? (cfg.consec_trig + ' استاپ متوالی') : 'خاموش';
-            
-            let actName = 'بدون اقدام';
-            if (cfg.consec_action === 1) actName = 'رد کردن ۱ معامله بعدی';
-            else if (cfg.consec_action === 2) actName = 'رد کردن ۲ معامله بعدی';
-            else if (cfg.consec_action === 3) actName = 'توقف تا پایان روز جاری';
-            document.getElementById('mt5ParamConsecAct').textContent = actName;
+                let filename = buildMT5SetFilename(cfg);
+                let elTitle = document.getElementById('mt5ModalTitle');
+                if (elTitle) elTitle.textContent = cfg.title;
+                let fileBadge = document.getElementById('mt5ModalFilename');
+                if (fileBadge) fileBadge.textContent = filename;
 
-            document.getElementById('mt5ParamDisabled').textContent = cfg.disabled_kings_str ? cfg.disabled_kings_str : 'هیچ‌کدام (تمام سلاطین فعال)';
+                let elMinPot = document.getElementById('mt5ParamMinPot');
+                if (elMinPot) elMinPot.textContent = '$' + Number(cfg.min_pot || 0).toFixed(2);
+                
+                let elHours = document.getElementById('mt5ParamHours');
+                if (elHours) elHours.textContent = cfg.hours_str ? cfg.hours_str : '۲۴ ساعته (بدون محدودیت)';
 
-            let fullText = generateSetFileText(cfg);
-            let codeBox = document.getElementById('mt5ConfigCodeBox');
-            if (codeBox) codeBox.textContent = fullText;
+                let elConsec = document.getElementById('mt5ParamConsec');
+                if (elConsec) elConsec.textContent = cfg.consec_trig > 0 ? (cfg.consec_trig + ' استاپ متوالی') : 'خاموش';
+                
+                let actName = 'بدون اقدام';
+                if (cfg.consec_action === 1) actName = 'رد کردن ۱ معامله بعدی';
+                else if (cfg.consec_action === 2) actName = 'رد کردن ۲ معامله بعدی';
+                else if (cfg.consec_action === 3) actName = 'توقف تا پایان روز جاری';
+                let elConsecAct = document.getElementById('mt5ParamConsecAct');
+                if (elConsecAct) elConsecAct.textContent = actName;
 
-            modal.style.display = 'flex';
+                let elDisabled = document.getElementById('mt5ParamDisabled');
+                if (elDisabled) elDisabled.textContent = cfg.disabled_kings_str ? cfg.disabled_kings_str : 'هیچ‌کدام (تمام سلاطین فعال)';
+
+                let fullText = generateSetFileText(cfg);
+                let codeBox = document.getElementById('mt5ConfigCodeBox');
+                if (codeBox) codeBox.textContent = fullText;
+
+                if (typeof showSaveNotification === 'function') {{
+                    showSaveNotification('🤖 پنجره خروجی متاتریدر ۵ برای «' + (cfg.title || 'سناریو') + '» باز شد.');
+                }}
+            }} catch(err) {{
+                console.error('Error in openMT5ExportModal:', err);
+                if (typeof alert === 'function') alert('خطا در باز کردن پنجره متاتریدر: ' + err.message);
+            }}
         }}
 
         function closeMT5ExportModal() {{
@@ -5716,7 +5777,19 @@ def build_dashboard(custom_csv=None):
                 row.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.4)';
             }}
 
+            // 6. Run equity simulation
             runEquitySimulation();
+
+            // 7. Auto-scroll up to equity chart
+            let eqCanvas = document.getElementById('equityCanvas') || document.getElementById('equityChartSection');
+            if (eqCanvas) {{
+                eqCanvas.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+            }}
+
+            // 8. Toast notification
+            if (typeof showSaveNotification === 'function') {{
+                showSaveNotification('⚡ سناریوی شخصی «' + (p.title || '') + '» روی چارت اکوئیتی اعمال شد!');
+            }}
         }}
 
         function updateCustomPresetWithCurrent(id) {{

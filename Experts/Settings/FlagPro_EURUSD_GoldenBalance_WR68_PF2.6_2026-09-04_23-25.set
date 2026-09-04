@@ -1,0 +1,32 @@
+;+------------------------------------------------------------------+
+;| FlagPro_Trader EA Settings File (.set)                           |
+;| File: FlagPro_EURUSD_GoldenBalance_WR68_PF2.6_2026-09-04_23-25.set |
+;| Auto-generated from FlagPro Master Strategy Dashboard            |
+;| Date: 2026.09.04 23:25:33 |
+;| Symbol: EURUSD | Scenario: ۲. تعادل طلایی حجم و سود (Golden Balance ⚖️) |
+;| Win Rate: 68.0% | Profit Factor: 2.59 |
+;| Active Kings: 17 | Target Folder: Experts/تنظیمات    |
+;+------------------------------------------------------------------+
+InpScenarioName=۲. تعادل طلایی حجم و سود (Golden Balance ⚖️)
+InpMinTradePotential=0.00
+InpAllowedTradingHours=
+InpConsecLossTrigger=0
+InpConsecLossAction=0
+InpDisabledKingsList=S-RS|M1, OInner-BU > RS-BU|M1, OInner-BE > RS-BE|M5, S-RS|M5, RS-BE|M1, Flag-BU|M1, S-Flag|M15
+InpOnlyTradeKings=true
+InpEnableScaleOut=true
+InpLot_TP1=0.01
+InpLot_TP2=0.01
+InpLot_TP3=0.01
+InpLot_TP4=0.01
+InpMoveToBreakEven=true
+InpBEBufferPips=1.0
+InpTrailToTP1=true
+InpTrailToTP2=true
+InpMaxOpenGroups=5
+InpMagicNumber=777123
+InpHistoryMode=0
+InpHistoryStartDate=2025.01.01 00:00:00
+InpHistoryDays=365
+InpShowBoxes=false
+InpExportCSV=true
