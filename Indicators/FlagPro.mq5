@@ -295,19 +295,7 @@ int OnCalculate(const int rates_total,
    useArr[2] = false; // H4
    useArr[3] = false; // H1
 
-   for(int s = 0; s < 7; s++)
-   {
-      if(!useArr[s]) continue;
-      ProcessTF(tfArr[s], InpSwingBars, tfColorArr[s], time, high, low, rates_total, daysBackArr[s]);
-   }
-
-   // پردازش خطوط شکست RS و برچسب‌گذاری گره‌ها
-   ProcessRSLinesFromLSBoxes(time, high, low, rates_total);
-
-   // پردازش اولین گره بعد از پیووت مستقل به عنوان OInner
-   ProcessOInnerBoxes();
-
-   // بارگذاری عمیق تاریخچه یک‌ماهه جهت پوشش کامل تمام ۳۰ روز (حتی اگر کاربر در چارت اسکرول نکرده باشد)
+   // بارگذاری عمیق تاریخچه جهت پوشش کامل تمام کندل‌ها از ابتدای سال ۲۰۲۵ (حتی اگر در چارت اسکرول نشده باشد)
    datetime fullTime[];
    double   fullHigh[], fullLow[], fullClose[];
    ArraySetAsSeries(fullTime,  false);
@@ -322,19 +310,36 @@ int OnCalculate(const int rates_total,
       CopyHigh(_Symbol, _Period, 0, totalCopied, fullHigh);
       CopyLow(_Symbol, _Period, 0, totalCopied, fullLow);
       CopyClose(_Symbol, _Period, 0, totalCopied, fullClose);
-
-      ProcessUniversalSwapLines(fullTime, fullHigh, fullLow, totalCopied);
-      RenderAutoTradeSetups(fullTime, fullHigh, fullLow, fullClose, totalCopied);
-      RenderFinalBoxes(fullTime, totalCopied);
-      RenderFinalIndependentPivots(fullTime, fullHigh, fullLow, totalCopied);
    }
    else
    {
-      ProcessUniversalSwapLines(time, high, low, rates_total);
-      RenderAutoTradeSetups(time, high, low, close, rates_total);
-      RenderFinalBoxes(time, rates_total);
-      RenderFinalIndependentPivots(time, high, low, rates_total);
+      ArrayResize(fullTime, rates_total);
+      ArrayResize(fullHigh, rates_total);
+      ArrayResize(fullLow, rates_total);
+      ArrayResize(fullClose, rates_total);
+      ArrayCopy(fullTime, time);
+      ArrayCopy(fullHigh, high);
+      ArrayCopy(fullLow, low);
+      ArrayCopy(fullClose, close);
+      totalCopied = rates_total;
    }
+
+   for(int s = 0; s < 7; s++)
+   {
+      if(!useArr[s]) continue;
+      ProcessTF(tfArr[s], InpSwingBars, tfColorArr[s], fullTime, fullHigh, fullLow, totalCopied, daysBackArr[s]);
+   }
+
+   // پردازش خطوط شکست RS و برچسب‌گذاری گره‌ها
+   ProcessRSLinesFromLSBoxes(fullTime, fullHigh, fullLow, totalCopied);
+
+   // پردازش اولین گره بعد از پیووت مستقل به عنوان OInner
+   ProcessOInnerBoxes();
+
+   ProcessUniversalSwapLines(fullTime, fullHigh, fullLow, totalCopied);
+   RenderAutoTradeSetups(fullTime, fullHigh, fullLow, fullClose, totalCopied);
+   RenderFinalBoxes(fullTime, totalCopied);
+   RenderFinalIndependentPivots(fullTime, fullHigh, fullLow, totalCopied);
 
    // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
    if(g_selectedBoxName != "")
