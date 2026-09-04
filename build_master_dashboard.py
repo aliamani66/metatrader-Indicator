@@ -2718,7 +2718,7 @@ def build_dashboard():
                 let netCol = k.net >= 0 ? '#34d399' : '#f87171';
                 let netSign = k.net >= 0 ? '+' : '';
 
-                html += '<div onclick="toggleSimKing(\'' + k.kk + '\')" style="' + bg + ';' + border + 'padding:6px 10px;border-radius:6px;cursor:pointer;user-select:none;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center;">' +
+                html += '<div data-kk="' + k.kk + '" onclick="toggleSimKing(this.dataset.kk)" style="' + bg + ';' + border + 'padding:6px 10px;border-radius:6px;cursor:pointer;user-select:none;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center;">' +
                     '<div style="display:flex;align-items:center;gap:6px;overflow:hidden;">' +
                         '<span style="font-size:13px;">' + checkIcon + '</span>' +
                         '<span style="font-size:11px;">' + medal + '</span>' +
