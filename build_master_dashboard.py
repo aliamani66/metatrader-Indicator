@@ -2101,7 +2101,7 @@ def build_dashboard(custom_csv=None):
                 </div>
 
                 <!-- Canvas Box -->
-                <div style="position:relative;width:100%;height:425px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                <div style="position:relative;width:100%;height:450px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
                     <canvas id="equityCanvas" style="width:100%;height:100%;display:block;cursor:crosshair;"></canvas>
                     <div id="equityTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #38bdf8;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:210px;"></div>
                 </div>
@@ -2111,7 +2111,7 @@ def build_dashboard(custom_csv=None):
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#38bdf8;border-radius:2px;"></span> رشد بالانس</span>
                         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#facc15;border-radius:2px;border-top:1px dashed #facc15;"></span> سقف سرمایه (HWM)</span>
-                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:rgba(239,68,68,0.35);border:1px solid #ef4444;border-radius:2px;"></span> ناحیه افت (DD)</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:10px;background:#ef4444;border-radius:2px;"></span> میله‌های افت (Underwater DD)</span>
                         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#475569;border-radius:2px;"></span> تراز پایه ($100)</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
@@ -4751,10 +4751,10 @@ def build_dashboard(custom_csv=None):
             let h = rect.height;
             let padLeft = 30;
             let padRight = 75;
-            let padTop = 25;
-            let padBottom = 35;
+            let padTop = 20;
+            let padBottom = 28;
             let plotW = w - padLeft - padRight;
-            let plotH = h - padTop - padBottom;
+            let totalAvailableH = h - padTop - padBottom;
 
             let pts = currentSimPts;
             if (!pts || pts.length <= 1) {{
@@ -4771,7 +4771,9 @@ def build_dashboard(custom_csv=None):
 
             let minBal = Infinity;
             let maxBal = -Infinity;
-            for (let i = 0; i < pts.length; i++) {{
+            let totalPts = pts.length;
+
+            for (let i = 0; i < totalPts; i++) {{
                 if (pts[i].b < minBal) minBal = pts[i].b;
                 if (pts[i].b > maxBal) maxBal = pts[i].b;
                 if (pts[i].peak !== undefined && pts[i].peak > maxBal) maxBal = pts[i].peak;
@@ -4788,12 +4790,18 @@ def build_dashboard(custom_csv=None):
             ctx.fillStyle = '#0b0f19';
             ctx.fillRect(0, 0, w, h);
 
-            // Plot area
-            ctx.fillStyle = '#0f172a';
-            ctx.fillRect(padLeft, padTop, plotW, plotH);
+            // Determine Pane Dimensions
+            let showDD = simState.showDrawdown;
+            let curveH = showDD ? Math.floor(totalAvailableH * 0.68) : totalAvailableH;
+            let ddTop = showDD ? (padTop + curveH + 24) : 0;
+            let ddH = showDD ? (padTop + totalAvailableH - ddTop) : 0;
 
-            // Horizontal Grid & Price Labels
-            let gridSteps = 6;
+            // Plot area background for Curve
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(padLeft, padTop, plotW, curveH);
+
+            // Horizontal Grid & Price Labels for Curve
+            let gridSteps = 5;
             ctx.strokeStyle = '#1e293b';
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
@@ -4802,7 +4810,7 @@ def build_dashboard(custom_csv=None):
 
             for (let s = 0; s <= gridSteps; s++) {{
                 let val = minBal + (balRange / gridSteps) * s;
-                let y = padTop + plotH - ((val - minBal) / balRange) * plotH;
+                let y = padTop + curveH - ((val - minBal) / balRange) * curveH;
 
                 ctx.beginPath();
                 ctx.moveTo(padLeft, y);
@@ -4813,8 +4821,7 @@ def build_dashboard(custom_csv=None):
                 ctx.fillText('$' + val.toFixed(0), padLeft + plotW + 10, y + 4);
             }}
 
-            // Vertical Grid & Dates
-            let totalPts = pts.length;
+            // Vertical Grid & Dates spanning available height
             let dateSteps = 6;
             ctx.textAlign = 'center';
 
@@ -4824,20 +4831,20 @@ def build_dashboard(custom_csv=None):
 
                 ctx.beginPath();
                 ctx.moveTo(x, padTop);
-                ctx.lineTo(x, padTop + plotH);
+                ctx.lineTo(x, padTop + totalAvailableH);
                 ctx.stroke();
 
                 let dStr = pts[idx].t ? pts[idx].t.substring(5, 10) : '';
                 ctx.fillStyle = '#64748b';
-                ctx.fillText(dStr, x, padTop + plotH + 20);
+                ctx.fillText(dStr, x, padTop + totalAvailableH + 18);
             }}
 
             ctx.setLineDash([]);
 
-            // Baseline ($100)
+            // Baseline ($100) on Curve
             let baseVal = 100.0;
             if (baseVal >= minBal && baseVal <= maxBal) {{
-                let baseY = padTop + plotH - ((baseVal - minBal) / balRange) * plotH;
+                let baseY = padTop + curveH - ((baseVal - minBal) / balRange) * curveH;
                 ctx.strokeStyle = '#475569';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
@@ -4846,21 +4853,22 @@ def build_dashboard(custom_csv=None):
                 ctx.stroke();
             }}
 
-            // Curve & Drawdown points mapping
+            // Build Coordinates & Track Drawdowns
             let coords = [];
             let maxDDPt = null;
-            let maxDDVal = -1;
+            let maxDDVal = 0;
 
             for (let i = 0; i < totalPts; i++) {{
                 let pt = pts[i];
                 let x = padLeft + (i / (totalPts - 1)) * plotW;
-                let y = padTop + plotH - ((pt.b - minBal) / balRange) * plotH;
+                let y = padTop + curveH - ((pt.b - minBal) / balRange) * curveH;
                 let pVal = (pt.peak !== undefined) ? pt.peak : pt.b;
-                let peakY = padTop + plotH - ((pVal - minBal) / balRange) * plotH;
+                let peakY = padTop + curveH - ((pVal - minBal) / balRange) * curveH;
                 let ddVal = (pt.dd !== undefined) ? pt.dd : Math.max(0, pVal - pt.b);
                 let ddPctVal = (pt.ddPct !== undefined) ? pt.ddPct : (pVal > 0 ? (ddVal / pVal * 100) : 0);
 
                 let cObj = {{
+                    idx: i,
                     x: x,
                     y: y,
                     peakY: peakY,
@@ -4877,10 +4885,9 @@ def build_dashboard(custom_csv=None):
                 }}
             }}
 
-            // 🛡️ Drawdown Shaded Valleys & High-Water Mark (if enabled)
-            if (simState.showDrawdown && coords.length > 1) {{
+            // 🛡️ Drawdown Shaded Valleys on Upper Curve
+            if (showDD && coords.length > 1) {{
                 ctx.save();
-                // Drawdown Valley Fill (between peak ceiling and balance curve)
                 ctx.beginPath();
                 ctx.moveTo(coords[0].x, coords[0].y);
                 for (let i = 0; i < coords.length; i++) {{
@@ -4891,9 +4898,9 @@ def build_dashboard(custom_csv=None):
                 }}
                 ctx.closePath();
 
-                let ddGrad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-                ddGrad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
-                ddGrad.addColorStop(1, 'rgba(239, 68, 68, 0.10)');
+                let ddGrad = ctx.createLinearGradient(0, padTop, 0, padTop + curveH);
+                ddGrad.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+                ddGrad.addColorStop(1, 'rgba(239, 68, 68, 0.08)');
                 ctx.fillStyle = ddGrad;
                 ctx.fill();
 
@@ -4911,7 +4918,7 @@ def build_dashboard(custom_csv=None):
             }}
 
             // Gradient Fill below Equity Curve
-            let grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+            let grad = ctx.createLinearGradient(0, padTop, 0, padTop + curveH);
             if (simState.mode === 'kings') {{
                 grad.addColorStop(0, 'rgba(56, 189, 248, 0.30)');
                 grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
@@ -4922,11 +4929,11 @@ def build_dashboard(custom_csv=None):
 
             ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.moveTo(coords[0].x, padTop + plotH);
+            ctx.moveTo(coords[0].x, padTop + curveH);
             for (let i = 0; i < coords.length; i++) {{
                 ctx.lineTo(coords[i].x, coords[i].y);
             }}
-            ctx.lineTo(coords[coords.length - 1].x, padTop + plotH);
+            ctx.lineTo(coords[coords.length - 1].x, padTop + curveH);
             ctx.closePath();
             ctx.fill();
 
@@ -4940,10 +4947,9 @@ def build_dashboard(custom_csv=None):
             }}
             ctx.stroke();
 
-            // 🚨 Highlight Maximum Drawdown (Pinpoint & Callout Badge)
-            if (simState.showDrawdown && maxDDPt && maxDDVal > 0) {{
+            // 🚨 Highlight Maximum Drawdown on Curve
+            if (showDD && maxDDPt && maxDDVal > 0) {{
                 ctx.save();
-                // Vertical drop line from peak to trough
                 ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
                 ctx.lineWidth = 1.4;
                 ctx.setLineDash([2, 2]);
@@ -4952,13 +4958,11 @@ def build_dashboard(custom_csv=None):
                 ctx.lineTo(maxDDPt.x, maxDDPt.y);
                 ctx.stroke();
 
-                // Peak anchor point (amber)
                 ctx.fillStyle = '#facc15';
                 ctx.beginPath();
                 ctx.arc(maxDDPt.x, maxDDPt.peakY, 3, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Drawdown trough point (glowing red)
                 ctx.setLineDash([]);
                 ctx.fillStyle = '#ef4444';
                 ctx.strokeStyle = '#ffffff';
@@ -4968,7 +4972,6 @@ def build_dashboard(custom_csv=None):
                 ctx.fill();
                 ctx.stroke();
 
-                // Badge
                 let badgeTxt = '🚨 Max DD: -$' + Math.round(maxDDVal).toLocaleString('en-US') + ' (' + maxDDPt.ddPctVal.toFixed(1) + '%)';
                 ctx.font = 'bold 10px Segoe UI, Tahoma, sans-serif';
                 let txtW = ctx.measureText(badgeTxt).width;
@@ -4979,7 +4982,7 @@ def build_dashboard(custom_csv=None):
 
                 if (bX < padLeft + 4) bX = padLeft + 4;
                 if (bX + bW > padLeft + plotW - 4) bX = padLeft + plotW - bW - 4;
-                if (bY + bH > padTop + plotH - 4) bY = maxDDPt.y - bH - 10;
+                if (bY + bH > padTop + curveH - 4) bY = maxDDPt.y - bH - 10;
 
                 ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
                 ctx.strokeStyle = '#ef4444';
@@ -5000,16 +5003,151 @@ def build_dashboard(custom_csv=None):
                 ctx.restore();
             }}
 
-            // Border
+            // Border for Curve
             ctx.strokeStyle = '#334155';
             ctx.lineWidth = 1;
-            ctx.strokeRect(padLeft, padTop, plotW, plotH);
+            ctx.strokeRect(padLeft, padTop, plotW, curveH);
+
+            // =================================================================
+            // 📊 LOWER PANE: UNDERWATER DRAWDOWN BARS (میله‌های افت سرمایه)
+            // =================================================================
+            if (showDD && ddH > 25) {{
+                ctx.save();
+
+                // Separator Line & Label
+                let sepY = ddTop - 10;
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, sepY);
+                ctx.lineTo(padLeft + plotW, sepY);
+                ctx.stroke();
+
+                ctx.font = 'bold 10px Segoe UI, Tahoma, sans-serif';
+                ctx.fillStyle = '#fca5a5';
+                ctx.textAlign = 'left';
+                ctx.fillText('📊 عمق تمام افت‌های سرمایه (Underwater Drawdown Bars)', padLeft + 6, sepY - 2);
+
+                // Lower Pane Background
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+                ctx.fillRect(padLeft, ddTop, plotW, ddH);
+
+                // Y-Axis Scale for Drawdown Pane
+                let ddScale = Math.max(10, Math.ceil(maxDDVal / 10) * 10);
+
+                // Drawdown Grid Lines & Axis Labels
+                ctx.font = '10px Segoe UI, Tahoma, sans-serif';
+                ctx.textAlign = 'left';
+
+                // $0 baseline at ddTop
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, ddTop);
+                ctx.lineTo(padLeft + plotW, ddTop);
+                ctx.stroke();
+                ctx.fillStyle = '#34d399';
+                ctx.fillText('$0', padLeft + plotW + 10, ddTop + 3);
+
+                // Mid DD grid line
+                let midY = ddTop + ddH * 0.5;
+                ctx.strokeStyle = '#1e293b';
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(padLeft, midY);
+                ctx.lineTo(padLeft + plotW, midY);
+                ctx.stroke();
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('-$' + (ddScale / 2).toFixed(0), padLeft + plotW + 10, midY + 3);
+
+                // Max DD grid line
+                let bottomY = ddTop + ddH;
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(padLeft, bottomY);
+                ctx.lineTo(padLeft + plotW, bottomY);
+                ctx.stroke();
+                ctx.fillStyle = '#f87171';
+                ctx.fillText('-$' + ddScale.toFixed(0), padLeft + plotW + 10, bottomY + 3);
+                ctx.setLineDash([]);
+
+                // Draw Bars for EVERY point with drawdown
+                let barW = Math.max(1.5, (plotW / totalPts) * 0.95);
+
+                for (let i = 0; i < totalPts; i++) {{
+                    let c = coords[i];
+                    if (c.ddVal > 0) {{
+                        let bH = (c.ddVal / ddScale) * ddH;
+                        let bX = c.x - barW / 2;
+                        let intensity = Math.min(1.0, c.ddVal / (maxDDVal || 1));
+                        let alpha = 0.45 + intensity * 0.45;
+                        ctx.fillStyle = 'rgba(239, 68, 68, ' + alpha.toFixed(2) + ')';
+                        ctx.fillRect(bX, ddTop, barW, bH);
+                    }}
+                }}
+
+                // Find and Label Top Prominent Local Drawdown Troughs
+                let candidatePeaks = [];
+                for (let i = 1; i < totalPts - 1; i++) {{
+                    let dd = coords[i].ddVal;
+                    if (dd >= 5.0 && dd >= coords[i - 1].ddVal && dd >= coords[i + 1].ddVal) {{
+                        candidatePeaks.push(coords[i]);
+                    }}
+                }}
+                candidatePeaks.sort((a, b) => b.ddVal - a.ddVal);
+
+                let labeledPeaks = [];
+                for (let cp of candidatePeaks) {{
+                    let tooClose = false;
+                    for (let lp of labeledPeaks) {{
+                        if (Math.abs(cp.x - lp.x) < 38) {{
+                            tooClose = true;
+                            break;
+                        }}
+                    }}
+                    if (!tooClose) {{
+                        labeledPeaks.push(cp);
+                        if (labeledPeaks.length >= 7) break;
+                    }}
+                }}
+
+                // Draw numeric tags at the tip of each prominent drawdown bar
+                for (let lp of labeledPeaks) {{
+                    let bH = (lp.ddVal / ddScale) * ddH;
+                    let isMax = (lp === maxDDPt);
+                    let tagY = ddTop + bH + 11;
+                    if (tagY > ddTop + ddH + 2) tagY = ddTop + bH - 6;
+
+                    ctx.font = isMax ? 'bold 10px Segoe UI, Tahoma, sans-serif' : 'bold 9px Segoe UI, Tahoma, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = isMax ? '#ef4444' : '#fca5a5';
+                    ctx.fillText('-$' + Math.round(lp.ddVal), lp.x, tagY);
+
+                    // Small circle at tip
+                    ctx.fillStyle = isMax ? '#ef4444' : '#f87171';
+                    ctx.beginPath();
+                    ctx.arc(lp.x, ddTop + bH, isMax ? 3 : 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }}
+
+                // Border for Drawdown Pane
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(padLeft, ddTop, plotW, ddH);
+
+                ctx.restore();
+            }}
 
             canvas._coords = coords;
             canvas._padLeft = padLeft;
             canvas._padTop = padTop;
             canvas._plotW = plotW;
-            canvas._plotH = plotH;
+            canvas._plotH = totalAvailableH;
+            canvas._curveH = curveH;
+            canvas._ddTop = ddTop;
+            canvas._ddH = ddH;
+            canvas._showDD = showDD;
+            canvas._maxDDVal = maxDDVal;
         }}
 
         function initEquityCanvasEvents() {{
@@ -5054,7 +5192,7 @@ def build_dashboard(custom_csv=None):
                 ctx.lineTo(target.x, canvas._padTop + canvas._plotH);
                 ctx.stroke();
 
-                // Target Circle
+                // Target Circle on Curve
                 ctx.setLineDash([]);
                 ctx.fillStyle = '#facc15';
                 ctx.strokeStyle = '#ffffff';
@@ -5064,7 +5202,7 @@ def build_dashboard(custom_csv=None):
                 ctx.fill();
                 ctx.stroke();
 
-                // If drawdown overlay is active, show vertical drop to Peak
+                // If drawdown overlay is active, show vertical drop to Peak on curve
                 if (simState.showDrawdown && target.peakY !== undefined && target.ddVal > 0) {{
                     ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
                     ctx.lineWidth = 1;
@@ -5078,6 +5216,33 @@ def build_dashboard(custom_csv=None):
                     ctx.beginPath();
                     ctx.arc(target.x, target.peakY, 3, 0, Math.PI * 2);
                     ctx.fill();
+                }}
+
+                // Highlight active bar in the Lower Drawdown Pane
+                if (canvas._showDD && canvas._ddH > 25) {{
+                    let ddScale = Math.max(10, Math.ceil(canvas._maxDDVal / 10) * 10);
+                    let barH = (target.ddVal / ddScale) * canvas._ddH;
+                    let barW = Math.max(3, (canvas._plotW / canvas._coords.length) * 1.8);
+
+                    // Glowing bar highlight
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillRect(target.x - barW / 2, canvas._ddTop, barW, barH);
+
+                    // Pin dot at bottom of bar
+                    if (target.ddVal > 0) {{
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.arc(target.x, canvas._ddTop + barH, 3, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Floating tooltip near bar
+                        ctx.font = 'bold 10px Segoe UI, Tahoma, sans-serif';
+                        ctx.fillStyle = '#facc15';
+                        ctx.textAlign = 'center';
+                        let tagY = canvas._ddTop + barH + 12;
+                        if (tagY > canvas._ddTop + canvas._ddH + 4) tagY = canvas._ddTop + barH - 6;
+                        ctx.fillText('-$' + Math.round(target.ddVal) + ' (' + target.ddPctVal.toFixed(1) + '%)', target.x, tagY);
+                    }}
                 }}
                 ctx.restore();
 
