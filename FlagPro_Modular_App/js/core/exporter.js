@@ -422,6 +422,88 @@ function exportCurrentStateToMT5() {
     }
 }
 
+function exportCustomPresetToMT5(id) {
+    try {
+        let list = [];
+        try {
+            list = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
+        } catch(e) {
+            list = [];
+        }
+        let p = list.find(x => String(x.id) === String(id));
+        if (!p && typeof customPresetsList !== 'undefined' && customPresetsList) {
+            p = customPresetsList.find(x => String(x.id) === String(id));
+        }
+        if (!p) {
+            if (typeof alert === 'function') alert('سناریوی شخصی یافت نشد!');
+            return;
+        }
+
+        let allowedHours = [];
+        if (p.hours) {
+            for (let h = 0; h < 24; h++) {
+                if (p.hours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+            }
+        }
+        let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+        let disabledKings = [];
+        let enabledSet = new Set(p.kings || []);
+        for (let k of (kingsSimList || [])) {
+            if (k && k.kk && !enabledSet.has(k.kk)) {
+                let kClean = k.kk.replace(/\|(M\d+)/, ' [$1]');
+                disabledKings.push(kClean);
+            }
+        }
+        let disabledStr = disabledKings.join(', ');
+
+        let actionInt = p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1);
+        if (!p.consec_trig || p.consec_trig <= 0) actionInt = 0;
+
+        let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
+
+        // Recalculate metrics on current simTrades if available
+        let kSet = new Set(p.kings || []);
+        let sub = (typeof simTrades !== 'undefined' && simTrades) ? simTrades.filter(t => t.k === 1 && kSet.has(t.kk) && (t.pot === undefined || t.pot >= p.min_pot) && p.hours && p.hours[t.h]) : [];
+        let c = sub.length;
+        let nt = sub.reduce((acc, t) => acc + t.p, 0);
+        let wins = sub.filter(t => t.p > 0).length;
+        let wr = c > 0 ? (wins / c * 100) : (p.wr || 0);
+        let avg = c > 0 ? (nt / c) : (p.avg || 0);
+        let gp = sub.filter(t => t.p > 0).reduce((acc, t) => acc + t.p, 0);
+        let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
+        let pf = gl > 0 ? (gp / gl) : (p.pf || 999);
+
+        let config = {
+            title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-\u0600-\u06FF]/gi, '').trim(),
+            min_pot: (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0,
+            hours_str: hoursStr,
+            consec_trig: p.consec_trig || 0,
+            consec_action: actionInt,
+            disabled_kings_str: disabledStr,
+            cnt: c || p.cnt || '-',
+            wr: wr,
+            pf: pf,
+            avg: avg,
+            net: nt || p.net || '-',
+            kings_count: (p.kings ? p.kings.length : (kingsSimList ? kingsSimList.length : 0)),
+            symbol: sym
+        };
+
+        openMT5ExportModal(config);
+    } catch(err) {
+        console.error('Error in exportCustomPresetToMT5:', err);
+        if (typeof alert === 'function') alert('خطا در خروجی متاتریدر سناریوی شخصی: ' + err.message);
+    }
+}
+
+// Export functions to global scope
+if (typeof window !== 'undefined') {
+    window.exportPresetToMT5 = exportPresetToMT5;
+    window.exportCustomPresetToMT5 = exportCustomPresetToMT5;
+    window.exportCurrentStateToMT5 = exportCurrentStateToMT5;
+}
+
 // --------------------------------------------------------------------------
 // 🖥️ Modal UI Controller
 // --------------------------------------------------------------------------

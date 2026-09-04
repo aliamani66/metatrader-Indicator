@@ -82,6 +82,9 @@ function switchDashboardSymbol(symName) {
             if (tbodyPresets && sData.smart_presets_rows_html) {
                 tbodyPresets.innerHTML = sData.smart_presets_rows_html;
             }
+            if (typeof loadCustomPresets === 'function') {
+                try { loadCustomPresets(); } catch(e) {}
+            }
 
             // 2.2 Update Validation Status Badge
             if (typeof updateValidationStatus === 'function') {
@@ -444,11 +447,7 @@ function switchDashboardSymbol(symName) {
             let top3SlKeys = new Set(sortedBySl.slice(0, 3).map(k => k.kk));
             let kingsWithoutTop3 = allKingsKeys.filter(kk => !top3SlKeys.has(kk));
 
-            let clientSmartPresets = [
-                { idx: 1, title: 'حالت پایه سلاطین طلایی (بدون فیلتر)', desc: 'اجرای کامل تمام سلاطین شناسایی‌شده با تارگت‌های کامل', min_pot: 0, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: allKingsKeys },
-                { idx: 2, title: 'استراتژی پر سود (کف پتانسیل ۳ دلار)', desc: 'فیلتر معاملاتی با پتانسیل رشد بالا برای کاهش نویز بازار', min_pot: 3, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: allKingsKeys },
-                { idx: 3, title: 'حذف ۳ سلطان با بیشترین استاپ', desc: 'حذف سلاطینی که بیشترین تعداد استاپ لاس را ایجاد کرده‌اند', min_pot: 0, sl_mode: 'top3_cnt', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: kingsWithoutTop3 }
-            ];
+            let clientSmartPresets = buildAndSimulateClientSmartPresets(detectedSym, clientKingsSimList, clientSimTrades);
 
             let minDate = clientSimTrades[0].t.substring(0, 10);
             let maxDate = clientSimTrades[clientSimTrades.length - 1].t.substring(0, 10);
@@ -1010,75 +1009,232 @@ function generateClientScaleoutHTML(detectedSym, rawTrades, clientKingsSimList, 
     `;
 }
 
-function generateClientSmartPresetsRowsHTML(detectedSym, clientSmartPresets) {
-    let rows = [
+function simulateSinglePreset(preset, trades) {
+    let kSet = new Set(preset.kings || []);
+    let hoursArr = preset.hours || new Array(24).fill(true);
+    let minPot = preset.min_pot || 0;
+    let consecTrig = preset.consec_trig || 0;
+    let consecSk = preset.consec_sk || 1;
+
+    let sub = [];
+    let consecLoss = 0;
+    let skips = 0;
+
+    for (let i = 0; i < trades.length; i++) {
+        let t = trades[i];
+        if (t.k !== 1 || !kSet.has(t.kk) || (t.pot !== undefined && t.pot < minPot) || !hoursArr[t.h]) {
+            continue;
+        }
+        if (skips > 0) {
+            skips--;
+            continue;
+        }
+        sub.push(t);
+        if (t.p <= 0) {
+            consecLoss++;
+            if (consecTrig > 0 && consecLoss >= consecTrig) {
+                skips = consecSk;
+                consecLoss = 0;
+            }
+        } else {
+            consecLoss = 0;
+        }
+    }
+
+    let cnt = sub.length;
+    if (cnt === 0) {
+        return { cnt: 0, wr: 0, pf: 0, avg: 0, max_dd: 0, net: 0 };
+    }
+
+    let net = sub.reduce((acc, t) => acc + t.p, 0);
+    let wins = sub.filter(t => t.p > 0).length;
+    let wr = (wins / cnt) * 100;
+    let avg = net / cnt;
+    let gp = sub.filter(t => t.p > 0).reduce((acc, t) => acc + t.p, 0);
+    let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
+    let pf = gl > 0 ? (gp / gl) : 999.0;
+
+    let bal = 100.0, peak = 100.0, maxDD = 0.0;
+    for (let i = 0; i < sub.length; i++) {
+        bal += sub[i].p;
+        if (bal > peak) peak = bal;
+        let dd = peak - bal;
+        if (dd > maxDD) maxDD = dd;
+    }
+
+    return {
+        cnt: cnt,
+        wr: wr,
+        pf: pf,
+        avg: avg,
+        max_dd: maxDD,
+        net: net
+    };
+}
+
+function buildAndSimulateClientSmartPresets(detectedSym, clientKingsSimList, clientSimTrades) {
+    let allKingsKeys = clientKingsSimList.map(k => k.kk);
+    let sortedBySl = [...clientKingsSimList].sort((a, b) => (b.sl_usd || b.sl_cnt || 0) - (a.sl_usd || a.sl_cnt || 0));
+    let top3SlKeys = new Set(sortedBySl.slice(0, 3).map(k => k.kk));
+    let kingsWithoutTop3 = allKingsKeys.filter(kk => !top3SlKeys.has(kk));
+
+    let noNightHours = Array.from({length: 24}, (_, h) => !(h >= 22 || h <= 3));
+    let lonNyHours = Array.from({length: 24}, (_, h) => (h >= 7 && h < 20));
+
+    let defs = [
         {
             idx: 0,
             num: '#1',
+            id: 'preset-champion',
             title: `۱. الماس و سوپر اسنایپر خودکار (${detectedSym} Champion Sniper 🎯)`,
             badge: '🏆 قهرمان کشف‌شده: فیلتر کف سود + حذف شب',
+            badge_bg: '#831843',
+            badge_col: '#fbcfe8',
             desc: `بهترین ترکیب هوشمند بر اساس داده‌های نماد ${detectedSym} با هدف دستیابی به بالاترین پرافیت فاکتور و کنترل ریسک`,
             filterText: 'کف سود: <b>$2.00+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
-            kingsText: '👑 سلاطین منتخب فیلترشده',
-            cnt: '1,840',
-            wr: '69.4٪',
-            pf: '2.64',
-            avg: '+$2.55',
-            dd: '$55',
-            net: '+$4,690'
+            kingsText: `👑 ${allKingsKeys.length} سلطان منتخب`,
+            min_pot: 2.0,
+            hours: noNightHours,
+            hours_name: 'no_night',
+            kings: allKingsKeys,
+            consec_trig: 0,
+            consec_sk: 1,
+            consec_day: false,
+            is_featured: true
         },
         {
             idx: 1,
             num: '#2',
-            title: `۲. پورتفوی پایه سلاطین طلایی FlagPro (${detectedSym} Golden Kings)`,
-            badge: '👑 حالت استاندارد هج‌فاندی',
-            desc: `اجرای متوازن تمام سلاطین شناسایی‌شده نماد ${detectedSym} بدون هیچ فیلتر محدودکننده زمانی`,
+            id: 'preset-golden',
+            title: `۲. تعادل طلایی حجم و سود (${detectedSym} Golden Balance ⚖️)`,
+            badge: '⭐ بالانس بهینه',
+            badge_bg: '#854d0e',
+            badge_col: '#fef08a',
+            desc: `تعادل عالی میان تعداد معامله بالا و پرافیت فاکتور مطلوب با میانگین سود بالا`,
             filterText: 'کف سود: <b>بدون محدودیت ($0)</b> | ساعات: <b>۲۴ ساعته</b>',
-            kingsText: '👑 تمام سلاطین فعال',
-            cnt: '4,401',
-            wr: '63.1٪',
-            pf: '2.38',
-            avg: '+$1.66',
-            dd: '$107',
-            net: '+$7,287'
+            kingsText: `👑 ${allKingsKeys.length} سلطان فعال`,
+            min_pot: 0.0,
+            hours: new Array(24).fill(true),
+            hours_name: 'all',
+            kings: allKingsKeys,
+            consec_trig: 0,
+            consec_sk: 1,
+            consec_day: false,
+            is_featured: false
         },
         {
             idx: 2,
             num: '#3',
-            title: `۳. سپر امنیتی ضد استاپ (Stop Loss Shield)`,
-            badge: '🛡️ کاهش حداکثری دراوداون',
-            desc: `حذف خودکار ۳ سلطان با بالاترین میزان استاپ لاس دلاری برای ایجاد نرم‌ترین منحنی رشد سرمایه`,
-            filterText: 'کف سود: <b>$1.00+</b> | استاپ‌ها: <b>حذف ۳ سلطان پرریسک</b>',
-            kingsText: '👑 سلاطین کم‌ریسک',
-            cnt: '2,980',
-            wr: '67.2٪',
-            pf: '2.51',
-            avg: '+$2.12',
-            dd: '$68',
-            net: '+$6,320'
+            id: 'preset-day',
+            title: `۳. اسنایپر سشن روزانه لندن و نیویورک (${detectedSym} Day Session ☀️)`,
+            badge: '☀️ اوج نقدینگی روزانه',
+            badge_bg: '#0c4a6e',
+            badge_col: '#7dd3fc',
+            desc: `معامله در ساعات پرقدرت روز با اسپرد پایین و تاییدیه مومنتوم بالا`,
+            filterText: 'کف سود: <b>$1.50+</b> | ساعات: <b>سشن لندن و نیویورک (۰۷ تا ۲۰)</b>',
+            kingsText: `👑 ${allKingsKeys.length} سلطان فعال`,
+            min_pot: 1.5,
+            hours: lonNyHours,
+            hours_name: 'lon_ny',
+            kings: allKingsKeys,
+            consec_trig: 0,
+            consec_sk: 1,
+            consec_day: false,
+            is_featured: false
+        },
+        {
+            idx: 3,
+            num: '#4',
+            id: 'preset-shield',
+            title: `۴. سپر محافظتی کمترین افت سرمایه (Stop Loss Shield 🛡️)`,
+            badge: '🛡️ حداقل افت دراوداون',
+            badge_bg: '#064e3b',
+            badge_col: '#34d399',
+            desc: `کمترین ریسک دلاری ممکن با حذف ۳ سلطان پرریسک و فعال‌سازی فیوز استاپ`,
+            filterText: 'کف سود: <b>$1.00+</b> | استاپ‌ها: <b>حذف ۳ سلطان پرریسک + وقفه بعد ۲ استاپ</b>',
+            kingsText: `👑 ${kingsWithoutTop3.length} سلطان کم‌ریسک`,
+            min_pot: 1.0,
+            hours: new Array(24).fill(true),
+            hours_name: 'all',
+            kings: kingsWithoutTop3,
+            consec_trig: 2,
+            consec_sk: 1,
+            consec_day: false,
+            is_featured: false
+        },
+        {
+            idx: 4,
+            num: '#5',
+            id: 'preset-base',
+            title: `۵. سبد جامع پایه ${detectedSym} (تمام سلاطین ۲۴ ساعته 🌐)`,
+            badge: '🌐 مبنای کل چارت',
+            badge_bg: '#1e293b',
+            badge_col: '#94a3b8',
+            desc: `شبیه‌سازی کامل تمام سلاطین شناسایی‌شده بدون فیلتر سود یا زمان`,
+            filterText: 'کف سود: <b>$0.00</b> | ساعات: <b>۲۴ ساعته کامل</b>',
+            kingsText: `👑 ${allKingsKeys.length} سلطان فعال`,
+            min_pot: 0.0,
+            hours: new Array(24).fill(true),
+            hours_name: 'all',
+            kings: allKingsKeys,
+            consec_trig: 0,
+            consec_sk: 1,
+            consec_day: false,
+            is_featured: false
         }
     ];
 
-    return rows.map(r => `
-        <tr id="presetRow${r.idx}" style="border: 2px solid #facc15; background: #1c1806;transition:all 0.2s;" class="preset-table-row featured-preset">
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#facc15;">${r.num}</td>
+    defs.forEach(p => {
+        let m = simulateSinglePreset(p, clientSimTrades);
+        p.cnt = m.cnt;
+        p.wr = m.wr;
+        p.pf = m.pf;
+        p.avg = m.avg;
+        p.max_dd = m.max_dd;
+        p.net = m.net;
+        let allowed = [];
+        for (let h = 0; h < 24; h++) {
+            if (p.hours[h]) allowed.push(h < 10 ? '0' + h : '' + h);
+        }
+        p.hours_str = allowed.length === 24 ? '' : allowed.join(',');
+    });
+
+    return defs;
+}
+
+function generateClientSmartPresetsRowsHTML(detectedSym, clientSmartPresets) {
+    if (!clientSmartPresets || clientSmartPresets.length === 0) return '';
+    return clientSmartPresets.map(r => {
+        let cntStr = (r.cnt || 0).toLocaleString();
+        let wrStr = (r.wr || 0).toFixed(1) + '٪';
+        let pfStr = (r.pf < 900) ? (r.pf || 0).toFixed(2) : 'MAX';
+        let avgStr = (r.avg >= 0 ? '+$' : '-$') + Math.abs(r.avg || 0).toFixed(2);
+        let ddStr = '$' + Math.round(r.max_dd || r.dd || 0).toLocaleString();
+        let netVal = r.net || 0;
+        let netStr = (netVal >= 0 ? '+$' : '-$') + Math.round(Math.abs(netVal)).toLocaleString();
+        let netCol = netVal >= 0 ? '#00e676' : '#ef4444';
+        let rowStyle = r.is_featured ? 'border: 2px solid #facc15; background: #1c1806;' : 'border-bottom: 1px solid #1e293b;';
+
+        return `
+        <tr id="presetRow${r.idx}" style="${rowStyle}transition:all 0.2s;" class="preset-table-row ${r.is_featured ? 'featured-preset' : ''}">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#facc15;">${r.num || ('#' + (r.idx + 1))}</td>
             <td style="padding:7px 8px;">
                 <div style="font-weight:bold;color:#f1f5f9;font-size:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                     <span>${r.title}</span>
-                    <span style='background:#831843;color:#fbcfe8;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>${r.badge}</span>
+                    ${r.badge ? `<span style='background:${r.badge_bg || '#831843'};color:${r.badge_col || '#fbcfe8'};font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>${r.badge}</span>` : ''}
                 </div>
-                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">${r.desc}</div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">${r.desc || ''}</div>
             </td>
             <td style="padding:7px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
-                <div>${r.filterText}</div>
-                <div style="font-weight:bold;color:#38bdf8;font-size:10.5px;margin-top:2px;">${r.kingsText}</div>
+                <div>${r.filterText || ''}</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10.5px;margin-top:2px;">${r.kingsText || ''}</div>
             </td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#e2e8f0;">${r.cnt}</td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#34d399;font-size:12px;">${r.wr}</td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">${r.pf}</td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#facc15;font-size:12.5px;">${r.avg}</td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">${r.dd}</td>
-            <td style="text-align:center;padding:7px 6px;font-weight:bold;color:#00e676;font-size:13.5px;background:#064e3b22;white-space:nowrap;">${r.net}</td>
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#e2e8f0;">${cntStr}</td>
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#34d399;font-size:12px;">${wrStr}</td>
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">${pfStr}</td>
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#facc15;font-size:12.5px;">${avgStr}</td>
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">${ddStr}</td>
+            <td style="text-align:center;padding:7px 6px;font-weight:bold;color:${netCol};font-size:13.5px;background:#064e3b22;white-space:nowrap;">${netStr}</td>
             <td style="text-align:center;padding:7px 6px;white-space:nowrap;">
                 <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
                     <button id="btnApplyPreset${r.idx}" class="apply-preset-btn" onclick="applySmartPreset(${r.idx})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی داشبورد">
@@ -1090,7 +1246,7 @@ function generateClientSmartPresetsRowsHTML(detectedSym, clientSmartPresets) {
                 </div>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 }
 
 // ================= DATA VALIDATION & INTEGRITY SYSTEM =================

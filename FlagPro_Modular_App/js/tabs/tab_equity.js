@@ -313,10 +313,13 @@ function openSavePresetModal() {
                         (nt >= 0 ? '+' : '') + '$' + Math.round(nt).toLocaleString() +
                     '</td>' +
                     '<td style="text-align:center;padding:7px 6px;white-space:nowrap;">' +
-                        '<div style="display:flex;gap:3px;justify-content:center;align-items:center;">' +
-                            '<button data-id="' + p.id + '" onclick="applyCustomPreset(this.dataset.id)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;">⚡ اعمال</button>' +
-                            '<button data-id="' + p.id + '" onclick="updateCustomPresetWithCurrent(this.dataset.id)" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;padding:4px 6px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="به‌روزرسانی این سناریو">🔄</button>' +
-                            '<button data-id="' + p.id + '" onclick="deleteCustomPreset(this.dataset.id)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;padding:4px 6px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="حذف سناریو">🗑️</button>' +
+                        '<div style="display:flex;gap:3px;justify-content:center;align-items:center;flex-wrap:nowrap;">' +
+                            '<button data-id="' + p.id + '" onclick="applyCustomPreset(this.dataset.id)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 7px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;" title="اعمال روی چارت">⚡ اعمال</button>' +
+                            '<button data-id="' + p.id + '" onclick="exportCustomPresetToMT5(this.dataset.id)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 7px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل استراتژی تستر متاتریدر ۵ (.ini) جهت Drag & Drop">' +
+                                '<span>🤖 تنظیمات تستر (.ini)</span>' +
+                            '</button>' +
+                            '<button data-id="' + p.id + '" onclick="updateCustomPresetWithCurrent(this.dataset.id)" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;padding:4px 5px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="به‌روزرسانی این سناریو با فیلترهای فعلی">🔄</button>' +
+                            '<button data-id="' + p.id + '" onclick="deleteCustomPreset(this.dataset.id)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;padding:4px 5px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="حذف سناریو">🗑️</button>' +
                         '</div>' +
                     '</td>' +
                 '</tr>';
@@ -1906,6 +1909,124 @@ function openSavePresetModal() {
             ].join('\n');
 
             if (confirm(msg)) {
+                let aiIdx = (typeof smartPresets !== 'undefined' && smartPresets) ? smartPresets.length : 0;
+                let activeSym = typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD';
+                let hoursActiveCount = best.hArr.filter(Boolean).length;
+                let hoursStrLabel = hoursActiveCount === 24 ? '۲۴ ساعته' : (hoursActiveCount + ' ساعت فعال');
+                let consecLabel = best.cb.trig > 0 ? (' | وقفه بعد از ' + best.cb.trig + ' استاپ') : '';
+                let filterDesc = 'کف سود: <b>$' + best.pot.toFixed(2) + '+</b> | ساعات: <b>' + hoursStrLabel + '</b>' + consecLabel;
+                let kingsDesc = '👑 ' + best.kings.length + ' سلطان منتخب هوش مصنوعی';
+
+                let allowedHoursArr = [];
+                for (let h = 0; h < 24; h++) {
+                    if (best.hArr[h]) allowedHoursArr.push(h < 10 ? '0' + h : '' + h);
+                }
+                let allowedHoursStr = allowedHoursArr.length === 24 ? '' : allowedHoursArr.join(',');
+
+                let disabledKingsArr = [];
+                let activeKingsSet = new Set(best.kings);
+                for (let k of (kingsSimList || [])) {
+                    if (k && k.kk && !activeKingsSet.has(k.kk)) {
+                        disabledKingsArr.push(k.kk.replace(/\|(M\d+)/, ' [$1]'));
+                    }
+                }
+                let disabledKingsStr = disabledKingsArr.join(', ');
+
+                let aiPreset = {
+                    id: 'ai_opt_' + Date.now(),
+                    idx: aiIdx,
+                    is_ai: true,
+                    title: '🤖 سناریوی کشف خودکار هوش مصنوعی (' + activeSym + ' AI Champion 🎯)',
+                    badge: '🤖 کشف اختصاصی هوش مصنوعی',
+                    badge_bg: '#6b21a8',
+                    badge_col: '#f3e8ff',
+                    desc: 'بهترین ترکیب ریاضی خودکار کشف‌شده با پرافیت فاکتور ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX') + '، وین‌ریت ' + best.wr.toFixed(1) + '٪ و سود خالص $' + Math.round(best.net).toLocaleString(),
+                    filterText: filterDesc,
+                    kingsText: kingsDesc,
+                    min_pot: best.pot,
+                    hours: [...best.hArr],
+                    hours_str: allowedHoursStr,
+                    kings: Array.from(best.kings),
+                    disabled_kings_str: disabledKingsStr,
+                    consec_trig: best.cb.trig,
+                    consec_action: best.cb.sk,
+                    consec_sk: best.cb.sk,
+                    consec_day: false,
+                    cnt: best.total,
+                    wr: best.wr,
+                    pf: best.pf,
+                    avg: best.avg,
+                    max_dd: best.maxDD,
+                    net: best.net,
+                    symbol: activeSym
+                };
+
+                // Add to smartPresets array
+                if (typeof smartPresets !== 'undefined' && smartPresets) {
+                    smartPresets.push(aiPreset);
+                }
+
+                // Insert into the Strategic Presets Table
+                let tbodyPresets = document.getElementById('systemPresetsTbody');
+                if (tbodyPresets) {
+                    let existingAiRow = document.getElementById('presetRow_AI');
+                    if (existingAiRow) existingAiRow.remove();
+
+                    let aiRowHtml = `
+                        <tr id="presetRow_AI" style="border: 2px solid #a855f7; background: #1e1035; box-shadow: 0 0 16px rgba(168,85,247,0.35); transition:all 0.2s;" class="preset-table-row featured-preset">
+                            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#c084fc;">⭐ AI</td>
+                            <td style="padding:7px 8px;">
+                                <div style="font-weight:bold;color:#f1f5f9;font-size:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                                    <span>${aiPreset.title}</span>
+                                    <span style='background:#6b21a8;color:#f3e8ff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>🤖 کشف خودکار هوش مصنوعی</span>
+                                </div>
+                                <div style="color:#d8b4fe;font-size:10.5px;margin-top:2px;">${aiPreset.desc}</div>
+                            </td>
+                            <td style="padding:7px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+                                <div>${aiPreset.filterText}</div>
+                                <div style="font-weight:bold;color:#facc15;font-size:10.5px;margin-top:2px;">${aiPreset.kingsText}</div>
+                            </td>
+                            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#e2e8f0;">${aiPreset.cnt.toLocaleString()}</td>
+                            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#34d399;font-size:12px;">${aiPreset.wr.toFixed(1)}٪</td>
+                            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">${aiPreset.pf < 900 ? aiPreset.pf.toFixed(2) : 'MAX'}</td>
+                            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#facc15;font-size:12.5px;">+$${aiPreset.avg.toFixed(2)}</td>
+                            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">$${Math.round(aiPreset.max_dd).toLocaleString()}</td>
+                            <td style="text-align:center;padding:7px 6px;font-weight:bold;color:#00e676;font-size:13.5px;background:#064e3b44;white-space:nowrap;">+$${Math.round(aiPreset.net).toLocaleString()}</td>
+                            <td style="text-align:center;padding:7px 6px;white-space:nowrap;">
+                                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                                    <button id="btnApplyPresetAI" class="apply-preset-btn" onclick="applySmartPreset(${aiIdx})" style="background:linear-gradient(135deg, #7c3aed, #9333ea);border:1px solid #c084fc;color:#fff;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;box-shadow:0 2px 8px rgba(124,58,237,0.4);" title="اعمال این سناریو روی نمودار اکوئیتی داشبورد">
+                                        ⚡ اعمال
+                                    </button>
+                                    <button onclick="exportPresetToMT5(${aiIdx})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:5px 7px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل استراتژی تستر متاتریدر ۵ (.ini) جهت Drag & Drop به تستر">
+                                        <span>🤖 تنظیمات تستر (.ini)</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tbodyPresets.insertAdjacentHTML('afterbegin', aiRowHtml);
+                }
+
+                // Save to custom presets in localStorage as well
+                try {
+                    let customList = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
+                    customList.unshift({
+                        id: aiPreset.id,
+                        title: aiPreset.title,
+                        desc: aiPreset.desc,
+                        min_pot: aiPreset.min_pot,
+                        hours: [...aiPreset.hours],
+                        kings: [...aiPreset.kings],
+                        consec_trig: aiPreset.consec_trig,
+                        consec_sk: aiPreset.consec_sk,
+                        consec_day: false,
+                        createdAt: new Date().toLocaleDateString('fa-IR')
+                    });
+                    localStorage.setItem('flagpro_custom_presets', JSON.stringify(customList));
+                    if (typeof loadCustomPresets === 'function') loadCustomPresets();
+                } catch(e) {}
+
+                // Apply immediately to chart & filters
                 simState.mode = 'kings';
                 simState.minProfit = best.pot;
                 simState.allowedHours = [...best.hArr];
@@ -1914,7 +2035,6 @@ function openSavePresetModal() {
                 simState.consecLossSkipCount = best.cb.sk;
                 simState.consecLossSkipDay = false;
 
-                // Sync UI elements
                 let slider = document.getElementById('simProfitSlider');
                 if (slider) slider.value = best.pot;
                 let sliderVal = document.getElementById('simProfitSliderVal');
@@ -1924,7 +2044,29 @@ function openSavePresetModal() {
                 renderSimHoursBar();
                 syncConsecButtonsUI();
                 runEquitySimulation();
-                alert('✅ چیدمان قهرمان هوش مصنوعی با موفقیت اعمال شد!');
+
+                if (typeof showSaveNotification === 'function') {
+                    showSaveNotification('🤖 سناریوی بهینه‌شده هوش مصنوعی به ردیف اول جدول اضافه شد و پنجره خروجی (.ini) باز شد!');
+                }
+
+                // Open MT5 Export modal immediately for the AI preset
+                if (typeof openMT5ExportModal === 'function') {
+                    openMT5ExportModal({
+                        title: aiPreset.title,
+                        min_pot: aiPreset.min_pot,
+                        hours_str: aiPreset.hours_str,
+                        consec_trig: aiPreset.consec_trig,
+                        consec_action: aiPreset.consec_action,
+                        disabled_kings_str: aiPreset.disabled_kings_str,
+                        cnt: aiPreset.cnt,
+                        wr: aiPreset.wr,
+                        pf: aiPreset.pf,
+                        avg: aiPreset.avg,
+                        net: aiPreset.net,
+                        kings_count: aiPreset.kings.length,
+                        symbol: activeSym
+                    });
+                }
             }
         }
 
