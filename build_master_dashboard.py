@@ -4110,27 +4110,48 @@ def build_dashboard(custom_csv=None):
             let maxD = document.getElementById('headerMaxDate');
             if (maxD) maxD.textContent = sData.max_date;
 
-            // 2. Update Pre-rendered Tab HTML Containers
+            // 1.1 Persist active symbol
+            try {{
+                localStorage.setItem('FLAGPRO_LAST_ACTIVE_SYMBOL', symName);
+            }} catch(e) {{}}
+            let selElem = document.getElementById('symbolSelector');
+            if (selElem && selElem.value !== symName) selElem.value = symName;
+
+            // 2. Update Pre-rendered Tab HTML Containers (Never overwrite with placeholder divs)
             let cEq = document.getElementById('tab-equity-container');
-            if (cEq && sData.tab_equity_html) cEq.innerHTML = sData.tab_equity_html;
+            if (cEq && sData.tab_equity_html && sData.tab_equity_html.includes('equityCanvas')) {{
+                cEq.innerHTML = sData.tab_equity_html;
+            }}
 
             let cKings = document.getElementById('tab-kings-container');
-            if (cKings && sData.tab_kings_html) cKings.innerHTML = sData.tab_kings_html;
+            if (cKings && sData.tab_kings_html && !sData.tab_kings_html.includes('آماده تحلیل است')) {{
+                cKings.innerHTML = sData.tab_kings_html;
+            }}
 
             let cScale = document.getElementById('tab-scaleout-container');
-            if (cScale && sData.tab_scaleout_html) cScale.innerHTML = sData.tab_scaleout_html;
+            if (cScale && sData.tab_scaleout_html && !sData.tab_scaleout_html.includes('در دسترس است')) {{
+                cScale.innerHTML = sData.tab_scaleout_html;
+            }}
 
             let cTf = document.getElementById('tab-timeframes-container');
-            if (cTf && sData.tab_timeframes_html) cTf.innerHTML = sData.tab_timeframes_html;
+            if (cTf && sData.tab_timeframes_html && !sData.tab_timeframes_html.includes('در دسترس است')) {{
+                cTf.innerHTML = sData.tab_timeframes_html;
+            }}
 
             let cFilt = document.getElementById('tab-filters-container');
-            if (cFilt && sData.tab_filters_html) cFilt.innerHTML = sData.tab_filters_html;
+            if (cFilt && sData.tab_filters_html && !sData.tab_filters_html.includes('فعال هستند')) {{
+                cFilt.innerHTML = sData.tab_filters_html;
+            }}
 
             let cLoss = document.getElementById('tab-loss-intel-container');
-            if (cLoss && sData.tab_loss_intel_html) cLoss.innerHTML = sData.tab_loss_intel_html;
+            if (cLoss && sData.tab_loss_intel_html && !sData.tab_loss_intel_html.includes('قابل بررسی است')) {{
+                cLoss.innerHTML = sData.tab_loss_intel_html;
+            }}
 
             let cWk = document.getElementById('tab-weekly-container');
-            if (cWk && sData.tab_weekly_html) cWk.innerHTML = sData.tab_weekly_html;
+            if (cWk && sData.tab_weekly_html && !sData.tab_weekly_html.includes('فعال است')) {{
+                cWk.innerHTML = sData.tab_weekly_html;
+            }}
 
             // 3. Update JS Global Datasets
             dataWeeklyBars = sData.weekly_bar_data;
@@ -4197,6 +4218,11 @@ def build_dashboard(custom_csv=None):
                     let csvText = e.target.result;
                     let symName = parseClientCSV(csvText, file.name);
                     if (symName) {{
+                        try {{
+                            localStorage.setItem('FLAGPRO_SAVED_CSV_' + symName, csvText);
+                            localStorage.setItem('FLAGPRO_SAVED_NAME_' + symName, file.name);
+                        }} catch(e) {{}}
+
                         let sel = document.getElementById('symbolSelector');
                         let exists = Array.from(sel.options).some(o => o.value === symName);
                         if (!exists) {{
@@ -4214,6 +4240,38 @@ def build_dashboard(custom_csv=None):
                 }}
             }};
             reader.readAsText(file);
+        }}
+
+        function initPersistedSymbols() {{
+            try {{
+                for (let i = 0; i < localStorage.length; i++) {{
+                    let k = localStorage.key(i);
+                    if (k && k.startsWith('FLAGPRO_SAVED_CSV_')) {{
+                        let symName = k.replace('FLAGPRO_SAVED_CSV_', '');
+                        let csvText = localStorage.getItem(k);
+                        let fileName = localStorage.getItem('FLAGPRO_SAVED_NAME_' + symName) || (symName + '.csv');
+                        if (csvText && !window.ALL_SYMBOLS_DATA[symName]) {{
+                            parseClientCSV(csvText, fileName);
+                            let sel = document.getElementById('symbolSelector');
+                            if (sel && !Array.from(sel.options).some(o => o.value === symName)) {{
+                                let opt = document.createElement('option');
+                                opt.value = symName;
+                                opt.textContent = symName + ' (فایل ذخیره‌شده - ' + (window.ALL_SYMBOLS_DATA[symName].trades_json_list.length) + ' معامله)';
+                                sel.appendChild(opt);
+                            }}
+                        }}
+                    }}
+                }}
+
+                let lastSym = localStorage.getItem('FLAGPRO_LAST_ACTIVE_SYMBOL');
+                if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {{
+                    let sel = document.getElementById('symbolSelector');
+                    if (sel) sel.value = lastSym;
+                    if (lastSym !== currentActiveSymbol) {{
+                        switchDashboardSymbol(lastSym);
+                    }}
+                }}
+            }} catch(e) {{}}
         }}
 
         function handleCSVFileUpload(input) {{
@@ -7295,6 +7353,7 @@ def build_dashboard(custom_csv=None):
                     if (txt) txt.textContent = 'نمایش منو';
                 }}
             }} catch(e) {{}}
+            initPersistedSymbols();
             initEquityCanvasEvents();
             initSimUI();
             renderTrades();
