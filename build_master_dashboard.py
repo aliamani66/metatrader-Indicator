@@ -1073,6 +1073,44 @@ def build_dashboard():
     json_pts_kings = json.dumps(pts_kings)
     json_pts_all = json.dumps(pts_all)
 
+    # Trades Journal JSON Data Preparation
+    trades_sorted = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''), reverse=True)
+    trades_json_list = []
+    for idx, r in enumerate(trades_sorted, 1):
+        tf = r.get('Timeframe', 'M1')
+        role = r.get('Role', '')
+        is_k = 1 if (role, tf) in king_keys else 0
+        hr = int(r.get('HitTargetRatio', 0))
+        pts = float(r.get('RiskPoints', 0.0))
+        if hr == 0:
+            pnl = -pts * 0.04 - friction_04_per_trade
+        else:
+            pnl = -friction_04_per_trade
+            if hr >= 1: pnl += pts * 1.0 * 0.01
+            if hr >= 2: pnl += pts * 2.0 * 0.01
+            if hr >= 3: pnl += pts * 3.0 * 0.01
+            if hr >= 4: pnl += pts * 4.0 * 0.01
+
+        trades_json_list.append({
+            'i': idx,
+            't': r.get('EntryTime', ''),
+            'xt': r.get('ExitTime', ''),
+            'tf': tf,
+            'r': role,
+            'k': is_k,
+            'd': r.get('Direction', 'BUY'),
+            'ep': round(float(r.get('EntryPrice', 0.0)), 5),
+            'sl': round(float(r.get('StopLoss', 0.0)), 5),
+            'pts': round(pts, 1),
+            'tp1': round(float(r.get('TP1', 0.0)), 5),
+            'tp2': round(float(r.get('TP2', 0.0)), 5),
+            'tp3': round(float(r.get('TP3', 0.0)), 5),
+            'tp4': round(float(r.get('TP4', 0.0)), 5),
+            'h': hr,
+            'p': round(pnl, 2)
+        })
+    json_trades = json.dumps(trades_json_list, separators=(',', ':'))
+
     # Weekly Bar Chart Data Preparation
     weekly_bar_data = []
     for yr, wk in sorted_wk_keys:
@@ -1336,7 +1374,8 @@ def build_dashboard():
 
         <!-- 📑 TABS NAVIGATION BAR -->
         <div class="tabs-nav">
-            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین ۱۸ گانه</button>
+            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین برگزیده (۲۱ گره)</button>
+            <button class="tab-btn" onclick="openTab(event, 'tab-trades')">📑 ژورنال معاملات و نقاط خروج</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-equity')">📈 نمودار رشد و اکوئیتی</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">💎 خروج پلکانی و بریک‌ایون (0.04)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">📊 عملکرد تایم‌فریم‌ها (M1/M5/M15)</button>
@@ -1549,6 +1588,142 @@ def build_dashboard():
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB: 📑 TRADES JOURNAL & EXIT POINTS ==================== -->
+        <div id="tab-trades" class="tab-content">
+            <div class="section-box" style="border: 1px solid #38bdf8; background: #081a2e;">
+                <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h3 style="margin:0;color:#38bdf8;font-size:20px;">📑 ژورنال جامع معاملات، استراتژی‌ها و نقاط خروج (Exit Targets)</h3>
+                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">نمایش زنده تمامی معاملات، نقاط ورود، استاپ، تارگت‌های ۴ گانه TP1..TP4، وضعیت تاچ خروج‌ها و سود/زیان خالص بر مبنای خروج پلکانی 0.04 لات:</p>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span style="background:#0c4a6e;border:1px solid #0284c7;padding:6px 12px;border-radius:6px;font-size:12px;color:#7dd3fc;">حجم پایه: <b>0.04 لات</b></span>
+                            <span style="background:#1e293b;border:1px solid #475569;padding:6px 12px;border-radius:6px;font-size:12px;color:#e2e8f0;">اسپرد+کمیسیون: <b>$0.48</b></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Summary Cards for Filtered Trades -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:18px;">
+                    <div class="kpi-card" style="padding:10px 14px;border-color:#38bdf8;background:#0c2d48;">
+                        <div class="kpi-title" style="font-size:11px;">تعداد کل معاملات فیلترشده</div>
+                        <div class="kpi-value" id="trKpiCount" style="font-size:20px;color:#38bdf8;">-</div>
+                        <div class="kpi-sub" id="trKpiCountSub">در این نمایش</div>
+                    </div>
+                    <div class="kpi-card" style="padding:10px 14px;border-color:#10b981;background:#063a2a;">
+                        <div class="kpi-title" style="font-size:11px;">سود خالص نهایی (Net PnL)</div>
+                        <div class="kpi-value" id="trKpiNet" style="font-size:20px;color:#34d399;">-</div>
+                        <div class="kpi-sub" id="trKpiNetSub">پس از کسر اسپرد</div>
+                    </div>
+                    <div class="kpi-card" style="padding:10px 14px;border-color:#facc15;background:#2a2408;">
+                        <div class="kpi-title" style="font-size:11px;">وین‌ریت حداقل TP1 (ریسک‌فری+)</div>
+                        <div class="kpi-value" id="trKpiWin1" style="font-size:20px;color:#facc15;">-</div>
+                        <div class="kpi-sub">تارگت اول و بدون ضرر</div>
+                    </div>
+                    <div class="kpi-card" style="padding:10px 14px;border-color:#a855f7;background:#24123a;">
+                        <div class="kpi-title" style="font-size:11px;">معاملات فول تارگت (TP4)</div>
+                        <div class="kpi-value" id="trKpiWin4" style="font-size:20px;color:#c084fc;">-</div>
+                        <div class="kpi-sub">پرتاب کامل ۱ به ۴</div>
+                    </div>
+                    <div class="kpi-card" style="padding:10px 14px;border-color:#ef4444;background:#351015;">
+                        <div class="kpi-title" style="font-size:11px;">معاملات استاپ خورده (SL)</div>
+                        <div class="kpi-value" id="trKpiLoss" style="font-size:20px;color:#f87171;">-</div>
+                        <div class="kpi-sub">حد زیان اولیه</div>
+                    </div>
+                </div>
+
+                <!-- Filters & Controls Bar -->
+                <div style="background:#0c253d;border:1px solid #1e4976;padding:12px 16px;border-radius:10px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                        <!-- Basket switch -->
+                        <span style="color:#94a3b8;font-size:12px;font-weight:bold;">سبد:</span>
+                        <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #0284c7;">
+                            <button id="btnTrBasketKings" class="active" onclick="setTrFilter('basket', 'kings', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 12px;font-size:11.5px;cursor:pointer;font-weight:bold;">👑 سلاطین برگزیده</button>
+                            <button id="btnTrBasketAll" onclick="setTrFilter('basket', 'all', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 12px;font-size:11.5px;cursor:pointer;font-weight:bold;">🌐 تمامی معاملات</button>
+                        </div>
+
+                        <!-- Timeframe switch -->
+                        <span style="color:#94a3b8;font-size:12px;font-weight:bold;margin-right:8px;">تایم‌فریم:</span>
+                        <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+                            <button class="active" onclick="setTrFilter('tf', 'ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">همه</button>
+                            <button onclick="setTrFilter('tf', 'M1', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">M1</button>
+                            <button onclick="setTrFilter('tf', 'M5', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">M5</button>
+                            <button onclick="setTrFilter('tf', 'M15', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">M15</button>
+                        </div>
+
+                        <!-- Direction switch -->
+                        <span style="color:#94a3b8;font-size:12px;font-weight:bold;margin-right:8px;">جهت:</span>
+                        <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+                            <button class="active" onclick="setTrFilter('dir', 'ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">همه</button>
+                            <button onclick="setTrFilter('dir', 'BUY', this)" style="background:#1e293b;color:#34d399;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🟢 خرید (BUY)</button>
+                            <button onclick="setTrFilter('dir', 'SELL', this)" style="background:#1e293b;color:#f87171;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🔴 فروش (SELL)</button>
+                        </div>
+
+                        <!-- Outcome switch -->
+                        <span style="color:#94a3b8;font-size:12px;font-weight:bold;margin-right:8px;">نتیجه:</span>
+                        <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+                            <button class="active" onclick="setTrFilter('outcome', 'ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">همه</button>
+                            <button onclick="setTrFilter('outcome', 'TP4', this)" style="background:#1e293b;color:#c084fc;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🎯 TP4</button>
+                            <button onclick="setTrFilter('outcome', 'TP2_PLUS', this)" style="background:#1e293b;color:#60a5fa;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🎯 TP2+</button>
+                            <button onclick="setTrFilter('outcome', 'TP1_PLUS', this)" style="background:#1e293b;color:#facc15;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🎯 TP1+</button>
+                            <button onclick="setTrFilter('outcome', 'LOSS', this)" style="background:#1e293b;color:#f87171;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🛑 SL</button>
+                        </div>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div style="position:relative;">
+                        <input id="trSearchInput" type="text" placeholder="جستجو در استراتژی یا تاریخ..." oninput="onTrSearch(this.value)" style="background:#1e293b;border:1px solid #475569;border-radius:6px;color:#fff;padding:6px 12px;font-size:12px;width:210px;outline:none;" />
+                    </div>
+                </div>
+
+                <!-- Trades Table -->
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                        <thead>
+                            <tr style="background:#0e3355;color:#93c5fd;border-bottom:2px solid #0284c7;">
+                                <th style="text-align:center;padding:10px 6px;">#</th>
+                                <th style="text-align:center;padding:10px 8px;">زمان ورود / خروج</th>
+                                <th style="text-align:center;padding:10px 6px;">تایم</th>
+                                <th style="text-align:right;padding:10px 10px;">استراتژی / نقش ساختار</th>
+                                <th style="text-align:center;padding:10px 8px;">جهت</th>
+                                <th style="text-align:center;padding:10px 8px;">قیمت ورود</th>
+                                <th style="text-align:center;padding:10px 8px;color:#f87171;">حد ضرر (SL)</th>
+                                <th style="text-align:center;padding:10px 8px;color:#fbbf24;">تارگت ۱ (TP 1:1)</th>
+                                <th style="text-align:center;padding:10px 8px;color:#60a5fa;">تارگت ۲ (TP 1:2)</th>
+                                <th style="text-align:center;padding:10px 8px;color:#38bdf8;">تارگت ۳ (TP 1:3)</th>
+                                <th style="text-align:center;padding:10px 8px;color:#c084fc;">تارگت ۴ (TP 1:4)</th>
+                                <th style="text-align:center;padding:10px 8px;">نقطه و نوع خروج</th>
+                                <th style="text-align:center;padding:10px 10px;color:#34d399;">سود خالص دلاری</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradesTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:10px 14px;background:#0c253d;border:1px solid #1e4976;border-radius:8px;flex-wrap:wrap;gap:10px;">
+                    <div id="trPaginationInfo" style="color:#94a3b8;font-size:12px;">نمایش ۱ تا ۵۰ از - معامله</div>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <button id="trBtnPrev" onclick="prevTrPage()" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;">◀ صفحه قبل</button>
+                        <span id="trPageCurrent" style="color:#facc15;font-weight:bold;font-size:13px;padding:0 8px;">صفحه ۱ از ۱</span>
+                        <button id="trBtnNext" onclick="nextTrPage()" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;">صفحه بعد ▶</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="color:#94a3b8;font-size:12px;">تعداد در صفحه:</span>
+                        <select id="trPageSize" onchange="changeTrPageSize(this.value)" style="background:#1e293b;border:1px solid #475569;color:#fff;padding:4px 8px;border-radius:5px;font-size:12px;outline:none;">
+                            <option value="25">۲۵</option>
+                            <option value="50" selected>۵۰</option>
+                            <option value="100">۱۰۰</option>
+                            <option value="250">۲۵۰</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2725,6 +2900,12 @@ def build_dashboard():
                     drawWeeklyBarChart(currentWeeklyBarMode);
                 }}, 50);
             }}
+
+            if (tabId === 'tab-trades') {{
+                setTimeout(() => {{
+                    renderTrades();
+                }}, 30);
+            }}
         }}
 
         let sortDirections = {{ 'data-score': true }};
@@ -2801,6 +2982,227 @@ def build_dashboard():
                 }}
             }});
         }}
+
+        // ================= TRADES JOURNAL SCRIPT =================
+        let allTrades = {json_trades};
+        let trFilters = {{
+            basket: 'kings',
+            tf: 'ALL',
+            dir: 'ALL',
+            outcome: 'ALL',
+            search: '',
+            page: 1,
+            pageSize: 50
+        }};
+
+        function setTrFilter(key, val, btnElem) {{
+            trFilters[key] = val;
+            trFilters.page = 1;
+            if (btnElem && btnElem.parentElement) {{
+                btnElem.parentElement.querySelectorAll('button').forEach(b => {{
+                    b.classList.remove('active');
+                    b.style.background = '#1e293b';
+                    b.style.color = '#94a3b8';
+                }});
+                btnElem.classList.add('active');
+                btnElem.style.background = '#0284c7';
+                btnElem.style.color = '#ffffff';
+            }}
+            renderTrades();
+        }}
+
+        function onTrSearch(val) {{
+            trFilters.search = val.trim().toLowerCase();
+            trFilters.page = 1;
+            renderTrades();
+        }}
+
+        function changeTrPageSize(sz) {{
+            trFilters.pageSize = parseInt(sz) || 50;
+            trFilters.page = 1;
+            renderTrades();
+        }}
+
+        function prevTrPage() {{
+            if (trFilters.page > 1) {{
+                trFilters.page--;
+                renderTrades();
+            }}
+        }}
+
+        function nextTrPage() {{
+            let list = getFilteredTrades();
+            let maxPage = Math.ceil(list.length / trFilters.pageSize) || 1;
+            if (trFilters.page < maxPage) {{
+                trFilters.page++;
+                renderTrades();
+            }}
+        }}
+
+        function getFilteredTrades() {{
+            return allTrades.filter(t => {{
+                if (trFilters.basket === 'kings' && !t.is_k) return false;
+                if (trFilters.tf !== 'ALL' && t.tf !== trFilters.tf) return false;
+                if (trFilters.dir !== 'ALL' && t.dir !== trFilters.dir) return false;
+                if (trFilters.outcome === 'TP4' && t.t4 !== 1) return false;
+                if (trFilters.outcome === 'TP2_PLUS' && t.t2 !== 1) return false;
+                if (trFilters.outcome === 'TP1_PLUS' && t.t1 !== 1) return false;
+                if (trFilters.outcome === 'LOSS' && t.t1 === 1) return false;
+                if (trFilters.search) {{
+                    let s = trFilters.search;
+                    let hay = (t.role + ' ' + t.bname + ' ' + t.en_t + ' ' + t.ex_t).toLowerCase();
+                    if (!hay.includes(s)) return false;
+                }}
+                return true;
+            }});
+        }}
+
+        function renderTrades() {{
+            let list = getFilteredTrades();
+            let total = list.length;
+            let pageSize = trFilters.pageSize;
+            let totalPages = Math.ceil(total / pageSize) || 1;
+            if (trFilters.page > totalPages) trFilters.page = totalPages;
+            let curPage = trFilters.page;
+
+            let startIdx = (curPage - 1) * pageSize;
+            let endIdx = Math.min(startIdx + pageSize, total);
+            let pageTrades = list.slice(startIdx, endIdx);
+
+            let sumNet = 0;
+            let cntWin1 = 0;
+            let cntWin4 = 0;
+            let cntLoss = 0;
+            for (let i = 0; i < total; i++) {{
+                let tr = list[i];
+                sumNet += tr.net;
+                if (tr.t1 === 1) cntWin1++;
+                else cntLoss++;
+                if (tr.t4 === 1) cntWin4++;
+            }}
+
+            let kpiCount = document.getElementById('trKpiCount');
+            let kpiNet = document.getElementById('trKpiNet');
+            let kpiWin1 = document.getElementById('trKpiWin1');
+            let kpiWin4 = document.getElementById('trKpiWin4');
+            let kpiLoss = document.getElementById('trKpiLoss');
+
+            if (kpiCount) kpiCount.textContent = total.toLocaleString() + ' معامله';
+            if (kpiNet) {{
+                let sign = sumNet >= 0 ? '+' : '';
+                kpiNet.textContent = '$' + sign + sumNet.toFixed(2);
+                kpiNet.style.color = sumNet >= 0 ? '#34d399' : '#f87171';
+            }}
+            if (kpiWin1) {{
+                let p1 = total > 0 ? ((cntWin1 / total) * 100).toFixed(1) : '0.0';
+                kpiWin1.textContent = p1 + '٪ (' + cntWin1 + ')';
+            }}
+            if (kpiWin4) {{
+                let p4 = total > 0 ? ((cntWin4 / total) * 100).toFixed(1) : '0.0';
+                kpiWin4.textContent = p4 + '٪ (' + cntWin4 + ')';
+            }}
+            if (kpiLoss) {{
+                let pL = total > 0 ? ((cntLoss / total) * 100).toFixed(1) : '0.0';
+                kpiLoss.textContent = pL + '٪ (' + cntLoss + ')';
+            }}
+
+            let tbody = document.getElementById('tradesTableBody');
+            if (!tbody) return;
+
+            let rowsHtml = '';
+            for (let i = 0; i < pageTrades.length; i++) {{
+                let t = pageTrades[i];
+                let rowNum = startIdx + i + 1;
+                let dirBadge = t.dir === 'BUY' 
+                    ? '<span style="background:#064e3b;color:#34d399;padding:2px 8px;border-radius:4px;font-weight:bold;">BUY 🟢</span>' 
+                    : '<span style="background:#450a0a;color:#f87171;padding:2px 8px;border-radius:4px;font-weight:bold;">SELL 🔴</span>';
+                
+                let kingBadge = t.is_k 
+                    ? '<span style="background:#854d0e;color:#fef08a;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:4px;">👑 سلطان</span>' 
+                    : '';
+
+                let tfBadge = '<span style="background:#1e293b;color:#93c5fd;font-weight:bold;padding:2px 6px;border-radius:4px;">' + t.tf + '</span>';
+
+                function tpPill(val, hit, label, col) {{
+                    let border = hit ? 'border:1px solid ' + col + ';' : 'opacity:0.35;';
+                    let check = hit ? ' <b style="color:' + col + ';">✓</b>' : '';
+                    let bg = hit ? 'background:#0f172a;' : 'background:transparent;';
+                    return '<div style="' + bg + 'padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;' + border + '">' +
+                           '<span style="color:' + col + ';font-size:9.5px;display:block;">' + label + '</span>' +
+                           val.toFixed(5) + check + '</div>';
+                }}
+
+                let tp1Html = tpPill(t.tp1, t.t1 === 1, 'TP1 (1:1)', '#fbbf24');
+                let tp2Html = tpPill(t.tp2, t.t2 === 1, 'TP2 (1:2)', '#60a5fa');
+                let tp3Html = tpPill(t.tp3, t.t3 === 1, 'TP3 (1:3)', '#38bdf8');
+                let tp4Html = tpPill(t.tp4, t.t4 === 1, 'TP4 (1:4)', '#c084fc');
+
+                let exitDesc = '';
+                if (t.t4 === 1) {{
+                    exitDesc = '<span style="background:#3b0764;color:#e9d5ff;padding:3px 8px;border-radius:4px;border:1px solid #a855f7;font-weight:bold;">💎 تارگت ۴ (فول تارگت)</span>';
+                }} else if (t.t3 === 1) {{
+                    exitDesc = '<span style="background:#075985;color:#bae6fd;padding:3px 8px;border-radius:4px;border:1px solid #0284c7;">🎯 خروج تا پله ۳ (SL+2)</span>';
+                }} else if (t.t2 === 1) {{
+                    exitDesc = '<span style="background:#1e3a8a;color:#bfdbfe;padding:3px 8px;border-radius:4px;border:1px solid #3b82f6;">🎯 خروج تا پله ۲ (SL+1)</span>';
+                }} else if (t.t1 === 1) {{
+                    exitDesc = '<span style="background:#854d0e;color:#fef08a;padding:3px 8px;border-radius:4px;border:1px solid #eab308;">🛡️ خروج پله ۱ + BE</span>';
+                }} else {{
+                    exitDesc = '<span style="background:#450a0a;color:#fca5a5;padding:3px 8px;border-radius:4px;border:1px solid #dc2626;">🛑 حد زیان اولیه (SL)</span>';
+                }}
+
+                let netColor = t.net >= 0 ? '#34d399' : '#f87171';
+                let netBg = t.net >= 0 ? '#064e3b33' : '#450a0a33';
+                let netSign = t.net >= 0 ? '+' : '';
+                let netHtml = '<span style="background:' + netBg + ';color:' + netColor + ';padding:3px 10px;border-radius:4px;font-weight:bold;font-family:monospace;font-size:12.5px;">$' + netSign + t.net.toFixed(2) + '</span>';
+
+                let rowBg = i % 2 === 0 ? 'background:#081c30;' : 'background:#0a233c;';
+
+                rowsHtml += '<tr style="' + rowBg + 'border-bottom:1px solid #133352;text-align:center;">' +
+                    '<td style="padding:8px 6px;color:#64748b;font-size:11px;">' + rowNum + '</td>' +
+                    '<td style="padding:8px 6px;font-size:11px;direction:ltr;font-family:monospace;color:#94a3b8;">' +
+                        '<div>🟢 ' + t.en_t + '</div>' +
+                        '<div style="color:#64748b;font-size:10px;">🔴 ' + t.ex_t + '</div>' +
+                    '</td>' +
+                    '<td style="padding:8px 6px;">' + tfBadge + '</td>' +
+                    '<td style="padding:8px 10px;text-align:right;">' +
+                        '<div>' + kingBadge + '<b style="color:#e2e8f0;font-size:12.5px;">' + t.role + '</b></div>' +
+                        '<div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">' + t.bname + '</div>' +
+                    '</td>' +
+                    '<td style="padding:8px 6px;">' + dirBadge + '</td>' +
+                    '<td style="padding:8px 6px;font-family:monospace;color:#e2e8f0;">' + t.en_p.toFixed(5) + '</td>' +
+                    '<td style="padding:8px 6px;font-family:monospace;color:#fca5a5;background:#2d121733;">' + t.sl.toFixed(5) + '</td>' +
+                    '<td style="padding:8px 6px;">' + tp1Html + '</td>' +
+                    '<td style="padding:8px 6px;">' + tp2Html + '</td>' +
+                    '<td style="padding:8px 6px;">' + tp3Html + '</td>' +
+                    '<td style="padding:8px 6px;">' + tp4Html + '</td>' +
+                    '<td style="padding:8px 8px;">' + exitDesc + '</td>' +
+                    '<td style="padding:8px 10px;">' + netHtml + '</td>' +
+                '</tr>';
+            }}
+
+            tbody.innerHTML = rowsHtml;
+
+            let pInfo = document.getElementById('trPaginationInfo');
+            let pCur = document.getElementById('trPageCurrent');
+            let btnP = document.getElementById('trBtnPrev');
+            let btnN = document.getElementById('trBtnNext');
+
+            if (pInfo) {{
+                if (total === 0) {{
+                    pInfo.textContent = 'هیچ معامله‌ای با این فیلترها یافت نشد.';
+                }} else {{
+                    pInfo.textContent = 'نمایش ' + (startIdx + 1) + ' تا ' + endIdx + ' از مجموع ' + total.toLocaleString() + ' معامله';
+                }}
+            }}
+            if (pCur) pCur.textContent = 'صفحه ' + curPage + ' از ' + totalPages;
+            if (btnP) btnP.disabled = (curPage <= 1);
+            if (btnN) btnN.disabled = (curPage >= totalPages);
+        }}
+
+        // Initial render of trades journal
+        setTimeout(() => {{
+            renderTrades();
+        }}, 100);
     </script>
 </body>
 </html>
