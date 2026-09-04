@@ -1077,21 +1077,50 @@ def build_dashboard():
     json_pts_kings = json.dumps(pts_kings)
     json_pts_all = json.dumps(pts_all)
 
-    # Simulator Kings Data Preparation
-    kings_sim_list = [{
-        'id': i,
-        'role': k['role'],
-        'tf': k['tf'],
-        'kk': f"{k['role']}|{k['tf']}",
-        'score': round(k['score'], 1),
-        'cnt': k['cnt'],
-        'net': round(k['net'], 2),
-        'w1_p': round(k['w1_p'], 1),
-        'pf': round(k['pf'], 2) if k['pf'] < 900 else 999.0,
-        'perf': 1 if k['is_perfect'] else 0,
-        'run': 1 if k['is_runner'] else 0
-    } for i, k in enumerate(qualified_kings, 1)]
+    # Simulator Kings Data Preparation (with Stop Loss analytics)
+    kings_sim_list = []
+    for i, k in enumerate(qualified_kings, 1):
+        sl_count = k['sl']
+        sl_trades = [r for r in k['trades'] if int(r.get('HitTargetRatio', 0)) == 0]
+        sl_dollar = round(sum(float(r.get('RiskPoints', 0.0)) * 0.04 + friction_04_per_trade for r in sl_trades), 2)
+        kings_sim_list.append({
+            'id': i,
+            'role': k['role'],
+            'tf': k['tf'],
+            'kk': f"{k['role']}|{k['tf']}",
+            'score': round(k['score'], 1),
+            'cnt': k['cnt'],
+            'net': round(k['net'], 2),
+            'w1_p': round(k['w1_p'], 1),
+            'sl_cnt': sl_count,
+            'sl_usd': sl_dollar,
+            'sl_p': round(k['sl_p'], 1),
+            'pf': round(k['pf'], 2) if k['pf'] < 900 else 999.0,
+            'perf': 1 if k['is_perfect'] else 0,
+            'run': 1 if k['is_runner'] else 0
+        })
+
+    # Sort Kings by Stop Loss metrics to identify top risk generators
+    sorted_by_sl_cnt = sorted(kings_sim_list, key=lambda x: (x['sl_cnt'], x['sl_usd']), reverse=True)
+    sorted_by_sl_usd = sorted(kings_sim_list, key=lambda x: (x['sl_usd'], x['sl_cnt']), reverse=True)
+    sorted_by_sl_pct = sorted([x for x in kings_sim_list if x['cnt'] >= 10], key=lambda x: (x['sl_p'], x['sl_cnt']), reverse=True)
+
+    top3_sl_cnt_keys = [x['kk'] for x in sorted_by_sl_cnt[:3]]
+    top3_sl_usd_keys = [x['kk'] for x in sorted_by_sl_usd[:3]]
+    top5_sl_usd_keys = [x['kk'] for x in sorted_by_sl_usd[:5]]
+    top3_sl_pct_keys = [x['kk'] for x in sorted_by_sl_pct[:3]]
+
+    for k in kings_sim_list:
+        k['is_top_sl_cnt'] = 1 if k['kk'] in top3_sl_cnt_keys else 0
+        k['is_top_sl_usd'] = 1 if k['kk'] in top3_sl_usd_keys else 0
+        k['is_top_sl_pct'] = 1 if k['kk'] in top3_sl_pct_keys else 0
+        k['is_danger'] = 1 if (k['is_top_sl_cnt'] or k['is_top_sl_usd'] or k['sl_cnt'] >= 45 or k['sl_p'] >= 45.0) else 0
+
     json_kings_sim = json.dumps(kings_sim_list, separators=(',', ':'))
+    json_top3_sl_cnt = json.dumps(top3_sl_cnt_keys)
+    json_top3_sl_usd = json.dumps(top3_sl_usd_keys)
+    json_top5_sl_usd = json.dumps(top5_sl_usd_keys)
+    json_top3_sl_pct = json.dumps(top3_sl_pct_keys)
 
     # Chronological Trades for Interactive Simulator
     trades_chrono = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''))
@@ -1719,6 +1748,35 @@ def build_dashboard():
                             <button onclick="selectOnlyRunnerKings()" style="background:#3b0764;border:1px solid #a855f7;color:#e9d5ff;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;">🚀 فقط الگوهای دونده</button>
                         </div>
                     </div>
+                    <!-- 🚨 STOP LOSS CONTROLLER & RISK ANALYZER -->
+                    <div id="slRiskPanel" style="background: linear-gradient(135deg, #1c0808, #110505); border: 2px solid #ef4444; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #450a0a; padding-bottom: 8px; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px;">🚨</span>
+                                <div>
+                                    <span style="font-weight:bold; color:#fca5a5; font-size:13.5px;">کالبدشکافی پرریسک‌ترین سلاطین (بیشترین تعداد استاپ و زیان دلاری):</span>
+                                    <span style="font-size:11px; color:#cbd5e1; margin-right:6px;">سلاطین قرمز رنگ زیر بیشترین حجم ضرر را تولید می‌کنند؛ با یک کلیک می‌توانید آنها را حذف کنید:</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button id="btnRemoveTop3Cnt" onclick="toggleTop3SL('cnt')" style="background:#7f1d1d; border:1px solid #ef4444; color:#fff; font-size:11px; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition:all 0.2s;">
+                                    🚫 حذف ۳ سلطان با بیشترین استاپ (تعداد)
+                                </button>
+                                <button id="btnRemoveTop3Usd" onclick="toggleTop3SL('usd')" style="background:#450a0a; border:1px solid #dc2626; color:#fca5a5; font-size:11px; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition:all 0.2s;">
+                                    💸 حذف ۳ سلطان با بیشترین زیان دلاری
+                                </button>
+                                <button id="btnRemoveWorstRate" onclick="toggleWorstRateKings()" style="background:#3b0764; border:1px solid #a855f7; color:#e9d5ff; font-size:11px; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition:all 0.2s;" title="حذف الگوهایی با نرخ باخت نزدیک به ۵۰٪ مثل S-RS و RS-BE">
+                                    🛡️ حذف سلاطین کم‌دقت (باخت > ۴۵٪)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Top Stop Loss Cards Grid -->
+                        <div id="slTop3CardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px;">
+                            <!-- Dynamically generated by JS -->
+                        </div>
+                    </div>
+
                     <!-- Kings Chips Grid -->
                     <div id="simKingsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));gap:8px;max-height:220px;overflow-y:auto;padding-right:4px;">
                         <!-- Dynamically filled by JS -->
@@ -2926,6 +2984,10 @@ def build_dashboard():
         }}
 
         let kingsSimList = {json_kings_sim};
+        let top3SLCntKeys = {json_top3_sl_cnt};
+        let top3SLUsdKeys = {json_top3_sl_usd};
+        let top5SLUsdKeys = {json_top5_sl_usd};
+        let top3SLPctKeys = {json_top3_sl_pct};
         let simTrades = {json_trades_sim};
         let smartPresets = {json_smart_presets};
         let currentEquityMode = 'kings';
@@ -3030,21 +3092,34 @@ def build_dashboard():
             for (let i = 0; i < kingsSimList.length; i++) {{
                 let k = kingsSimList[i];
                 let isEnabled = simState.enabledKings.has(k.kk);
-                let bg = isEnabled ? '#0c2742' : '#081420';
-                let border = isEnabled ? (k.perf ? 'border:1px solid #facc15;' : 'border:1px solid #0284c7;') : 'border:1px solid #1e293b;opacity:0.4;';
-                let checkIcon = isEnabled ? '☑️' : '⬜';
-                let medal = k.perf ? '💎' : (k.run ? '🚀' : '👑');
+                let isDanger = k.is_danger === 1;
+
+                let bg = isEnabled ? (isDanger ? '#240a0a' : '#0c2742') : '#081420';
+                let border = isEnabled 
+                    ? (isDanger ? 'border:1px solid #ef4444;box-shadow:0 0 8px rgba(239,68,68,0.3);' 
+                      : (k.perf ? 'border:1px solid #facc15;' : 'border:1px solid #0284c7;')) 
+                    : 'border:1px solid #1e293b;opacity:0.38;';
+                let checkIcon = isEnabled ? (isDanger ? '🛑' : '☑️') : '⬜';
+                let medal = isDanger ? '⚠️' : (k.perf ? '💎' : (k.run ? '🚀' : '👑'));
                 let netCol = k.net >= 0 ? '#34d399' : '#f87171';
                 let netSign = k.net >= 0 ? '+' : '';
 
+                let slBadge = isDanger 
+                    ? '<span style="background:#7f1d1d;color:#fecaca;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:bold;margin-left:4px;" title="تعداد استاپ: ' + k.sl_cnt + ' (' + k.sl_p + '٪) | زیان استاپ‌ها: -$' + k.sl_usd + '">🛑 ' + k.sl_cnt + ' باخت</span>' 
+                    : '';
+
+                let disabledText = !isEnabled ? '<span style="color:#64748b;font-size:10px;margin-right:4px;">(حذف شده)</span>' : '';
+
                 html += '<div data-kk="' + k.kk + '" onclick="toggleSimKing(this.dataset.kk)" style="' + bg + ';' + border + 'padding:6px 10px;border-radius:6px;cursor:pointer;user-select:none;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center;">' +
-                    '<div style="display:flex;align-items:center;gap:6px;overflow:hidden;">' +
+                    '<div style="display:flex;align-items:center;gap:5px;overflow:hidden;">' +
                         '<span style="font-size:13px;">' + checkIcon + '</span>' +
                         '<span style="font-size:11px;">' + medal + '</span>' +
                         '<span style="font-size:11.5px;color:#e2e8f0;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + k.role + ' [' + k.tf + ']">' + k.role + '</span>' +
                         '<span style="background:#1e293b;color:#93c5fd;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:bold;">' + k.tf + '</span>' +
+                        slBadge +
                     '</div>' +
-                    '<div style="text-align:left;font-size:11px;font-family:monospace;white-space:nowrap;">' +
+                    '<div style="text-align:left;font-size:11px;font-family:monospace;white-space:nowrap;display:flex;align-items:center;">' +
+                        disabledText +
                         '<span style="color:' + netCol + ';font-weight:bold;">$' + netSign + k.net.toFixed(0) + '</span>' +
                         '<span style="color:#64748b;font-size:9.5px;margin-right:4px;">(' + k.cnt + ')</span>' +
                     '</div>' +
@@ -3059,6 +3134,104 @@ def build_dashboard():
                 lbl.textContent = activeCnt + ' از ' + totCnt + ' سلطان فعال';
                 lbl.style.background = (activeCnt === totCnt) ? '#854d0e' : (activeCnt > 0 ? '#0284c7' : '#450a0a');
             }}
+            renderSLRiskPanel();
+        }}
+
+        function renderSLRiskPanel() {{
+            let container = document.getElementById('slTop3CardsContainer');
+            if (!container) return;
+
+            let featuredKeys = ['Flag-BE|M1', 'Flag-BU|M1', 'OInner-BU|M1', 'S-RS|M1'];
+            let html = '';
+
+            for (let i = 0; i < featuredKeys.length; i++) {{
+                let kk = featuredKeys[i];
+                let k = kingsSimList.find(x => x.kk === kk);
+                if (!k) continue;
+
+                let isEnabled = simState.enabledKings.has(k.kk);
+                let cardBg = isEnabled ? 'rgba(239, 68, 68, 0.09)' : '#0f172a';
+                let cardBorder = isEnabled ? '1px solid #ef4444' : '1px solid #334155';
+                let statusBadge = isEnabled 
+                    ? '<span style="background:#450a0a;color:#fca5a5;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;font-weight:bold;">🟢 فعال در سبد</span>'
+                    : '<span style="background:#1e293b;color:#94a3b8;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #334155;font-weight:bold;">🔴 حذف شده</span>';
+
+                let btnHtml = isEnabled
+                    ? '<button data-kk="' + k.kk + '" onclick="toggleSimKing(this.dataset.kk)" style="background:#dc2626;border:1px solid #ef4444;color:#fff;font-size:11px;padding:5px 12px;border-radius:5px;cursor:pointer;font-weight:bold;white-space:nowrap;box-shadow:0 2px 6px rgba(220,38,38,0.3);">❌ حذف این سلطان</button>'
+                    : '<button data-kk="' + k.kk + '" onclick="toggleSimKing(this.dataset.kk)" style="background:#065f46;border:1px solid #10b981;color:#a7f3d0;font-size:11px;padding:5px 12px;border-radius:5px;cursor:pointer;font-weight:bold;white-space:nowrap;box-shadow:0 2px 6px rgba(16,185,129,0.3);">➕ بازگردانی به سبد</button>';
+
+                let tagRank = (i === 3) ? '⚠️ بالاترین نرخ باخت (۴۹.۵٪)' : ('#' + (i + 1) + ' بیشترین استاپ چارت');
+                let tagCol = (i === 3) ? '#c084fc' : '#f87171';
+
+                html += '<div style="background:' + cardBg + ';border:' + cardBorder + ';border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s;">' +
+                    '<div>' +
+                        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">' +
+                            '<span style="background:#260d0d;color:' + tagCol + ';font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;border:1px solid #450a0a;">' + tagRank + '</span>' +
+                            '<span style="font-weight:bold;color:#f1f5f9;font-size:13px;">' + k.role + '</span>' +
+                            '<span style="background:#1e293b;color:#93c5fd;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:bold;">' + k.tf + '</span>' +
+                            statusBadge +
+                        '</div>' +
+                        '<div style="font-size:11px;color:#fca5a5;margin-bottom:2px;">' +
+                            '🛑 <b>' + k.sl_cnt + ' استاپ</b> (' + k.sl_p + '٪ باخت) | زیان استاپ‌ها: <b style="color:#ef4444;">-$' + k.sl_usd.toFixed(2) + '</b>' +
+                        '</div>' +
+                        '<div style="font-size:10.5px;color:#94a3b8;">' +
+                            'کل معاملات: ' + k.cnt + ' | سود خالص کل: <span style="color:#34d399;font-weight:bold;">+$' + k.net.toFixed(2) + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div>' + btnHtml + '</div>' +
+                '</div>';
+            }}
+            container.innerHTML = html;
+
+            let btnCnt = document.getElementById('btnRemoveTop3Cnt');
+            if (btnCnt) {{
+                let top3Active = top3SLCntKeys.some(kk => simState.enabledKings.has(kk));
+                btnCnt.innerHTML = top3Active ? '🚫 حذف ۳ سلطان با بیشترین استاپ (تعداد)' : '✅ ۳ سلطان حذف شدند (کلیک برای بازگردانی)';
+                btnCnt.style.background = top3Active ? '#7f1d1d' : '#065f46';
+                btnCnt.style.borderColor = top3Active ? '#ef4444' : '#10b981';
+            }}
+
+            let btnUsd = document.getElementById('btnRemoveTop3Usd');
+            if (btnUsd) {{
+                let top3Active = top3SLUsdKeys.some(kk => simState.enabledKings.has(kk));
+                btnUsd.innerHTML = top3Active ? '💸 حذف ۳ سلطان با بیشترین زیان دلاری' : '✅ ۳ سلطان حذف شدند (کلیک برای بازگردانی)';
+                btnUsd.style.background = top3Active ? '#450a0a' : '#065f46';
+                btnUsd.style.borderColor = top3Active ? '#dc2626' : '#10b981';
+            }}
+
+            let btnRate = document.getElementById('btnRemoveWorstRate');
+            if (btnRate) {{
+                let worstActive = top3SLPctKeys.some(kk => simState.enabledKings.has(kk));
+                btnRate.innerHTML = worstActive ? '🛡️ حذف سلاطین کم‌دقت (باخت > ۴۵٪)' : '✅ سلاطین کم‌دقت حذف شدند (بازگردانی)';
+                btnRate.style.background = worstActive ? '#3b0764' : '#065f46';
+                btnRate.style.borderColor = worstActive ? '#a855f7' : '#10b981';
+            }}
+        }}
+
+        function toggleTop3SL(mode) {{
+            clearPresetActiveState();
+            let keys = (mode === 'usd') ? top3SLUsdKeys : top3SLCntKeys;
+            let anyActive = keys.some(kk => simState.enabledKings.has(kk));
+            if (anyActive) {{
+                keys.forEach(kk => simState.enabledKings.delete(kk));
+            }} else {{
+                keys.forEach(kk => simState.enabledKings.add(kk));
+            }}
+            renderSimKingsGrid();
+            runEquitySimulation();
+        }}
+
+        function toggleWorstRateKings() {{
+            clearPresetActiveState();
+            let keys = top3SLPctKeys;
+            let anyActive = keys.some(kk => simState.enabledKings.has(kk));
+            if (anyActive) {{
+                keys.forEach(kk => simState.enabledKings.delete(kk));
+            }} else {{
+                keys.forEach(kk => simState.enabledKings.add(kk));
+            }}
+            renderSimKingsGrid();
+            runEquitySimulation();
         }}
 
         function toggleSimKing(kk) {{
