@@ -1403,8 +1403,6 @@ def build_dashboard():
             <button class="tab-btn" onclick="openTab(event, 'tab-timeframes')">📊 عملکرد تایم‌فریم‌ها (M1/M5/M15)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-weekly')">📅 کالبدشکافی هفته به هفته</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-filters')">🛡️ فیلترهای ضد استاپ و مقایسه</button>
-            <button class="tab-btn" onclick="openTab(event, 'tab-financials')">💰 حسابداری دلاری 0.01 لات</button>
-            <button class="tab-btn" onclick="openTab(event, 'tab-all-patterns')">🏆 رتبه‌بندی تمام الگوها</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-loss-intel')">🔍 هوش باخت‌ها و استاپ‌ها</button>
         </div>
 
@@ -2293,80 +2291,6 @@ def build_dashboard():
                                 <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">{ev_a:+.2f} R 🚀</td>
                                 <td style="text-align:center;color:#38bdf8;font-weight:bold;">{ev_a - ev_b:+.2f} R رشد خالص</td>
                             </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ==================== TAB 5: 💰 FINANCIAL ACCOUNTING (0.01 LOT) ==================== -->
-        <div id="tab-financials" class="tab-content">
-            <div class="section-box" style="border: 1px solid #10b981; background: #061e14;">
-                <div style="border-bottom: 1px solid #065f46; padding-bottom: 14px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <div>
-                        <h3 style="margin:0;color:#34d399;font-size:19px;">💰 صورت سود و زیان دلاری بر مبنای حجم ثابت 0.01 لات (حساب میکرو / استاندارد)</h3>
-                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">محاسبه اصطکاک معاملاتی: کمیسیون بروکر ($0.06) + اسپرد میانگین ($0.06) | کل هزینه هر ترید: <b>$0.12</b></p>
-                    </div>
-                    <div style="background:#022c22;border:1px solid #059669;padding:6px 14px;border-radius:8px;font-size:12px;color:#6ee7b7;">
-                        💵 ارزش هر پیپ در 0.01 لات = $0.10 دلار
-                    </div>
-                </div>
-
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr style="background:#064e3b;">
-                                <th>سناریوی معاملاتی با حجم 0.01 لات</th>
-                                <th style="text-align:center;">سود ناخالص</th>
-                                <th style="text-align:center;">کل کمیسیون بروکر</th>
-                                <th style="text-align:center;">کل هزینه اسپرد</th>
-                                <th style="text-align:center;">💵 سود خالص دلاری نهایی</th>
-                                <th style="text-align:center;">ضریب سود (PF)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">تارگت اول: ریسک به ریوارد ۱:۱ (TP 1:1)</td>
-                                <td style="text-align:center;color:#38bdf8;">${f01_gross_tp1:+.2f}</td>
-                                <td style="text-align:center;color:#f87171;">${f01_comm:.2f}</td>
-                                <td style="text-align:center;color:#f87171;">${f01_spread:.2f}</td>
-                                <td style="text-align:center;color:{'#00e676' if f01_net_tp1 >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${f01_net_tp1:+.2f} دلار</td>
-                                <td style="text-align:center;color:#cbd5e1;font-weight:bold;">{f01_pf_tp1:.2f}</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#facc15;">تارگت دوم: ریسک به ریوارد ۱:۲ (TP 1:2)</td>
-                                <td style="text-align:center;color:#38bdf8;">${f01_gross_tp2:+.2f}</td>
-                                <td style="text-align:center;color:#f87171;">${f01_comm:.2f}</td>
-                                <td style="text-align:center;color:#f87171;">${f01_spread:.2f}</td>
-                                <td style="text-align:center;color:{'#00e676' if f01_net_tp2 >= 0 else '#ef4444'};font-weight:bold;font-size:15px;">${f01_net_tp2:+.2f} دلار</td>
-                                <td style="text-align:center;color:#cbd5e1;font-weight:bold;">{f01_pf_tp2:.2f}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ==================== TAB 6: 🏆 ALL PATTERNS MASTER TABLE ==================== -->
-        <div id="tab-all-patterns" class="tab-content">
-            <div class="section-box">
-                <h3 style="margin:0 0 16px 0;color:#38bdf8;font-size:18px;">🏆 جدول رتبه‌بندی جامع استراتژی‌ها و باکس‌ها (مرتب‌شده بر اساس تعداد معامله)</h3>
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>الگو / ساختار</th>
-                                <th style="text-align:center;">تعداد</th>
-                                <th style="text-align:center;">TP1 (1:1)</th>
-                                <th style="text-align:center;">TP2 (1:2)</th>
-                                <th style="text-align:center;">TP3 (1:3)</th>
-                                <th style="text-align:center;">TP4 (1:4)</th>
-                                <th style="text-align:center;">استاپ (SL)</th>
-                                <th style="text-align:center;">سود خالص دلاری (0.04)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {"".join(all_patterns_rows)}
                         </tbody>
                     </table>
                 </div>
