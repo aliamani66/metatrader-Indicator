@@ -29,6 +29,55 @@ enum ENUM_LABEL_FORMAT
    LABEL_FULL_CHAIN // زنجیره کامل مسیر الگو (LS > OInner > RS > Swap)
 };
 
+enum ENUM_HISTORY_MODE
+{
+   HIST_START_DATE,    // 📅 از تاریخ شروع مشخص (Start Date)
+   HIST_DAYS_BACK,     // ⏳ بر اساس تعداد روز گذشته (Days Back)
+   HIST_ALL_AVAILABLE  // 🌐 تمام تاریخچه موجود در متاتریدر (All Available)
+};
+
+// متغیرهای سراسری و یکپارچه بازه زمانی تحلیل
+datetime g_effectiveStartDate  = 0;
+int      g_effectiveDaysBack   = 1000;
+int      g_effectiveTargetBars = 2000000;
+
+// متغیرهای مشترک موتور شبیه‌ساز و رسم
+datetime InpBacktestStartDate = 0;
+int      InpBacktestDays      = 1000;
+int      InpMaxBarsTF         = 2000000;
+
+void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
+{
+   datetime now = TimeCurrent();
+   if(mode == HIST_START_DATE)
+   {
+      g_effectiveStartDate = startDate;
+      if(g_effectiveStartDate > 0 && now > g_effectiveStartDate)
+         g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 15;
+      else
+         g_effectiveDaysBack = 1000;
+   }
+   else if(mode == HIST_DAYS_BACK)
+   {
+      g_effectiveDaysBack = (daysBack > 0) ? daysBack : 30;
+      g_effectiveStartDate = now - g_effectiveDaysBack * 86400;
+   }
+   else // HIST_ALL_AVAILABLE
+   {
+      g_effectiveStartDate = 0;
+      g_effectiveDaysBack  = 5000;
+   }
+
+   InpBacktestStartDate = g_effectiveStartDate;
+   InpBacktestDays      = g_effectiveDaysBack;
+
+   long neededBars = (long)g_effectiveDaysBack * 1440 + 50000;
+   if(neededBars < 2000000) neededBars = 2000000;
+   if(mode == HIST_ALL_AVAILABLE) neededBars = 10000000;
+   g_effectiveTargetBars = (int)MathMin(neededBars, 20000000);
+   InpMaxBarsTF = g_effectiveTargetBars;
+}
+
 // ساختار نگهداری مشخصات باکس‌ها
 struct SBoxInfo
 {

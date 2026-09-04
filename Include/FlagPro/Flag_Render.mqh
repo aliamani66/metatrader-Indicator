@@ -73,6 +73,10 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       if(g_drawnBoxes[b].top <= 0 || g_drawnBoxes[b].bottom <= 0)
          continue;
 
+      // نادیده گرفتن باکس‌های قدیمی‌تر از تاریخ شروع واحد
+      if(g_effectiveStartDate > 0 && g_drawnBoxes[b].t1 < g_effectiveStartDate)
+         continue;
+
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 

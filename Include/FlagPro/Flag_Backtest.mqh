@@ -1000,6 +1000,9 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          continue;
 
       datetime t1 = g_tradeSetups[t].entryTime;
+      if(g_effectiveStartDate > 0 && t1 < g_effectiveStartDate)
+         continue;
+
       datetime t2 = g_tradeSetups[t].exitTime;
       if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
 

@@ -18,6 +18,14 @@ double g_dummyBuffer[];
 //+------------------------------------------------------------------+
 //| INPUT PARAMETERS                                                 |
 //+------------------------------------------------------------------+
+input group "=== 🎯 تنظیم جامع و واحد (تاریخچه، رسم باکس‌ها و معاملات) ==="
+input ENUM_HISTORY_MODE InpHistoryMode        = HIST_START_DATE;         // ⚙️ مبنای بازه تاریخی (تاریخ شروع / تعداد روز گذشته / کل تاریخچه)
+input datetime          InpHistoryStartDate   = D'2025.01.01 00:00';    // 📅 تاریخ شروع واحد (رسم باکس‌ها + معاملات + بک‌تست + خروجی CSV)
+input int               InpHistoryDays        = 365;                    // ⏳ یا تعداد روز گذشته (در صورت انتخاب حالت Days Back)
+input bool              InpShowBoxes          = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (کلید B برای سوئیچ سریع)
+input bool              InpAutoDrawTrades     = true;                   // 🎯 رسم معاملات (خطوط ورود، حد ضرر، تارگت‌ها و نتیجه) روی چارت
+input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار فایل CSV برای داشبورد
+
 input group "=== Macro Timeframes (غیرفعال) ==="
 input ENUM_TIMEFRAMES InpTF1      = PERIOD_D1;
 input bool             InpUseTF1  = false;          // محاسبه روزانه (D1)
@@ -35,29 +43,20 @@ input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
 input bool             InpUseTF4  = false;          // محاسبه یک‌ساعته (H1)
 input color            InpColorTF4 = clrYellow;
 
-input group "=== Backtest & History Settings (تنظیمات بک‌تست از ابتدای ۲۰۲۵) ==="
-input datetime         InpBacktestStartDate = D'2025.01.01 00:00'; // 📅 تاریخ شروع محاسبات و معاملات (پیش‌فرض: ابتدای ۲۰۲۵)
-input int              InpBacktestDays = 1000;       // تعداد روزهای بک‌تست (۱۰۰۰ روز جهت پوشش کامل از ابتدای ۲۰۲۵ تا اکنون)
-input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای تولید آنی دیتای داشبورد)
-
-input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
+input group "=== Active Trading Timeframes (تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 1000;        // تاریخچه ۱۵ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 1000;         // تاریخچه ۵ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 1000;         // تاریخچه ۱ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
-input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (پیش‌فرض: کاملاً هیدن و خاموش)
 input bool             InpShowMacroAlways       = false;  // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
 input bool             InpShowOnlyRSMicroBoxes  = true;   // در تایم‌های ریز فقط باکس‌های دارای شرط RS نمایش داده شوند
 input bool             InpShowNormalMicroBoxes  = false;  // رسم کامل همه باکس‌های چارت
@@ -84,9 +83,8 @@ input double InpBrokerCommissionPerLot    = 6.0;    // کمیسیون بروکر
 input double InpEstimatedSpreadPips       = 0.8;    // اسپرد تخمینی معامله (پیپ)
 input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سود TP1 به کل اصطکاک
 
-input group "=== Structure Calculation (matches MarketStructure_v2) ==="
+input group "=== Structure Calculation ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 2000000;     // حداکثر کندل‌های محاسبه (۲ میلیون کندل - پوشش کامل تمام تایم‌ها از اول ۲۰۲۵)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -155,7 +153,6 @@ input ENUM_LINE_STYLE  InpSwapLineStyle         = STYLE_DOT;    // استایل 
 
 input group "=== Trade Setup & Simulator (ستاپ معامله و بک‌تست) ==="
 input bool             InpEnableTradeSetup      = true;         // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
-input bool             InpAutoDrawTrades        = true;         // 🎯 رسم خودکار گرافیک معاملات فعال‌شده (Entry/SL/TP) روی چارت
 input bool             InpTradeOnlyGoldenKings  = true;         // 👑 فقط معامله سلاطین طلایی برگزیده (سلاطین ۲۰ گانه)
 input bool             InpAllowOverlappingTrades = true;        // 🔓 اجازه معاملات همزمان (هر ستاپ معتبری مستقل معامله می‌شود)
 input bool             InpShowTradeShading      = false;        // 🎨 نمایش پس‌زمینه رنگی معاملات (پیش‌فرض: خاموش)
@@ -185,6 +182,7 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
    g_testerStartBase = 0;
    g_boxesVisible = InpShowBoxes;
    SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
@@ -196,7 +194,11 @@ int OnInit()
    ChartRedraw(0);
    g_forceRecalc = true;
    IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro v1.00");
-   Print("🚀 FlagPro v1.00 آماده است: معماری کاملاً ماژولار و تمیز.");
+   PrintFormat("🚀 FlagPro v1.00: بازه فعال: %s (%d روز) | کندل‌ها: %d | باکس‌ها: %s | معاملات: %s",
+               (g_effectiveStartDate > 0 ? TimeToString(g_effectiveStartDate, TIME_DATE) : "کل تاریخچه"),
+               g_effectiveDaysBack, g_effectiveTargetBars,
+               (InpShowBoxes ? "روشن" : "خاموش"),
+               (InpAutoDrawTrades ? "روشن" : "خاموش"));
    return INIT_SUCCEEDED;
 }
 
@@ -240,7 +242,10 @@ int OnCalculate(const int rates_total,
    g_forceRecalc = false;
    if(!InpShowBoxes) g_boxesVisible = false;
 
-   Print("DEBUG: OnCalculate start rates_total=", rates_total, " prev=", prev_calculated);
+   // به‌روزرسانی بازه واحد تاریخی
+   InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
+
+   Print("DEBUG: OnCalculate start rates_total=", rates_total, " prev=", prev_calculated, " targetBars=", g_effectiveTargetBars);
 
    // پاکسازی اشیاء گرافیکی قبلی FlagPro
    ObjectsDeleteAll(0, FP_PREFIX + "BOX_");
@@ -261,33 +266,10 @@ int OnCalculate(const int rates_total,
    bool            useArr[7]      = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
    int daysBackArr[7];
-   int effectiveDays = InpBacktestDays;
-   if(InpBacktestStartDate > 0)
-   {
-      int startDays = (int)((TimeCurrent() - InpBacktestStartDate) / 86400) + 15;
-      if(startDays > effectiveDays) effectiveDays = startDays;
-   }
 
-   if((bool)MQLInfoInteger(MQL_TESTER))
-   {
-      daysBackArr[0] = 0;
-      daysBackArr[1] = 0;
-      daysBackArr[2] = 0;
-      daysBackArr[3] = 0;
-      daysBackArr[4] = MathMin(InpM15DaysBack, effectiveDays);
-      daysBackArr[5] = MathMin(InpM5DaysBack, effectiveDays);
-      daysBackArr[6] = MathMin(InpM1DaysBack, effectiveDays);
-   }
-   else
-   {
-      daysBackArr[0] = 0;
-      daysBackArr[1] = 0;
-      daysBackArr[2] = 0;
-      daysBackArr[3] = 0;
-      daysBackArr[4] = MathMax(InpM15DaysBack, effectiveDays);
-      daysBackArr[5] = MathMax(InpM5DaysBack, effectiveDays);
-      daysBackArr[6] = MathMax(InpM1DaysBack, effectiveDays);
-   }
+   // تنظیم خودکار و واحد تعداد روزهای تاریخچه برای تمام تایم‌فریم‌ها
+   for(int s = 0; s < 7; s++)
+      daysBackArr[s] = g_effectiveDaysBack;
 
    // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)
    useArr[0] = false; // D1
@@ -295,7 +277,7 @@ int OnCalculate(const int rates_total,
    useArr[2] = false; // H4
    useArr[3] = false; // H1
 
-   // بارگذاری عمیق تاریخچه جهت پوشش کامل تمام کندل‌ها از ابتدای سال ۲۰۲۵ (حتی اگر در چارت اسکرول نشده باشد)
+   // بارگذاری عمیق تاریخچه با محاسبه خودکار تعداد کندل‌ها جهت پوشش کامل بازه
    datetime fullTime[];
    double   fullHigh[], fullLow[], fullClose[];
    ArraySetAsSeries(fullTime,  false);
@@ -303,7 +285,7 @@ int OnCalculate(const int rates_total,
    ArraySetAsSeries(fullLow,   false);
    ArraySetAsSeries(fullClose, false);
 
-   int targetBars = MathMax(InpMaxBarsTF, rates_total);
+   int targetBars = MathMax(g_effectiveTargetBars, rates_total);
    int totalCopied = CopyTime(_Symbol, _Period, 0, targetBars, fullTime);
    if(totalCopied > rates_total)
    {
