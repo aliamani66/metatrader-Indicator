@@ -1563,5 +1563,28 @@ void ExportAllTradesToCSV()
 
    if(handle != INVALID_HANDLE) FileClose(handle);
    if(handleSym != INVALID_HANDLE) FileClose(handleSym);
+
+   // ذخیره خودکار فایل اکسل با نام تفصیلی و مشخص شامل تاریخ شروع و تعداد معاملات
+   datetime exportStartDt = (g_effectiveStartDate > 0) ? g_effectiveStartDate : 
+                           ((InpBacktestStartDate > 0) ? InpBacktestStartDate : 
+                           (copied > 0 ? chartTime[0] : 0));
+   string startDateStr = "2025-01-01";
+   if(exportStartDt > 0)
+   {
+      startDateStr = TimeToString(exportStartDt, TIME_DATE);
+      StringReplace(startDateStr, ".", "-");
+   }
+
+   string descFilename = StringFormat("flagpro_trades_%s_From_%s_%dTrades.csv", symClean, startDateStr, exportedCount);
+   bool copiedDesc = FileCopy(symFilename, 0, descFilename, FILE_REWRITE);
+   if(copiedDesc)
+   {
+      PrintFormat("📁 FlagPro: فایل اکسل تفصیلی «%s» با %d معامله با موفقیت در پوشه Files ذخیره شد.", descFilename, exportedCount);
+   }
+   else
+   {
+      PrintFormat("⚠️ FlagPro: خطا در ایجاد کپی تفصیلی «%s» (کد خطا: %d)", descFilename, GetLastError());
+   }
+
    Print("📁 FlagPro: تعداد ", exportedCount, " موقعیت معاملاتی ", _Symbol, " با موفقیت در فایل‌های CSV ذخیره شد.");
 }

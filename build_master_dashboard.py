@@ -4178,11 +4178,15 @@ def build_dashboard(custom_csv=None):
             // Re-render UI components
             initEquityCanvasEvents();
             clearPresetActiveState();
-            renderSimKingsList();
+            renderSimKingsGrid();
+            if (typeof renderSLRiskPanel === 'function') renderSLRiskPanel();
+            if (typeof renderSimHoursBar === 'function') renderSimHoursBar();
             trFilters.page = 1;
             renderTrades();
-            runSimulation();
-            drawWeeklyBarChart(currentWeeklyBarMode);
+            runEquitySimulation();
+            if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {{
+                drawWeeklyBarChart(currentWeeklyBarMode);
+            }}
         }}
 
         function processUploadedFile(file) {{
