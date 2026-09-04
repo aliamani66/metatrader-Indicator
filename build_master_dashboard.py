@@ -1681,6 +1681,50 @@ def build_dashboard():
             box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
         }}
 
+                /* 🌟 TWO-COLUMN WORKSPACE LAYOUT */
+        .equity-two-col-container {{
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 12px;
+            align-items: stretch;
+            margin-bottom: 12px;
+        }}
+        .equity-two-col-container.single-col {{
+            grid-template-columns: 1fr !important;
+        }}
+        .equity-col-chart, .equity-col-controls {{
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }}
+        .eq-subpanels-wrapper {{
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            max-height: 485px;
+            padding-left: 2px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar {{
+            width: 6px;
+            height: 6px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar-track {{
+            background: #060a12;
+            border-radius: 4px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar-thumb {{
+            background: #1e3a5f;
+            border-radius: 4px;
+        }}
+        .eq-subpanels-wrapper::-webkit-scrollbar-thumb:hover {{
+            background: #38bdf8;
+        }}
+        @media (max-width: 1250px) {{
+            .equity-two-col-container {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
         .eq-subtab-btn.active {{
             background: #0284c7;
             color: #fff;
@@ -1863,9 +1907,14 @@ def build_dashboard():
                 </div>
             </div>
 
-                        <!-- 📈 INTERACTIVE EQUITY CANVAS GRAPH (AT THE VERY TOP) -->
+                                    <!-- 🌟 2-COLUMN MAIN WORKSPACE GRID -->
+            <div class="equity-two-col-container" id="eqTwoColContainer">
+
+                <!-- 🔹 COLUMN 1: CHART SECTION (HALF-WIDTH) -->
+                <div class="equity-col-chart" id="eqColChart">
+                    <!-- 📈 INTERACTIVE EQUITY CANVAS GRAPH (AT THE VERY TOP) -->
             <!-- Interactive Canvas Graph Container -->
-            <div class="section-box" style="border:1px solid #38bdf8;background:#0b0f19;padding:10px 14px;margin-bottom:10px;border-radius:8px;">
+            <div class="section-box" style="border:1px solid #38bdf8;background:#0b0f19;padding:10px 14px;border-radius:8px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;margin-bottom:0;">
                 <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:10px;flex-wrap:wrap;gap:12px;">
                     <div>
                         <h3 style="margin:0;color:#38bdf8;font-size:15px;display:flex;align-items:center;gap:6px;">
@@ -1875,12 +1924,13 @@ def build_dashboard():
                     </div>
                     <div style="display:flex;gap:8px;">
                         <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین {len(qualified_kings)} گانه ({len(pts_kings)-1} معامله)</button>
+                        <button onclick="toggleTwoColLayout()" id="btnToggleTwoCol" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;" title="تغییر حالت به تمام‌صفحه یا دو ستونی">⛶</button>
                         <button id="btnEqAll" class="sort-btn" onclick="switchEquityMode('all')">🌐 منحنی کل ساختارهای چارت ({len(pts_all)-1} معامله)</button>
                     </div>
                 </div>
 
                 <!-- Canvas Box -->
-                <div style="position:relative;width:100%;height:340px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                <div style="position:relative;width:100%;height:425px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
                     <canvas id="equityCanvas" style="width:100%;height:100%;display:block;cursor:crosshair;"></canvas>
                     <div id="equityTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #38bdf8;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:210px;"></div>
                 </div>
@@ -1898,8 +1948,13 @@ def build_dashboard():
                     </div>
                 </div>
             </div>
+                </div>
 
-            <!-- 📑 SUB-NAVIGATION FOR CONTROLS & PRESETS -->
+                <!-- 🔹 COLUMN 2: SUBTABS & CONTROLS (PRESETS / FILTERS / RISK) -->
+                <div class="equity-col-controls" id="eqColControls">
+                    <div style="background:#080d1a;border:1px solid #1e3a5f;border-radius:10px;padding:10px 12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                        <!-- Subtabs Navigation Bar -->
+                        <!-- 📑 SUB-NAVIGATION FOR CONTROLS & PRESETS -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:10px;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     <button class="eq-subtab-btn active" onclick="openEqSubtab(event, 'eq-sub-presets')">
@@ -1924,7 +1979,9 @@ def build_dashboard():
                 </div>
             </div>
 
-            <!-- SUBPANEL 1: PRESETS -->
+                        <!-- Subpanels Scrollable Wrapper -->
+                        <div class="eq-subpanels-wrapper">
+                            <!-- SUBPANEL 1: PRESETS -->
             <div id="eq-sub-presets" class="eq-subpanel active">
                 <!-- ⚡ SMART PRESETS & CUSTOM STRATEGY PORTFOLIOS -->
             <div class="section-box" style="border: 2px solid #facc15; background: #0b1528; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
@@ -2348,6 +2405,12 @@ def build_dashboard():
                     </table>
                 </div>
             </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
         </div>
 
         <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
@@ -4818,6 +4881,23 @@ def build_dashboard():
             if (elSaved) elSaved.textContent = savedLosses.toLocaleString() + ' استاپ نجات یافت';
             if (elMissed) elMissed.textContent = missedWins.toLocaleString() + ' برد رد شد';
             if (elDD) elDD.textContent = 'افت سرمایه فعلی: $' + maxDD.toFixed(2);
+        }}
+
+        
+        function toggleTwoColLayout() {{
+            let container = document.getElementById('eqTwoColContainer');
+            let btn = document.getElementById('btnToggleTwoCol');
+            if (!container) return;
+            if (container.classList.contains('single-col')) {{
+                container.classList.remove('single-col');
+                if (btn) {{ btn.textContent = '⛶'; btn.title = 'حالت تمام‌صفحه'; }}
+            }} else {{
+                container.classList.add('single-col');
+                if (btn) {{ btn.textContent = '🗗'; btn.title = 'حالت دو ستونی'; }}
+            }}
+            setTimeout(() => {{
+                drawEquityChart();
+            }}, 50);
         }}
 
         function openTab(evt, tabId) {{
