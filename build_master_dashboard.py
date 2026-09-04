@@ -2533,104 +2533,12 @@ def build_dashboard(custom_csv=None):
                     </table>
                 </div>
             </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
         </div>
-
-        <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
-        <div id="tab-kings" class="tab-content">
-            <!-- Global Performance KPI Cards (Placed inside Tab 1) -->
-            <div class="kpi-grid" style="margin-bottom:20px;">
-                <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
-                    <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
-                    <div class="kpi-value" style="color:#38bdf8;">{total_setups:,}</div>
-                    <div class="kpi-sub">تایم‌های M1, M5, M15</div>
-                </div>
-                <div class="kpi-card" style="border-top: 4px solid #00e676;">
-                    <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
-                    <div class="kpi-value" style="color:#00e676;">{len(closed):,}</div>
-                    <div class="kpi-sub">در انتظار / فعال: {len(in_trade)} معامله</div>
-                </div>
-                <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
-                    <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
-                    <div class="kpi-value" style="color:#f59e0b;">{sl_in_rej} 🎯</div>
-                    <div class="kpi-sub">دقت فیلتر در باخت: {rej_accuracy:.1f}%</div>
-                </div>
-                <div class="kpi-card" style="border-top: 4px solid #10b981;">
-                    <div class="kpi-title">🚀 جهش امید ریاضی (EV)</div>
-                    <div class="kpi-value" style="color:#10b981;">{ev_a:+.2f} R</div>
-                    <div class="kpi-sub">قبل از فیلتر: {ev_b:+.2f} R</div>
-                </div>
-                <div class="kpi-card" style="border-top: 4px solid #eab308;">
-                    <div class="kpi-title">💵 سود خالص دلاری سلاطین (0.04)</div>
-                    <div class="kpi-value" style="color:#facc15;">${s3_net:+.2f}</div>
-                    <div class="kpi-sub">از {tot_k_cnt} معامله سلاطین برتر</div>
-                </div>
-            </div>
-
-            <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
-                <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
-                    <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب بر مبنای شاخص ترکیبی و تفکیک تایم‌فریم</h3>
-                    <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">کالبدشکافی پویا از {tot_k_cnt} معامله واقعی سلاطین برتر FlagPro (گزینش با فرمول شاخص سلطان، بونوس ۱۰۰٪ قطعی و الگوهای دونده):</p>
-                </div>
-
-                <!-- Formula Highlight Banner -->
-                <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:gap;gap:10px;">
-                    <div>
-                        <b style="color:#facc15;font-size:13px;">🏛️ شاخص ۷ ستونه هج‌فاندی سلطان (7-Pillar Institutional King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:11.5px;font-weight:bold;">Score = 🛡️خلوص(۵۰۰) + 🎯تارگت۲(۴۰۰) + ⚡پیشروی(۲۵۰) + 💰بهره‌وری(۲۰۰) + 📊اعتبار(۵۰) + ⚖️پرافیت فاکتور(۱۰۰) + 🛡️کنترل افت و ریکاوری(۱۰۰)</span>
-                    </div>
-                    <div style="display:flex;gap:6px;">
-                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ امتیاز قطعی)</span>
-                        <span style="background:#1e3a8a;color:#93c5fd;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #3b82f6;">⚖️ کنترل دراوداون و پرافیت فاکتور</span>
-                    </div>
-                </div>
-
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr style="background:#261e07;">
-                                <th style="text-align:center;">رتبه</th>
-                                <th style="text-align:center;">تایم‌فریم</th>
-                                <th>نام ساختار / تلاقی گره‌ها</th>
-                                <th style="text-align:center;color:#facc15;">امتیاز سلطان (Score)</th>
-                                <th style="text-align:center;">تعداد معامله</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:1</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:2</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:3</th>
-                                <th style="text-align:center;">وین‌ریت TP 1:4</th>
-                                <th style="text-align:center;">نرخ باخت (SL)</th>
-                                <th style="text-align:center;color:#38bdf8;" title="نسبت سود ناخالص به زیان ناخالص (Profit Factor)">⚖️ پرافیت فاکتور (PF)</th>
-                                <th style="text-align:center;color:#f87171;" title="حداکثر افت موقت بالانس در طول معاملات (Max Drawdown)">🛡️ حداکثر افت (Max DD)</th>
-                                <th style="text-align:center;color:#facc15;" title="نسبت سود خالص نهایی به حداکثر افت (Recovery Factor)">🚀 بازدهی/افت (Ret/DD)</th>
-                                <th style="text-align:center;color:#38bdf8;" title="مجموع سود بدون کسر اسپرد">سود ناخالص (Gross)</th>
-                                <th style="text-align:center;color:#f87171;" title="مجموع کل اسپرد و کمیسیون پرداخت شده به ازای هر ترید 0.04 لات ($0.48)">🧾 کل اصطکاک (اسپرد)</th>
-                                <th style="text-align:center;color:#00e676;background:#064e3b44;" title="سود قطعی واریزی به حساب بعد از پرداخت کل اسپرد و کمیسیون">💵 سود خالص واقعی (Net)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {"".join(kings_rows_html)}
-                        </tbody>
-                        <tfoot>
-                            <tr style="background:#261e07;border-top:2px solid #facc15;font-weight:bold;">
-                                <td colspan="4" style="text-align:center;color:#facc15;font-size:14px;">👑 مجموع عملکرد کل سلاطین برگزیده ({len(qualified_kings)} گره برتر)</td>
-                                <td style="text-align:center;color:#facc15;font-size:15px;">{tot_k_cnt}</td>
-                                <td colspan="8" style="text-align:center;color:#94a3b8;font-size:11px;">مبتنی بر استراتژی خروج چهارپله‌ای 0.04 لات و پایش دقیق دراوداون</td>
-                                <td style="text-align:center;color:#38bdf8;font-size:14px;">${tot_k_gross:+.2f}</td>
-                                <td style="text-align:center;color:#f87171;font-size:14px;">${tot_k_fric:.2f}-</td>
-                                <td style="text-align:center;color:#00e676;font-size:16px;background:#064e3b;">${tot_k_net:+.2f} دلار نقد خالص</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-        
-            </div>
-        </div>
+    </div>
+</div>
+</div>
+</div>
+</div>
 
         <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
         <div id="tab-kings" class="tab-content">
@@ -3400,8 +3308,6 @@ def build_dashboard(custom_csv=None):
                 </div>
             </div>
         </div>
-
-    </div>
 
     <script>
 
