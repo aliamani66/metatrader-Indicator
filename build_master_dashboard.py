@@ -1179,41 +1179,46 @@ def build_dashboard():
     k_elite = [k['kk'] for k in kings_sim_list if k['perf'] == 1 or k['run'] == 1 or k['score'] >= 600]
     if not k_elite: k_elite = all_sim_k_keys
 
+    # Preset 1: Super Sniper (User's Exact Sweet-Spot: PF 4.04, WR 77.8%, Avg $3.77, DD $27.10)
+    h_day13 = [True if 7 <= h <= 19 else False for h in range(24)]
+    excluded_user = {'OInner-BU > RS-BE|M1', 'Flag-BU|M1', 'OInner-BU|M1', 'OInner-BE > RS-BU|M1', 'OInner-BU > RS-BU|M1', 'S-RS|M1'}
+    k_super_sniper = [k for k in all_sim_k_keys if k not in excluded_user]
+
     smart_presets_defs = [
         {
-            'id': 'preset-base',
+            'id': 'preset-super-sniper',
             'idx': 0,
-            'title': '۱. سبد جامع پایه (تمام سلاطین ۲۴ ساعته)',
-            'badge': '🌐 مبنای کل چارت',
-            'badge_bg': '#1e293b',
-            'badge_col': '#94a3b8',
-            'strategy_desc': 'شبیه‌سازی کامل تمام سلاطین بدون فیلتر سود یا زمان - بیشترین حجم معامله',
-            'filter_desc': 'کف سود: <b>$0.00</b> | ساعات: <b>۲۴ ساعته کامل</b>',
-            'min_pot': 0.0,
-            'hours': h_24,
-            'hours_name': 'all',
-            'kings': all_sim_k_keys,
-            'is_featured': False
+            'title': '۱. الماس و سوپر اسنایپر (Super Sniper - چیدمان شاهکار شما 🎯)',
+            'badge': '🏆 شاهکار چارت: PF 4.04 & WR 78%',
+            'badge_bg': '#831843',
+            'badge_col': '#fbcfe8',
+            'strategy_desc': 'پرافیت فاکتور خارق‌العاده ۴.۰۴، وین‌ریت ۷۷.۸٪، میانگین سود ۳.۷۷$ و افت ناچیز ۲۷.۱۰$ (۲۱۲ ترید)',
+            'filter_desc': 'کف سود: <b>$3.00+</b> | ساعات: <b>سشن روز (۰۷ تا ۱۹)</b>',
+            'min_pot': 3.0,
+            'hours': h_day13,
+            'hours_name': 'lon_ny',
+            'kings': k_super_sniper,
+            'is_featured': True
         },
         {
             'id': 'preset-golden',
             'idx': 1,
-            'title': '۲. تعادل طلایی هج‌فاند (Golden Balance 🎯)',
-            'badge': '⭐ پیشنهاد هوشمند سیستم',
+            'title': '۲. تعادل طلایی هج‌فاند (Golden Balance ⚖️)',
+            'badge': '⭐ بالانس بهینه',
             'badge_bg': '#854d0e',
             'badge_col': '#fef08a',
-            'strategy_desc': 'وین‌ریت ~۷۰٪، پرافیت فاکتور ۲.۵، میانگین سود ۱.۹$ و حذف ریسک شبانه',
+            'strategy_desc': 'وین‌ریت ~۷۰٪، پرافیت فاکتور ۲.۴۴، سود خالص ۱,۴۹۸$، میانگین سود ۱.۸۶$ و افت ۳۰.۵۶$',
             'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
             'min_pot': 2.0,
             'hours': h_nonight,
             'hours_name': 'no_night',
             'kings': k_golden,
-            'is_featured': True
+            'is_featured': False
         },
         {
             'id': 'preset-hq',
             'idx': 2,
-            'title': '۳. پترن‌های فوق‌باکیفیت (High Quality & PF 2.9+)',
+            'title': '۳. پترن‌های فوق‌باکیفیت (High Quality & PF 3.0)',
             'badge': '💎 حاشیه سود اعلا',
             'badge_bg': '#064e3b',
             'badge_col': '#34d399',
@@ -1232,7 +1237,7 @@ def build_dashboard():
             'badge': '☀️ اوج نقدینگی',
             'badge_bg': '#0c4a6e',
             'badge_col': '#7dd3fc',
-            'strategy_desc': 'معامله فقط در ساعات پرقدرت روز (۰۸:۰۰ تا ۲۰:۰۰) با کمترین اسپرد و کمترین افت سرمایه',
+            'strategy_desc': 'معامله فقط در ساعات پرقدرت روز (۰۷:۰۰ تا ۲۰:۰۰) با کمترین اسپرد و افت سرمایه ۲۶.۸۳$',
             'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>سشن روز (۰۷ تا ۲۰)</b>',
             'min_pot': 2.0,
             'hours': h_day,
@@ -1253,6 +1258,21 @@ def build_dashboard():
             'hours': h_nonight,
             'hours_name': 'no_night',
             'kings': k_elite,
+            'is_featured': False
+        },
+        {
+            'id': 'preset-base',
+            'idx': 5,
+            'title': '۶. سبد جامع پایه (تمام سلاطین ۲۴ ساعته)',
+            'badge': '🌐 مبنای کل چارت',
+            'badge_bg': '#1e293b',
+            'badge_col': '#94a3b8',
+            'strategy_desc': 'شبیه‌سازی کامل تمام سلاطین بدون فیلتر سود یا زمان - بیشترین حجم معامله (۱,۲۳۳ ترید)',
+            'filter_desc': 'کف سود: <b>$0.00</b> | ساعات: <b>۲۴ ساعته کامل</b>',
+            'min_pot': 0.0,
+            'hours': h_24,
+            'hours_name': 'all',
+            'kings': all_sim_k_keys,
             'is_featured': False
         }
     ]
@@ -1682,17 +1702,26 @@ def build_dashboard():
                 </div>
             </div>
 
-            <!-- ⚡ SMART PRESETS STRATEGY OPTIMIZER -->
+            <!-- ⚡ SMART PRESETS & CUSTOM STRATEGY PORTFOLIOS -->
             <div class="section-box" style="border: 2px solid #facc15; background: #0b1528; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 14px; flex-wrap:wrap; gap:10px;">
                     <div>
                         <h3 style="margin:0;color:#facc15;font-size:18px;display:flex;align-items:center;gap:8px;">
-                            <span>⚡ پیشنهادات استراتژیک هوشمند سیستم (Smart Preset Portfolios)</span>
+                            <span>⚡ پیشنهادات استراتژیک سیستم و سناریوهای شخصی شما (Strategy Portfolios & Saved Presets)</span>
                         </h3>
-                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">این ۵ سناریوی طلایی به صورت خودکار و الگوریتمی از میان داده‌ها کشف شده‌اند. با کلیک روی هر گزینه، فیلترها، تنظیمات و نمودار رشد بالا فوراً همگام‌سازی می‌شوند:</p>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">با کلیک روی دکمه «اعمال روی نمودار»، فیلترها بلافاصله تنظیم می‌شوند. همچنین با دکمه سبز می‌توانید چیدمان‌های دلخواه خود را برای همیشه در مرورگر ذخیره کنید:</p>
                     </div>
-                    <div style="font-size:11.5px;color:#facc15;background:#854d0e33;border:1px solid #ca8a04;padding:4px 12px;border-radius:6px;font-weight:bold;">
-                        🎯 کشف هوشمند تعادل ریسک به ریوارد (محاسبه ۱۰۰٪ پویا)
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button onclick="openSavePresetModal()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 8px rgba(16,185,129,0.3);display:flex;align-items:center;gap:6px;">
+                            <span>💾 ذخیره چیدمان فعلی به عنوان سناریوی شخصی</span>
+                        </button>
+                        <button onclick="exportCustomPresets()" style="background:#1e293b;border:1px solid #38bdf8;color:#7dd3fc;font-size:11.5px;padding:6px 10px;border-radius:6px;cursor:pointer;" title="خروجی گرفتن از تمام سناریوهای شخصی شما در قالب فایل JSON">
+                            📥 دانلود فایل پشتیبان (JSON)
+                        </button>
+                        <button onclick="document.getElementById('importPresetsInput').click()" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;font-size:11.5px;padding:6px 10px;border-radius:6px;cursor:pointer;" title="وارد کردن سناریوها از فایل قبلی">
+                            📤 بارگذاری از فایل
+                        </button>
+                        <input type="file" id="importPresetsInput" accept=".json" style="display:none;" onchange="importCustomPresets(event)" />
                     </div>
                 </div>
 
@@ -1713,8 +1742,29 @@ def build_dashboard():
                                 <th style="padding:10px 10px;text-align:center;">اقدام سریع</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <!-- 1. SYSTEM BUILT-IN PRESETS -->
+                        <tbody id="systemPresetsTbody">
                             {smart_presets_table_rows_str}
+                        </tbody>
+                        <!-- 2. USER SAVED CUSTOM PRESETS HEADER -->
+                        <tbody id="customPresetsHeaderTbody">
+                            <tr style="background:#131d2e;border-top:2px solid #38bdf8;border-bottom:1px solid #1e3a5f;">
+                                <td colspan="11" style="padding:9px 14px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                        <div style="font-weight:bold;color:#38bdf8;font-size:13px;display:flex;align-items:center;gap:6px;">
+                                            <span>⭐ سناریوهای شخصی ذخیره‌شده شما (Your Custom Saved Portfolios):</span>
+                                            <span id="customPresetsCountBadge" style="background:#0c4a6e;color:#7dd3fc;font-size:10.5px;padding:2px 8px;border-radius:10px;">0 سناریو</span>
+                                        </div>
+                                        <div style="font-size:11px;color:#94a3b8;">
+                                            این سناریوها در مرورگر شما ذخیره هستند و حتی با تغییر یا بروزرسانی دیتا، محاسبات آنها فوراً بروز می‌شود.
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <!-- 3. USER SAVED CUSTOM PRESETS ROWS -->
+                        <tbody id="customPresetsTbody">
+                            <!-- Populated dynamically by loadCustomPresets() -->
                         </tbody>
                     </table>
                 </div>
@@ -1729,7 +1779,10 @@ def build_dashboard():
                         </h3>
                         <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">با حذف/اضافه هر سلطان، تغییر ساعات معاملاتی یا حداقل سود، نمودار و تمام شاخص‌های بالا به صورت آنی بازرسم می‌شوند:</p>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;display:flex;align-items:center;gap:5px;">
+                            <span>💾 ذخیره این ترکیب (Save Preset)</span>
+                        </button>
                         <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;">🔄 بازنشانی تمام فیلترها (Reset)</button>
                     </div>
                 </div>
@@ -3079,9 +3132,328 @@ def build_dashboard():
             runEquitySimulation();
         }}
 
+
+        // ==========================================
+        // 💾 CUSTOM PRESETS MANAGEMENT SYSTEM (LOCALSTORAGE)
+        // ==========================================
+        let customPresetsList = [];
+
+        function openSavePresetModal() {{
+            // Calculate current live stats
+            let sub = simTrades.filter(t => {{
+                let isMatchBase = (simState.mode === 'kings') ? (t.k === 1) : true;
+                if (!isMatchBase) return false;
+                if (simState.mode === 'kings' && !simState.enabledKings.has(t.kk)) return false;
+                if (!simState.allowedHours[t.h]) return false;
+                if (t.pot < simState.minProfit) return false;
+                return true;
+            }});
+
+            let c = sub.length;
+            let nt = sub.reduce((acc, t) => acc + t.p, 0);
+            let wins = sub.filter(t => t.p > 0).length;
+            let wr = c > 0 ? (wins / c * 100) : 0;
+            let avg = c > 0 ? (nt / c) : 0;
+            let gp = sub.filter(t => t.p > 0).reduce((acc, t) => acc + t.p, 0);
+            let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
+            let pf = gl > 0 ? (gp / gl) : 999;
+
+            let bal = 10000.0, peak = 10000.0, max_dd = 0.0;
+            for (let i = 0; i < sub.length; i++) {{
+                bal += sub[i].p;
+                if (bal > peak) peak = bal;
+                let dd = peak - bal;
+                if (dd > max_dd) max_dd = dd;
+            }}
+
+            let activeHoursCount = simState.allowedHours.filter(Boolean).length;
+            let activeKingsCount = simState.enabledKings.size;
+
+            document.getElementById('modalPreviewMinProfit').textContent = '$' + simState.minProfit.toFixed(2);
+            document.getElementById('modalPreviewHours').textContent = activeHoursCount + ' ساعت فعال';
+            document.getElementById('modalPreviewKings').textContent = activeKingsCount + ' سلطان فعال';
+            document.getElementById('modalPreviewTrades').textContent = c + ' معامله';
+            document.getElementById('modalPreviewWR').textContent = wr.toFixed(1) + '٪ (' + wins + ' برد)';
+            document.getElementById('modalPreviewPF').textContent = pf < 900 ? pf.toFixed(2) : '∞';
+            document.getElementById('modalPreviewAvg').textContent = '$' + avg.toFixed(2);
+            document.getElementById('modalPreviewDD').textContent = '$' + max_dd.toFixed(2);
+            document.getElementById('modalPreviewNet').textContent = (nt >= 0 ? '+' : '') + '$' + nt.toFixed(2);
+
+            let titleInput = document.getElementById('modalPresetTitle');
+            if (titleInput && !titleInput.value) {{
+                titleInput.value = 'سناریوی من (' + c + ' ترید - PF ' + (pf < 900 ? pf.toFixed(2) : 'MAX') + ')';
+            }}
+
+            let modal = document.getElementById('savePresetModal');
+            if (modal) modal.style.display = 'flex';
+        }}
+
+        function closeSavePresetModal() {{
+            let modal = document.getElementById('savePresetModal');
+            if (modal) modal.style.display = 'none';
+        }}
+
+        function confirmSaveCurrentPreset() {{
+            let title = document.getElementById('modalPresetTitle').value.trim();
+            if (!title) {{
+                alert('لطفاً یک نام برای این سناریو وارد کنید.');
+                return;
+            }}
+            let desc = document.getElementById('modalPresetDesc').value.trim();
+            if (!desc) {{
+                desc = 'کف سود $' + simState.minProfit.toFixed(2) + '، ' + simState.allowedHours.filter(Boolean).length + ' ساعت فعال، ' + simState.enabledKings.size + ' سلطان';
+            }}
+
+            let newPreset = {{
+                id: 'custom_' + Date.now(),
+                title: title,
+                desc: desc,
+                min_pot: simState.minProfit,
+                hours: [...simState.allowedHours],
+                kings: Array.from(simState.enabledKings),
+                createdAt: new Date().toLocaleDateString('fa-IR')
+            }};
+
+            try {{
+                let list = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
+                list.unshift(newPreset);
+                localStorage.setItem('flagpro_custom_presets', JSON.stringify(list));
+            }} catch(e) {{
+                console.error('Failed to save preset to localStorage', e);
+            }}
+
+            closeSavePresetModal();
+            loadCustomPresets();
+            alert('✅ سناریوی «' + title + '» با موفقیت ذخیره شد و در لیست سناریوهای شخصی قرار گرفت.');
+        }}
+
+        function loadCustomPresets() {{
+            let tbody = document.getElementById('customPresetsTbody');
+            if (!tbody) return;
+
+            let list = [];
+            try {{
+                list = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
+            }} catch(e) {{
+                list = [];
+            }}
+            customPresetsList = list;
+
+            let badge = document.getElementById('customPresetsCountBadge');
+            if (badge) badge.textContent = list.length + ' سناریو';
+
+            if (list.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:16px;color:#64748b;font-size:12px;background:#06101c;">' +
+                    '💡 هنوز هیچ سناریوی شخصی ذخیره نکرده‌اید. هر زمان فیلترها، اسلایدر یا ساعات را طبق سلیقه خود تغییر دادید، دکمه «💾 ذخیره چیدمان فعلی» را بزنید تا برای همیشه در مرورگر شما ذخیره شود.' +
+                    '</td></tr>';
+                return;
+            }}
+
+            let html = '';
+            for (let i = 0; i < list.length; i++) {{
+                let p = list[i];
+                let kSet = new Set(p.kings);
+                let sub = simTrades.filter(t => t.k === 1 && kSet.has(t.kk) && t.pot >= p.min_pot && p.hours[t.h]);
+                let c = sub.length;
+                let nt = sub.reduce((acc, t) => acc + t.p, 0);
+                let wins = sub.filter(t => t.p > 0).length;
+                let wr = c > 0 ? (wins / c * 100) : 0;
+                let avg = c > 0 ? (nt / c) : 0;
+                let gp = sub.filter(t => t.p > 0).reduce((acc, t) => acc + t.p, 0);
+                let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
+                let pf = gl > 0 ? (gp / gl) : 999;
+
+                let bal = 10000.0, peak = 10000.0, max_dd = 0.0;
+                for (let j = 0; j < sub.length; j++) {{
+                    bal += sub[j].p;
+                    if (bal > peak) peak = bal;
+                    let dd = peak - bal;
+                    if (dd > max_dd) max_dd = dd;
+                }}
+
+                let netCol = nt >= 0 ? '#00e676' : '#ef4444';
+                let pfStr = pf < 900 ? pf.toFixed(2) : '∞';
+                let hoursCnt = p.hours.filter(Boolean).length;
+
+                html += '<tr id="customRow_' + p.id + '" class="preset-table-row" style="border-bottom:1px solid #1e293b;background:#0c192c;transition:all 0.2s;">' +
+                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#38bdf8;">⭐ ' + (i + 1) + '</td>' +
+                    '<td style="padding:10px 12px;">' +
+                        '<div style="font-weight:bold;color:#f1f5f9;font-size:13px;display:flex;align-items:center;gap:6px;">' +
+                            '<span>' + p.title + '</span>' +
+                            '<span style="background:#1e3a8a;color:#93c5fd;font-size:10px;padding:1px 6px;border-radius:4px;font-weight:bold;">سفارشی</span>' +
+                        '</div>' +
+                        '<div style="color:#94a3b8;font-size:11px;margin-top:3px;">' + p.desc + '</div>' +
+                    '</td>' +
+                    '<td style="padding:10px 10px;font-size:11.5px;color:#cbd5e1;text-align:center;">' +
+                        '<div>کف سود: <b>$' + p.min_pot.toFixed(2) + '</b> | ساعات: <b>' + hoursCnt + ' ساعت</b></div>' +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 8px;font-size:12px;font-weight:bold;color:#facc15;">' +
+                        p.kings.length + ' سلطان' +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;font-size:13px;color:#e2e8f0;">' +
+                        c.toLocaleString() +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#34d399;font-size:13px;">' +
+                        wr.toFixed(1) + '٪' +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#38bdf8;font-size:13.5px;">' +
+                        pfStr +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#c084fc;font-size:13.5px;">' +
+                        '$' + avg.toFixed(2) +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#fca5a5;font-size:12.5px;">' +
+                        '$' + max_dd.toFixed(2) +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 10px;font-weight:bold;color:' + netCol + ';font-size:15px;background:#064e3b22;">' +
+                        (nt >= 0 ? '+' : '') + '$' + nt.toFixed(2) +
+                    '</td>' +
+                    '<td style="text-align:center;padding:10px 10px;white-space:nowrap;">' +
+                        '<div style="display:flex;gap:4px;justify-content:center;align-items:center;">' +
+                            '<button data-id="' + p.id + '" onclick="applyCustomPreset(this.dataset.id)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 10px;border-radius:5px;font-size:11.5px;cursor:pointer;font-weight:bold;">⚡ اعمال</button>' +
+                            '<button data-id="' + p.id + '" onclick="updateCustomPresetWithCurrent(this.dataset.id)" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;" title="به‌روزرسانی این سناریو با فیلترهای فعلی چارت">🔄 بروزرسانی</button>' +
+                            '<button data-id="' + p.id + '" onclick="deleteCustomPreset(this.dataset.id)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;" title="حذف سناریو">🗑️</button>' +
+                        '</div>' +
+                    '</td>' +
+                '</tr>';
+            }}
+            tbody.innerHTML = html;
+        }}
+
+        function applyCustomPreset(id) {{
+            let p = customPresetsList.find(x => x.id === id);
+            if (!p) return;
+
+            simState.mode = 'kings';
+            let btnK = document.getElementById('btnEqKings');
+            let btnA = document.getElementById('btnEqAll');
+            if (btnK) btnK.classList.add('active');
+            if (btnA) btnA.classList.remove('active');
+
+            // 1. Min profit
+            simState.minProfit = p.min_pot;
+            let slider = document.getElementById('simProfitSlider');
+            if (slider) slider.value = p.min_pot;
+            let sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$' + p.min_pot.toFixed(2);
+            let pBadge = document.getElementById('simProfitBadge');
+            if (pBadge) {{
+                pBadge.textContent = (p.min_pot === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + p.min_pot.toFixed(2);
+                pBadge.style.background = (p.min_pot === 0) ? '#064e3b' : '#0369a1';
+            }}
+
+            document.querySelectorAll('.profit-preset-btn').forEach(b => {{
+                b.classList.remove('active');
+                if (parseFloat(b.dataset.val) === p.min_pot) b.classList.add('active');
+            }});
+
+            // 2. Allowed Hours
+            simState.allowedHours = [...p.hours];
+            document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
+
+            // 3. Enabled Kings
+            simState.enabledKings = new Set(p.kings);
+
+            // 4. Update UI
+            renderSimKingsGrid();
+            renderSimHoursBar();
+
+            // 5. Highlight active row
+            clearPresetActiveState();
+            let row = document.getElementById('customRow_' + p.id);
+            if (row) {{
+                row.style.outline = '2px solid #38bdf8';
+                row.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.4)';
+            }}
+
+            runEquitySimulation();
+        }}
+
+        function updateCustomPresetWithCurrent(id) {{
+            let p = customPresetsList.find(x => x.id === id);
+            if (!p) return;
+            if (!confirm('آیا مایلید سناریوی «' + p.title + '» با تنظیمات فعلی فیلترهای چارت بازنویسی و بروزرسانی شود؟')) return;
+
+            p.min_pot = simState.minProfit;
+            p.hours = [...simState.allowedHours];
+            p.kings = Array.from(simState.enabledKings);
+            p.updatedAt = new Date().toLocaleDateString('fa-IR');
+
+            try {{
+                localStorage.setItem('flagpro_custom_presets', JSON.stringify(customPresetsList));
+            }} catch(e) {{
+                console.error(e);
+            }}
+            loadCustomPresets();
+            alert('✅ سناریوی «' + p.title + '» با موفقیت با تنظیمات فعلی بروز شد.');
+        }}
+
+        function deleteCustomPreset(id) {{
+            let p = customPresetsList.find(x => x.id === id);
+            if (!p) return;
+            if (!confirm('آیا از حذف سناریوی «' + p.title + '» اطمینان دارید؟')) return;
+
+            customPresetsList = customPresetsList.filter(x => x.id !== id);
+            try {{
+                localStorage.setItem('flagpro_custom_presets', JSON.stringify(customPresetsList));
+            }} catch(e) {{
+                console.error(e);
+            }}
+            loadCustomPresets();
+        }}
+
+        function exportCustomPresets() {{
+            let list = [];
+            try {{
+                list = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
+            }} catch(e) {{}}
+
+            if (list.length === 0) {{
+                alert('سناریوی ذخیره‌شده‌ای برای خروجی گرفتن وجود ندارد.');
+                return;
+            }}
+
+            let dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(list, null, 2));
+            let dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute('href', dataStr);
+            dlAnchor.setAttribute('download', 'flagpro_custom_presets.json');
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }}
+
+        function importCustomPresets(event) {{
+            let file = event.target.files[0];
+            if (!file) return;
+
+            let reader = new FileReader();
+            reader.onload = function(e) {{
+                try {{
+                    let imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) throw new Error('فایل معتبر نیست.');
+
+                    let current = JSON.parse(localStorage.getItem('flagpro_custom_presets') || '[]');
+                    let merged = [...imported, ...current];
+                    // unique by id
+                    let map = new Map();
+                    merged.forEach(item => map.set(item.id, item));
+                    let finalList = Array.from(map.values());
+
+                    localStorage.setItem('flagpro_custom_presets', JSON.stringify(finalList));
+                    loadCustomPresets();
+                    alert('✅ تعداد ' + imported.length + ' سناریو با موفقیت از فایل وارد شدند.');
+                }} catch(err) {{
+                    alert('خطا در بارگذاری فایل سناریوها: ' + err.message);
+                }}
+            }};
+            reader.readAsText(file);
+            event.target.value = '';
+        }}
+
         function initSimUI() {{
             renderSimKingsGrid();
             renderSimHoursBar();
+            loadCustomPresets();
             runEquitySimulation();
         }}
 
@@ -4122,6 +4494,49 @@ def build_dashboard():
             renderTrades();
         }}, 60);
     </script>
+    <!-- 💾 SAVE PRESET MODAL DIALOG -->
+    <div id="savePresetModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999999;align-items:center;justify-content:center;backdrop-filter:blur(5px);direction:rtl;">
+        <div style="background:#0f172a;border:2px solid #38bdf8;border-radius:14px;padding:22px;width:90%;max-width:540px;box-shadow:0 15px 35px rgba(0,0,0,0.9);color:#f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
+                <h3 style="margin:0;color:#38bdf8;font-size:18px;display:flex;align-items:center;gap:8px;">
+                    <span>💾 ذخیره ترکیب فعلی فیلترها به عنوان سناریو</span>
+                </h3>
+                <button onclick="closeSavePresetModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✖</button>
+            </div>
+            
+            <div style="background:#081420;border:1px solid #1e3a5f;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;">
+                <div style="font-weight:bold;color:#facc15;margin-bottom:8px;">📊 پیش‌نمایش عملکرد فیلترهای فعلی شما:</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;color:#cbd5e1;">
+                    <div>💰 کف سود: <b id="modalPreviewMinProfit" style="color:#34d399;">-</b></div>
+                    <div>⏰ ساعات معاملاتی: <b id="modalPreviewHours" style="color:#38bdf8;">-</b></div>
+                    <div>👑 سلاطین فعال: <b id="modalPreviewKings" style="color:#facc15;">-</b></div>
+                    <div>📊 تعداد معامله: <b id="modalPreviewTrades" style="color:#f1f5f9;">-</b></div>
+                    <div>🎯 وین‌ریت: <b id="modalPreviewWR" style="color:#34d399;">-</b></div>
+                    <div>⚖️ پرافیت فاکتور: <b id="modalPreviewPF" style="color:#38bdf8;">-</b></div>
+                    <div>⚡ میانگین سود هر ترید: <b id="modalPreviewAvg" style="color:#c084fc;">-</b></div>
+                    <div>🛡️ حداکثر افت سرمایه: <b id="modalPreviewDD" style="color:#fca5a5;">-</b></div>
+                    <div style="grid-column:span 2;background:#064e3b22;padding:6px 10px;border-radius:6px;border:1px solid #065f46;">
+                        💵 سود خالص کل: <b id="modalPreviewNet" style="color:#00e676;font-size:14px;">-</b>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;">نام سناریو (الزامی):</label>
+                <input id="modalPresetTitle" type="text" placeholder="مثال: استراتژی الماس من (PF 4.04 & WR 78%)" style="width:100%;box-sizing:border-box;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:6px;font-size:13px;font-family:inherit;" />
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;">توضیحات و خلاصه استراتژی:</label>
+                <input id="modalPresetDesc" type="text" placeholder="مثال: تارگت سود بالای ۳ دلار، بدون سلاطین پر استاپ، سشن نیویورک" style="width:100%;box-sizing:border-box;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:6px;font-size:12.5px;font-family:inherit;" />
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="closeSavePresetModal()" style="background:#1e293b;border:1px solid #475569;color:#cbd5e1;padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer;">انصراف</button>
+                <button onclick="confirmSaveCurrentPreset()" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(2,132,199,0.4);">✅ ذخیره سناریو</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 """
