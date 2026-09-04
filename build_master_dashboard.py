@@ -1,6 +1,7 @@
 import os
 import sys
 import csv
+import math
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -150,21 +151,7 @@ def build_dashboard():
         w4_p = w4 / cnt * 100
         sl_p = sl / cnt * 100
 
-        # King Score Formula with Statistical Confidence Weight:
-        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 2.0) + (w4_p * 3.0) - (sl_p * 2.0)
-        is_perfect = (cnt >= 2 and sl == 0)
-        bonus = 100.0 if is_perfect else 0.0
-
-        # Statistical Confidence Multiplier Conf(N):
-        if cnt >= 20: conf = 1.00
-        elif cnt >= 10: conf = 0.90
-        elif cnt >= 5: conf = 0.80
-        else: conf = 0.65
-
-        final_score = (base_score + bonus) * conf
-        is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
-        is_proven = (cnt >= 20)
-
+        # Calculate Net Profit with 0.04 scale-out
         gross = 0.0
         for r in t_list:
             pts = float(r.get('RiskPoints', 0.0))
@@ -179,20 +166,33 @@ def build_dashboard():
         fric = cnt * friction_04_per_trade
         net = gross - fric
 
+        # Quality Score based on TP progression:
+        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 2.0) + (w4_p * 3.0) - (sl_p * 2.0)
+        is_perfect = (cnt >= 2 and sl == 0)
+        is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
+        is_proven = (cnt >= 20)
+
+        # Economic King Score (EKS): Net Profit * Quality Factor * log10(Trade Count + 9) + Zero-SL Bonus
+        q_factor = max(base_score / 100.0, 0.1)
+        cnt_factor = math.log10(cnt + 9)
+        if net > 0:
+            final_score = (net * q_factor * cnt_factor) + (50.0 if is_perfect else 0.0)
+        else:
+            final_score = net * cnt_factor
+
         stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in t_list]
         min_sl = min(stops) if stops else 0.0
         max_sl = max(stops) if stops else 0.0
         avg_sl = sum(stops) / len(stops) if stops else 0.0
 
         # Eligibility Criteria for Kings:
-        # 1. 100% Win Rate with at least 2 trades (Zero SL)
-        # OR 2. High King Score (>=100) with at least 5 trades and Win Rate 1:1 >= 50% (allowing M15 high-timeframe setups)
-        if is_perfect or (cnt >= 5 and final_score >= 100 and w1_p >= 50.0):
+        # All 21 profitable kings qualify (perfect or positive net profit with at least 4 trades and Win Rate >= 50%)
+        if is_perfect or (cnt >= 4 and net > 5.0 and w1_p >= 50.0):
             qualified_kings.append({
                 'tf': tf, 'role': role, 'cnt': cnt,
                 'w1': w1, 'w2': w2, 'w3': w3, 'w4': w4, 'sl': sl,
                 'w1_p': w1_p, 'w2_p': w2_p, 'w3_p': w3_p, 'w4_p': w4_p, 'sl_p': sl_p,
-                'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner, 'is_proven': is_proven, 'conf': conf,
+                'score': final_score, 'is_perfect': is_perfect, 'is_runner': is_runner, 'is_proven': is_proven,
                 'min_sl': min_sl, 'max_sl': max_sl, 'avg_sl': avg_sl,
                 'gross': gross, 'fric': fric, 'net': net, 'trades': t_list
             })
@@ -454,15 +454,6 @@ def build_dashboard():
         is_perfect = (cnt >= 2 and sl == 0)
         bonus = 100.0 if is_perfect else 0.0
 
-        if cnt >= 20: conf = 1.00
-        elif cnt >= 10: conf = 0.90
-        elif cnt >= 5: conf = 0.80
-        else: conf = 0.65
-
-        final_score = (base_score + bonus) * conf
-        is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
-        is_proven = (cnt >= 20)
-
         # Calculate Net Profit with 0.04 scale-out
         gross = 0.0
         for r in t_list:
@@ -477,6 +468,14 @@ def build_dashboard():
                 if hr >= 4: gross += pts * 4.0 * 0.01
         fric = cnt * friction_04_per_trade
         net = gross - fric
+
+        # Economic King Score (EKS): Net Profit * Quality Factor * log10(Trade Count + 9) + Zero-SL Bonus
+        q_factor = max(base_score / 100.0, 0.1)
+        cnt_factor = math.log10(cnt + 9)
+        if net > 0:
+            final_score = (net * q_factor * cnt_factor) + (50.0 if is_perfect else 0.0)
+        else:
+            final_score = net * cnt_factor
 
         computed_tf_roles.append({
             'tf': tf, 'role': role, 'cnt': cnt,
@@ -1348,7 +1347,7 @@ def build_dashboard():
                 <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                     <div>
                         <b style="color:#facc15;font-size:13px;">📐 فرمول رسمی گزینش سلاطین:</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:13px;font-weight:bold;">Score = [(TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 2.0) + (TP4 × 3.0) - (SL × 2.0) + بونوس] × Conf(N)</span>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:13px;font-weight:bold;">Score = [سود خالص دلاری × ضریب کیفیت (TP1..4/SL) × log₁₀(تعداد معامله + ۹)] + بونوس</span>
                     </div>
                     <div style="display:flex;gap:6px;">
                         <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">💎 ۱۰۰٪ قطعی (حداقل ۲ معامله + ۱۰۰ بونوس)</span>
@@ -1604,7 +1603,7 @@ def build_dashboard():
                 <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                     <div>
                         <b style="color:#facc15;">📐 فرمول ترکیبی شاخص سلطان (King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = [(TP1 × 1.0) + (TP2 × 1.5) + (TP3 × 2.0) + (TP4 × 3.0) - (SL × 2.0) + بونوس] × Conf(N)</span>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = [سود خالص دلاری × ضریب کیفیت تارگت‌ها × log₁₀(تعداد معامله + ۹)] + بونوس</span>
                     </div>
                     <div>
                         <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">💎 ۱۰۰٪ قطعی (+100 بونوس)</span>
