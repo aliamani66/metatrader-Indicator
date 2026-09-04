@@ -3882,9 +3882,13 @@ def build_dashboard(custom_csv=None):
                             {symbol_options_html}
                         </select>
                     </div>
-                    <button onclick="document.getElementById('csvFileInput').click()" style="background:linear-gradient(135deg, #064e3b, #059669);border:1px solid #34d399;color:#fff;padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.3);" title="انتخاب مستقیم فایل CSV هر نماد جدید از متاتریدر جهت تحلیل آنی" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='linear-gradient(135deg, #064e3b, #059669)'">
+                    <button onclick="triggerCSVUploadClick()" style="background:linear-gradient(135deg, #064e3b, #059669);border:1px solid #34d399;color:#fff;padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.3);" title="انتخاب مستقیم فایل CSV یا Drag & Drop فایل به داخل مرورگر (مسیر پوشه Files خودکار در کلیپ‌بورد کپی می‌شود)" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='linear-gradient(135deg, #064e3b, #059669)'">
                         <span>📂</span>
                         <span>بارگذاری CSV نماد جدید...</span>
+                    </button>
+                    <button onclick="showMT5PathAlert()" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:5px 8px;border-radius:8px;font-size:11.5px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="مشاهده آدرس ذخیره فایل‌ها در متاتریدر">
+                        <span>📁</span>
+                        <span>مسیر فایل‌ها</span>
                     </button>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleCSVFileUpload(this)">
                     <span id="headerSymbolBadge" style="background:#081420;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;color:#38bdf8;">
@@ -4171,9 +4175,8 @@ def build_dashboard(custom_csv=None):
             drawWeeklyBarChart(currentWeeklyBarMode);
         }}
 
-        function handleCSVFileUpload(input) {{
-            if (!input.files || !input.files[0]) return;
-            let file = input.files[0];
+        function processUploadedFile(file) {{
+            if (!file) return;
             let reader = new FileReader();
             reader.onload = function(e) {{
                 try {{
@@ -4198,6 +4201,44 @@ def build_dashboard(custom_csv=None):
             }};
             reader.readAsText(file);
         }}
+
+        function handleCSVFileUpload(input) {{
+            if (!input.files || !input.files[0]) return;
+            processUploadedFile(input.files[0]);
+        }}
+
+        function getMT5FilesFolderPath() {{
+            return ['C:', 'Users', 'USER', 'AppData', 'Roaming', 'MetaQuotes', 'Terminal', '3F2C3A2F8B221C9D88E569F2FD1D3E97', 'MQL5', 'Files'].join(String.fromCharCode(92));
+        }}
+
+        function triggerCSVUploadClick() {{
+            let mt5Path = getMT5FilesFolderPath();
+            if (navigator.clipboard && navigator.clipboard.writeText) {{
+                navigator.clipboard.writeText(mt5Path).catch(function(){{}});
+            }}
+            document.getElementById('csvFileInput').click();
+        }}
+
+        function showMT5PathAlert() {{
+            let mt5Path = getMT5FilesFolderPath();
+            let msg = ['📁 مسیر پوشه فایل‌های اکسپورت در متاتریدر:', '', mt5Path, '', '✅ این مسیر در کلیپ‌بورد کپی شد!', '(همچنین یک میانبر مستقیم به نام MT5_Files_Folder روی دسکتاپ شما قرار دارد)'].join(String.fromCharCode(10));
+            alert(msg);
+            if (navigator.clipboard && navigator.clipboard.writeText) {{
+                navigator.clipboard.writeText(mt5Path).catch(function(){{}});
+            }}
+        }}
+
+        // Global Drag & Drop Handler
+        window.addEventListener('dragover', function(e) {{ e.preventDefault(); }});
+        window.addEventListener('drop', function(e) {{
+            e.preventDefault();
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {{
+                let file = e.dataTransfer.files[0];
+                if (file.name.toLowerCase().endsWith('.csv')) {{
+                    processUploadedFile(file);
+                }}
+            }}
+        }});
 
         function parseClientCSV(csvText, fileName) {{
             if (!csvText || typeof csvText !== 'string') throw new Error('محتوای فایل خالی است.');
