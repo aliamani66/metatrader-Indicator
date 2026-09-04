@@ -51,8 +51,8 @@ void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
    datetime now = TimeCurrent();
    if(mode == HIST_START_DATE)
    {
-      g_effectiveStartDate = startDate;
-      if(g_effectiveStartDate > 0 && now > g_effectiveStartDate)
+      g_effectiveStartDate = (startDate > 0) ? startDate : D'2025.01.01 00:00';
+      if(now > g_effectiveStartDate)
          g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 15;
       else
          g_effectiveDaysBack = 1000;

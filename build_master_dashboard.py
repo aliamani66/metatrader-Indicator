@@ -83,6 +83,8 @@ def process_symbol_dataset(csv_file):
     total_setups = len(rows)
     entered = [r for r in rows if r.get('Outcome') != 'Pending']
     closed = [r for r in entered if r.get('IsClosed') == 'True']
+    if not closed:
+        return None
     in_trade = [r for r in entered if r.get('IsClosed') != 'True']
 
     dates = [r.get('BoxTimeStart') for r in rows if r.get('BoxTimeStart') and r.get('BoxTimeStart') != 'None']
@@ -1831,7 +1833,15 @@ def process_symbol_dataset(csv_file):
     evaluated_combos.sort(key=lambda x: x['score'], reverse=True)
 
     # 1. Champion (Best score >= 15% trades)
-    opt_p1 = evaluated_combos[0] if evaluated_combos else None
+    if evaluated_combos:
+        opt_p1 = evaluated_combos[0]
+    else:
+        opt_p1 = {
+            'h_key': 'all', 'h_label': '۲۴ ساعته', 'h_arr': [True]*24,
+            'pot': 0.0, 'dropped_n': 0, 'kings': list(all_dataset_kings_set), 'kings_cnt': len(all_dataset_kings_set),
+            'trig': 0, 'sk': 0, 'day': False, 'cb_label': 'بدون وقفه',
+            'total': len(closed), 'wr': 50.0, 'pf': 1.0, 'net': 0.0, 'avg': 0.0, 'max_dd': 0.0, 'score': 0.0
+        }
 
     # 2. Golden Balance (Best score with >= 35% trades)
     cands_p2 = [r for r in evaluated_combos if r['total'] >= min_35pct_trades and r['h_key'] in ['no_night', 'all']]
@@ -4867,12 +4877,50 @@ def build_dashboard(custom_csv=None):
 
         let currentExportConfig = null;
 
+        function buildMT5SetFilename(cfg) {{
+            let sym = (cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD')).replace(/[^a-zA-Z0-9]/g, '');
+            if (!sym) sym = 'EURUSD';
+
+            // Clean scenario title to safe descriptive ASCII
+            let rawTitle = cfg.title || 'Custom';
+            let cleanTitle = 'Custom';
+            if (rawTitle.indexOf('Conservative') >= 0 || rawTitle.indexOf('محافظه') >= 0) cleanTitle = 'Conservative';
+            else if (rawTitle.indexOf('Aggressive') >= 0 || rawTitle.indexOf('تهاجمی') >= 0) cleanTitle = 'Aggressive';
+            else if (rawTitle.indexOf('Balanced') >= 0 || rawTitle.indexOf('متعادل') >= 0) cleanTitle = 'Balanced';
+            else if (rawTitle.indexOf('Diamond') >= 0 || rawTitle.indexOf('الماس') >= 0 || rawTitle.indexOf('Champion') >= 0) cleanTitle = 'Diamond';
+            else if (rawTitle.indexOf('MaxProfit') >= 0 || rawTitle.indexOf('حداکثر') >= 0) cleanTitle = 'MaxProfit';
+            else if (rawTitle.indexOf('London') >= 0 || rawTitle.indexOf('لندن') >= 0) cleanTitle = 'LondonNY';
+            else if (rawTitle.indexOf('چیدمان') >= 0 || rawTitle.indexOf('فعال') >= 0) cleanTitle = 'Custom';
+            else {{
+                let asciiOnly = rawTitle.replace(/[^a-zA-Z0-9]/g, '');
+                if (asciiOnly.length >= 3 && asciiOnly.toUpperCase() !== sym.toUpperCase()) cleanTitle = asciiOnly;
+                else cleanTitle = 'Custom';
+            }}
+
+            let wrVal = parseFloat(String(cfg.wr).replace(/[^0-9.]/g, '')) || 0;
+            let pfVal = parseFloat(String(cfg.pf).replace(/[^0-9.]/g, '')) || 0;
+            let avgVal = parseFloat(String(cfg.avg).replace(/[^0-9.-]/g, '')) || 0;
+            let kingsVal = parseInt(cfg.kings_count) || (cfg.disabled_kings_str ? Math.max(0, kingsSimList.length - cfg.disabled_kings_str.split(',').filter(x => x.trim().length > 0).length) : kingsSimList.length);
+
+            let wrPart = 'WR' + wrVal.toFixed(1).replace('.0', '') + 'pct';
+            let pfPart = 'PF' + pfVal.toFixed(2);
+            let avgPart = 'Avg' + (avgVal >= 0 ? '+' : '') + avgVal.toFixed(2) + 'usd';
+            let kingsPart = kingsVal + 'Kings';
+
+            return ['FlagPro', sym, cleanTitle, wrPart, pfPart, avgPart, kingsPart].join('_') + '.set';
+        }}
+
         function generateSetFileText(cfg) {{
+            let sym = (cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD'));
+            let filename = buildMT5SetFilename(cfg);
             let lines = [
                 ';+------------------------------------------------------------------+',
                 ';| FlagPro_Trader EA Settings File (.set)                           |',
-                ';| Auto-generated from FlagPro Strategy Dashboard                   |',
-                ';| Scenario: ' + cfg.title + ' |',
+                ';| File: ' + filename + ' |',
+                ';| Auto-generated from FlagPro Master Strategy Dashboard            |',
+                ';| Symbol: ' + sym + ' | Scenario: ' + cfg.title + ' |',
+                ';| Win Rate: ' + cfg.wr + ' | Profit Factor: ' + cfg.pf + ' |',
+                ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count + ' |',
                 ';+------------------------------------------------------------------+',
                 'InpScenarioName=' + cfg.title,
                 'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
@@ -4892,9 +4940,11 @@ def build_dashboard(custom_csv=None):
                 'InpTrailToTP2=true',
                 'InpMaxOpenGroups=5',
                 'InpMagicNumber=777123',
-                'InpBacktestStartDate=2025.01.01 00:00:00',
-                'InpBacktestDays=1000',
-                'InpMaxBarsTF=2000000'
+                'InpHistoryMode=0',
+                'InpHistoryStartDate=2025.01.01 00:00:00',
+                'InpHistoryDays=365',
+                'InpShowBoxes=false',
+                'InpExportCSV=true'
             ];
             return lines.join(String.fromCharCode(13, 10));
         }}
@@ -4935,6 +4985,7 @@ def build_dashboard(custom_csv=None):
             let actionInt = p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1);
             if (!p.consec_trig || p.consec_trig <= 0) actionInt = 0;
 
+            let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
             let config = {{
                 title: p.title.replace(/[^a-zA-Z0-9_\\s\\-\\u0600-\\u06FF]/gi, '').trim(),
                 min_pot: p.min_pot || 0,
@@ -4945,7 +4996,10 @@ def build_dashboard(custom_csv=None):
                 cnt: p.cnt,
                 wr: p.wr,
                 pf: p.pf,
-                net: p.net
+                avg: p.avg,
+                net: p.net,
+                kings_count: (p.kings ? p.kings.length : kingsSimList.length),
+                symbol: sym
             }};
 
             openMT5ExportModal(config);
@@ -4973,18 +5027,28 @@ def build_dashboard(custom_csv=None):
             let elWr = document.getElementById('eqKpiWR');
             let elPf = document.getElementById('eqKpiPF');
             let elCnt = document.getElementById('eqKpiCnt');
+            let elAvg = document.getElementById('eqKpiAvgTrade');
+
+            let wrVal = elWr ? parseFloat(elWr.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
+            let pfVal = elPf ? parseFloat(elPf.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
+            let avgVal = elAvg ? parseFloat(elAvg.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+            let kingsCount = simState.enabledKings ? simState.enabledKings.size : kingsSimList.length;
+            let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
 
             let config = {{
-                title: 'چیدمان فعال من (' + new Date().toLocaleDateString('fa-IR') + ')',
+                title: 'چیدمان فعال (' + sym + ')',
                 min_pot: simState.minProfit || 0,
                 hours_str: hoursStr,
                 consec_trig: simState.consecLossTrigger || 0,
                 consec_action: actionInt,
                 disabled_kings_str: disabledStr,
                 cnt: elCnt ? elCnt.textContent : '-',
-                wr: elWr ? elWr.textContent : '-',
-                pf: elPf ? elPf.textContent : '-',
-                net: elNet ? elNet.textContent : '-'
+                wr: wrVal,
+                pf: pfVal,
+                avg: avgVal,
+                net: elNet ? elNet.textContent : '-',
+                kings_count: kingsCount,
+                symbol: sym
             }};
 
             openMT5ExportModal(config);
@@ -4995,7 +5059,11 @@ def build_dashboard(custom_csv=None):
             let modal = document.getElementById('mt5ExportModal');
             if (!modal) return;
 
+            let filename = buildMT5SetFilename(cfg);
             document.getElementById('mt5ModalTitle').textContent = cfg.title;
+            let fileBadge = document.getElementById('mt5ModalFilename');
+            if (fileBadge) fileBadge.textContent = filename;
+
             document.getElementById('mt5ParamMinPot').textContent = '$' + cfg.min_pot.toFixed(2);
             document.getElementById('mt5ParamHours').textContent = cfg.hours_str ? cfg.hours_str : '۲۴ ساعته (بدون محدودیت)';
             document.getElementById('mt5ParamConsec').textContent = cfg.consec_trig > 0 ? (cfg.consec_trig + ' استاپ متوالی') : 'خاموش';
@@ -5023,7 +5091,7 @@ def build_dashboard(custom_csv=None):
         function downloadCurrentMT5SetFile() {{
             if (!currentExportConfig) return;
             let text = generateSetFileText(currentExportConfig);
-            let filename = 'FlagPro_' + currentExportConfig.title.replace(/[^a-zA-Z0-9_\\-]/g, '_') + '.set';
+            let filename = buildMT5SetFilename(currentExportConfig);
             downloadSetFile(filename, text);
         }}
 
@@ -7243,6 +7311,10 @@ def build_dashboard(custom_csv=None):
 
             <div style="background:#064e3b22;border:1px solid #059669;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
                 <div style="font-weight:bold;color:#facc15;font-size:13.5px;margin-bottom:6px;">🏷️ سناریوی انتخابی: <span id="mt5ModalTitle" style="color:#6ee7b7;">-</span></div>
+                <div style="font-size:11.5px;color:#38bdf8;font-family:monospace;direction:ltr;text-align:left;background:#030712;padding:6px 10px;border-radius:6px;border:1px solid #1e3a5f;margin-bottom:8px;display:flex;align-items:center;gap:6px;word-break:break-all;">
+                    <span>📁</span>
+                    <span id="mt5ModalFilename" style="font-weight:bold;">FlagPro.set</span>
+                </div>
                 <div style="font-size:12px;color:#cbd5e1;line-height:1.7;">
                     این تنظیمات تمام فیلترهای بهینه‌شده (کف سود، ساعات معاملاتی، فیوز استاپ و سلاطین فعال) را عیناً به اکسپرت معامله‌گر شما منتقل می‌کند.
                 </div>
