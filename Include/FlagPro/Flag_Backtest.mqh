@@ -20,6 +20,16 @@ bool IsPivotTimeframeMatch(int pivotIdx, const string boxTfTag)
 }
 
 //+------------------------------------------------------------------+
+//| دریافت اسپرد دقیق کندل با استفاده از دیتای هیستوری بروکر          |
+//+------------------------------------------------------------------+
+double GetBarSpread(int k, const int &chartSpread[], double fallbackSpread)
+{
+   if(k >= 0 && k < ArraySize(chartSpread) && chartSpread[k] > 0)
+      return (double)chartSpread[k] * _Point;
+   return fallbackSpread;
+}
+
+//+------------------------------------------------------------------+
 //| Interactive On-Demand Trade Simulation for Clicked Box in History |
 //+------------------------------------------------------------------+
 void ShowTradeSetupForBox(int boxIdx)
@@ -38,15 +48,18 @@ void ShowTradeSetupForBox(int boxIdx)
 
    datetime chartTime[];
    double chartHigh[], chartLow[], chartClose[];
+   int chartSpread[];
    ArraySetAsSeries(chartTime, false);
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
    ArraySetAsSeries(chartClose, false);
+   ArraySetAsSeries(chartSpread, false);
 
    int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
    CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
    CopyLow(_Symbol, _Period, 0, 250000, chartLow);
    CopyClose(_Symbol, _Period, 0, 250000, chartClose);
+   CopySpread(_Symbol, _Period, 0, 250000, chartSpread);
    if(copied < 10) return;
 
    string role = "Flag";
@@ -246,7 +259,8 @@ void ShowTradeSetupForBox(int boxIdx)
       }
       else
       {
-         if((chartHigh[k] + simSpread) >= slPrice)
+         double barSpread = GetBarSpread(k, chartSpread, simSpread);
+         if((chartHigh[k] + barSpread) >= slPrice)
          {
             cancelBarIdx = k;
             cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
@@ -603,6 +617,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
    if(simSpread <= 0) simSpread = 1.0 * pipSize;
 
+   int chartSpread[];
+   ArraySetAsSeries(chartSpread, false);
+   CopySpread(_Symbol, _Period, 0, ratesTotal, chartSpread);
+
    // مرحله ۱: شناسایی و ثبت معاملات جدید در مخزن پایدار g_tradeSetups
    for(int b = 0; b < g_boxCount; b++)
    {
@@ -763,7 +781,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(chartTime[k] > maxBoxTime) break;
 
          if(isBull && chartLow[k] <= slPrice) break;
-         if(!isBull && (chartHigh[k] + simSpread) >= slPrice) break;
+         if(!isBull && (chartHigh[k] + GetBarSpread(k, chartSpread, simSpread)) >= slPrice) break;
 
          if(departedBar < 0)
          {
@@ -845,15 +863,16 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          }
          else
          {
+            double barSpread = GetBarSpread(k, chartSpread, simSpread);
             for(int tp = hitTP; tp < 4; tp++)
             {
-               if((chartLow[k] + simSpread) <= tps[tp])
+               if((chartLow[k] + barSpread) <= tps[tp])
                {
                   hitTP = tp + 1;
                   hitTime = chartTime[k];
                }
             }
-            if((chartHigh[k] + simSpread) >= slPrice)
+            if((chartHigh[k] + barSpread) >= slPrice)
             {
                isClosed = true;
                exitTime = (hitTP > 0) ? hitTime : chartTime[k];
@@ -967,15 +986,16 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             }
             else
             {
+               double barSpread = GetBarSpread(k, chartSpread, simSpread);
                for(int tp = currentHitTP; tp < 4; tp++)
                {
-                  if((chartLow[k] + simSpread) <= tps[tp])
+                  if((chartLow[k] + barSpread) <= tps[tp])
                   {
                      currentHitTP = tp + 1;
                      hitTime = chartTime[k];
                   }
                }
-               if((chartHigh[k] + simSpread) >= g_tradeSetups[t].slPrice)
+               if((chartHigh[k] + barSpread) >= g_tradeSetups[t].slPrice)
                {
                   g_tradeSetups[t].isClosed = true;
                   g_tradeSetups[t].exitTime = (currentHitTP > 0) ? hitTime : chartTime[k];
@@ -1152,16 +1172,18 @@ void ExportAllTradesToCSV()
       return;
    }
 
-   string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed";
-   if(handle != INVALID_HANDLE) FileWrite(handle, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed");
-   if(handleSym != INVALID_HANDLE) FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed");
+   string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints";
+   if(handle != INVALID_HANDLE) FileWrite(handle, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
+   if(handleSym != INVALID_HANDLE) FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
 
    datetime chartTime[];
    double chartHigh[], chartLow[], chartClose[];
+   int chartSpread[];
    ArraySetAsSeries(chartTime, false);
    ArraySetAsSeries(chartHigh, false);
    ArraySetAsSeries(chartLow, false);
    ArraySetAsSeries(chartClose, false);
+   ArraySetAsSeries(chartSpread, false);
 
    datetime minBacktestTime = 0;
    if(InpBacktestStartDate > 0)
@@ -1183,6 +1205,7 @@ void ExportAllTradesToCSV()
    CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
    CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);
    CopyClose(_Symbol, _Period, 0, barsToCopy, chartClose);
+   CopySpread(_Symbol, _Period, 0, barsToCopy, chartSpread);
    if(copied < 10)
    {
       if(handle != INVALID_HANDLE) FileClose(handle);
@@ -1368,7 +1391,7 @@ void ExportAllTradesToCSV()
          }
          else
          {
-            if((chartHigh[k] + simSpread) >= slPrice) break;
+            if((chartHigh[k] + GetBarSpread(k, chartSpread, simSpread)) >= slPrice) break;
          }
 
          if(departedBar < 0)
@@ -1469,16 +1492,17 @@ void ExportAllTradesToCSV()
             }
             else // SELL
             {
+               double barSpread = GetBarSpread(k, chartSpread, simSpread);
                for(int tp = maxHit; tp < 4; tp++)
                {
-                  if((chartLow[k] + simSpread) <= tps[tp])
+                  if((chartLow[k] + barSpread) <= tps[tp])
                   {
                      maxHit = tp + 1;
                      hitTime = chartTime[k];
                   }
                }
 
-               if((chartHigh[k] + simSpread) >= slPrice)
+               if((chartHigh[k] + barSpread) >= slPrice)
                {
                   hitTP = maxHit;
                   isClosed = true;
@@ -1513,6 +1537,8 @@ void ExportAllTradesToCSV()
          else outcomeStr = "Open_Trade";
       }
 
+      double entrySpreadPts = (entryBarIdx >= 0) ? (GetBarSpread(entryBarIdx, chartSpread, simSpread) / _Point) : (simSpread / _Point);
+
       if(handle != INVALID_HANDLE)
       {
          FileWrite(handle,
@@ -1535,7 +1561,8 @@ void ExportAllTradesToCSV()
                    DoubleToString(tps[3], _Digits),
                    outcomeStr,
                    IntegerToString(hitTP),
-                   (isClosed ? "True" : "False"));
+                   (isClosed ? "True" : "False"),
+                   DoubleToString(entrySpreadPts, 1));
       }
 
       if(handleSym != INVALID_HANDLE)
@@ -1560,7 +1587,8 @@ void ExportAllTradesToCSV()
                    DoubleToString(tps[3], _Digits),
                    outcomeStr,
                    IntegerToString(hitTP),
-                   (isClosed ? "True" : "False"));
+                   (isClosed ? "True" : "False"),
+                   DoubleToString(entrySpreadPts, 1));
       }
 
       exportedCount++;
