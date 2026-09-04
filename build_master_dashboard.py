@@ -166,19 +166,43 @@ def build_dashboard():
         fric = cnt * friction_04_per_trade
         net = gross - fric
 
-        # Quality Score based on TP progression:
-        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 2.0) + (w4_p * 3.0) - (sl_p * 2.0)
         is_perfect = (cnt >= 2 and sl == 0)
         is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
         is_proven = (cnt >= 20)
 
-        # Economic King Score (EKS): Net Profit * Quality Factor * log10(Trade Count + 9) + Zero-SL Bonus
-        q_factor = max(base_score / 100.0, 0.1)
-        cnt_factor = math.log10(cnt + 9)
-        if net > 0:
-            final_score = (net * q_factor * cnt_factor) + (50.0 if is_perfect else 0.0)
+        # 5-Pillar Smart King Score Formula:
+        profit_per_trade = net / max(cnt, 1)
+
+        if net <= 0:
+            final_score = net * 2.0 - sl_p
         else:
-            final_score = net * cnt_factor
+            # Pillar 1: 🛡️ Purity / Zero-SL (0 to 500 pts)
+            if cnt >= 2 and sl == 0:
+                f_purity = 500.0
+            elif cnt >= 3 and sl_p <= 15.0:
+                f_purity = 300.0
+            elif cnt >= 3 and sl_p <= 25.0:
+                f_purity = 200.0
+            elif cnt >= 4 and sl_p <= 35.0:
+                f_purity = 100.0
+            elif cnt >= 4 and sl_p <= 45.0:
+                f_purity = 50.0
+            else:
+                f_purity = 0.0
+
+            # Pillar 2: 🎯 TP2 Depth (0 to 400 pts)
+            f_tp2 = w2_p * 4.0
+
+            # Pillar 3: ⚡ Runner & Target Progression Quality (up to ~250 pts)
+            f_prog = (w1_p * 0.5) + (w3_p * 1.0) + (w4_p * 1.5) - (sl_p * 0.5)
+
+            # Pillar 4: 💰 Efficiency ($/trade) (0 to 200 pts)
+            f_eff = min(max(profit_per_trade, 0.0) * 20.0, 200.0)
+
+            # Pillar 5: 📊 Statistical Confidence (0 to 50 pts)
+            f_rel = min(math.log10(cnt + 9) * 20.0, 50.0)
+
+            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel
 
         stops = [float(r.get('RiskPoints', 0.0)) / 10.0 for r in t_list]
         min_sl = min(stops) if stops else 0.0
@@ -449,10 +473,8 @@ def build_dashboard():
         w4_p = w4 / cnt * 100
         sl_p = sl / cnt * 100
 
-        # King Score Formula with Statistical Confidence Weight:
-        base_score = (w1_p * 1.0) + (w2_p * 1.5) + (w3_p * 2.0) + (w4_p * 3.0) - (sl_p * 2.0)
         is_perfect = (cnt >= 2 and sl == 0)
-        bonus = 100.0 if is_perfect else 0.0
+        is_runner = (w3_p >= 30.0 or w4_p >= 30.0)
 
         # Calculate Net Profit with 0.04 scale-out
         gross = 0.0
@@ -469,13 +491,39 @@ def build_dashboard():
         fric = cnt * friction_04_per_trade
         net = gross - fric
 
-        # Economic King Score (EKS): Net Profit * Quality Factor * log10(Trade Count + 9) + Zero-SL Bonus
-        q_factor = max(base_score / 100.0, 0.1)
-        cnt_factor = math.log10(cnt + 9)
-        if net > 0:
-            final_score = (net * q_factor * cnt_factor) + (50.0 if is_perfect else 0.0)
+        # 5-Pillar Smart King Score Formula:
+        profit_per_trade = net / max(cnt, 1)
+
+        if net <= 0:
+            final_score = net * 2.0 - sl_p
         else:
-            final_score = net * cnt_factor
+            # Pillar 1: 🛡️ Purity / Zero-SL (0 to 500 pts)
+            if cnt >= 2 and sl == 0:
+                f_purity = 500.0
+            elif cnt >= 3 and sl_p <= 15.0:
+                f_purity = 300.0
+            elif cnt >= 3 and sl_p <= 25.0:
+                f_purity = 200.0
+            elif cnt >= 4 and sl_p <= 35.0:
+                f_purity = 100.0
+            elif cnt >= 4 and sl_p <= 45.0:
+                f_purity = 50.0
+            else:
+                f_purity = 0.0
+
+            # Pillar 2: 🎯 TP2 Depth (0 to 400 pts)
+            f_tp2 = w2_p * 4.0
+
+            # Pillar 3: ⚡ Runner & Target Progression Quality (up to ~250 pts)
+            f_prog = (w1_p * 0.5) + (w3_p * 1.0) + (w4_p * 1.5) - (sl_p * 0.5)
+
+            # Pillar 4: 💰 Efficiency ($/trade) (0 to 200 pts)
+            f_eff = min(max(profit_per_trade, 0.0) * 20.0, 200.0)
+
+            # Pillar 5: 📊 Statistical Confidence (0 to 50 pts)
+            f_rel = min(math.log10(cnt + 9) * 20.0, 50.0)
+
+            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel
 
         computed_tf_roles.append({
             'tf': tf, 'role': role, 'cnt': cnt,
@@ -507,12 +555,12 @@ def build_dashboard():
         elif item['is_runner']:
             badge_html += " <span style='background:#312e81;color:#a5b4fc;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #4338ca;'>🚀 دونده</span>"
 
-        if score >= 300:
+        if score >= 1000:
             score_html = f"<span style='color:#facc15;font-weight:bold;font-size:15px;'>{score:.1f} 👑</span>"
-        elif score >= 180:
-            score_html = f"<span style='color:#00e676;font-weight:bold;font-size:14px;'>{score:.1f} ⭐</span>"
-        elif score >= 80:
-            score_html = f"<span style='color:#38bdf8;font-weight:bold;font-size:13px;'>{score:.1f}</span>"
+        elif score >= 500:
+            score_html = f"<span style='color:#38bdf8;font-weight:bold;font-size:14px;'>{score:.1f} ⭐</span>"
+        elif score >= 250:
+            score_html = f"<span style='color:#00e676;font-weight:bold;font-size:13px;'>{score:.1f}</span>"
         else:
             score_html = f"<span style='color:#ef4444;font-size:13px;'>{score:.1f}</span>"
 
@@ -1346,12 +1394,12 @@ def build_dashboard():
                 <!-- Formula Highlight Banner -->
                 <div style="font-size:12px;color:#fef08a;margin-bottom:16px;background:#261e07;padding:12px 16px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                     <div>
-                        <b style="color:#facc15;font-size:13px;">📐 فرمول رسمی گزینش سلاطین:</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:13px;font-weight:bold;">Score = [سود خالص دلاری × ضریب کیفیت (TP1..4/SL) × log₁₀(تعداد معامله + ۹)] + بونوس</span>
+                        <b style="color:#facc15;font-size:13px;">📐 شاخص هوشمند ۵ ستونه سلطان (5-Pillar Smart King Score):</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:3px 10px;border-radius:5px;color:#38bdf8;margin:0 8px;font-size:12px;font-weight:bold;">Score = 🛡️خلوص وین‌ریت (تا ۵۰۰) + 🎯وین‌ریت ۱:۲ (ضریب ۴) + ⚡پیشروی تارگت‌ها + 💰بهره‌وری دلاری هر ترید + 📊اعتبار آماری</span>
                     </div>
                     <div style="display:flex;gap:6px;">
-                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">💎 ۱۰۰٪ قطعی (حداقل ۲ معامله + ۱۰۰ بونوس)</span>
-                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4338ca;">🚀 دونده (TP3/4 ≥ 30%)</span>
+                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #059669;">👑 ۱۰۰٪ وین‌ریت بدون SL (+۵۰۰ امتیاز قطعی)</span>
+                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #4338ca;">🎯 اولویت دوم: وین‌ریت ۱:۲ (وزن ۴x)</span>
                     </div>
                 </div>
 
@@ -1599,15 +1647,15 @@ def build_dashboard():
                     </div>
                 </div>
 
-                <!-- Formula Formula Explainer Box -->
+                <!-- Formula Explainer Box -->
                 <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                     <div>
-                        <b style="color:#facc15;">📐 فرمول ترکیبی شاخص سلطان (King Score):</b>
-                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = [سود خالص دلاری × ضریب کیفیت تارگت‌ها × log₁₀(تعداد معامله + ۹)] + بونوس</span>
+                        <b style="color:#facc15;">📐 شاخص هوشمند ۵ ستونه سلطان (5-Pillar Smart King Score):</b>
+                        <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = 🛡️خلوص وین‌ریت (تا ۵۰۰) + 🎯وین‌ریت ۱:۲ (ضریب ۴) + ⚡عمق تارگت‌ها + 💰سود به ازای هر معامله + 📊اعتبار آماری</span>
                     </div>
                     <div>
-                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">💎 ۱۰۰٪ قطعی (+100 بونوس)</span>
-                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #4338ca;">🚀 دونده (TP3/4 ≥ 30%)</span>
+                        <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ قطعی)</span>
+                        <span style="background:#312e81;color:#a5b4fc;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #4338ca;">🎯 قدرت ۱:۲ (اولویت دوم)</span>
                     </div>
                 </div>
 
