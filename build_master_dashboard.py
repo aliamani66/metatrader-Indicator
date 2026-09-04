@@ -5351,7 +5351,7 @@ def build_dashboard(custom_csv=None):
             let path = getMT5ExpertsSettingsFolderPath();
             if (navigator.clipboard && navigator.clipboard.writeText) {{
                 navigator.clipboard.writeText(path).then(() => {{
-                    alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\n\n' + path + '\n\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
+                    alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\\\\n\\\\n' + path + '\\\\n\\\\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
                 }}).catch(() => {{
                     prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
                 }});
