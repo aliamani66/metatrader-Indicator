@@ -204,16 +204,21 @@ input bool             InpHideVolumes   = true;        // حذف نمودار ح
 // ساختار مدیریت گروهی پوزیشن‌های ۴ مرحله‌ای
 struct SActiveTradeGroup
 {
-   string   tradeKey;
-   bool     isBuy;
-   double   entryPrice;
-   double   initialSL;
-   double   tp1, tp2, tp3, tp4;
-   ulong    tickets[4];
-   bool     beApplied;
-   bool     trailTP1Applied;
-   bool     trailTP2Applied;
-   bool     isFinished;
+   string            tradeKey;
+   string            role;
+   ENUM_TIMEFRAMES   tf;
+   datetime          entryTime;
+   bool              isBuy;
+   double            entryPrice;      // قیمت واقعی پر شدن اردر مارکت
+   double            boxEntryPrice;   // قیمت تئوریک لبه باکس
+   double            initialSL;       // استاپ ارسالی
+   double            boxSL;           // استاپ تئوریک باکس
+   double            tp1, tp2, tp3, tp4;
+   ulong             tickets[4];
+   bool              beApplied;
+   bool              trailTP1Applied;
+   bool              trailTP2Applied;
+   bool              isFinished;
 };
 
 // متغیرهای گلوبال اکسپرت
@@ -262,10 +267,258 @@ int OnInit()
 }
 
 //+------------------------------------------------------------------+
+//| استخراج خودکار گزارش جامع تست استراتژی تستر متاتریدر ۵             |
+//+------------------------------------------------------------------+
+void ExportTesterRunSummary()
+{
+   if(!HistorySelect(0, TimeCurrent())) return;
+
+   int totalDeals = HistoryDealsTotal();
+   int nSetups = ArraySize(m_activeGroups);
+   if(totalDeals <= 0 && nSetups == 0) return;
+
+   FolderCreate("FlagPro_TesterReports");
+   FolderCreate("FlagPro_TesterReports", FILE_COMMON);
+
+   string symClean = _Symbol;
+   StringReplace(symClean, "!", "");
+   StringReplace(symClean, "#", "");
+
+   datetime startTestTime = 0;
+   datetime endTestTime = TimeCurrent();
+
+   // پیدا کردن زمان شروع تست از اولین معامله
+   for(int i = 0; i < totalDeals; i++)
+   {
+      ulong dTicket = HistoryDealGetTicket(i);
+      if(dTicket > 0 && HistoryDealGetInteger(dTicket, DEAL_ENTRY) == DEAL_ENTRY_IN)
+      {
+         startTestTime = (datetime)HistoryDealGetInteger(dTicket, DEAL_TIME);
+         break;
+      }
+   }
+   if(startTestTime == 0) startTestTime = TimeCurrent() - 15 * 86400;
+
+   string tfName = EnumToString(_Period);
+   StringReplace(tfName, "PERIOD_", "");
+
+   string dateStr = TimeToString(startTestTime, TIME_DATE) + "_to_" + TimeToString(endTestTime, TIME_DATE);
+   StringReplace(dateStr, ".", "-");
+
+   string baseName = "FlagPro_Test_" + symClean + "_" + tfName + "_" + dateStr + "_" + IntegerToString(nSetups) + "Trades";
+   string jsonName = "FlagPro_TesterReports\\" + baseName + ".json";
+   string csvName  = "FlagPro_TesterReports\\" + baseName + ".csv";
+
+   // محاسبه آمار و KPIها
+   int winSetups = 0;
+   int lossSetups = 0;
+   double totalProfitUSD = 0.0;
+   double totalProfitPips = 0.0;
+   double grossProfitPips = 0.0;
+   double grossLossPips = 0.0;
+   double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
+
+   // خروجی CSV
+   int hCsv = FileOpen(csvName, FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
+   if(hCsv != INVALID_HANDLE)
+   {
+      FileWrite(hCsv, "SetupID", "Pattern", "Timeframe", "Side", "EntryTime", "CloseTime", 
+                      "BoxEntry", "FillEntry", "SlippagePips", "SL", "TP1", "TP2", "TP3", "TP4", 
+                      "TPsHit", "ExitClass", "ProfitUSD", "ProfitPips", "Outcome");
+   }
+
+   // خروجی JSON محلی
+   int hJson = FileOpen(jsonName, FILE_WRITE | FILE_TXT | FILE_UNICODE);
+   int hJsonCommon = FileOpen(jsonName, FILE_WRITE | FILE_TXT | FILE_UNICODE | FILE_COMMON);
+
+   string jsonContent = "{\n";
+   jsonContent += "  \"reportTitle\": \"تست استراتژی تستر متاتریدر ۵ - نماد " + _Symbol + " تایم " + tfName + "\",\n";
+   jsonContent += "  \"symbol\": \"" + _Symbol + "\",\n";
+   jsonContent += "  \"timeframe\": \"" + tfName + "\",\n";
+   jsonContent += "  \"dateRange\": \"" + TimeToString(startTestTime, TIME_DATE) + " - " + TimeToString(endTestTime, TIME_DATE) + "\",\n";
+   jsonContent += "  \"exportedAt\": \"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES|TIME_SECONDS) + "\",\n";
+
+   // پارامترهای تستر
+   jsonContent += "  \"parameters\": {\n";
+   jsonContent += "    \"InpScenarioName\": \"" + InpScenarioName + "\",\n";
+   jsonContent += "    \"InpMinTradePotential\": " + DoubleToString(InpMinTradePotential, 1) + ",\n";
+   jsonContent += "    \"InpAllowedTradingHours\": \"" + (InpAllowedTradingHours == "" ? "24 Hours (تمام ساعات شبانه‌روز)" : InpAllowedTradingHours) + "\",\n";
+   jsonContent += "    \"InpConsecLossTrigger\": " + IntegerToString(InpConsecLossTrigger) + ",\n";
+   jsonContent += "    \"InpDisabledKingsList\": \"" + (InpDisabledKingsList == "" ? "None (هیچ سلطانی غیرفعال نبود)" : InpDisabledKingsList) + "\",\n";
+   jsonContent += "    \"InpMoveToBreakEven\": " + (InpMoveToBreakEven ? "true" : "false") + ",\n";
+   jsonContent += "    \"InpBEBufferPips\": " + DoubleToString(InpBEBufferPips, 1) + ",\n";
+   jsonContent += "    \"InpTrailToTP1\": " + (InpTrailToTP1 ? "true" : "false") + ",\n";
+   jsonContent += "    \"InpTrailToTP2\": " + (InpTrailToTP2 ? "true" : "false") + ",\n";
+   jsonContent += "    \"InpMaxEntryDeviationPips\": " + DoubleToString(InpMaxEntryDeviationPips, 1) + ",\n";
+   jsonContent += "    \"InpLot_TP1\": " + DoubleToString(InpLot_TP1, 2) + ",\n";
+   jsonContent += "    \"InpLot_TP2\": " + DoubleToString(InpLot_TP2, 2) + ",\n";
+   jsonContent += "    \"InpLot_TP3\": " + DoubleToString(InpLot_TP3, 2) + ",\n";
+   jsonContent += "    \"InpLot_TP4\": " + DoubleToString(InpLot_TP4, 2) + "\n";
+   jsonContent += "  },\n";
+
+   // استخراج جزئیات هر ستاپ و پوزیشن‌ها
+   string tradesJson = "  \"trades\": [\n";
+   string equityJson = "  \"equityCurve\": [\n";
+   double runningPips = 0.0;
+   double runningUSD = 0.0;
+
+   for(int g = 0; g < nSetups; g++)
+   {
+      double setupProfitUSD = 0.0;
+      double setupProfitPips = 0.0;
+      datetime closeTime = m_activeGroups[g].entryTime;
+      int tpsHit = 0;
+      bool fullSL = false;
+
+      for(int p = 0; p < 4; p++)
+      {
+         ulong posTicket = m_activeGroups[g].tickets[p];
+         if(posTicket <= 0) continue;
+
+         if(HistorySelectByPosition(posTicket))
+         {
+            int nDeals = HistoryDealsTotal();
+            for(int d = 0; d < nDeals; d++)
+            {
+               ulong dTk = HistoryDealGetTicket(d);
+               if(dTk > 0 && HistoryDealGetInteger(dTk, DEAL_ENTRY) == DEAL_ENTRY_OUT)
+               {
+                  double pUSD = HistoryDealGetDouble(dTk, DEAL_PROFIT);
+                  double exitPr = HistoryDealGetDouble(dTk, DEAL_PRICE);
+                  datetime exTm = (datetime)HistoryDealGetInteger(dTk, DEAL_TIME);
+                  if(exTm > closeTime) closeTime = exTm;
+
+                  double pPips = (exitPr - m_activeGroups[g].entryPrice) / pipSize;
+                  if(!m_activeGroups[g].isBuy) pPips = -pPips;
+
+                  setupProfitUSD += pUSD;
+                  setupProfitPips += pPips;
+
+                  if(pPips > 0.5) tpsHit++;
+                  else if(pPips < -1.0) fullSL = true;
+               }
+            }
+         }
+      }
+
+      totalProfitUSD += setupProfitUSD;
+      totalProfitPips += setupProfitPips;
+      runningUSD += setupProfitUSD;
+      runningPips += setupProfitPips;
+
+      if(setupProfitPips >= 0)
+      {
+         winSetups++;
+         grossProfitPips += setupProfitPips;
+      }
+      else
+      {
+         lossSetups++;
+         grossLossPips += MathAbs(setupProfitPips);
+      }
+
+      string exitClass = "Full SL ❌";
+      if(tpsHit >= 4) exitClass = "Full Runner TP4 🚀";
+      else if(tpsHit == 3) exitClass = "TP3 + Trail 🏆";
+      else if(tpsHit == 2) exitClass = "TP2 + Trail 🎯";
+      else if(tpsHit == 1) exitClass = "TP1 + BE 🛡️ (ریسک‌فری روی پولبک)";
+      else if(setupProfitPips > 0) exitClass = "Partial Profit ✅";
+
+      double slippage = MathAbs(m_activeGroups[g].entryPrice - m_activeGroups[g].boxEntryPrice) / pipSize;
+      string outcome = (setupProfitPips >= 0) ? "Win" : "Loss";
+
+      string discReason = "منطبق با استراتژی";
+      if(m_activeGroups[g].tf == PERIOD_M1) discReason = "تایم نویز M1 (در سناریوی منتخب فیلتر است)";
+      else if(slippage > 2.0) discReason = "اسلیپیج شدید ورود مارکت";
+      else if(tpsHit == 1 && setupProfitPips < 5.0) discReason = "خروج زودهنگام در بریک‌ایون بافر ۱ پیپ";
+      else if(fullSL && !m_activeGroups[g].isBuy) discReason = "اسپرد Ask روی استاپ پوزیشن SELL";
+
+      if(hCsv != INVALID_HANDLE)
+      {
+         FileWrite(hCsv, IntegerToString(g + 1), m_activeGroups[g].role, EnumToString(m_activeGroups[g].tf),
+                   (m_activeGroups[g].isBuy ? "BUY" : "SELL"),
+                   TimeToString(m_activeGroups[g].entryTime, TIME_DATE|TIME_MINUTES|TIME_SECONDS),
+                   TimeToString(closeTime, TIME_DATE|TIME_MINUTES|TIME_SECONDS),
+                   DoubleToString(m_activeGroups[g].boxEntryPrice, _Digits),
+                   DoubleToString(m_activeGroups[g].entryPrice, _Digits),
+                   DoubleToString(slippage, 1),
+                   DoubleToString(m_activeGroups[g].initialSL, _Digits),
+                   DoubleToString(m_activeGroups[g].tp1, _Digits),
+                   DoubleToString(m_activeGroups[g].tp2, _Digits),
+                   DoubleToString(m_activeGroups[g].tp3, _Digits),
+                   DoubleToString(m_activeGroups[g].tp4, _Digits),
+                   IntegerToString(tpsHit), exitClass,
+                   DoubleToString(setupProfitUSD, 2),
+                   DoubleToString(setupProfitPips, 1), outcome);
+      }
+
+      if(g > 0)
+      {
+         tradesJson += ",\n";
+         equityJson += ",\n";
+      }
+
+      tradesJson += StringFormat("    {\"setupId\": %d, \"pattern\": \"%s\", \"timeframe\": \"%s\", \"side\": \"%s\", \"entryTime\": \"%s\", \"closeTime\": \"%s\", \"boxEntryPrice\": %.5f, \"marketFillPrice\": %.5f, \"slippagePips\": %.1f, \"slPrice\": %.5f, \"tp1\": %.5f, \"tp2\": %.5f, \"tp3\": %.5f, \"tp4\": %.5f, \"tpsHit\": %d, \"exitClass\": \"%s\", \"outcome\": \"%s\", \"profitPips\": %.1f, \"profitUSD\": %.2f, \"discrepancyReason\": \"%s\"}",
+                                 g + 1, m_activeGroups[g].role, EnumToString(m_activeGroups[g].tf),
+                                 (m_activeGroups[g].isBuy ? "BUY" : "SELL"),
+                                 TimeToString(m_activeGroups[g].entryTime, TIME_DATE|TIME_MINUTES),
+                                 TimeToString(closeTime, TIME_DATE|TIME_MINUTES),
+                                 m_activeGroups[g].boxEntryPrice, m_activeGroups[g].entryPrice, slippage,
+                                 m_activeGroups[g].initialSL, m_activeGroups[g].tp1, m_activeGroups[g].tp2, m_activeGroups[g].tp3, m_activeGroups[g].tp4,
+                                 tpsHit, exitClass, outcome, setupProfitPips, setupProfitUSD, discReason);
+
+      equityJson += StringFormat("    {\"time\": \"%s\", \"pnlPips\": %.1f, \"pnlUSD\": %.2f}",
+                                 TimeToString(closeTime, TIME_DATE|TIME_MINUTES), runningPips, runningUSD);
+   }
+
+   tradesJson += "\n  ]\n";
+   equityJson += "\n  ]\n";
+
+   double wr = (nSetups > 0) ? ((double)winSetups / nSetups * 100.0) : 0.0;
+   double pf = (grossLossPips > 0) ? (grossProfitPips / grossLossPips) : 0.0;
+
+   string kpisJson = "  \"kpis\": {\n";
+   kpisJson += "    \"totalSetups\": " + IntegerToString(nSetups) + ",\n";
+   kpisJson += "    \"winningSetups\": " + IntegerToString(winSetups) + ",\n";
+   kpisJson += "    \"losingSetups\": " + IntegerToString(lossSetups) + ",\n";
+   kpisJson += "    \"winRate\": " + DoubleToString(wr, 1) + ",\n";
+   kpisJson += "    \"netPips\": " + DoubleToString(totalProfitPips, 1) + ",\n";
+   kpisJson += "    \"netUSD\": " + DoubleToString(totalProfitUSD, 2) + ",\n";
+   kpisJson += "    \"profitFactor\": " + DoubleToString(pf, 2) + ",\n";
+   kpisJson += "    \"grossProfitPips\": " + DoubleToString(grossProfitPips, 1) + ",\n";
+   kpisJson += "    \"grossLossPips\": " + DoubleToString(grossLossPips, 1) + "\n";
+   kpisJson += "  },\n";
+
+   jsonContent += kpisJson + equityJson + ",\n" + tradesJson + "}\n";
+
+   if(hJson != INVALID_HANDLE)
+   {
+      FileWriteString(hJson, jsonContent);
+      FileClose(hJson);
+   }
+   if(hJsonCommon != INVALID_HANDLE)
+   {
+      FileWriteString(hJsonCommon, jsonContent);
+      FileClose(hJsonCommon);
+   }
+   if(hCsv != INVALID_HANDLE)
+   {
+      FileClose(hCsv);
+   }
+
+   PrintFormat("🎉 [FlagPro] گزارش کالبدشکافی تستر با موفقیت ایجاد شد | نماد: %s | تعداد ستاپ: %d | سود خالص: %.1f پیپ (%.2f$) | وین‌ریت: %.1f%% | مسیر فایل: MQL5\\Files\\%s",
+               _Symbol, nSetups, totalProfitPips, totalProfitUSD, wr, jsonName);
+}
+
+//+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   if(MQLInfoInteger(MQL_TESTER))
+   {
+      ExportTesterRunSummary();
+   }
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(m_activeGroups, 0);
    ArrayResize(g_tradeSetups, 0);
@@ -785,19 +1038,24 @@ void OnTick()
          // ثبت گروه معاملاتی جهت مدیریت بریک‌ایون و تریلینگ
          int gSize = ArraySize(m_activeGroups) + 1;
          ArrayResize(m_activeGroups, gSize);
-         m_activeGroups[gSize - 1].tradeKey = tradeKey;
-         m_activeGroups[gSize - 1].isBuy = isBuy;
-         m_activeGroups[gSize - 1].entryPrice = sendPrice;
-         m_activeGroups[gSize - 1].initialSL = sl;
-         m_activeGroups[gSize - 1].tp1 = tp1;
-         m_activeGroups[gSize - 1].tp2 = tp2;
-         m_activeGroups[gSize - 1].tp3 = tp3;
-         m_activeGroups[gSize - 1].tp4 = tp4;
+         m_activeGroups[gSize - 1].tradeKey      = tradeKey;
+         m_activeGroups[gSize - 1].role          = g_tradeSetups[t].boxRole;
+         m_activeGroups[gSize - 1].tf            = g_tradeSetups[t].tf;
+         m_activeGroups[gSize - 1].entryTime     = g_tradeSetups[t].entryTime;
+         m_activeGroups[gSize - 1].isBuy         = isBuy;
+         m_activeGroups[gSize - 1].entryPrice    = sendPrice;
+         m_activeGroups[gSize - 1].boxEntryPrice = g_tradeSetups[t].entryPrice;
+         m_activeGroups[gSize - 1].initialSL     = sl;
+         m_activeGroups[gSize - 1].boxSL         = g_tradeSetups[t].slPrice;
+         m_activeGroups[gSize - 1].tp1           = tp1;
+         m_activeGroups[gSize - 1].tp2           = tp2;
+         m_activeGroups[gSize - 1].tp3           = tp3;
+         m_activeGroups[gSize - 1].tp4           = tp4;
          for(int p = 0; p < 4; p++) m_activeGroups[gSize - 1].tickets[p] = openedTickets[p];
-         m_activeGroups[gSize - 1].beApplied = false;
+         m_activeGroups[gSize - 1].beApplied      = false;
          m_activeGroups[gSize - 1].trailTP1Applied = false;
          m_activeGroups[gSize - 1].trailTP2Applied = false;
-         m_activeGroups[gSize - 1].isFinished = false;
+         m_activeGroups[gSize - 1].isFinished     = false;
 
          PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت ثبت شد | الگو: %s [%s] | جهت: %s | حجم‌ها: TP1=%.2f, TP2=%.2f, TP3=%.2f, TP4=%.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
                      g_tradeSetups[t].boxRole, EnumToString(g_tradeSetups[t].tf),

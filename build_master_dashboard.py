@@ -6,6 +6,7 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
+import tester_compare_module
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -3458,6 +3459,14 @@ def build_dashboard(custom_csv=None):
     json_symbols_payload = json.dumps(client_symbols_payload, separators=(',', ':'))
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Load MT5 Strategy Tester Reports
+    tester_reports_dir = os.path.join(files_dir, "FlagPro_TesterReports")
+    tester_reports = tester_compare_module.load_tester_reports(tester_reports_dir)
+    default_tester_key = list(tester_reports.keys())[0] if tester_reports else 'none'
+    tester_compare_tab_html = tester_compare_module.get_tester_compare_html(tester_reports, default_tester_key)
+    tester_compare_js = tester_compare_module.get_tester_compare_js()
+    json_tester_reports_payload = json.dumps(tester_reports, separators=(',', ':'))
+
     html = f"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -3859,6 +3868,10 @@ def build_dashboard(custom_csv=None):
                     <span class="tab-icon">🔍</span>
                     <span class="tab-title">هوش باخت‌ها و استاپ‌ها</span>
                 </button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-tester-compare')">
+                    <span class="tab-icon">🔬</span>
+                    <span class="tab-title">کالبدشکافی تست متاتریدر</span>
+                </button>
             </div>
 
             <div class="sidebar-footer">
@@ -4091,10 +4104,19 @@ def build_dashboard(custom_csv=None):
                 {default_data['tab_weekly_html']}
             </div>
         </div>
+
+        <!-- ==================== TAB 9: 🔬 TESTER VS STRATEGY FORENSIC COMPARISON ==================== -->
+        <div id="tab-tester-compare" class="tab-content">
+            <div id="tab-tester-compare-container">
+                {tester_compare_tab_html}
+            </div>
+        </div>
 <script>
 
         // ================= MULTI-SYMBOL GLOBAL REGISTRY & SWITCHER =================
         window.ALL_SYMBOLS_DATA = {json_symbols_payload};
+        window.TESTER_REPORTS = {json_tester_reports_payload};
+        {tester_compare_js}
         let currentActiveSymbol = '{default_sym}';
 
         function switchDashboardSymbol(symName) {{
@@ -7047,6 +7069,12 @@ def build_dashboard(custom_csv=None):
                 setTimeout(() => {{
                     renderTrades();
                 }}, 30);
+            }}
+
+            if (tabId === 'tab-tester-compare') {{
+                setTimeout(() => {{
+                    initTesterCompareTab();
+                }}, 50);
             }}
         }}
 
