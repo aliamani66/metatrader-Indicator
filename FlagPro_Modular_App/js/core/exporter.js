@@ -43,24 +43,42 @@ function buildMT5SetFilename(cfg) {
             let filename = buildMT5SetFilename(cfg);
             let now = new Date();
             let nowStr = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+            
+            // Clean ASCII safe scenario title
+            let safeTitle = (cfg.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-]/g, ' ').trim();
+            if (!safeTitle) safeTitle = 'Custom Strategy';
+
             let lines = [
                 ';+------------------------------------------------------------------+',
-                ';| FlagPro_Trader EA Settings File (.set)                           |',
-                ';| File: ' + filename + ' |',
-                ';| Auto-generated from FlagPro Master Strategy Dashboard            |',
-                ';| Date: ' + nowStr + ' |',
-                ';| Target Folder: MQL5/Experts/تنظیمات/ (or Settings/)              |',
-                ';| Symbol: ' + sym + ' | Scenario: ' + cfg.title + ' |',
-                ';| Win Rate: ' + cfg.wr + ' | Profit Factor: ' + cfg.pf + ' |',
-                ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count + ' |',
+                ';| FlagPro_Trader EA - Expert Advisor Settings (.set)               |',
+                ';| File: ' + filename,
+                ';| Auto-generated from FlagPro Strategy Dashboard                   |',
+                ';| Date: ' + nowStr,
+                ';| Target Folder: MQL5/Experts/Settings/ (or تنظیمات/)              |',
+                ';| Symbol: ' + sym + ' | Scenario: ' + safeTitle,
+                ';| Win Rate: ' + cfg.wr + ' | Profit Factor: ' + cfg.pf,
+                ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count,
                 ';+------------------------------------------------------------------+',
-                'InpScenarioName=' + cfg.title,
-                'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
-                'InpAllowedTradingHours=' + (cfg.hours_str || ''),
-                'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
-                'InpConsecLossAction=' + parseInt(cfg.consec_action || 1),
-                'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+                '',
+                ';=== ۱. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
+                'InpScenarioName=' + safeTitle,
                 'InpOnlyTradeKings=true',
+                'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+                'InpEnableKingsM15=true',
+                'InpEnableKingsM5=true',
+                'InpEnableKingsM1=true',
+                'InpTradeOnlyGoldenKings=true',
+                'InpAllowOverlappingTrades=true',
+                '',
+                ';=== ۲. اسلیپیج، انحراف مجاز ورود و مدیریت ریسک معامله ===',
+                'InpSlippagePoints=20',
+                'InpMaxEntryDeviationPips=2.5',
+                'InpSLOffsetPips=3.0',
+                'InpMaxSLPips=0.0',
+                'InpMaxOpenGroups=5',
+                'InpMagicNumber=777123',
+                '',
+                ';=== ۳. سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing) ===',
                 'InpEnableScaleOut=true',
                 'InpLot_TP1=0.01',
                 'InpLot_TP2=0.01',
@@ -70,13 +88,30 @@ function buildMT5SetFilename(cfg) {
                 'InpBEBufferPips=1.0',
                 'InpTrailToTP1=true',
                 'InpTrailToTP2=true',
-                'InpMaxOpenGroups=5',
-                'InpMagicNumber=777123',
-                'InpHistoryMode=0',
-                'InpHistoryStartDate=2025.01.01 00:00:00',
-                'InpHistoryDays=365',
-                'InpShowBoxes=false',
-                'InpExportCSV=true'
+                '',
+                ';=== ۴. ساعات معاملاتی، کف سود و فیوز ایمنی ===',
+                'InpAllowedTradingHours=' + (cfg.hours_str || ''),
+                'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
+                'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
+                'InpConsecLossAction=' + parseInt(cfg.consec_action || 1),
+                '',
+                ';=== ۵. فیلترهای ضد استاپ و هزینه کمیسیون ===',
+                'InpFilterNightHours=true',
+                'InpFilterPreLondonHunt=true',
+                'InpFilterToxicPatterns=true',
+                'InpFilterSingleLS=true',
+                'InpFilterPureFlags=true',
+                'InpFilterLowRewardVsFriction=true',
+                'InpBrokerCommissionPerLot=6.0',
+                'InpEstimatedSpreadPips=0.8',
+                'InpMinNetProfitRatioTP1=1.0',
+                '',
+                ';=== ۶. تایم‌فریم‌های فعال معامله ===',
+                'InpUseTF7=true',
+                'InpUseTF6=true',
+                'InpUseTF5=true',
+                'InpTradeMacroTFs=false',
+                'InpLookbackBars=5000'
             ];
             return lines.join(String.fromCharCode(13, 10));
         }
@@ -129,7 +164,8 @@ function buildMT5SetFilename(cfg) {
                 let enabledSet = new Set(p.kings || []);
                 for (let k of (kingsSimList || [])) {
                     if (k && k.kk && !enabledSet.has(k.kk)) {
-                        disabledKings.push(k.kk);
+                        let kClean = k.kk.replace(/\|(M\d+)/, ' [$1]');
+                        disabledKings.push(kClean);
                     }
                 }
                 let disabledStr = disabledKings.join(', ');
@@ -172,7 +208,8 @@ function buildMT5SetFilename(cfg) {
                 let disabledKings = [];
                 for (let k of (kingsSimList || [])) {
                     if (k && k.kk && simState.enabledKings && !simState.enabledKings.has(k.kk)) {
-                        disabledKings.push(k.kk);
+                        let kClean = k.kk.replace(/\|(M\d+)/, ' [$1]');
+                        disabledKings.push(kClean);
                     }
                 }
                 let disabledStr = disabledKings.join(', ');
