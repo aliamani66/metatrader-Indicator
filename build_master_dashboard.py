@@ -1128,6 +1128,198 @@ def build_dashboard():
         })
     json_trades_sim = json.dumps(trades_sim_list, separators=(',', ':'))
 
+    # ==================== SMART PRESETS OPTIMIZER ====================
+    all_sim_k_keys = [k['kk'] for k in kings_sim_list]
+    
+    # Preset 1: Base All Kings 24h
+    h_24 = [True] * 24
+    
+    # Preset 2: Golden Balance (User Sweet-spot: ~70% WR, PF ~2.4+, Avg ~$1.8+, Low DD)
+    h_nonight = [False if h in [22, 23, 0, 1, 2, 3] else True for h in range(24)]
+    k_golden = [k['kk'] for k in kings_sim_list if ((k['net'] / k['cnt']) if k['cnt'] > 0 else 0) >= 0.70 and k['pf'] >= 1.5]
+    if not k_golden: k_golden = all_sim_k_keys
+
+    # Preset 3: High Quality & Low Noise Patterns (PF > 2.5, Avg > $2.00)
+    k_hq = [k['kk'] for k in kings_sim_list if ((k['net'] / k['cnt']) if k['cnt'] > 0 else 0) >= 1.0 and k['pf'] >= 1.8]
+    if not k_hq: k_hq = k_golden
+
+    # Preset 4: Day Session Sniper (London & NY peak liquidity 07:00 - 19:59)
+    h_day = [True if 7 <= h < 20 else False for h in range(24)]
+
+    # Preset 5: Elite Runners & 100% Perfect Wins (TP4 Seekers)
+    k_elite = [k['kk'] for k in kings_sim_list if k['perf'] == 1 or k['run'] == 1 or k['score'] >= 600]
+    if not k_elite: k_elite = all_sim_k_keys
+
+    smart_presets_defs = [
+        {
+            'id': 'preset-base',
+            'idx': 0,
+            'title': '۱. سبد جامع پایه (تمام سلاطین ۲۴ ساعته)',
+            'badge': '🌐 مبنای کل چارت',
+            'badge_bg': '#1e293b',
+            'badge_col': '#94a3b8',
+            'strategy_desc': 'شبیه‌سازی کامل تمام سلاطین بدون فیلتر سود یا زمان - بیشترین حجم معامله',
+            'filter_desc': 'کف سود: <b>$0.00</b> | ساعات: <b>۲۴ ساعته کامل</b>',
+            'min_pot': 0.0,
+            'hours': h_24,
+            'hours_name': 'all',
+            'kings': all_sim_k_keys,
+            'is_featured': False
+        },
+        {
+            'id': 'preset-golden',
+            'idx': 1,
+            'title': '۲. تعادل طلایی هج‌فاند (Golden Balance 🎯)',
+            'badge': '⭐ پیشنهاد هوشمند سیستم',
+            'badge_bg': '#854d0e',
+            'badge_col': '#fef08a',
+            'strategy_desc': 'وین‌ریت ~۷۰٪، پرافیت فاکتور ۲.۵، میانگین سود ۱.۹$ و حذف ریسک شبانه',
+            'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
+            'min_pot': 2.0,
+            'hours': h_nonight,
+            'hours_name': 'no_night',
+            'kings': k_golden,
+            'is_featured': True
+        },
+        {
+            'id': 'preset-hq',
+            'idx': 2,
+            'title': '۳. پترن‌های فوق‌باکیفیت (High Quality & PF 2.9+)',
+            'badge': '💎 حاشیه سود اعلا',
+            'badge_bg': '#064e3b',
+            'badge_col': '#34d399',
+            'strategy_desc': 'حذف الگوهای کم‌حاشیه - پرافیت فاکتور نزدیک به ۳ و میانگین سود بالای ۲.۴$',
+            'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
+            'min_pot': 2.0,
+            'hours': h_nonight,
+            'hours_name': 'no_night',
+            'kings': k_hq,
+            'is_featured': False
+        },
+        {
+            'id': 'preset-day',
+            'idx': 3,
+            'title': '۴. اسنایپر سشن روزانه لندن و نیویورک (Day Session)',
+            'badge': '☀️ اوج نقدینگی',
+            'badge_bg': '#0c4a6e',
+            'badge_col': '#7dd3fc',
+            'strategy_desc': 'معامله فقط در ساعات پرقدرت روز (۰۸:۰۰ تا ۲۰:۰۰) با کمترین اسپرد و کمترین افت سرمایه',
+            'filter_desc': 'کف سود: <b>$2.00+</b> | ساعات: <b>سشن روز (۰۷ تا ۲۰)</b>',
+            'min_pot': 2.0,
+            'hours': h_day,
+            'hours_name': 'lon_ny',
+            'kings': all_sim_k_keys,
+            'is_featured': False
+        },
+        {
+            'id': 'preset-elite',
+            'idx': 4,
+            'title': '۵. سلاطین دونده و کمال‌گرا (Elite Runners & Perfect)',
+            'badge': '🚀 پرتابی تا TP4',
+            'badge_bg': '#3b0764',
+            'badge_col': '#e9d5ff',
+            'strategy_desc': 'تمرکز بر ساختارهای بدون باخت (۱۰۰٪) و پترن‌های دارای پرتاب‌های بزرگ تا تارگت ۴',
+            'filter_desc': 'کف سود: <b>$1.50+</b> | ساعات: <b>حذف شب (۰۴ تا ۲۲)</b>',
+            'min_pot': 1.5,
+            'hours': h_nonight,
+            'hours_name': 'no_night',
+            'kings': k_elite,
+            'is_featured': False
+        }
+    ]
+
+    smart_presets_json_data = []
+    smart_presets_rows_html = []
+
+    for p in smart_presets_defs:
+        k_set = set(p['kings'])
+        sub = [t for t in trades_sim_list if t['k'] == 1 and t['kk'] in k_set and t['pot'] >= p['min_pot'] and p['hours'][t['h']]]
+        c = len(sub)
+        if c == 0: continue
+        nt = sum(t['p'] for t in sub)
+        w = len([t for t in sub if t['p'] > 0])
+        wr = (w / c * 100) if c > 0 else 0.0
+        avg = (nt / c) if c > 0 else 0.0
+        gp = sum(t['p'] for t in sub if t['p'] > 0)
+        gl = sum(abs(t['p']) for t in sub if t['p'] <= 0)
+        pf = (gp / gl) if gl > 0 else 999.0
+        
+        bal = 10000.0
+        peak = 10000.0
+        max_dd = 0.0
+        for t in sub:
+            bal += t['p']
+            if bal > peak: peak = bal
+            dd = peak - bal
+            if dd > max_dd: max_dd = dd
+
+        p_data = {
+            'id': p['id'],
+            'idx': p['idx'],
+            'title': p['title'],
+            'min_pot': p['min_pot'],
+            'hours': p['hours'],
+            'hours_name': p['hours_name'],
+            'kings': p['kings'],
+            'cnt': c,
+            'wr': round(wr, 1),
+            'pf': round(pf, 2) if pf < 900 else 999.0,
+            'avg': round(avg, 2),
+            'max_dd': round(max_dd, 2),
+            'net': round(nt, 2)
+        }
+        smart_presets_json_data.append(p_data)
+
+        row_border = "border: 2px solid #facc15; background: #1c1806;" if p['is_featured'] else "border-bottom: 1px solid #1e293b;"
+        pf_display = f"{pf:.2f}" if pf < 900 else "∞"
+        net_col = "#00e676" if nt >= 0 else "#ef4444"
+        featured_tag = f" <span style='background:{p['badge_bg']};color:{p['badge_col']};font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>{p['badge']}</span>"
+
+        smart_presets_rows_html.append(f"""
+        <tr id="presetRow{p['idx']}" style="{row_border}transition:all 0.2s;" class="preset-table-row {'featured-preset' if p['is_featured'] else ''}">
+            <td style="text-align:center;padding:10px 8px;font-weight:bold;font-size:13px;color:#facc15;">#{p['idx']+1}</td>
+            <td style="padding:10px 12px;">
+                <div style="font-weight:bold;color:#f1f5f9;font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>{p['title']}</span>
+                    {featured_tag}
+                </div>
+                <div style="color:#94a3b8;font-size:11px;margin-top:3px;">{p['strategy_desc']}</div>
+            </td>
+            <td style="padding:10px 10px;font-size:11.5px;color:#cbd5e1;text-align:center;">
+                <div>{p['filter_desc']}</div>
+            </td>
+            <td style="text-align:center;padding:10px 8px;font-size:12px;font-weight:bold;color:#38bdf8;">
+                {len(p['kings'])} سلطان
+            </td>
+            <td style="text-align:center;padding:10px 8px;font-weight:bold;font-size:13px;color:#e2e8f0;">
+                {c:,}
+            </td>
+            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#34d399;font-size:13px;">
+                {wr:.1f}٪
+            </td>
+            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#38bdf8;font-size:13.5px;">
+                {pf_display}
+            </td>
+            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#facc15;font-size:13.5px;">
+                ${avg:+.2f}
+            </td>
+            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#fca5a5;font-size:12.5px;">
+                ${max_dd:.2f}
+            </td>
+            <td style="text-align:center;padding:10px 10px;font-weight:bold;color:{net_col};font-size:15px;background:#064e3b22;">
+                ${nt:+,.2f}
+            </td>
+            <td style="text-align:center;padding:10px 10px;">
+                <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);">
+                    ⚡ اعمال روی نمودار
+                </button>
+            </td>
+        </tr>
+        """)
+
+    json_smart_presets = json.dumps(smart_presets_json_data, separators=(',', ':'))
+    smart_presets_table_rows_str = ''.join(smart_presets_rows_html)
+
     # Trades Journal JSON Data Preparation
     trades_sorted = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''), reverse=True)
     trades_json_list = []
@@ -1461,6 +1653,44 @@ def build_dashboard():
                 </div>
             </div>
 
+            <!-- ⚡ SMART PRESETS STRATEGY OPTIMIZER -->
+            <div class="section-box" style="border: 2px solid #facc15; background: #0b1528; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 14px; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="margin:0;color:#facc15;font-size:18px;display:flex;align-items:center;gap:8px;">
+                            <span>⚡ پیشنهادات استراتژیک هوشمند سیستم (Smart Preset Portfolios)</span>
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">این ۵ سناریوی طلایی به صورت خودکار و الگوریتمی از میان داده‌ها کشف شده‌اند. با کلیک روی هر گزینه، فیلترها، تنظیمات و نمودار رشد بالا فوراً همگام‌سازی می‌شوند:</p>
+                    </div>
+                    <div style="font-size:11.5px;color:#facc15;background:#854d0e33;border:1px solid #ca8a04;padding:4px 12px;border-radius:6px;font-weight:bold;">
+                        🎯 کشف هوشمند تعادل ریسک به ریوارد (محاسبه ۱۰۰٪ پویا)
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:right;">
+                        <thead>
+                            <tr style="background:#1e293b;color:#94a3b8;border-bottom:2px solid #334155;">
+                                <th style="padding:10px 8px;text-align:center;">#</th>
+                                <th style="padding:10px 12px;">سناریوی استراتژی و ویژگی‌ها</th>
+                                <th style="padding:10px 10px;text-align:center;">تنظیمات فیلتر</th>
+                                <th style="padding:10px 8px;text-align:center;">سلاطین</th>
+                                <th style="padding:10px 8px;text-align:center;">تعداد ترید</th>
+                                <th style="padding:10px 8px;text-align:center;">وین‌ریت</th>
+                                <th style="padding:10px 8px;text-align:center;">پرافیت فاکتور</th>
+                                <th style="padding:10px 8px;text-align:center;">میانگین هر سود</th>
+                                <th style="padding:10px 8px;text-align:center;">حداکثر افت (DD)</th>
+                                <th style="padding:10px 10px;text-align:center;">سود خالص نهایی</th>
+                                <th style="padding:10px 10px;text-align:center;">اقدام سریع</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {smart_presets_table_rows_str}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- 🎛️ REAL-TIME FILTER SIMULATOR CONTROL PANEL -->
             <div class="section-box" style="border: 2px solid #0284c7; background: #081a2e; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e4976; padding-bottom: 12px; margin-bottom: 16px; flex-wrap:wrap; gap:10px;">
@@ -1533,11 +1763,11 @@ def build_dashboard():
 
                         <!-- Presets -->
                         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-                            <button class="profit-preset-btn active" onclick="applyProfitPreset(0.0, this)">همه ($0)</button>
-                            <button class="profit-preset-btn" onclick="applyProfitPreset(1.5, this)">$1.50+</button>
-                            <button class="profit-preset-btn" onclick="applyProfitPreset(2.0, this)" title="اگر سود تارگت زیر ۲ دلار بود معامله نشود">$2.00+ ⭐</button>
-                            <button class="profit-preset-btn" onclick="applyProfitPreset(2.5, this)">$2.50+</button>
-                            <button class="profit-preset-btn" onclick="applyProfitPreset(3.0, this)">$3.00+</button>
+                            <button class="profit-preset-btn active" data-val="0" onclick="applyProfitPreset(0.0, this)">همه ($0)</button>
+                            <button class="profit-preset-btn" data-val="1.5" onclick="applyProfitPreset(1.5, this)">$1.50+</button>
+                            <button class="profit-preset-btn" data-val="2" onclick="applyProfitPreset(2.0, this)" title="اگر سود تارگت زیر ۲ دلار بود معامله نشود">$2.00+ ⭐</button>
+                            <button class="profit-preset-btn" data-val="2.5" onclick="applyProfitPreset(2.5, this)">$2.50+</button>
+                            <button class="profit-preset-btn" data-val="3" onclick="applyProfitPreset(3.0, this)">$3.00+</button>
                         </div>
 
                         <!-- Slider / Number Input -->
@@ -2697,6 +2927,7 @@ def build_dashboard():
 
         let kingsSimList = {json_kings_sim};
         let simTrades = {json_trades_sim};
+        let smartPresets = {json_smart_presets};
         let currentEquityMode = 'kings';
         let currentSimPts = [];
         let simState = {{
@@ -2707,6 +2938,84 @@ def build_dashboard():
         }};
 
         let simCanvasEventsInitialized = false;
+
+        function clearPresetActiveState() {{
+            document.querySelectorAll('.preset-table-row').forEach(r => {{
+                r.style.outline = 'none';
+                r.style.boxShadow = 'none';
+            }});
+            document.querySelectorAll('.apply-preset-btn').forEach(b => {{
+                b.innerHTML = '⚡ اعمال روی نمودار';
+                b.style.background = 'linear-gradient(135deg, #0284c7, #0369a1)';
+                b.style.borderColor = '#38bdf8';
+            }});
+        }}
+
+        function applySmartPreset(idx) {{
+            let p = smartPresets.find(x => x.idx === idx);
+            if (!p) return;
+
+            // 1. Set mode to kings
+            simState.mode = 'kings';
+            let btnK = document.getElementById('btnEqKings');
+            let btnA = document.getElementById('btnEqAll');
+            if (btnK) btnK.classList.add('active');
+            if (btnA) btnA.classList.remove('active');
+
+            // 2. Set min profit
+            simState.minProfit = p.min_pot;
+            let slider = document.getElementById('simProfitSlider');
+            if (slider) slider.value = p.min_pot;
+            let sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$' + p.min_pot.toFixed(2);
+            let pBadge = document.getElementById('simProfitBadge');
+            if (pBadge) {{
+                pBadge.textContent = (p.min_pot === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + p.min_pot.toFixed(2);
+                pBadge.style.background = (p.min_pot === 0) ? '#064e3b' : '#0369a1';
+            }}
+            document.querySelectorAll('.profit-preset-btn').forEach(b => {{
+                b.classList.remove('active');
+                if (parseFloat(b.dataset.val) === p.min_pot) b.classList.add('active');
+            }});
+
+            // 3. Set allowed hours
+            simState.allowedHours = [...p.hours];
+            document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
+            if (p.hours_name === 'all') {{
+                let b = document.getElementById('btnHAll');
+                if (b) b.classList.add('active');
+            }} else if (p.hours_name === 'no_night') {{
+                let b = document.getElementById('btnHNoNight');
+                if (b) b.classList.add('active');
+            }} else if (p.hours_name === 'lon_ny') {{
+                let b = document.getElementById('btnHLonNy');
+                if (b) b.classList.add('active');
+            }}
+
+            // 4. Set enabled kings
+            simState.enabledKings = new Set(p.kings);
+
+            // 5. Update UI components
+            renderSimKingsGrid();
+            renderSimHoursBar();
+
+            // 6. Highlight active preset row
+            clearPresetActiveState();
+            let activeRow = document.getElementById('presetRow' + idx);
+            if (activeRow) {{
+                activeRow.style.outline = '2px solid #38bdf8';
+                activeRow.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.4)';
+            }}
+            let activeBtn = document.getElementById('btnApplyPreset' + idx);
+            if (activeBtn) {{
+                activeBtn.innerHTML = '✅ سناریوی فعال';
+                activeBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+                activeBtn.style.borderColor = '#34d399';
+            }}
+
+            // 7. Run equity simulation
+            runEquitySimulation();
+        }}
 
         function initSimUI() {{
             renderSimKingsGrid();
@@ -2753,6 +3062,7 @@ def build_dashboard():
         }}
 
         function toggleSimKing(kk) {{
+            clearPresetActiveState();
             if (simState.enabledKings.has(kk)) {{
                 simState.enabledKings.delete(kk);
             }} else {{
@@ -2763,6 +3073,7 @@ def build_dashboard():
         }}
 
         function selectAllKings(enableAll) {{
+            clearPresetActiveState();
             if (enableAll) {{
                 kingsSimList.forEach(k => simState.enabledKings.add(k.kk));
             }} else {{
@@ -2773,6 +3084,7 @@ def build_dashboard():
         }}
 
         function selectOnlyPerfectKings() {{
+            clearPresetActiveState();
             simState.enabledKings.clear();
             kingsSimList.forEach(k => {{
                 if (k.perf === 1) simState.enabledKings.add(k.kk);
@@ -2782,6 +3094,7 @@ def build_dashboard():
         }}
 
         function selectOnlyRunnerKings() {{
+            clearPresetActiveState();
             simState.enabledKings.clear();
             kingsSimList.forEach(k => {{
                 if (k.run === 1) simState.enabledKings.add(k.kk);
@@ -2816,6 +3129,7 @@ def build_dashboard():
         }}
 
         function toggleHour(h) {{
+            clearPresetActiveState();
             simState.allowedHours[h] = !simState.allowedHours[h];
             renderSimHoursBar();
             document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
@@ -2823,6 +3137,7 @@ def build_dashboard():
         }}
 
         function applyHourPreset(preset, btnElem) {{
+            clearPresetActiveState();
             document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
             if (btnElem) btnElem.classList.add('active');
 
@@ -2846,6 +3161,7 @@ def build_dashboard():
         }}
 
         function applyProfitPreset(val, btnElem) {{
+            clearPresetActiveState();
             simState.minProfit = val;
             let slider = document.getElementById('simProfitSlider');
             if (slider) slider.value = val;
@@ -2863,6 +3179,7 @@ def build_dashboard():
         }}
 
         function onProfitSliderInput(val) {{
+            clearPresetActiveState();
             let num = parseFloat(val) || 0.0;
             simState.minProfit = num;
             let sliderVal = document.getElementById('simProfitSliderVal');
@@ -2877,6 +3194,7 @@ def build_dashboard():
         }}
 
         function resetAllSimFilters() {{
+            clearPresetActiveState();
             simState.mode = 'kings';
             kingsSimList.forEach(k => simState.enabledKings.add(k.kk));
             simState.allowedHours.fill(true);
