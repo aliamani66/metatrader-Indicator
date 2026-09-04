@@ -52,8 +52,35 @@ def load_tester_reports(reports_dir):
             fpath = os.path.join(reports_dir, fname)
             candidates.append((fpath, os.path.getmtime(fpath)))
 
-    # Sort descending by file modification time (newest first)
-    candidates.sort(key=lambda x: x[1], reverse=True)
+    def extract_sort_key(fpath, mtime):
+        fname = os.path.basename(fpath)
+        end_d, start_d = "", ""
+        # 1. Try filename: YYYY-MM-DD_to_YYYY-MM-DD
+        m = re.search(r'(\d{4}-\d{2}-\d{2})_to_(\d{4}-\d{2}-\d{2})', fname)
+        if m:
+            start_d = m.group(1).replace('-', '.')
+            end_d = m.group(2).replace('-', '.')
+        # 2. Try peek json for dateRange
+        if not end_d:
+            try:
+                for enc in ['utf-8-sig', 'utf-16', 'utf-8']:
+                    try:
+                        with open(fpath, 'r', encoding=enc) as fp:
+                            data_peek = json.load(fp)
+                            dr = data_peek.get('dateRange', '')
+                            m2 = re.search(r'(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})', dr)
+                            if m2:
+                                start_d = m2.group(1).replace('/', '.').replace('-', '.')
+                                end_d = m2.group(2).replace('/', '.').replace('-', '.')
+                            break
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        return (end_d, start_d, mtime, fname)
+
+    # Sort descending: test end date DESC, start date DESC, mtime DESC
+    candidates.sort(key=lambda x: extract_sort_key(x[0], x[1]), reverse=True)
 
     reports = OrderedDict()
     for fpath, mtime in candidates:
@@ -103,12 +130,22 @@ def get_tester_compare_html(reports_dict, default_key):
         title = v.get('reportTitle', k)
         date_range = v.get('dateRange', '')
         t_count = len(v.get('trades', []))
-        options_html.append(f'<option value="{k}" {sel}>{title} | [{date_range}] | {t_count} معامله</option>')
+        date_part = ''
+        m_dr = re.search(r'(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})', date_range)
+        if m_dr:
+            sD = m_dr.group(1).replace('/', '.').replace('-', '.')
+            eD = m_dr.group(2).replace('/', '.').replace('-', '.')
+            date_part = f'از {sD} تا {eD}'
+        elif date_range:
+            date_part = date_range
+        
+        opt_text = f'{title} | {date_part} | {t_count} معامله' if date_part else f'{title} | {t_count} معامله'
+        options_html.append(f'<option value="{k}" {sel}>{opt_text}</option>')
     
     if not options_html:
         options_html.append('<option value="none">هیچ گزارشی یافت نشد</option>')
 
-    opts_str = "\\n".join(options_html)
+    opts_str = "\n".join(options_html)
 
     return f"""
     <div style="padding: 4px 6px;">

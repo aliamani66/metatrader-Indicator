@@ -183,29 +183,97 @@ function resolveActiveScenario(scenarioKey, report) {
     return scenarios.find(s => s.id === scenarioKey) || scenarios[1];
 }
 
+function parseReportSortKey(k) {
+    let r = (window.TESTER_REPORTS && window.TESTER_REPORTS[k]) || {};
+    if (k.startsWith('uploaded_')) {
+        return { isUploaded: 1, endStr: '9999.99.99', startStr: '9999.99.99', mtime: Date.now(), exp: '' };
+    }
+    
+    let dr = r.dateRange || '';
+    let startStr = '';
+    let endStr = '';
+    let m = dr.match(/(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/i);
+    if (m) {
+        startStr = m[1].replace(/[\/-]/g, '.');
+        endStr = m[2].replace(/[\/-]/g, '.');
+    }
+    
+    if (!endStr) {
+        let m2 = k.match(/(\d{4}-\d{2}-\d{2})_to_(\d{4}-\d{2}-\d{2})/);
+        if (m2) {
+            startStr = m2[1].replace(/-/g, '.');
+            endStr = m2[2].replace(/-/g, '.');
+        }
+    }
+    
+    if (!endStr && r.trades && r.trades.length > 0) {
+        let lastT = r.trades[r.trades.length - 1];
+        let tStr = lastT.closeTime || lastT.entryTime || '';
+        if (tStr.length >= 10) endStr = tStr.substring(0, 10).replace(/[\/-]/g, '.');
+    }
+    
+    let mt = r.mtime || 0;
+    let exp = r.exportedAt || '';
+    
+    return {
+        isUploaded: 0,
+        endStr: endStr,
+        startStr: startStr,
+        mtime: mt,
+        exp: exp
+    };
+}
+
 function getSortedTesterReportKeys() {
     if (!window.TESTER_REPORTS) return [];
     let keys = Object.keys(window.TESTER_REPORTS);
     keys.sort((a, b) => {
-        let rA = window.TESTER_REPORTS[a] || {};
-        let rB = window.TESTER_REPORTS[b] || {};
-
-        if (rA.mtime && rB.mtime && rA.mtime !== rB.mtime) {
-            return rB.mtime - rA.mtime;
+        let sA = parseReportSortKey(a);
+        let sB = parseReportSortKey(b);
+        
+        if (sA.isUploaded !== sB.isUploaded) return sB.isUploaded - sA.isUploaded;
+        
+        // 1. Compare end date descending (e.g. 2026.08.19 > 2026.08.15 > 2026.08.14)
+        if (sA.endStr && sB.endStr && sA.endStr !== sB.endStr) {
+            return sB.endStr.localeCompare(sA.endStr);
         }
-
-        if (a.startsWith('uploaded_') && !b.startsWith('uploaded_')) return -1;
-        if (b.startsWith('uploaded_') && !a.startsWith('uploaded_')) return 1;
-        if (a.startsWith('uploaded_') && b.startsWith('uploaded_')) return b.localeCompare(a);
-
-        if (a.includes('24Trades') && !b.includes('24Trades')) return -1;
-        if (b.includes('24Trades') && !a.includes('24Trades')) return 1;
-
-        let expA = rA.exportedAt || rA.dateRange || a;
-        let expB = rB.exportedAt || rB.dateRange || b;
-        return expB.localeCompare(expA);
+        
+        // 2. Compare start date descending
+        if (sA.startStr && sB.startStr && sA.startStr !== sB.startStr) {
+            return sB.startStr.localeCompare(sA.startStr);
+        }
+        
+        // 3. Compare mtime descending
+        if (sA.mtime && sB.mtime && sA.mtime !== sB.mtime) {
+            return sB.mtime - sA.mtime;
+        }
+        
+        // 4. Compare exportedAt descending
+        if (sA.exp && sB.exp && sA.exp !== sB.exp) {
+            return sB.exp.localeCompare(sA.exp);
+        }
+        
+        return b.localeCompare(a);
     });
     return keys;
+}
+
+function formatTesterOptionLabel(k, r) {
+    let title = r.reportTitle || k;
+    let dr = r.dateRange || '';
+    let cnt = (r.trades && r.trades.length) || 0;
+    let datePart = '';
+    
+    let m = dr.match(/(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/i);
+    if (m) {
+        let sD = m[1].replace(/[\/-]/g, '.');
+        let eD = m[2].replace(/[\/-]/g, '.');
+        datePart = `از ${sD} تا ${eD}`;
+    } else if (dr) {
+        datePart = dr;
+    }
+    
+    return datePart ? `${title} | ${datePart} | ${cnt} معامله` : `${title} | ${cnt} معامله`;
 }
 
 function initTesterCompareTab() {
@@ -228,7 +296,8 @@ function initTesterCompareTab() {
             let title = r.reportTitle || k;
             let dRange = r.dateRange || '';
             let cnt = (r.trades && r.trades.length) || 0;
-            optsHtml += `<option value="${k}" ${isSel}>${title} | بازه: ${dRange} | ${cnt} معامله</option>`;
+            let optLabel = formatTesterOptionLabel(k, r);
+            optsHtml += `<option value="${k}" ${isSel}>${optLabel}</option>`;
         });
         sel.innerHTML = optsHtml;
         sel.value = currentTesterReportKey;
