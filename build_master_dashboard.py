@@ -1078,13 +1078,13 @@ def build_dashboard(custom_csv=None):
     bal_k = bal_initial
     bal_a = bal_initial
 
-    pts_kings = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_k, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)'}]
-    pts_all = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_a, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)'}]
-
     peak_k = bal_initial
     max_dd_k = 0.0
     peak_a = bal_initial
     max_dd_a = 0.0
+
+    pts_kings = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_k, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_k, 2), 'dd': 0.0, 'ddPct': 0.0}]
+    pts_all = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_a, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_a, 2), 'dd': 0.0, 'ddPct': 0.0}]
 
     for r in sorted_closed:
         pnl = calc_scaleout_pnl(r)
@@ -1095,18 +1095,20 @@ def build_dashboard(custom_csv=None):
         
         # All
         bal_a += pnl
-        pts_all.append({'idx': len(pts_all), 't': et, 'b': round(bal_a, 2), 'p': round(pnl, 2), 'n': b_name})
         if bal_a > peak_a: peak_a = bal_a
         dd_a = peak_a - bal_a
         if dd_a > max_dd_a: max_dd_a = dd_a
+        ddPct_a = (dd_a / peak_a * 100.0) if peak_a > 0 else 0.0
+        pts_all.append({'idx': len(pts_all), 't': et, 'b': round(bal_a, 2), 'p': round(pnl, 2), 'n': b_name, 'peak': round(peak_a, 2), 'dd': round(dd_a, 2), 'ddPct': round(ddPct_a, 1)})
         
         # Kings
         if (role, tf) in king_keys:
             bal_k += pnl
-            pts_kings.append({'idx': len(pts_kings), 't': et, 'b': round(bal_k, 2), 'p': round(pnl, 2), 'n': b_name})
             if bal_k > peak_k: peak_k = bal_k
             dd_k = peak_k - bal_k
             if dd_k > max_dd_k: max_dd_k = dd_k
+            ddPct_k = (dd_k / peak_k * 100.0) if peak_k > 0 else 0.0
+            pts_kings.append({'idx': len(pts_kings), 't': et, 'b': round(bal_k, 2), 'p': round(pnl, 2), 'n': b_name, 'peak': round(peak_k, 2), 'dd': round(dd_k, 2), 'ddPct': round(ddPct_k, 1)})
 
     import json
     json_pts_kings = json.dumps(pts_kings)
@@ -2082,7 +2084,10 @@ def build_dashboard(custom_csv=None):
                         </h3>
                         <p style="margin:3px 0 0 0;color:#94a3b8;font-size:11px;">رسم دقیق معامله به معامله با حرکت موس روی نقاط</p>
                     </div>
-                    <div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <button onclick="toggleDrawdownOverlay()" id="btnToggleDrawdown" style="background:#1e1b4b;border:1px solid #6366f1;color:#c7d2fe;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="نمایش یا پنهان‌سازی افت سرمایه (Drawdown) و خط سقف روی نمودار">
+                            <span>🛡️ افت سرمایه (DD): <b id="lblToggleDrawdownState" style="color:#4ade80;">روشن</b></span>
+                        </button>
                         <button onclick="toggleTwoColLayout()" id="btnToggleTwoCol" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="تغییر حالت بین دو ستونی و تمام‌صفحه">
                             <span>⛶</span><span>تمام‌صفحه / ستونی</span>
                         </button>
@@ -2097,8 +2102,10 @@ def build_dashboard(custom_csv=None):
 
                 <!-- Graph Legend & Stats Bar -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#38bdf8;border-radius:2px;"></span> رشد بالانس</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#facc15;border-radius:2px;border-top:1px dashed #facc15;"></span> سقف سرمایه (HWM)</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:rgba(239,68,68,0.35);border:1px solid #ef4444;border-radius:2px;"></span> ناحیه افت (DD)</span>
                         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#475569;border-radius:2px;"></span> تراز پایه ($100)</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
@@ -3599,7 +3606,8 @@ def build_dashboard(custom_csv=None):
             minProfit: 0.0,
             consecLossTrigger: 0,
             consecLossSkipCount: 1,
-            consecLossSkipDay: false
+            consecLossSkipDay: false,
+            showDrawdown: true
         }};
 
         let simCanvasEventsInitialized = false;
@@ -4359,7 +4367,7 @@ def build_dashboard(custom_csv=None):
         }}
 
         function runEquitySimulation() {{
-            let pts = [{{ idx: 0, t: '2026.03.09 00:00', b: 100.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)' }}];
+            let pts = [{{ idx: 0, t: '2026.03.09 00:00', b: 100.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)', peak: 100.0, dd: 0.0, ddPct: 0.0 }}];
             let bal = 100.0;
             let peak = bal;
             let maxDD = 0.0;
@@ -4416,10 +4424,11 @@ def build_dashboard(custom_csv=None):
                 // Trade accepted!
                 totalTrades++;
                 bal += t.p;
-                pts.push({{ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: t.p, n: t.r + ' [' + t.tf + ']' }});
                 if (bal > peak) peak = bal;
                 let dd = peak - bal;
                 if (dd > maxDD) maxDD = dd;
+                let ddPct = peak > 0 ? (dd / peak * 100) : 0;
+                pts.push({{ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: t.p, n: t.r + ' [' + t.tf + ']', peak: Math.round(peak * 100) / 100, dd: Math.round(dd * 100) / 100, ddPct: Math.round(ddPct * 10) / 10 }});
                 if (t.p > 0) {{
                     winCnt++;
                     grossP += t.p;
@@ -4574,6 +4583,7 @@ def build_dashboard(custom_csv=None):
             for (let i = 0; i < pts.length; i++) {{
                 if (pts[i].b < minBal) minBal = pts[i].b;
                 if (pts[i].b > maxBal) maxBal = pts[i].b;
+                if (pts[i].peak !== undefined && pts[i].peak > maxBal) maxBal = pts[i].peak;
             }}
             let balRange = maxBal - minBal;
             if (balRange < 50) balRange = 50;
@@ -4645,15 +4655,71 @@ def build_dashboard(custom_csv=None):
                 ctx.stroke();
             }}
 
-            // Curve points
+            // Curve & Drawdown points mapping
             let coords = [];
+            let maxDDPt = null;
+            let maxDDVal = -1;
+
             for (let i = 0; i < totalPts; i++) {{
+                let pt = pts[i];
                 let x = padLeft + (i / (totalPts - 1)) * plotW;
-                let y = padTop + plotH - ((pts[i].b - minBal) / balRange) * plotH;
-                coords.push({{ x: x, y: y, pt: pts[i] }});
+                let y = padTop + plotH - ((pt.b - minBal) / balRange) * plotH;
+                let pVal = (pt.peak !== undefined) ? pt.peak : pt.b;
+                let peakY = padTop + plotH - ((pVal - minBal) / balRange) * plotH;
+                let ddVal = (pt.dd !== undefined) ? pt.dd : Math.max(0, pVal - pt.b);
+                let ddPctVal = (pt.ddPct !== undefined) ? pt.ddPct : (pVal > 0 ? (ddVal / pVal * 100) : 0);
+
+                let cObj = {{
+                    x: x,
+                    y: y,
+                    peakY: peakY,
+                    peakVal: pVal,
+                    ddVal: ddVal,
+                    ddPctVal: ddPctVal,
+                    pt: pt
+                }};
+                coords.push(cObj);
+
+                if (ddVal > maxDDVal) {{
+                    maxDDVal = ddVal;
+                    maxDDPt = cObj;
+                }}
             }}
 
-            // Gradient Fill
+            // 🛡️ Drawdown Shaded Valleys & High-Water Mark (if enabled)
+            if (simState.showDrawdown && coords.length > 1) {{
+                ctx.save();
+                // Drawdown Valley Fill (between peak ceiling and balance curve)
+                ctx.beginPath();
+                ctx.moveTo(coords[0].x, coords[0].y);
+                for (let i = 0; i < coords.length; i++) {{
+                    ctx.lineTo(coords[i].x, coords[i].y);
+                }}
+                for (let i = coords.length - 1; i >= 0; i--) {{
+                    ctx.lineTo(coords[i].x, coords[i].peakY);
+                }}
+                ctx.closePath();
+
+                let ddGrad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+                ddGrad.addColorStop(0, 'rgba(239, 68, 68, 0.28)');
+                ddGrad.addColorStop(1, 'rgba(239, 68, 68, 0.10)');
+                ctx.fillStyle = ddGrad;
+                ctx.fill();
+
+                // 🏆 High-Water Mark (Cumulative Peak) Dashed Line
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 1.6;
+                ctx.setLineDash([5, 4]);
+                ctx.beginPath();
+                for (let i = 0; i < coords.length; i++) {{
+                    if (i === 0) ctx.moveTo(coords[i].x, coords[i].peakY);
+                    else ctx.lineTo(coords[i].x, coords[i].peakY);
+                }}
+                ctx.stroke();
+                ctx.restore();
+            }}
+
+            // Gradient Fill below Equity Curve
             let grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
             if (simState.mode === 'kings') {{
                 grad.addColorStop(0, 'rgba(56, 189, 248, 0.30)');
@@ -4673,7 +4739,7 @@ def build_dashboard(custom_csv=None):
             ctx.closePath();
             ctx.fill();
 
-            // Line
+            // Equity Line
             ctx.strokeStyle = (simState.mode === 'kings') ? '#38bdf8' : '#a855f7';
             ctx.lineWidth = 2.2;
             ctx.beginPath();
@@ -4682,6 +4748,66 @@ def build_dashboard(custom_csv=None):
                 else ctx.lineTo(coords[i].x, coords[i].y);
             }}
             ctx.stroke();
+
+            // 🚨 Highlight Maximum Drawdown (Pinpoint & Callout Badge)
+            if (simState.showDrawdown && maxDDPt && maxDDVal > 0) {{
+                ctx.save();
+                // Vertical drop line from peak to trough
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+                ctx.lineWidth = 1.4;
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(maxDDPt.x, maxDDPt.peakY);
+                ctx.lineTo(maxDDPt.x, maxDDPt.y);
+                ctx.stroke();
+
+                // Peak anchor point (amber)
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(maxDDPt.x, maxDDPt.peakY, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Drawdown trough point (glowing red)
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ef4444';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.arc(maxDDPt.x, maxDDPt.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Badge
+                let badgeTxt = '🚨 Max DD: -$' + Math.round(maxDDVal).toLocaleString('en-US') + ' (' + maxDDPt.ddPctVal.toFixed(1) + '%)';
+                ctx.font = 'bold 10px Segoe UI, Tahoma, sans-serif';
+                let txtW = ctx.measureText(badgeTxt).width;
+                let bW = txtW + 14;
+                let bH = 20;
+                let bX = maxDDPt.x - bW / 2;
+                let bY = maxDDPt.y + 10;
+
+                if (bX < padLeft + 4) bX = padLeft + 4;
+                if (bX + bW > padLeft + plotW - 4) bX = padLeft + plotW - bW - 4;
+                if (bY + bH > padTop + plotH - 4) bY = maxDDPt.y - bH - 10;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (typeof ctx.roundRect === 'function') {{
+                    ctx.roundRect(bX, bY, bW, bH, 4);
+                }} else {{
+                    ctx.rect(bX, bY, bW, bH);
+                }}
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fca5a5';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(badgeTxt, bX + bW / 2, bY + bH / 2);
+                ctx.restore();
+            }}
 
             // Border
             ctx.strokeStyle = '#334155';
@@ -4746,6 +4872,22 @@ def build_dashboard(custom_csv=None):
                 ctx.arc(target.x, target.y, 5, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+
+                // If drawdown overlay is active, show vertical drop to Peak
+                if (simState.showDrawdown && target.peakY !== undefined && target.ddVal > 0) {{
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(target.x, target.peakY);
+                    ctx.lineTo(target.x, target.y);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(target.x, target.peakY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }}
                 ctx.restore();
 
                 if (tt) {{
@@ -4756,12 +4898,24 @@ def build_dashboard(custom_csv=None):
                     let totCol = totProfit >= 0 ? '#00e676' : '#ef4444';
                     let totSign = totProfit >= 0 ? '+' : '';
 
+                    let ddVal = (target.ddVal !== undefined) ? target.ddVal : ((pt.dd !== undefined) ? pt.dd : Math.max(0, (pt.peak || pt.b) - pt.b));
+                    let ddPct = (target.ddPctVal !== undefined) ? target.ddPctVal : ((pt.ddPct !== undefined) ? pt.ddPct : 0);
+                    let peakVal = (target.peakVal !== undefined) ? target.peakVal : ((pt.peak !== undefined) ? pt.peak : pt.b);
+
+                    let ddHtml = ddVal > 0 
+                        ? '<b style="color:#f87171;">-$' + Math.round(ddVal).toLocaleString('en-US') + ' (' + ddPct.toFixed(1) + '٪)</b>'
+                        : '<b style="color:#34d399;">$0 (سقف جدید ✨)</b>';
+
                     tt.innerHTML = `
                         <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">معامله #${{pt.idx}} - ${{pt.n}}</div>
                         <div style="color:#94a3b8;font-size:11px;">🕒 زمان: <span style="direction:ltr;display:inline-block;font-family:monospace;color:#f1f5f9;">${{pt.t}}</span></div>
                         <div style="margin-top:4px;">سود این معامله: <b style="color:${{pnlCol}};">${{pnlSign}}$${{pt.p.toFixed(2)}}</b></div>
                         <div>بالانس حساب: <b style="color:#38bdf8;">$${{Math.round(pt.b).toLocaleString()}}</b></div>
-                        <div>رشد کل: <b style="color:${{totCol}};">${{totSign}}$${{Math.round(totProfit).toLocaleString()}} (${{(totProfit).toFixed(1)}}%)</b></div>
+                        <div>سود خالص کل: <b style="color:${{totCol}};">${{totSign}}$${{Math.round(totProfit).toLocaleString()}} (${{(totProfit).toFixed(1)}}٪)</b></div>
+                        <div style="margin-top:4px;border-top:1px solid #1e293b;padding-top:4px;">
+                            <div>🏆 سقف تا این لحظه: <b style="color:#facc15;">$${{Math.round(peakVal).toLocaleString()}}</b></div>
+                            <div>🛡️ افت از سقف (DD): ${{ddHtml}}</div>
+                        </div>
                     `;
 
                     let ttX = target.x + 15;
@@ -5125,6 +5279,28 @@ def build_dashboard(custom_csv=None):
                 if (typeof drawEquityChart === 'function') drawEquityChart();
                 if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') drawWeeklyBarChart(currentWeeklyBarMode);
             }}, 260);
+        }}
+
+        function toggleDrawdownOverlay() {{
+            simState.showDrawdown = !simState.showDrawdown;
+            let btn = document.getElementById('btnToggleDrawdown');
+            let lbl = document.getElementById('lblToggleDrawdownState');
+            if (btn && lbl) {{
+                if (simState.showDrawdown) {{
+                    lbl.textContent = 'روشن';
+                    lbl.style.color = '#4ade80';
+                    btn.style.background = '#1e1b4b';
+                    btn.style.borderColor = '#6366f1';
+                    btn.style.color = '#c7d2fe';
+                }} else {{
+                    lbl.textContent = 'خاموش';
+                    lbl.style.color = '#94a3b8';
+                    btn.style.background = '#0f172a';
+                    btn.style.borderColor = '#334155';
+                    btn.style.color = '#94a3b8';
+                }}
+            }}
+            drawEquityChart();
         }}
 
         function toggleTwoColLayout() {{
