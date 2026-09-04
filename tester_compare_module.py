@@ -359,9 +359,26 @@ def get_tester_compare_js():
     """
     return """
         // ================= TESTER COMPARE TAB ENGINE =================
-        let currentTesterReportKey = '';
-        let currentTesterFilter = 'all';
-        let currentTesterSearch = '';
+        window.currentTesterReportKey = window.currentTesterReportKey || '';
+        window.currentTesterFilter = window.currentTesterFilter || 'all';
+        window.currentTesterSearch = window.currentTesterSearch || '';
+
+        var currentTesterReportKey = window.currentTesterReportKey;
+        var currentTesterFilter = window.currentTesterFilter;
+        var currentTesterSearch = window.currentTesterSearch;
+
+        function copyTesterReportsFolder() {
+            let p = 'C:\\\\Users\\\\USER\\\\AppData\\\\Roaming\\\\MetaQuotes\\\\Terminal\\\\Common\\\\Files\\\\FlagPro_TesterReports';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(p).then(() => {
+                    alert('📋 آدرس پوشه گزارشات متاتریدر ۵ در کلیپ‌بورد کپی شد!\\n\\nاکنون در پنجره بازشده، در نوار بالای آدرس کلیدهای Ctrl+V را بزنید تا مستقیماً به این پوشه هدایت شوید:\\n\\n' + p);
+                }).catch(() => {
+                    prompt('آدرس پوشه گزارشات تستر متاتریدر ۵ (کپی کنید):', p);
+                });
+            } else {
+                prompt('آدرس پوشه گزارشات تستر متاتریدر ۵ (کپی کنید):', p);
+            }
+        }
 
         function initTesterCompareTab() {
             if (!window.TESTER_REPORTS || Object.keys(window.TESTER_REPORTS).length === 0) {
@@ -615,8 +632,14 @@ def get_tester_compare_js():
             }
 
             let allVals = actPoints.map(p => p.val).concat(simPoints.map(p => p.val));
-            let minVal = allVals.length > 0 ? Math.min(-50.0, ...allVals) - 20 : -550.0;
-            let maxVal = allVals.length > 0 ? Math.max(50.0, ...allVals) + 20 : 200.0;
+            let minVal = -50.0;
+            let maxVal = 50.0;
+            for (let vi = 0; vi < allVals.length; vi++) {
+                if (allVals[vi] < minVal) minVal = allVals[vi];
+                if (allVals[vi] > maxVal) maxVal = allVals[vi];
+            }
+            minVal -= 20.0;
+            maxVal += 20.0;
             let valRange = Math.max(1, maxVal - minVal);
 
             function getY(val) {
@@ -704,6 +727,8 @@ def get_tester_compare_js():
         }
 
         function renderTesterTradesTable(report, filterMode, searchQuery) {
+            filterMode = filterMode || window.currentTesterFilter || 'all';
+            searchQuery = searchQuery || window.currentTesterSearch || '';
             let tbody = document.getElementById('testerTradesBody');
             if (!tbody) return;
 
@@ -813,10 +838,27 @@ def get_tester_compare_js():
             let reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    let content = e.target.result;
+                    let buffer = e.target.result;
+                    let uint8 = new Uint8Array(buffer);
+                    let decoder;
+                    if (uint8.length >= 2 && uint8[0] === 0xFF && uint8[1] === 0xFE) {
+                        decoder = new TextDecoder('utf-16le');
+                    } else if (uint8.length >= 2 && uint8[0] === 0xFE && uint8[1] === 0xFF) {
+                        decoder = new TextDecoder('utf-16be');
+                    } else if (uint8.length >= 4 && uint8[1] === 0 && uint8[3] === 0) {
+                        decoder = new TextDecoder('utf-16le');
+                    } else {
+                        decoder = new TextDecoder('utf-8');
+                    }
+                    let content = decoder.decode(buffer);
+                    if (content.charCodeAt(0) === 0xFEFF) {
+                        content = content.slice(1);
+                    }
+                    content = content.trim();
+
                     let reportData = null;
 
-                    if (file.name.endsWith('.json')) {
+                    if (file.name.toLowerCase().endsWith('.json') || content.startsWith('{')) {
                         reportData = JSON.parse(content);
                         if (reportData && Array.isArray(reportData.trades)) {
                             reportData.trades.forEach(t => {
@@ -828,11 +870,12 @@ def get_tester_compare_js():
                                 if (!t.outcome) t.outcome = (((t.profitPips !== undefined ? t.profitPips : t.pnlPips) || 0) >= 0) ? 'Win' : 'Loss';
                             });
                         }
-                    } else if (file.name.endsWith('.csv')) {
+                    } else if (file.name.toLowerCase().endsWith('.csv') || content.includes(',')) {
                         reportData = parseTesterCsvReport(content, file.name);
                     }
 
                     if (reportData) {
+                        window.TESTER_REPORTS = window.TESTER_REPORTS || {};
                         let reportKey = 'uploaded_' + Date.now();
                         window.TESTER_REPORTS[reportKey] = reportData;
 
@@ -842,17 +885,20 @@ def get_tester_compare_js():
                             opt.value = reportKey;
                             opt.textContent = (reportData.reportTitle || file.name) + ' (' + (reportData.trades ? reportData.trades.length : 0) + ' ترید)';
                             opt.selected = true;
-                            sel.appendChild(opt);
+                            sel.insertBefore(opt, sel.firstChild);
+                            sel.value = reportKey;
                         }
 
                         switchTesterReport(reportKey);
                         alert('✅ گزارش تستر متاتریدر با موفقیت بارگذاری و تحلیل شد!');
+                    } else {
+                        alert('❌ فرمت فایل قابل پردازش نبود. لطفاً فایل خروجی JSON یا CSV تستر را انتخاب فرمایید.');
                     }
                 } catch (err) {
                     alert('❌ خطا در پردازش فایل تستر: ' + err.message);
                 }
             };
-            reader.readAsText(file);
+            reader.readAsArrayBuffer(file);
         }
 
         function parseTesterCsvReport(csvText, fileName) {
