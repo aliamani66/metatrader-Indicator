@@ -1,0 +1,343 @@
+body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background-color: #070b14;
+            color: #f1f5f9;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            overflow: hidden;
+            height: 100vh;
+            direction: rtl;
+        }
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            direction: rtl;
+        }
+
+        /* 📌 SLEEK COMPACT SIDEBAR */
+        .sidebar {
+            width: 215px;
+            min-width: 215px;
+            max-width: 215px;
+            background: #090e1a;
+            border-left: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            z-index: 1000;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+            user-select: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .sidebar.collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            padding: 0 !important;
+            border-left: none !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            box-shadow: none !important;
+        }
+        .sidebar-brand {
+            padding: 14px 12px;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #060a12;
+        }
+        .sidebar-brand-title {
+            font-size: 14.5px;
+            font-weight: bold;
+            color: #38bdf8;
+            margin: 0;
+            letter-spacing: -0.2px;
+        }
+        .sidebar-brand-sub {
+            font-size: 10px;
+            color: #64748b;
+            margin: 2px 0 0 0;
+        }
+        .sidebar-menu {
+            padding: 8px 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: #94a3b8;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            text-align: right;
+            box-sizing: border-box;
+        }
+        .tab-btn:hover {
+            color: #f8fafc;
+            background: #1e293b;
+            border-color: #334155;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+        }
+        .tab-btn .tab-icon {
+            font-size: 14px;
+            min-width: 18px;
+            text-align: center;
+        }
+        .tab-btn .tab-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-footer {
+            padding: 10px 12px;
+            border-top: 1px solid #1e293b;
+            font-size: 10px;
+            color: #64748b;
+            background: #060a12;
+            line-height: 1.4;
+        }
+
+        /* 🖥️ MAIN WORKSPACE CONTENT */
+        .main-workspace {
+            flex: 1;
+            min-width: 0;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 12px 18px;
+            box-sizing: border-box;
+            background: #070b14;
+        }
+
+        /* Compact Header */
+        .workspace-header {
+            background: linear-gradient(135deg, #0f172a 0%, #090e1a 100%);
+            border: 1px solid #1e293b;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .workspace-header h1 {
+            margin: 0;
+            font-size: 16px;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Institutional Metric Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .kpi-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 7px 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .kpi-title {
+            font-size: 10.5px;
+            color: #94a3b8;
+            margin-bottom: 3px;
+        }
+        .kpi-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f8fafc;
+        }
+        .kpi-sub {
+            font-size: 9.5px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        /* Subtabs in Equity Curve */
+        .eq-subtab-btn {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .eq-subtab-btn:hover {
+            color: #fff;
+            border-color: #38bdf8;
+            background: #1e293b;
+        }
+                .consec-btn, .consec-btn-filter {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 5px 11px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .consec-btn:hover, .consec-btn-filter:hover {
+            color: #f8fafc;
+            border-color: #38bdf8;
+        }
+        .consec-btn.active, .consec-btn-filter.active {
+            background: #0c4a6e;
+            border-color: #38bdf8;
+            color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }
+
+        /* 🌟 TWO-COLUMN WORKSPACE LAYOUT (34% Chart / 66% Controls & Tables) */
+        .equity-two-col-container {
+            display: grid;
+            grid-template-columns: 34% calc(66% - 12px);
+            gap: 12px;
+            align-items: stretch;
+            margin-bottom: 12px;
+        }
+        .equity-two-col-container.single-col {
+            grid-template-columns: 1fr !important;
+        }
+        .equity-col-chart {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .equity-col-controls {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .eq-subpanels-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: 485px;
+            padding-left: 2px;
+        }
+        .eq-subpanel .section-box {
+            padding: 12px !important;
+            margin-bottom: 12px !important;
+            border-radius: 8px !important;
+        }
+        .eq-subpanels-wrapper::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .eq-subpanels-wrapper::-webkit-scrollbar-track {
+            background: #060a12;
+            border-radius: 4px;
+        }
+        .eq-subpanels-wrapper::-webkit-scrollbar-thumb {
+            background: #1e3a5f;
+            border-radius: 4px;
+        }
+        .eq-subpanels-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+        @media (max-width: 1250px) {
+            .equity-two-col-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .eq-subtab-btn.active {
+            background: #0284c7;
+            color: #fff;
+            border-color: #38bdf8;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+        }
+
+        /* Tab Content Panel */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #334155;
+            text-align: right;
+        }
+        th {
+            background: #0f172a;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: #1e293b80;
+        }
+        .sort-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 6px;
+        }
+        .sort-btn.active, .sort-btn:hover {
+            background: #38bdf8;
+            color: #0f172a;
+            font-weight: bold;
+        }
