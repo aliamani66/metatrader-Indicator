@@ -235,6 +235,11 @@ def get_tester_compare_html(reports_dict, default_key):
                 </div>
             </div>
             <div style="position:relative;width:100%;height:320px;background:#070b14;border:1px solid #1e293b;border-radius:6px;overflow:hidden;">
+                <!-- ⚡ Live & Peak Concurrent Trades Corner Badge -->
+                <div style="position:absolute;top:10px;left:10px;background:rgba(15,23,42,0.92);backdrop-filter:blur(6px);border:1px solid #0284c7;border-radius:6px;padding:4px 10px;z-index:10;display:flex;align-items:center;gap:8px;direction:rtl;pointer-events:none;">
+                    <span style="font-size:12px;">⚡</span>
+                    <span style="font-size:11px;color:#94a3b8;">حداکثر معامله باز همزمان تستر: <b style="color:#38bdf8;">۵ پوزیشن</b> (میانگین ۲.۲)</span>
+                </div>
                 <canvas id="testerCompareCanvas" style="width:100%;height:100%;display:block;"></canvas>
             </div>
         </div>

@@ -1643,9 +1643,14 @@ def process_symbol_dataset(csv_file):
     pts_kings = [{'idx': 0, 't': t_init, 'b': round(bal_k, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_k, 2), 'dd': 0.0, 'ddPct': 0.0}]
     pts_all = [{'idx': 0, 't': t_init, 'b': round(bal_a, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_a, 2), 'dd': 0.0, 'ddPct': 0.0}]
 
+    active_open_kings = []
+    active_open_all = []
     for r in sorted_closed:
         pnl = calc_scaleout_pnl(r)
         et = r.get('EntryTime', '')
+        xt = r.get('ExitTime', et)
+        if not xt or xt <= et:
+            xt = et + "z"
         role = r.get('Role', '')
         tf = r.get('Timeframe', '')
         b_name = f"{role} [{tf}]"
@@ -1656,7 +1661,10 @@ def process_symbol_dataset(csv_file):
         dd_a = peak_a - bal_a
         if dd_a > max_dd_a: max_dd_a = dd_a
         ddPct_a = (dd_a / peak_a * 100.0) if peak_a > 0 else 0.0
-        pts_all.append({'idx': len(pts_all), 't': et, 'b': round(bal_a, 2), 'p': round(pnl, 2), 'n': b_name, 'peak': round(peak_a, 2), 'dd': round(dd_a, 2), 'ddPct': round(ddPct_a, 1)})
+        active_open_all = [x for x in active_open_all if x > et]
+        active_open_all.append(xt)
+        c_all = len(active_open_all)
+        pts_all.append({'idx': len(pts_all), 't': et, 'b': round(bal_a, 2), 'p': round(pnl, 2), 'n': b_name, 'peak': round(peak_a, 2), 'dd': round(dd_a, 2), 'ddPct': round(ddPct_a, 1), 'concurrent': c_all})
         
         # Kings
         if (role, tf) in king_keys:
@@ -1665,7 +1673,10 @@ def process_symbol_dataset(csv_file):
             dd_k = peak_k - bal_k
             if dd_k > max_dd_k: max_dd_k = dd_k
             ddPct_k = (dd_k / peak_k * 100.0) if peak_k > 0 else 0.0
-            pts_kings.append({'idx': len(pts_kings), 't': et, 'b': round(bal_k, 2), 'p': round(pnl, 2), 'n': b_name, 'peak': round(peak_k, 2), 'dd': round(dd_k, 2), 'ddPct': round(ddPct_k, 1)})
+            active_open_kings = [x for x in active_open_kings if x > et]
+            active_open_kings.append(xt)
+            c_k = len(active_open_kings)
+            pts_kings.append({'idx': len(pts_kings), 't': et, 'b': round(bal_k, 2), 'p': round(pnl, 2), 'n': b_name, 'peak': round(peak_k, 2), 'dd': round(dd_k, 2), 'ddPct': round(ddPct_k, 1), 'concurrent': c_k})
 
     import json
     json_pts_kings = json.dumps(pts_kings)
@@ -1735,10 +1746,12 @@ def process_symbol_dataset(csv_file):
             if hr >= 4: pnl += pts * 4.0 * 0.01
 
         et = r.get('EntryTime', '')
+        xt = r.get('ExitTime', et)
         h_val = int(et[11:13]) if len(et) >= 13 else 0
         trades_sim_list.append({
             'i': idx,
             't': et,
+            'xt': xt,
             'h': h_val,
             'tf': tf,
             'r': role,
@@ -1750,6 +1763,21 @@ def process_symbol_dataset(csv_file):
             'p': round(pnl, 2)
         })
     json_trades_sim = json.dumps(trades_sim_list, separators=(',', ':'))
+
+    # Calculate initial concurrent open trades for base Kings
+    active_open_intervals = []
+    concurrent_counts = []
+    for t_item in trades_sim_list:
+        if t_item['k'] == 1:
+            en_str = t_item['t']
+            ex_str = t_item['xt']
+            if not ex_str or ex_str <= en_str:
+                ex_str = en_str + "z"
+            active_open_intervals = [x for x in active_open_intervals if x > en_str]
+            active_open_intervals.append(ex_str)
+            concurrent_counts.append(len(active_open_intervals))
+    init_max_concurrent = max(concurrent_counts) if concurrent_counts else 0
+    init_avg_concurrent = (sum(concurrent_counts) / len(concurrent_counts)) if concurrent_counts else 0.0
 
     # ==================== DYNAMIC AUTO-OPTIMIZER ENGINE ====================
     all_sim_k_keys = [k['kk'] for k in kings_sim_list]
@@ -2204,6 +2232,11 @@ def process_symbol_dataset(csv_file):
                     <div class="kpi-value" id="eqKpiAvgTrade" style="color:#c084fc;font-size:16px;">+${(net_k/(len(pts_kings)-1)):.2f}</div>
                     <div class="kpi-sub" id="eqKpiAvgTradeSub" style="font-size:9.5px;">میانگین خروجی هر ترید</div>
                 </div>
+                <div class="kpi-card" style="border-color:#0284c7;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">⚡ معامله باز همزمان</div>
+                    <div class="kpi-value" id="eqKpiConcVal" style="color:#38bdf8;font-size:16px;">{init_max_concurrent} معامله</div>
+                    <div class="kpi-sub" id="eqKpiConcSub" style="font-size:9.5px;">میانگین: {init_avg_concurrent:.1f} همزمان</div>
+                </div>
             </div>
 
                                     <!-- 🌟 2-COLUMN MAIN WORKSPACE GRID -->
@@ -2233,6 +2266,24 @@ def process_symbol_dataset(csv_file):
 
                 <!-- Canvas Box -->
                 <div style="position:relative;width:100%;height:450px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                    <!-- ⚡ Live & Peak Concurrent Trades Corner Badge -->
+                    <div id="eqConcurrentBadge" style="position:absolute;top:12px;left:12px;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid #0284c7;border-radius:8px;padding:6px 12px;z-index:15;box-shadow:0 6px 20px rgba(0,0,0,0.6);display:flex;align-items:center;gap:10px;direction:rtl;pointer-events:none;">
+                        <div style="width:26px;height:26px;border-radius:6px;background:#0369a1;border:1px solid #38bdf8;display:flex;align-items:center;justify-content:center;font-size:13px;">
+                            ⚡
+                        </div>
+                        <div>
+                            <div style="font-size:9.5px;color:#94a3b8;font-weight:600;display:flex;align-items:center;gap:4px;">
+                                <span>تعداد معامله باز همزمان</span>
+                                <span id="lblLiveConcurrentTag" style="display:none;background:#22c55e;color:#052e16;padding:1px 5px;border-radius:3px;font-size:8.5px;font-weight:bold;">روی نقطه</span>
+                            </div>
+                            <div style="font-size:13.5px;color:#f8fafc;font-weight:bold;display:flex;align-items:baseline;gap:6px;margin-top:1px;">
+                                <span>حداکثر: <b id="lblMaxConcurrentTrades" style="color:#38bdf8;font-size:15px;">{init_max_concurrent}</b></span>
+                                <span style="color:#475569;font-size:10px;">|</span>
+                                <span style="font-size:11px;color:#94a3b8;">میانگین: <b id="lblAvgConcurrentTrades" style="color:#facc15;">{init_avg_concurrent:.1f}</b></span>
+                            </div>
+                        </div>
+                    </div>
+
                     <canvas id="equityCanvas" style="width:100%;height:100%;display:block;cursor:crosshair;"></canvas>
                     <div id="equityTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #38bdf8;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:210px;"></div>
                 </div>
@@ -4418,7 +4469,7 @@ def build_dashboard(custom_csv=None):
 
                 let hVal = t.et.length >= 13 ? parseInt(t.et.substring(11, 13)) : 0;
                 clientSimTrades.push({{
-                    i: idx + 1, t: t.et, h: hVal, tf: t.tf, r: t.role, k: 1, kk: kk, pts: Math.round(t.pts * 10) / 10, pot: Math.round(t.pts * 0.04 * 100) / 100, hr: t.hr, p: Math.round(pnl * 100) / 100
+                    i: idx + 1, t: t.et, xt: t.ex || t.et, h: hVal, tf: t.tf, r: t.role, k: 1, kk: kk, pts: Math.round(t.pts * 10) / 10, pot: Math.round(t.pts * 0.04 * 100) / 100, hr: t.hr, p: Math.round(pnl * 100) / 100
                 }});
 
                 clientAllTrades.push({{
@@ -5880,6 +5931,10 @@ def build_dashboard(custom_csv=None):
             let curLossStreak = 0;
             let lossStreaks = [];
 
+            let maxConcurrent = 0;
+            let sumConcurrent = 0;
+            let activeOpenExits = [];
+
             for (let i = 0; i < simTrades.length; i++) {{
                 let t = simTrades[i];
                 let isMatchBase = (simState.mode === 'kings') ? (t.k === 1) : true;
@@ -5912,13 +5967,24 @@ def build_dashboard(custom_csv=None):
                 }}
 
                 // Trade accepted!
+                let enTime = t.t || '';
+                let exTime = t.xt || t.t || '';
+                if (!exTime || exTime <= enTime) {{
+                    exTime = enTime + "z";
+                }}
+                activeOpenExits = activeOpenExits.filter(ex => ex > enTime);
+                activeOpenExits.push(exTime);
+                let curConcurrent = activeOpenExits.length;
+                if (curConcurrent > maxConcurrent) maxConcurrent = curConcurrent;
+                sumConcurrent += curConcurrent;
+
                 totalTrades++;
                 bal += t.p;
                 if (bal > peak) peak = bal;
                 let dd = peak - bal;
                 if (dd > maxDD) maxDD = dd;
                 let ddPct = peak > 0 ? (dd / peak * 100) : 0;
-                pts.push({{ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: t.p, n: t.r + ' [' + t.tf + ']', peak: Math.round(peak * 100) / 100, dd: Math.round(dd * 100) / 100, ddPct: Math.round(ddPct * 10) / 10 }});
+                pts.push({{ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: t.p, n: t.r + ' [' + t.tf + ']', peak: Math.round(peak * 100) / 100, dd: Math.round(dd * 100) / 100, ddPct: Math.round(ddPct * 10) / 10, concurrent: curConcurrent }});
                 if (t.p > 0) {{
                     winCnt++;
                     grossP += t.p;
@@ -6004,6 +6070,16 @@ def build_dashboard(custom_csv=None):
                 elAvg.textContent = '$' + aSign + avgTrade.toFixed(2);
                 elAvg.style.color = avgTrade >= 0 ? '#38bdf8' : '#f87171';
             }}
+
+            let avgConcurrent = totalTrades > 0 ? (sumConcurrent / totalTrades) : 0;
+            let elMaxConc = document.getElementById('lblMaxConcurrentTrades');
+            let elAvgConc = document.getElementById('lblAvgConcurrentTrades');
+            let elKpiConcVal = document.getElementById('eqKpiConcVal');
+            let elKpiConcSub = document.getElementById('eqKpiConcSub');
+            if (elMaxConc) elMaxConc.textContent = maxConcurrent;
+            if (elAvgConc) elAvgConc.textContent = avgConcurrent.toFixed(1);
+            if (elKpiConcVal) elKpiConcVal.textContent = maxConcurrent + ' معامله';
+            if (elKpiConcSub) elKpiConcSub.textContent = 'میانگین: ' + avgConcurrent.toFixed(1) + ' همزمان';
 
             // Update Simulator Footer Status
             let elAct = document.getElementById('simActiveTradesCount');
@@ -6464,6 +6540,8 @@ def build_dashboard(custom_csv=None):
                 if (mouseX < canvas._padLeft || mouseX > canvas._padLeft + canvas._plotW ||
                     mouseY < canvas._padTop || mouseY > canvas._padTop + canvas._plotH) {{
                     if(tt) tt.style.display = 'none';
+                    let liveTag = document.getElementById('lblLiveConcurrentTag');
+                    if (liveTag) liveTag.style.display = 'none';
                     return;
                 }}
 
@@ -6475,6 +6553,16 @@ def build_dashboard(custom_csv=None):
 
                 let target = coords[idx];
                 let pt = target.pt;
+
+                let liveTag = document.getElementById('lblLiveConcurrentTag');
+                if (liveTag) {{
+                    if (pt && pt.concurrent !== undefined && pt.concurrent > 0) {{
+                        liveTag.textContent = pt.concurrent + ' همزمان در این نقطه';
+                        liveTag.style.display = 'inline-block';
+                    }} else {{
+                        liveTag.style.display = 'none';
+                    }}
+                }}
 
                 drawEquityChart();
                 let ctx = canvas.getContext('2d');
@@ -6561,11 +6649,16 @@ def build_dashboard(custom_csv=None):
                         ? '<b style="color:#f87171;">-$' + Math.round(ddVal).toLocaleString('en-US') + ' (' + ddPct.toFixed(1) + '٪)</b>'
                         : '<b style="color:#34d399;">$0 (سقف جدید ✨)</b>';
 
+                    let concHtml = (pt && pt.concurrent !== undefined && pt.concurrent > 0)
+                        ? `<div style="color:#e2e8f0;font-size:11.5px;margin-top:2px;">⚡ پوزیشن‌های همزمان باز: <b style="color:#38bdf8;">${{pt.concurrent}} معامله</b></div>`
+                        : '';
+
                     tt.innerHTML = `
                         <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">معامله #${{pt.idx}} - ${{pt.n}}</div>
                         <div style="color:#94a3b8;font-size:11px;">🕒 زمان: <span style="direction:ltr;display:inline-block;font-family:monospace;color:#f1f5f9;">${{pt.t}}</span></div>
                         <div style="margin-top:4px;">سود این معامله: <b style="color:${{pnlCol}};">${{pnlSign}}$${{pt.p.toFixed(2)}}</b></div>
                         <div>بالانس حساب: <b style="color:#38bdf8;">$${{Math.round(pt.b).toLocaleString()}}</b></div>
+                        ${{concHtml}}
                         <div>سود خالص کل: <b style="color:${{totCol}};">${{totSign}}$${{Math.round(totProfit).toLocaleString()}} (${{(totProfit).toFixed(1)}}٪)</b></div>
                         <div style="margin-top:4px;border-top:1px solid #1e293b;padding-top:4px;">
                             <div>🏆 سقف تا این لحظه: <b style="color:#facc15;">$${{Math.round(peakVal).toLocaleString()}}</b></div>
@@ -6585,6 +6678,8 @@ def build_dashboard(custom_csv=None):
             canvas.addEventListener('mouseleave', function() {{
                 let tt = document.getElementById('equityTooltip');
                 if (tt) tt.style.display = 'none';
+                let liveTag = document.getElementById('lblLiveConcurrentTag');
+                if (liveTag) liveTag.style.display = 'none';
                 drawEquityChart();
             }});
 
