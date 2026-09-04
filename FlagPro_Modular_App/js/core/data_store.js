@@ -1084,8 +1084,8 @@ function generateClientSmartPresetsRowsHTML(detectedSym, clientSmartPresets) {
                     <button id="btnApplyPreset${r.idx}" class="apply-preset-btn" onclick="applySmartPreset(${r.idx})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی داشبورد">
                         ⚡ اعمال
                     </button>
-                    <button onclick="exportPresetToMT5(${r.idx})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:5px 7px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل تنظیمات معامله‌گری برای اکسپرت متاتریدر ۵ (FlagPro_Trader EA)">
-                        <span>🤖 تنظیمات EA (.set)</span>
+                    <button onclick="exportPresetToMT5(${r.idx})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:5px 7px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل استراتژی تستر متاتریدر ۵ (.ini) جهت Drag & Drop به تستر">
+                        <span>🤖 تنظیمات تستر (.ini)</span>
                     </button>
                 </div>
             </td>

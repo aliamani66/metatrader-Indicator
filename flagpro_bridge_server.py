@@ -6,9 +6,11 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 EXPERTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Experts")
 SETTINGS_DIR_FA = os.path.join(EXPERTS_DIR, "تنظیمات")
 SETTINGS_DIR_EN = os.path.join(EXPERTS_DIR, "Settings")
+TESTER_PROFILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Profiles", "Tester")
 
 os.makedirs(SETTINGS_DIR_FA, exist_ok=True)
 os.makedirs(SETTINGS_DIR_EN, exist_ok=True)
+os.makedirs(TESTER_PROFILES_DIR, exist_ok=True)
 
 class BridgeHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
@@ -77,6 +79,59 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 }
                 self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
                 print(f"Saved set file: {safe_name}")
+            except Exception as e:
+                self.send_response(500)
+                self._send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {"success": False, "error": str(e)}
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+
+        elif path == '/save_ini':
+            try:
+                payload = json.loads(post_body.decode('utf-8'))
+                filename = payload.get('filename', 'FlagPro_Tester.ini')
+                content = payload.get('content', '')
+
+                safe_name = "".join(c for c in filename if c.isalnum() or c in "._- ()")
+                if not safe_name.endswith('.ini'):
+                    safe_name += '.ini'
+
+                path_ini = os.path.join(TESTER_PROFILES_DIR, safe_name)
+                lines = [l.strip('\r\n') for l in content.splitlines()]
+                clean_content = '\r\n'.join(lines) + '\r\n'
+
+                with open(path_ini, 'w', encoding='utf-16') as f:
+                    f.write(clean_content)
+
+                self.send_response(200)
+                self._send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {
+                    "success": True,
+                    "filename": safe_name,
+                    "saved_path": path_ini
+                }
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+                print(f"Saved ini file: {safe_name}")
+            except Exception as e:
+                self.send_response(500)
+                self._send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {"success": False, "error": str(e)}
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+
+        elif path == '/open_tester_folder':
+            try:
+                os.startfile(TESTER_PROFILES_DIR)
+                self.send_response(200)
+                self._send_cors_headers()
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                res = {"success": True, "opened": TESTER_PROFILES_DIR}
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
             except Exception as e:
                 self.send_response(500)
                 self._send_cors_headers()
