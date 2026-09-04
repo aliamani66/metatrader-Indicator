@@ -258,8 +258,12 @@ function openSavePresetModal() {
             let html = '';
             for (let i = 0; i < list.length; i++) {
                 let p = list[i];
-                let kSet = new Set(p.kings);
-                let sub = simTrades.filter(t => t.k === 1 && kSet.has(t.kk) && t.pot >= p.min_pot && p.hours[t.h]);
+                if (!p) continue;
+                let pHours = (Array.isArray(p.hours) && p.hours.length === 24) ? p.hours : new Array(24).fill(true);
+                let pKings = Array.isArray(p.kings) ? p.kings : [];
+                let pMinPot = typeof p.min_pot === 'number' ? p.min_pot : 0;
+                let kSet = new Set(pKings);
+                let sub = (Array.isArray(simTrades) ? simTrades : []).filter(t => t.k === 1 && kSet.has(t.kk) && t.pot >= pMinPot && pHours[t.h]);
                 let c = sub.length;
                 let nt = sub.reduce((acc, t) => acc + t.p, 0);
                 let wins = sub.filter(t => t.p > 0).length;
@@ -279,7 +283,7 @@ function openSavePresetModal() {
 
                 let netCol = nt >= 0 ? '#00e676' : '#ef4444';
                 let pfStr = pf < 900 ? pf.toFixed(2) : '∞';
-                let hoursCnt = p.hours.filter(Boolean).length;
+                let hoursCnt = pHours.filter(Boolean).length;
 
                 html += '<tr id="customRow_' + p.id + '" class="preset-table-row" style="border-bottom:1px solid #1e293b;background:#0c192c;transition:all 0.2s;">' +
                     '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12px;">⭐ ' + (i + 1) + '</td>' +
@@ -1019,6 +1023,13 @@ function openSavePresetModal() {
 
             let lbl = document.getElementById('lblEqPts');
             if (lbl) lbl.textContent = Math.max(0, pts.length - 1);
+
+            let elStartSub = document.getElementById('eqKpiStartSub');
+            let elDateRange = document.getElementById('lblEqDateRange');
+            let startDate = (simTrades && simTrades.length > 0 && simTrades[0].t) ? simTrades[0].t.substring(0, 10) : '2025.01.02';
+            let endDate = (simTrades && simTrades.length > 0 && simTrades[simTrades.length - 1].t) ? simTrades[simTrades.length - 1].t.substring(0, 10) : '2026.09.04';
+            if (elStartSub) elStartSub.textContent = 'شروع از ' + startDate;
+            if (elDateRange) elDateRange.textContent = startDate + ' تا ' + endDate;
 
             if (elMaxDDSub) elMaxDDSub.textContent = 'افت از سقف | سقف باخت: ' + maxConsecLoss + ' ترید';
 

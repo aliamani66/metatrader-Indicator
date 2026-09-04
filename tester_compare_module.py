@@ -12,34 +12,84 @@ import re
 
 def load_tester_reports(reports_dir):
     """
-    Loads all test reports from the specified directory.
-    Returns a dictionary of {report_id: report_data}.
+    Loads all test reports from reports_dir, as well as MetaTrader Common and Tester Agent directories.
+    Automatically copies external reports into reports_dir and returns an OrderedDict sorted by mtime (newest first).
     """
-    reports = {}
-    if os.path.exists(reports_dir):
-        for fname in os.listdir(reports_dir):
-            if fname.endswith('.json'):
-                fpath = os.path.join(reports_dir, fname)
+    import glob
+    import shutil
+    from collections import OrderedDict
+
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # Candidate directories where MT5 Strategy Tester may output files
+    search_dirs = [reports_dir]
+    common_dir = r"C:\Users\USER\AppData\Roaming\MetaQuotes\Terminal\Common\Files\FlagPro_TesterReports"
+    if os.path.exists(common_dir) and common_dir not in search_dirs:
+        search_dirs.append(common_dir)
+
+    tester_dirs = glob.glob(r"C:\Users\USER\AppData\Roaming\MetaQuotes\Tester\**\FlagPro_TesterReports", recursive=True)
+    for td in tester_dirs:
+        if os.path.isdir(td) and td not in search_dirs:
+            search_dirs.append(td)
+
+    # Sync external files to local reports_dir
+    for s_dir in search_dirs:
+        if s_dir == reports_dir or not os.path.exists(s_dir):
+            continue
+        for ext in ['*.json', '*.csv']:
+            for src_file in glob.glob(os.path.join(s_dir, ext)):
+                dst_file = os.path.join(reports_dir, os.path.basename(src_file))
                 try:
-                    with open(fpath, mode='r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        trades = data.get('trades', [])
-                        for t in trades:
-                            if 'pnlPips' in t and 'profitPips' not in t:
-                                t['profitPips'] = t['pnlPips']
-                            if 'pnlUSD' in t and 'profitUSD' not in t:
-                                t['profitUSD'] = t['pnlUSD']
-                            if 'profitPips' in t and 'pnlPips' not in t:
-                                t['pnlPips'] = t['profitPips']
-                            if 'profitUSD' in t and 'pnlUSD' not in t:
-                                t['pnlUSD'] = t['profitUSD']
-                            if 'discrepancyLabel' in t and 'discrepancyReason' not in t:
-                                t['discrepancyReason'] = t['discrepancyLabel']
-                            if 'outcome' not in t:
-                                t['outcome'] = 'Win' if t.get('profitPips', 0) >= 0 else 'Loss'
-                        reports[fname] = data
-                except Exception as e:
-                    print(f"⚠️ خطا در خواندن گزارش تستر {fname}: {e}")
+                    if not os.path.exists(dst_file) or os.path.getmtime(src_file) > os.path.getmtime(dst_file):
+                        shutil.copy2(src_file, dst_file)
+                except Exception:
+                    pass
+
+    # Read all JSON reports from reports_dir
+    candidates = []
+    for fname in os.listdir(reports_dir):
+        if fname.endswith('.json'):
+            fpath = os.path.join(reports_dir, fname)
+            candidates.append((fpath, os.path.getmtime(fpath)))
+
+    # Sort descending by file modification time (newest first)
+    candidates.sort(key=lambda x: x[1], reverse=True)
+
+    reports = OrderedDict()
+    for fpath, mtime in candidates:
+        fname = os.path.basename(fpath)
+        data = None
+        for enc in ['utf-16', 'utf-8-sig', 'utf-8']:
+            try:
+                with open(fpath, mode='r', encoding=enc) as f:
+                    content = f.read()
+                    data = json.loads(content)
+                    break
+            except Exception:
+                continue
+
+        if not data:
+            continue
+
+        try:
+            trades = data.get('trades', [])
+            for t in trades:
+                if 'pnlPips' in t and 'profitPips' not in t:
+                    t['profitPips'] = t['pnlPips']
+                if 'pnlUSD' in t and 'profitUSD' not in t:
+                    t['profitUSD'] = t['pnlUSD']
+                if 'profitPips' in t and 'pnlPips' not in t:
+                    t['pnlPips'] = t['profitPips']
+                if 'profitUSD' in t and 'pnlUSD' not in t:
+                    t['pnlUSD'] = t['profitUSD']
+                if 'discrepancyLabel' in t and 'discrepancyReason' not in t:
+                    t['discrepancyReason'] = t['discrepancyLabel']
+                if 'outcome' not in t:
+                    t['outcome'] = 'Win' if t.get('profitPips', 0) >= 0 else 'Loss'
+            reports[fname] = data
+        except Exception as e:
+            print(f"⚠️ خطا در پردازش ساختار گزارش تستر {fname}: {e}")
+
     return reports
 
 def get_tester_compare_html(reports_dict, default_key):
@@ -47,7 +97,7 @@ def get_tester_compare_html(reports_dict, default_key):
     Generates the HTML content for tab-tester-compare.
     """
     options_html = []
-    for k, v in sorted(reports_dict.items()):
+    for k, v in reports_dict.items():
         sel = 'selected' if k == default_key else ''
         title = v.get('reportTitle', k)
         date_range = v.get('dateRange', '')

@@ -91,8 +91,8 @@
                     <div style="display:flex;align-items:center;gap:6px;background:#081420;border:1px solid #38bdf8;padding:4px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(56,189,248,0.15);">
                         <label for="symbolSelector" style="font-size:11.5px;color:#94a3b8;font-weight:bold;">🌍 نماد / جفت‌ارز:</label>
                         <select id="symbolSelector" onchange="switchDashboardSymbol(this.value)" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;font-weight:bold;padding:4px 8px;border-radius:6px;font-size:12px;outline:none;cursor:pointer;">
-                            <option value="EURUSD" selected>EURUSD (M1, M15, M5) - 14125 معامله</option>
-<option value="GBPUSD" >GBPUSD (M1, M15, M5) - 13715 معامله</option>
+                            <option value="EURUSD" selected>EURUSD (M1, M15, M5) - 14118 معامله</option>
+                            <option value="GBPUSD">GBPUSD (M1, M15, M5) - 1023 معامله</option>
                         </select>
                     </div>
                     <button onclick="triggerCSVUploadClick()" style="background:linear-gradient(135deg, #064e3b, #059669);border:1px solid #34d399;color:#fff;padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.3);" title="انتخاب مستقیم فایل CSV یا Drag & Drop فایل به داخل مرورگر (مسیر پوشه Files خودکار در کلیپ‌بورد کپی می‌شود)" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='linear-gradient(135deg, #064e3b, #059669)'">
@@ -125,7 +125,7 @@
                 <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">💵 بالانس شروع حساب</div>
                     <div class="kpi-value" style="color:#f1f5f9;font-size:16px;">$100</div>
-                    <div class="kpi-sub" style="font-size:9.5px;">شروع از 2025.01.02</div>
+                    <div class="kpi-sub" id="eqKpiStartSub" style="font-size:9.5px;">شروع از 2025.01.02</div>
                 </div>
                 <div class="kpi-card" style="border-color:#00e676;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">📈 سود خالص کل</div>
@@ -229,7 +229,7 @@
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span>نقاط: <b id="lblEqPts" style="color:#facc15;">4401</b></span>
                         <span>|</span>
-                        <span>2025.01.02 تا 2026.09.04</span>
+                        <span id="lblEqDateRange">2025.01.02 تا 2026.09.04</span>
                     </div>
                 </div>
             </div>
@@ -48735,9 +48735,15 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <select id="testerRunSelector" onchange="switchTesterReport(this.value)" style="background:#1e293b;border:1px solid #38bdf8;color:#f8fafc;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:280px;font-family:inherit;">
-                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-15_53Trades.json" selected>تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.08.01 - 2026.08.15) - 53 ترید</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-14_24Trades.json" selected>تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.08.01 - 2026.08.14) - 24 ترید</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-07-10_to_2026-07-14_17Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.07.10 - 2026.07.14) - 17 ترید</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-07-01_to_2026-07-09_37Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.07.01 - 2026.07.09) - 37 ترید</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-15_53Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.08.01 - 2026.08.15) - 53 ترید</option>
                     </select>
                     <input type="file" id="testerReportFileInput" accept=".json,.csv" style="display:none;" onchange="handleTesterReportUpload(event)">
+                    <button class="action-btn" onclick="copyTesterReportsFolder()" style="background:linear-gradient(135deg, #1e1b4b, #312e81);color:#c7d2fe;border:1px solid #6366f1;padding:6px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="کپی آدرس پوشه گزارشات متاتریدر ۵ در کلیپ‌بورد برای پیست در پنجره انتخاب فایل">
+                        <span>📋</span> کپی مسیر فایل‌های تستر
+                    </button>
                     <button class="action-btn" onclick="document.getElementById('testerReportFileInput').click()" style="background:#0284c7;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;">
                         <span>📁</span> بارگذاری فایل تست جدید (JSON/CSV)
                     </button>

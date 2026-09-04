@@ -3625,15 +3625,18 @@ def build_dashboard(custom_csv=None):
         if os.path.exists(CSV_PATH_PRIMARY): cands.append(CSV_PATH_PRIMARY)
         elif os.path.exists(CSV_PATH_FALLBACK): cands.append(CSV_PATH_FALLBACK)
 
+    # Sort files by modification time (newest first) so user's latest test is always picked
+    cands.sort(key=lambda f: os.path.getmtime(f) if os.path.exists(f) else 0, reverse=True)
+
     symbols_data = {}
     for c_file in cands:
         try:
             res = process_symbol_dataset(c_file)
             if res and res.get('closed_count', 0) > 0:
                 s_name = res.get('clean_symbol', res.get('symbol', 'UNKNOWN'))
-                if s_name not in symbols_data or res['closed_count'] > symbols_data[s_name]['closed_count']:
+                if s_name not in symbols_data:
                     symbols_data[s_name] = res
-                    print(f"✅ نماد {s_name} با {res['closed_count']} معامله با موفقیت ثبت شد.")
+                    print(f"✅ نماد {s_name} با {res['closed_count']} معامله از فایل {os.path.basename(c_file)} ثبت شد.")
         except Exception as e:
             print(f"⚠️ رد کردن فایل {os.path.basename(c_file)}: {e}")
 

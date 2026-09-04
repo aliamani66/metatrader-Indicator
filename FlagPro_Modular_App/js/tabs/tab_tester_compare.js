@@ -1,27 +1,51 @@
+function copyTesterReportsFolder() {
+    let p = 'C:\\Users\\USER\\AppData\\Roaming\\MetaQuotes\\Terminal\\Common\\Files\\FlagPro_TesterReports';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(p).then(() => {
+            alert('📋 آدرس پوشه گزارشات متاتریدر ۵ در کلیپ‌بورد کپی شد!\n\nاکنون در پنجره بازشده، در نوار بالای آدرس کلیدهای Ctrl+V را بزنید تا مستقیماً به این پوشه هدایت شوید:\n\n' + p);
+        }).catch(() => {
+            prompt('آدرس پوشه گزارشات تستر متاتریدر ۵ (کپی کنید):', p);
+        });
+    } else {
+        prompt('آدرس پوشه گزارشات تستر متاتریدر ۵ (کپی کنید):', p);
+    }
+}
+
 function initTesterCompareTab() {
-            if (!window.TESTER_REPORTS || Object.keys(window.TESTER_REPORTS).length === 0) {
-                console.warn('هیچ گزارش تستری در حافظه موجود نیست.');
-                return;
-            }
+    if (!window.TESTER_REPORTS || Object.keys(window.TESTER_REPORTS).length === 0) {
+        console.warn('هیچ گزارش تستری در حافظه موجود نیست.');
+        return;
+    }
 
-            if (!currentTesterReportKey || !window.TESTER_REPORTS[currentTesterReportKey]) {
-                currentTesterReportKey = Object.keys(window.TESTER_REPORTS)[0];
-            }
+    if (!currentTesterReportKey || !window.TESTER_REPORTS[currentTesterReportKey]) {
+        currentTesterReportKey = Object.keys(window.TESTER_REPORTS)[0];
+    }
 
-            let sel = document.getElementById('testerRunSelector');
-            if (sel && sel.value !== currentTesterReportKey) {
-                sel.value = currentTesterReportKey;
-            }
+    let sel = document.getElementById('testerRunSelector');
+    if (sel) {
+        let keys = Object.keys(window.TESTER_REPORTS);
+        let optsHtml = '';
+        keys.forEach(k => {
+            let r = window.TESTER_REPORTS[k];
+            let isSel = (k === currentTesterReportKey) ? 'selected' : '';
+            let title = r.reportTitle || k;
+            let dRange = r.dateRange || '';
+            let cnt = (r.trades && r.trades.length) || 0;
+            optsHtml += `<option value="${k}" ${isSel}>${title} (${dRange}) - ${cnt} ترید</option>`;
+        });
+        sel.innerHTML = optsHtml;
+        sel.value = currentTesterReportKey;
+    }
 
-            let report = window.TESTER_REPORTS[currentTesterReportKey];
-            if (!report) return;
+    let report = window.TESTER_REPORTS[currentTesterReportKey];
+    if (!report) return;
 
-            renderTesterHeaderBadges(report);
-            renderTesterKPIs(report);
-            renderParameterDriftTable(report);
-            drawTesterCompareChart(report);
-            renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
-        }
+    renderTesterHeaderBadges(report);
+    renderTesterKPIs(report);
+    renderParameterDriftTable(report);
+    drawTesterCompareChart(report);
+    renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
+}
 
         function switchTesterReport(reportKey) {
             if (!window.TESTER_REPORTS || !window.TESTER_REPORTS[reportKey]) return;

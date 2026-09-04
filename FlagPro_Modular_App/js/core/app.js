@@ -10,10 +10,19 @@ function openTab(evt, tabId) {
 
             if (tabId === 'tab-equity') {
                 setTimeout(() => {
-                    initEquityCanvasEvents();
-                    initSimUI();
-                    initWeeklyBarCanvasEvents();
-                    drawWeeklyBarChart(currentWeeklyBarMode);
+                    if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents();
+                    if (typeof initSimUI === 'function') initSimUI();
+                    if (typeof loadCustomPresets === 'function') loadCustomPresets();
+                    if (typeof drawEquityChart === 'function') drawEquityChart();
+                }, 50);
+            }
+
+            if (tabId === 'tab-weekly') {
+                setTimeout(() => {
+                    if (typeof initWeeklyBarCanvasEvents === 'function') initWeeklyBarCanvasEvents();
+                    if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
+                        drawWeeklyBarChart(currentWeeklyBarMode);
+                    }
                 }, 50);
             }
 

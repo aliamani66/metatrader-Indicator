@@ -131,7 +131,8 @@ function switchWeeklyBarMode(mode) {
                 ctx.font = '10px Segoe UI, Tahoma, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillStyle = '#64748b';
-                ctx.fillText('W' + bars[i].week, x + barW / 2, padTop + plotH + 18);
+                let wkAxisLabel = bars[i].week !== undefined ? ('W' + bars[i].week) : (bars[i].label || ('W' + (bars[i].week_idx || (i+1))));
+                ctx.fillText(wkAxisLabel, x + barW / 2, padTop + plotH + 18);
 
                 barCoords.push({
                     x: x,
@@ -206,9 +207,11 @@ function switchWeeklyBarMode(mode) {
                     let wins = (currentWeeklyBarMode === 'kings') ? item.k_wins : item.all_wins;
                     let losses = (currentWeeklyBarMode === 'kings') ? item.k_losses : item.all_losses;
                     let wr = (currentWeeklyBarMode === 'kings') ? item.k_wr : item.all_wr;
+                    let wkTitle = item.label || ('هفته ' + (item.week !== undefined ? item.week : (item.week_idx || '')));
+                    let dateSpan = item.dates || item.date_range || '';
 
                     tt.innerHTML = `
-                        <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">هفته ${item.week} (${item.dates})</div>
+                        <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">${wkTitle} ${dateSpan ? '(' + dateSpan + ')' : ''}</div>
                         <div>سود/زیان خالص این هفته: <b style="color:${pnlCol};font-size:13px;">${sign}$${val.toFixed(2)}</b></div>
                         <div style="color:#94a3b8;margin-top:4px;">تعداد کل معاملات: <b style="color:#f1f5f9;">${trds} معامله</b></div>
                         <div>بردها: <b style="color:#00e676;">${wins}</b> | باخت‌ها: <b style="color:#ef4444;">${losses}</b></div>
