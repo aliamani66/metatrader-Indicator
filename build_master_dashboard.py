@@ -1073,6 +1073,57 @@ def build_dashboard():
     json_pts_kings = json.dumps(pts_kings)
     json_pts_all = json.dumps(pts_all)
 
+    # Simulator Kings Data Preparation
+    kings_sim_list = [{
+        'id': i,
+        'role': k['role'],
+        'tf': k['tf'],
+        'kk': f"{k['role']}|{k['tf']}",
+        'score': round(k['score'], 1),
+        'cnt': k['cnt'],
+        'net': round(k['net'], 2),
+        'w1_p': round(k['w1_p'], 1),
+        'pf': round(k['pf'], 2) if k['pf'] < 900 else 999.0,
+        'perf': 1 if k['is_perfect'] else 0,
+        'run': 1 if k['is_runner'] else 0
+    } for i, k in enumerate(qualified_kings, 1)]
+    json_kings_sim = json.dumps(kings_sim_list, separators=(',', ':'))
+
+    # Chronological Trades for Interactive Simulator
+    trades_chrono = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''))
+    trades_sim_list = []
+    for idx, r in enumerate(trades_chrono, 1):
+        tf = r.get('Timeframe', 'M1')
+        role = r.get('Role', '')
+        is_k = 1 if (role, tf) in king_keys else 0
+        hr = int(r.get('HitTargetRatio', 0))
+        pts = float(r.get('RiskPoints', 0.0))
+        if hr == 0:
+            pnl = -pts * 0.04 - friction_04_per_trade
+        else:
+            pnl = -friction_04_per_trade
+            if hr >= 1: pnl += pts * 1.0 * 0.01
+            if hr >= 2: pnl += pts * 2.0 * 0.01
+            if hr >= 3: pnl += pts * 3.0 * 0.01
+            if hr >= 4: pnl += pts * 4.0 * 0.01
+
+        et = r.get('EntryTime', '')
+        h_val = int(et[11:13]) if len(et) >= 13 else 0
+        trades_sim_list.append({
+            'i': idx,
+            't': et,
+            'h': h_val,
+            'tf': tf,
+            'r': role,
+            'k': is_k,
+            'kk': f"{role}|{tf}",
+            'pts': round(pts, 1),
+            'pot': round(pts * 0.04, 2),
+            'hr': hr,
+            'p': round(pnl, 2)
+        })
+    json_trades_sim = json.dumps(trades_sim_list, separators=(',', ':'))
+
     # Trades Journal JSON Data Preparation
     trades_sorted = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''), reverse=True)
     trades_json_list = []
@@ -1389,27 +1440,151 @@ def build_dashboard():
 
         <!-- ==================== TAB: 📈 EQUITY & BALANCE CURVE ==================== -->
         <div id="tab-equity" class="tab-content">
-            <!-- Equity Metrics Banner -->
-            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:20px;">
-                <div class="kpi-card" style="border-color:#38bdf8;">
-                    <div class="kpi-title">💵 بالانس شروع حساب</div>
-                    <div class="kpi-value" style="color:#f1f5f9;">${bal_initial:,.2f}</div>
-                    <div class="kpi-sub">شروع از ۹ مارس ۲۰۲۶</div>
+            <!-- Equity Metrics Banner (Dynamically updated by simulation) -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:18px;">
+                <div class="kpi-card" style="border-color:#38bdf8;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">💵 بالانس شروع حساب</div>
+                    <div class="kpi-value" style="color:#f1f5f9;font-size:20px;">${bal_initial:,.2f}</div>
+                    <div class="kpi-sub" style="font-size:10px;">شروع از ۹ مارس ۲۰۲۶</div>
                 </div>
-                <div class="kpi-card" style="border-color:#00e676;">
-                    <div class="kpi-title">📈 بالانس نهایی سلاطین</div>
-                    <div class="kpi-value" style="color:#00e676;">${bal_k:,.2f}</div>
-                    <div class="kpi-sub">سود خالص: ${net_k:+,.2f} ({net_k_pct:+.2f}٪)</div>
+                <div class="kpi-card" style="border-color:#00e676;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">📈 بالانس نهایی شبیه‌سازی</div>
+                    <div class="kpi-value" id="eqKpiFinalBal" style="color:#00e676;font-size:20px;">${bal_k:,.2f}</div>
+                    <div class="kpi-sub" id="eqKpiNetSub" style="font-size:10px;">سود خالص: ${net_k:+,.2f} ({net_k_pct:+.2f}٪)</div>
                 </div>
-                <div class="kpi-card" style="border-color:#facc15;">
-                    <div class="kpi-title">🏔️ بالاترین سقف سرمایه (Peak)</div>
-                    <div class="kpi-value" style="color:#facc15;">${peak_k:,.2f}</div>
-                    <div class="kpi-sub">ثبت رکورد در پایان بازه ۶ ماهه</div>
+                <div class="kpi-card" style="border-color:#facc15;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">🏔️ سقف سرمایه (Peak)</div>
+                    <div class="kpi-value" id="eqKpiPeak" style="color:#facc15;font-size:20px;">${peak_k:,.2f}</div>
+                    <div class="kpi-sub" id="eqKpiPeakSub" style="font-size:10px;">ثبت رکورد در پایان بازه</div>
                 </div>
-                <div class="kpi-card" style="border-color:#ef4444;">
-                    <div class="kpi-title">🛡️ حداکثر افت حساب (Max Drawdown)</div>
-                    <div class="kpi-value" style="color:#fca5a5;">${max_dd_k:.2f} ({max_dd_k_pct:.2f}٪)</div>
-                    <div class="kpi-sub">مدیریت ریسک بی‌نقص در ۶ ماه!</div>
+                <div class="kpi-card" style="border-color:#ef4444;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">🛡️ حداکثر افت (Max DD)</div>
+                    <div class="kpi-value" id="eqKpiMaxDD" style="color:#fca5a5;font-size:20px;">${max_dd_k:.2f} ({max_dd_k_pct:.2f}٪)</div>
+                    <div class="kpi-sub" id="eqKpiMaxDDSub" style="font-size:10px;">مدیریت ریسک بی‌نقص</div>
+                </div>
+                <div class="kpi-card" style="border-color:#38bdf8;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">⚖️ پرافیت فاکتور (PF)</div>
+                    <div class="kpi-value" id="eqKpiPF" style="color:#38bdf8;font-size:20px;">2.44</div>
+                    <div class="kpi-sub" id="eqKpiPFSub" style="font-size:10px;">نسبت سود ناخالص به ضرر</div>
+                </div>
+                <div class="kpi-card" style="border-color:#10b981;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">🎯 وین‌ریت پله ۱ (WinRate)</div>
+                    <div class="kpi-value" id="eqKpiWR" style="color:#34d399;font-size:20px;">66.5%</div>
+                    <div class="kpi-sub" id="eqKpiWRSub" style="font-size:10px;">نرخ موفقیت حداقل ۱R</div>
+                </div>
+                <div class="kpi-card" style="border-color:#eab308;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">📊 تعداد معاملات فعال</div>
+                    <div class="kpi-value" id="eqKpiCnt" style="color:#facc15;font-size:20px;">{len(pts_kings)-1} معامله</div>
+                    <div class="kpi-sub" id="eqKpiCntSub" style="font-size:10px;">معاملات منطبق با فیلتر</div>
+                </div>
+                <div class="kpi-card" style="border-color:#a855f7;padding:10px 14px;">
+                    <div class="kpi-title" style="font-size:11px;">⚡ متوسط سود هر ترید</div>
+                    <div class="kpi-value" id="eqKpiAvgTrade" style="color:#c084fc;font-size:20px;">+${(net_k/(len(pts_kings)-1)):.2f}</div>
+                    <div class="kpi-sub" id="eqKpiAvgTradeSub" style="font-size:10px;">میانگین خروجی هر ترید</div>
+                </div>
+            </div>
+
+            <!-- 🎛️ REAL-TIME FILTER SIMULATOR CONTROL PANEL -->
+            <div class="section-box" style="border: 2px solid #0284c7; background: #081a2e; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e4976; padding-bottom: 12px; margin-bottom: 16px; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="margin:0;color:#38bdf8;font-size:18px;display:flex;align-items:center;gap:8px;">
+                            <span>🎛️ شبیه‌ساز تعاملی فیلترها و بهینه‌ساز نمودار رشد (Real-time Strategy Optimizer)</span>
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">با حذف/اضافه هر سلطان، تغییر ساعات معاملاتی یا حداقل سود، نمودار و تمام شاخص‌های بالا به صورت آنی بازرسم می‌شوند:</p>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;">🔄 بازنشانی تمام فیلترها (Reset)</button>
+                    </div>
+                </div>
+
+                <!-- 1. KINGS SELECTOR SECTION -->
+                <div style="margin-bottom:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                        <div style="font-weight:bold;color:#facc15;font-size:13px;display:flex;align-items:center;gap:6px;">
+                            <span>👑 فیلتر سلاطین منتخب (انتخاب تک‌تک یا گروهی ۲۱ گره برتر):</span>
+                            <span id="simKingsCountLabel" style="background:#854d0e;color:#fef08a;font-size:11px;padding:2px 8px;border-radius:10px;">۲۱ از ۲۱ سلطان فعال</span>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button onclick="selectAllKings(true)" style="background:#064e3b;border:1px solid #059669;color:#34d399;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:bold;">🟢 انتخاب همه</button>
+                            <button onclick="selectAllKings(false)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:bold;">🔴 لغو همه</button>
+                            <button onclick="selectOnlyPerfectKings()" style="background:#1e3a8a;border:1px solid #3b82f6;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;">💎 فقط ۱۰۰٪ وین‌ریت</button>
+                            <button onclick="selectOnlyRunnerKings()" style="background:#3b0764;border:1px solid #a855f7;color:#e9d5ff;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;">🚀 فقط الگوهای دونده</button>
+                        </div>
+                    </div>
+                    <!-- Kings Chips Grid -->
+                    <div id="simKingsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));gap:8px;max-height:220px;overflow-y:auto;padding-right:4px;">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+                </div>
+
+                <!-- 2. TRADING HOURS & PROFIT FILTER ROW -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;background:#061424;padding:14px;border-radius:10px;border:1px solid #133352;">
+                    
+                    <!-- 2A. TRADING HOURS -->
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <div style="color:#38bdf8;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                                <span>⏰ فیلتر ساعات معاملاتی و سشن‌ها:</span>
+                            </div>
+                            <span id="simHoursActiveBadge" style="font-size:11px;color:#7dd3fc;background:#0c4a6e;padding:2px 8px;border-radius:6px;">۲۴ ساعت فعال</span>
+                        </div>
+                        
+                        <!-- Hour Presets -->
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                            <button id="btnHAll" class="hour-preset-btn active" onclick="applyHourPreset('all', this)">🌍 ۲۴ ساعته</button>
+                            <button id="btnHNoNight" class="hour-preset-btn" onclick="applyHourPreset('no_night', this)" title="بسته شدن معاملات از ۲۲:۰۰ شب تا ۰۴:۰۰ صبح (دقیقاً سناریوی درخواستی)">🛡️ بستن شب (۲۲ تا ۰۴)</button>
+                            <button id="btnHLonNy" class="hour-preset-btn" onclick="applyHourPreset('lon_ny', this)">☀️ سشن لندن/نیویورک (۰۷ تا ۲۰)</button>
+                            <button id="btnHAsia" class="hour-preset-btn" onclick="applyHourPreset('asia', this)">🌙 سشن آسیا (۰۰ تا ۰۸)</button>
+                        </div>
+
+                        <!-- 24-Hour Visual Buttons Bar -->
+                        <div style="font-size:11px;color:#64748b;margin-bottom:4px;">کلیک روی هر ساعت برای فعال/غیرفعال کردن تکی:</div>
+                        <div id="simHoursBar" style="display:grid;grid-template-columns:repeat(12, 1fr);gap:4px;">
+                            <!-- 24 buttons 00 to 23 -->
+                        </div>
+                    </div>
+
+                    <!-- 2B. MINIMUM TARGET PROFIT FILTER -->
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <div style="color:#34d399;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                                <span>💰 فیلتر حداقل سود پتانسیل معامله (Min 1R Target $):</span>
+                            </div>
+                            <span id="simProfitBadge" style="font-size:11px;color:#6ee7b7;background:#064e3b;padding:2px 8px;border-radius:6px;">بدون فیلتر ($0)</span>
+                        </div>
+
+                        <!-- Presets -->
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                            <button class="profit-preset-btn active" onclick="applyProfitPreset(0.0, this)">همه ($0)</button>
+                            <button class="profit-preset-btn" onclick="applyProfitPreset(1.5, this)">$1.50+</button>
+                            <button class="profit-preset-btn" onclick="applyProfitPreset(2.0, this)" title="اگر سود تارگت زیر ۲ دلار بود معامله نشود">$2.00+ ⭐</button>
+                            <button class="profit-preset-btn" onclick="applyProfitPreset(2.5, this)">$2.50+</button>
+                            <button class="profit-preset-btn" onclick="applyProfitPreset(3.0, this)">$3.00+</button>
+                        </div>
+
+                        <!-- Slider / Number Input -->
+                        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
+                            <span style="font-size:12px;color:#94a3b8;">حداقل سود ۱R معامله (0.04 لات):</span>
+                            <input type="range" id="simProfitSlider" min="0" max="6" step="0.25" value="0" oninput="onProfitSliderInput(this.value)" style="flex:1;cursor:pointer;accent-color:#10b981;" />
+                            <span id="simProfitSliderVal" style="color:#34d399;font-family:monospace;font-weight:bold;font-size:14px;min-width:50px;text-align:left;">$0.00</span>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;margin-top:6px;">
+                            💡 در حجم 0.04 لات، سود تارگت اول معامله (1R) باید حداقل برابر این مبلغ باشد تا هزینه اسپرد/کمیسیون ($0.48) توجیه‌پذیر باشد.
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Status Footer -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid #133352;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        وضعیت فیلتر جاری: <b id="simActiveTradesCount" style="color:#facc15;">{len(pts_kings)-1}</b> معامله فعال از مجموع <span id="simTotalBaseCount">{len(pts_kings)-1}</span> معامله (<span id="simFilteredOutCount" style="color:#f87171;">0 معامله حذف شده</span>)
+                    </div>
+                    <div style="display:flex;gap:14px;color:#cbd5e1;">
+                        <span>وین‌ریت فیلترشده: <b id="simWinRateVal" style="color:#34d399;">66.5%</b></span>
+                        <span>پرافیت فاکتور فیلترشده: <b id="simPfVal" style="color:#38bdf8;">2.44</b></span>
+                    </div>
                 </div>
             </div>
 
@@ -1423,7 +1598,7 @@ def build_dashboard():
                         <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">رسم دقیق منحنی رشد سرمایه معامله به معامله در طول زمان ۶ ماهه - موس را روی نمودار حرکت دهید تا جزئیات هر معامله را ببینید:</p>
                     </div>
                     <div style="display:flex;gap:8px;">
-                        <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین ۱۸ گانه ({len(pts_kings)-1} معامله)</button>
+                        <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین ۲۱ گانه ({len(pts_kings)-1} معامله)</button>
                         <button id="btnEqAll" class="sort-btn" onclick="switchEquityMode('all')">🌐 منحنی کل ساختارهای چارت ({len(pts_all)-1} معامله)</button>
                     </div>
                 </div>
@@ -2586,28 +2761,339 @@ def build_dashboard():
             }});
         }}
 
+        let kingsSimList = {json_kings_sim};
+        let simTrades = {json_trades_sim};
         let currentEquityMode = 'kings';
-        let dataKings = {json_pts_kings};
-        let dataAll = {json_pts_all};
+        let currentSimPts = [];
+        let simState = {{
+            mode: 'kings',
+            enabledKings: new Set(kingsSimList.map(k => k.kk)),
+            allowedHours: new Array(24).fill(true),
+            minProfit: 0.0
+        }};
 
-        function switchEquityMode(mode) {{
-            currentEquityMode = mode;
+        let simCanvasEventsInitialized = false;
+
+        function initSimUI() {{
+            renderSimKingsGrid();
+            renderSimHoursBar();
+            runEquitySimulation();
+        }}
+
+        function renderSimKingsGrid() {{
+            let grid = document.getElementById('simKingsGrid');
+            if (!grid) return;
+            let html = '';
+            for (let i = 0; i < kingsSimList.length; i++) {{
+                let k = kingsSimList[i];
+                let isEnabled = simState.enabledKings.has(k.kk);
+                let bg = isEnabled ? '#0c2742' : '#081420';
+                let border = isEnabled ? (k.perf ? 'border:1px solid #facc15;' : 'border:1px solid #0284c7;') : 'border:1px solid #1e293b;opacity:0.4;';
+                let checkIcon = isEnabled ? '☑️' : '⬜';
+                let medal = k.perf ? '💎' : (k.run ? '🚀' : '👑');
+                let netCol = k.net >= 0 ? '#34d399' : '#f87171';
+                let netSign = k.net >= 0 ? '+' : '';
+
+                html += '<div onclick="toggleSimKing(\'' + k.kk + '\')" style="' + bg + ';' + border + 'padding:6px 10px;border-radius:6px;cursor:pointer;user-select:none;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center;">' +
+                    '<div style="display:flex;align-items:center;gap:6px;overflow:hidden;">' +
+                        '<span style="font-size:13px;">' + checkIcon + '</span>' +
+                        '<span style="font-size:11px;">' + medal + '</span>' +
+                        '<span style="font-size:11.5px;color:#e2e8f0;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + k.role + ' [' + k.tf + ']">' + k.role + '</span>' +
+                        '<span style="background:#1e293b;color:#93c5fd;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:bold;">' + k.tf + '</span>' +
+                    '</div>' +
+                    '<div style="text-align:left;font-size:11px;font-family:monospace;white-space:nowrap;">' +
+                        '<span style="color:' + netCol + ';font-weight:bold;">$' + netSign + k.net.toFixed(0) + '</span>' +
+                        '<span style="color:#64748b;font-size:9.5px;margin-right:4px;">(' + k.cnt + ')</span>' +
+                    '</div>' +
+                '</div>';
+            }}
+            grid.innerHTML = html;
+
+            let lbl = document.getElementById('simKingsCountLabel');
+            if (lbl) {{
+                let activeCnt = simState.enabledKings.size;
+                let totCnt = kingsSimList.length;
+                lbl.textContent = activeCnt + ' از ' + totCnt + ' سلطان فعال';
+                lbl.style.background = (activeCnt === totCnt) ? '#854d0e' : (activeCnt > 0 ? '#0284c7' : '#450a0a');
+            }}
+        }}
+
+        function toggleSimKing(kk) {{
+            if (simState.enabledKings.has(kk)) {{
+                simState.enabledKings.delete(kk);
+            }} else {{
+                simState.enabledKings.add(kk);
+            }}
+            renderSimKingsGrid();
+            runEquitySimulation();
+        }}
+
+        function selectAllKings(enableAll) {{
+            if (enableAll) {{
+                kingsSimList.forEach(k => simState.enabledKings.add(k.kk));
+            }} else {{
+                simState.enabledKings.clear();
+            }}
+            renderSimKingsGrid();
+            runEquitySimulation();
+        }}
+
+        function selectOnlyPerfectKings() {{
+            simState.enabledKings.clear();
+            kingsSimList.forEach(k => {{
+                if (k.perf === 1) simState.enabledKings.add(k.kk);
+            }});
+            renderSimKingsGrid();
+            runEquitySimulation();
+        }}
+
+        function selectOnlyRunnerKings() {{
+            simState.enabledKings.clear();
+            kingsSimList.forEach(k => {{
+                if (k.run === 1) simState.enabledKings.add(k.kk);
+            }});
+            renderSimKingsGrid();
+            runEquitySimulation();
+        }}
+
+        function renderSimHoursBar() {{
+            let bar = document.getElementById('simHoursBar');
+            if (!bar) return;
+            let html = '';
+            let activeCount = 0;
+            for (let h = 0; h < 24; h++) {{
+                let on = simState.allowedHours[h];
+                if (on) activeCount++;
+                let bg = on ? '#0c4a6e' : '#111827';
+                let border = on ? 'border:1px solid #0284c7;' : 'border:1px solid #1f2937;';
+                let col = on ? '#7dd3fc' : '#475569';
+                let decor = on ? '' : 'text-decoration:line-through;opacity:0.5;';
+                let hStr = (h < 10 ? '0' : '') + h;
+
+                html += '<button onclick="toggleHour(' + h + ')" style="' + bg + ';' + border + 'color:' + col + ';' + decor + 'font-family:monospace;font-size:10px;padding:5px 2px;border-radius:4px;cursor:pointer;font-weight:bold;" title="ساعت ' + hStr + ':00">' + hStr + '</button>';
+            }}
+            bar.innerHTML = html;
+
+            let badge = document.getElementById('simHoursActiveBadge');
+            if (badge) {{
+                badge.textContent = activeCount + ' ساعت فعال (' + (24 - activeCount) + ' فیلتر)';
+                badge.style.background = (activeCount === 24) ? '#0c4a6e' : (activeCount > 0 ? '#065f46' : '#450a0a');
+            }}
+        }}
+
+        function toggleHour(h) {{
+            simState.allowedHours[h] = !simState.allowedHours[h];
+            renderSimHoursBar();
+            document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
+            runEquitySimulation();
+        }}
+
+        function applyHourPreset(preset, btnElem) {{
+            document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
+
+            if (preset === 'all') {{
+                simState.allowedHours.fill(true);
+            }} else if (preset === 'no_night') {{
+                simState.allowedHours.fill(true);
+                let night = [22, 23, 0, 1, 2, 3];
+                night.forEach(h => simState.allowedHours[h] = false);
+            }} else if (preset === 'lon_ny') {{
+                for (let h = 0; h < 24; h++) {{
+                    simState.allowedHours[h] = (h >= 7 && h < 20);
+                }}
+            }} else if (preset === 'asia') {{
+                for (let h = 0; h < 24; h++) {{
+                    simState.allowedHours[h] = (h >= 0 && h < 8);
+                }}
+            }}
+            renderSimHoursBar();
+            runEquitySimulation();
+        }}
+
+        function applyProfitPreset(val, btnElem) {{
+            simState.minProfit = val;
+            let slider = document.getElementById('simProfitSlider');
+            if (slider) slider.value = val;
+            let sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$' + val.toFixed(2);
+            let badge = document.getElementById('simProfitBadge');
+            if (badge) {{
+                badge.textContent = (val === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + val.toFixed(2);
+                badge.style.background = (val === 0) ? '#064e3b' : '#0369a1';
+            }}
+
+            document.querySelectorAll('.profit-preset-btn').forEach(b => b.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
+            runEquitySimulation();
+        }}
+
+        function onProfitSliderInput(val) {{
+            let num = parseFloat(val) || 0.0;
+            simState.minProfit = num;
+            let sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$' + num.toFixed(2);
+            let badge = document.getElementById('simProfitBadge');
+            if (badge) {{
+                badge.textContent = (num === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + num.toFixed(2);
+                badge.style.background = (num === 0) ? '#064e3b' : '#0369a1';
+            }}
+            document.querySelectorAll('.profit-preset-btn').forEach(b => b.classList.remove('active'));
+            runEquitySimulation();
+        }}
+
+        function resetAllSimFilters() {{
+            simState.mode = 'kings';
+            kingsSimList.forEach(k => simState.enabledKings.add(k.kk));
+            simState.allowedHours.fill(true);
+            simState.minProfit = 0.0;
+
+            let slider = document.getElementById('simProfitSlider');
+            if (slider) slider.value = 0;
+            let sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$0.00';
+            let badge = document.getElementById('simProfitBadge');
+            if (badge) {{
+                badge.textContent = 'بدون فیلتر ($0)';
+                badge.style.background = '#064e3b';
+            }}
+
+            document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
+            let btnHAll = document.getElementById('btnHAll');
+            if (btnHAll) btnHAll.classList.add('active');
+
+            document.querySelectorAll('.profit-preset-btn').forEach(b => b.classList.remove('active'));
+            let firstProf = document.querySelector('.profit-preset-btn');
+            if (firstProf) firstProf.classList.add('active');
+
             let btnK = document.getElementById('btnEqKings');
             let btnA = document.getElementById('btnEqAll');
-            let lbl = document.getElementById('lblEqPts');
+            if (btnK) btnK.classList.add('active');
+            if (btnA) btnA.classList.remove('active');
+
+            renderSimKingsGrid();
+            renderSimHoursBar();
+            runEquitySimulation();
+        }}
+
+        function switchEquityMode(mode) {{
+            simState.mode = mode;
+            let btnK = document.getElementById('btnEqKings');
+            let btnA = document.getElementById('btnEqAll');
             if(mode === 'kings') {{
                 if(btnK) btnK.classList.add('active');
                 if(btnA) btnA.classList.remove('active');
-                if(lbl) lbl.textContent = dataKings.length - 1;
             }} else {{
                 if(btnK) btnK.classList.remove('active');
                 if(btnA) btnA.classList.add('active');
-                if(lbl) lbl.textContent = dataAll.length - 1;
             }}
-            drawEquityChart(mode);
+            runEquitySimulation();
         }}
 
-        function drawEquityChart(mode) {{
+        function runEquitySimulation() {{
+            let pts = [{{ idx: 0, t: '2026.03.09 00:00', b: 10000.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)' }}];
+            let bal = 10000.0;
+            let peak = bal;
+            let maxDD = 0.0;
+            let winCnt = 0;
+            let totalTrades = 0;
+            let grossP = 0.0;
+            let grossL = 0.0;
+            let baseTotal = 0;
+
+            for (let i = 0; i < simTrades.length; i++) {{
+                let t = simTrades[i];
+                let isMatchBase = (simState.mode === 'kings') ? (t.k === 1) : true;
+                if (!isMatchBase) continue;
+                baseTotal++;
+
+                // King filter
+                if (simState.mode === 'kings' && !simState.enabledKings.has(t.kk)) continue;
+
+                // Hour filter
+                if (!simState.allowedHours[t.h]) continue;
+
+                // Min profit filter
+                if (t.pot < simState.minProfit) continue;
+
+                // Trade accepted!
+                totalTrades++;
+                bal += t.p;
+                pts.push({{ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: t.p, n: t.r + ' [' + t.tf + ']' }});
+                if (bal > peak) peak = bal;
+                let dd = peak - bal;
+                if (dd > maxDD) maxDD = dd;
+                if (t.p > 0) {{
+                    winCnt++;
+                    grossP += t.p;
+                }} else {{
+                    grossL += Math.abs(t.p);
+                }}
+            }}
+
+            let net = bal - 10000.0;
+            let netPct = (net / 10000.0) * 100;
+            let maxDDPct = peak > 0 ? ((maxDD / peak) * 100) : 0;
+            let pf = grossL > 0 ? (grossP / grossL) : (grossP > 0 ? 999.0 : 1.0);
+            let wr = totalTrades > 0 ? ((winCnt / totalTrades) * 100) : 0;
+            let avgTrade = totalTrades > 0 ? (net / totalTrades) : 0;
+
+            // Update KPI Banner
+            let elBal = document.getElementById('eqKpiFinalBal');
+            let elNetSub = document.getElementById('eqKpiNetSub');
+            let elPeak = document.getElementById('eqKpiPeak');
+            let elMaxDD = document.getElementById('eqKpiMaxDD');
+            let elMaxDDSub = document.getElementById('eqKpiMaxDDSub');
+            let elPF = document.getElementById('eqKpiPF');
+            let elWR = document.getElementById('eqKpiWR');
+            let elCnt = document.getElementById('eqKpiCnt');
+            let elAvg = document.getElementById('eqKpiAvgTrade');
+
+            if (elBal) {{
+                let sign = bal >= 10000 ? '' : '-';
+                elBal.textContent = '$' + bal.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
+                elBal.style.color = bal >= 10000 ? '#00e676' : '#ef4444';
+            }}
+            if (elNetSub) {{
+                let sign = net >= 0 ? '+' : '';
+                elNetSub.textContent = 'سود خالص: $' + sign + net.toFixed(2) + ' (' + sign + netPct.toFixed(2) + '٪)';
+            }}
+            if (elPeak) elPeak.textContent = '$' + peak.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
+            if (elMaxDD) elMaxDD.textContent = '$' + maxDD.toFixed(2) + ' (' + maxDDPct.toFixed(2) + '٪)';
+            if (elMaxDDSub) elMaxDDSub.textContent = 'افت از سقف $' + peak.toFixed(0);
+            if (elPF) elPF.textContent = pf >= 900 ? '∞ قطعی' : pf.toFixed(2);
+            if (elWR) elWR.textContent = wr.toFixed(1) + '٪ (' + winCnt + ' برد)';
+            if (elCnt) elCnt.textContent = totalTrades.toLocaleString() + ' معامله';
+            if (elAvg) {{
+                let aSign = avgTrade >= 0 ? '+' : '';
+                elAvg.textContent = '$' + aSign + avgTrade.toFixed(2);
+                elAvg.style.color = avgTrade >= 0 ? '#38bdf8' : '#f87171';
+            }}
+
+            // Update Simulator Footer Status
+            let elAct = document.getElementById('simActiveTradesCount');
+            let elBase = document.getElementById('simTotalBaseCount');
+            let elFilt = document.getElementById('simFilteredOutCount');
+            let elWrVal = document.getElementById('simWinRateVal');
+            let elPfVal = document.getElementById('simPfVal');
+
+            if (elAct) elAct.textContent = totalTrades.toLocaleString();
+            if (elBase) elBase.textContent = baseTotal.toLocaleString();
+            if (elFilt) {{
+                let diff = baseTotal - totalTrades;
+                elFilt.textContent = diff.toLocaleString() + ' معامله حذف شده';
+            }}
+            if (elWrVal) elWrVal.textContent = wr.toFixed(1) + '٪';
+            if (elPfVal) elPfVal.textContent = pf >= 900 ? '∞ قطعی' : pf.toFixed(2);
+
+            let lbl = document.getElementById('lblEqPts');
+            if (lbl) lbl.textContent = Math.max(0, pts.length - 1);
+
+            currentSimPts = pts;
+            drawEquityChart();
+        }}
+
+        function drawEquityChart() {{
             let canvas = document.getElementById('equityCanvas');
             if (!canvas) return;
             let ctx = canvas.getContext('2d');
@@ -2630,8 +3116,18 @@ def build_dashboard():
             let plotW = w - padLeft - padRight;
             let plotH = h - padTop - padBottom;
 
-            let pts = (mode === 'kings') ? dataKings : dataAll;
-            if (!pts || pts.length === 0) return;
+            let pts = currentSimPts;
+            if (!pts || pts.length <= 1) {{
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#0b0f19';
+                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '13px Segoe UI, Tahoma, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('هیچ معامله‌ای با این ترکیب فیلترها وجود ندارد! لطفاً فیلترها را تسهیل کنید.', w / 2, h / 2);
+                canvas._coords = [];
+                return;
+            }}
 
             let minBal = Infinity;
             let maxBal = -Infinity;
@@ -2719,7 +3215,7 @@ def build_dashboard():
 
             // Gradient Fill
             let grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-            if (mode === 'kings') {{
+            if (simState.mode === 'kings') {{
                 grad.addColorStop(0, 'rgba(56, 189, 248, 0.30)');
                 grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
             }} else {{
@@ -2738,7 +3234,7 @@ def build_dashboard():
             ctx.fill();
 
             // Line
-            ctx.strokeStyle = (mode === 'kings') ? '#38bdf8' : '#a855f7';
+            ctx.strokeStyle = (simState.mode === 'kings') ? '#38bdf8' : '#a855f7';
             ctx.lineWidth = 2.2;
             ctx.beginPath();
             for (let i = 0; i < coords.length; i++) {{
@@ -2761,10 +3257,11 @@ def build_dashboard():
 
         function initEquityCanvasEvents() {{
             let canvas = document.getElementById('equityCanvas');
-            if (!canvas) return;
+            if (!canvas || simCanvasEventsInitialized) return;
+            simCanvasEventsInitialized = true;
 
             canvas.addEventListener('mousemove', function(evt) {{
-                if (!canvas._coords) return;
+                if (!canvas._coords || canvas._coords.length === 0) return;
                 let rect = canvas.getBoundingClientRect();
                 let mouseX = evt.clientX - rect.left;
                 let mouseY = evt.clientY - rect.top;
@@ -2785,9 +3282,7 @@ def build_dashboard():
                 let target = coords[idx];
                 let pt = target.pt;
 
-                drawEquityChart(currentEquityMode);
-                    initWeeklyBarCanvasEvents();
-                    drawWeeklyBarChart(currentWeeklyBarMode);
+                drawEquityChart();
                 let ctx = canvas.getContext('2d');
                 let dpr = window.devicePixelRatio || 1;
                 ctx.save();
@@ -2841,15 +3336,11 @@ def build_dashboard():
             canvas.addEventListener('mouseleave', function() {{
                 let tt = document.getElementById('equityTooltip');
                 if (tt) tt.style.display = 'none';
-                drawEquityChart(currentEquityMode);
-                    initWeeklyBarCanvasEvents();
-                    drawWeeklyBarChart(currentWeeklyBarMode);
+                drawEquityChart();
             }});
 
             window.addEventListener('resize', function() {{
-                drawEquityChart(currentEquityMode);
-                    initWeeklyBarCanvasEvents();
-                    drawWeeklyBarChart(currentWeeklyBarMode);
+                drawEquityChart();
             }});
         }}
 
@@ -2895,7 +3386,7 @@ def build_dashboard():
             if (tabId === 'tab-equity') {{
                 setTimeout(() => {{
                     initEquityCanvasEvents();
-                    drawEquityChart(currentEquityMode);
+                    initSimUI();
                     initWeeklyBarCanvasEvents();
                     drawWeeklyBarChart(currentWeeklyBarMode);
                 }}, 50);
@@ -3199,10 +3690,12 @@ def build_dashboard():
             if (btnN) btnN.disabled = (curPage >= totalPages);
         }}
 
-        // Initial render of trades journal
+        // Initial render of trades journal and simulator
         setTimeout(() => {{
+            initEquityCanvasEvents();
+            initSimUI();
             renderTrades();
-        }}, 100);
+        }}, 60);
     </script>
 </body>
 </html>
