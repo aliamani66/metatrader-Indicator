@@ -1394,35 +1394,6 @@ def build_dashboard():
             </div>
         </div>
 
-        <!-- KPI Cards Grid -->
-        <div class="kpi-grid">
-            <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
-                <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
-                <div class="kpi-value" style="color:#38bdf8;">{total_setups:,}</div>
-                <div class="kpi-sub">تایم‌های M1, M5, M15</div>
-            </div>
-            <div class="kpi-card" style="border-top: 4px solid #00e676;">
-                <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
-                <div class="kpi-value" style="color:#00e676;">{len(closed):,}</div>
-                <div class="kpi-sub">در انتظار / فعال: {len(in_trade)} معامله</div>
-            </div>
-            <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
-                <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
-                <div class="kpi-value" style="color:#f59e0b;">{sl_in_rej} 🎯</div>
-                <div class="kpi-sub">دقت فیلتر در باخت: {rej_accuracy:.1f}%</div>
-            </div>
-            <div class="kpi-card" style="border-top: 4px solid #10b981;">
-                <div class="kpi-title">🚀 جهش امید ریاضی (EV)</div>
-                <div class="kpi-value" style="color:#10b981;">{ev_a:+.2f} R</div>
-                <div class="kpi-sub">قبل از فیلتر: {ev_b:+.2f} R</div>
-            </div>
-            <div class="kpi-card" style="border-top: 4px solid #eab308;">
-                <div class="kpi-title">💵 سود خالص دلاری سلاطین (0.04)</div>
-                <div class="kpi-value" style="color:#facc15;">${s3_net:+.2f}</div>
-                <div class="kpi-sub">از {tot_k_cnt} معامله سلاطین برتر</div>
-            </div>
-        </div>
-
         <!-- 📑 TABS NAVIGATION BAR -->
         <div class="tabs-nav">
             <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین برگزیده (۲۱ گره)</button>
@@ -1709,6 +1680,35 @@ def build_dashboard():
 
         <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
         <div id="tab-kings" class="tab-content active">
+            <!-- Global Performance KPI Cards (Placed inside Tab 1) -->
+            <div class="kpi-grid" style="margin-bottom:20px;">
+                <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
+                    <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
+                    <div class="kpi-value" style="color:#38bdf8;">{total_setups:,}</div>
+                    <div class="kpi-sub">تایم‌های M1, M5, M15</div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid #00e676;">
+                    <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
+                    <div class="kpi-value" style="color:#00e676;">{len(closed):,}</div>
+                    <div class="kpi-sub">در انتظار / فعال: {len(in_trade)} معامله</div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
+                    <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
+                    <div class="kpi-value" style="color:#f59e0b;">{sl_in_rej} 🎯</div>
+                    <div class="kpi-sub">دقت فیلتر در باخت: {rej_accuracy:.1f}%</div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid #10b981;">
+                    <div class="kpi-title">🚀 جهش امید ریاضی (EV)</div>
+                    <div class="kpi-value" style="color:#10b981;">{ev_a:+.2f} R</div>
+                    <div class="kpi-sub">قبل از فیلتر: {ev_b:+.2f} R</div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid #eab308;">
+                    <div class="kpi-title">💵 سود خالص دلاری سلاطین (0.04)</div>
+                    <div class="kpi-value" style="color:#facc15;">${s3_net:+.2f}</div>
+                    <div class="kpi-sub">از {tot_k_cnt} معامله سلاطین برتر</div>
+                </div>
+            </div>
+
             <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
                 <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
                     <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب بر مبنای شاخص ترکیبی و تفکیک تایم‌فریم</h3>
