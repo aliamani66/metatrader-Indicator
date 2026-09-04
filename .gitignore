@@ -27,3 +27,5 @@ Indicators/Market/
 Indicators/comp_log.txt
 .continue/
 update_models_script.py
+__pycache__/
+*.pyc
