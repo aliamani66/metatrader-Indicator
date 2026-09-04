@@ -17,13 +17,22 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       g_testerStartBase = TimeCurrent();
 
    int maxBars = InpMaxBarsTF;
-   if(daysBack > 0)
+   int secPerBar = PeriodSeconds(tf);
+   if(secPerBar <= 0) secPerBar = 60;
+
+   if(InpBacktestStartDate > 0)
    {
-      int secPerBar = PeriodSeconds(tf);
-      if(secPerBar <= 0) secPerBar = 60;
+      int elapsedSec = (int)(TimeCurrent() - InpBacktestStartDate);
+      if(elapsedSec < 0) elapsedSec = 0;
+      maxBars = (elapsedSec / secPerBar) + 5000;
+      if(maxBars > InpMaxBarsTF) maxBars = InpMaxBarsTF;
+   }
+   else if(daysBack > 0)
+   {
       int elapsedSec = (g_testerStartBase > 0) ? (int)(TimeCurrent() - g_testerStartBase) : 0;
       if(elapsedSec < 0) elapsedSec = 0;
       maxBars = ((daysBack * 86400 + elapsedSec) / secPerBar) + 1000;
+      if(maxBars > InpMaxBarsTF) maxBars = InpMaxBarsTF;
    }
    else
    {
@@ -55,7 +64,11 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    string tfSymbol = (tf == PERIOD_H1) ? "H1" : tfTag;
 
    datetime limitTime = 0;
-   if(daysBack > 0)
+   if(InpBacktestStartDate > 0)
+   {
+      limitTime = InpBacktestStartDate;
+   }
+   else if(daysBack > 0)
    {
       datetime baseTime = ((bool)MQLInfoInteger(MQL_TESTER)) ? g_testerStartBase : TimeCurrent();
       limitTime = baseTime - daysBack * 24 * 60 * 60;
@@ -185,7 +198,7 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
       SPivot p1 = pivots[i];
       SPivot p2 = pivots[i + 1];
 
-      if(daysBack > 0 && p1.time < limitTime)
+      if(limitTime > 0 && p1.time < limitTime)
          continue;
 
       double boxTop    = MathMax(p1.price, p2.price);

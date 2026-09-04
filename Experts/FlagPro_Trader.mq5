@@ -47,25 +47,26 @@ input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
 input bool             InpUseTF4  = false;          // محاسبه یک‌ساعته (H1)
 input color            InpColorTF4 = clrYellow;
 
-input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
-input int              InpBacktestDays = 180;        // تعداد روزهای بک‌تست و خروجی گزارش (۱۸۰ روز - ۶ ماه کامل)
+input group "=== Backtest & History Settings (تنظیمات بک‌تست از ابتدای ۲۰۲۵) ==="
+input datetime         InpBacktestStartDate = D'2025.01.01 00:00'; // 📅 تاریخ شروع محاسبات و معاملات (پیش‌فرض: ابتدای ۲۰۲۵)
+input int              InpBacktestDays = 1000;       // تعداد روزهای بک‌تست (۱۰۰۰ روز جهت پوشش کامل از ابتدای ۲۰۲۵ تا اکنون)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای همگام‌سازی داشبورد)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 180;         // تاریخچه ۱۵ دقیقه (۱۸۰ روز - ۶ ماه کامل)
+input int              InpM15DaysBack = 1000;        // تاریخچه ۱۵ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 180;          // تاریخچه ۵ دقیقه (۱۸۰ روز - ۶ ماه کامل)
+input int              InpM5DaysBack = 1000;         // تاریخچه ۵ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 180;          // تاریخچه ۱ دقیقه (۱۸۰ روز - ۶ ماه کامل)
+input int              InpM1DaysBack = 1000;         // تاریخچه ۱ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
 input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (پیش‌فرض: خاموش)
@@ -97,7 +98,7 @@ input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سو�
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 300000;      // حداکثر کندل‌های محاسبه (پوشش کامل ۶ ماه - ۳۰۰ هزار کندل)
+input int              InpMaxBarsTF   = 2000000;     // حداکثر کندل‌های محاسبه (۲ میلیون کندل - پوشش کامل تمام تایم‌ها از اول ۲۰۲۵)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -472,7 +473,13 @@ void OnTick()
       ENUM_TIMEFRAMES tfArr[7]      = {PERIOD_D1, PERIOD_W1, PERIOD_H4, PERIOD_H1, InpTF5, InpTF6, InpTF7};
       bool            useArr[7]     = {false, false, false, false, InpUseTF5, InpUseTF6, InpUseTF7};
       color           tfColorArr[7] = {clrNONE, clrNONE, clrNONE, clrNONE, InpColorTF5, InpColorTF6, InpColorTF7};
-      int             daysBackArr[7]= {0, 0, 0, 0, InpM15DaysBack, InpM5DaysBack, InpM1DaysBack};
+      int effectiveDays = InpBacktestDays;
+      if(InpBacktestStartDate > 0)
+      {
+         int startDays = (int)((TimeCurrent() - InpBacktestStartDate) / 86400) + 15;
+         if(startDays > effectiveDays) effectiveDays = startDays;
+      }
+      int             daysBackArr[7]= {0, 0, 0, 0, MathMax(InpM15DaysBack, effectiveDays), MathMax(InpM5DaysBack, effectiveDays), MathMax(InpM1DaysBack, effectiveDays)};
 
       for(int i = 0; i < 7; i++)
       {

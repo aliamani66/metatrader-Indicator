@@ -35,25 +35,26 @@ input ENUM_TIMEFRAMES InpTF4      = PERIOD_H1;
 input bool             InpUseTF4  = false;          // محاسبه یک‌ساعته (H1)
 input color            InpColorTF4 = clrYellow;
 
-input group "=== Backtest & History Settings (تنظیمات بک‌تست) ==="
-input int              InpBacktestDays = 180;        // تعداد روزهای بک‌تست و خروجی گزارش (۱۸۰ روز - ۶ ماه کامل)
+input group "=== Backtest & History Settings (تنظیمات بک‌تست از ابتدای ۲۰۲۵) ==="
+input datetime         InpBacktestStartDate = D'2025.01.01 00:00'; // 📅 تاریخ شروع محاسبات و معاملات (پیش‌فرض: ابتدای ۲۰۲۵)
+input int              InpBacktestDays = 1000;       // تعداد روزهای بک‌تست (۱۰۰۰ روز جهت پوشش کامل از ابتدای ۲۰۲۵ تا اکنون)
 input bool             InpExportCSV    = true;       // استخراج خودکار فایل CSV (فعال برای تولید آنی دیتای داشبورد)
 
 input group "=== Active Trading Timeframes (فقط تایم‌های فعال: M15, M5, M1) ==="
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 180;         // تاریخچه ۱۵ دقیقه (۱۸۰ روز - ۶ ماه کامل)
+input int              InpM15DaysBack = 1000;        // تاریخچه ۱۵ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 180;          // تاریخچه ۵ دقیقه (۱۸۰ روز - ۶ ماه کامل)
+input int              InpM5DaysBack = 1000;         // تاریخچه ۵ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 180;          // تاریخچه ۱ دقیقه (۱۸۰ روز - ۶ ماه کامل)
+input int              InpM1DaysBack = 1000;         // تاریخچه ۱ دقیقه (۱۰۰۰ روز - از ابتدای ۲۰۲۵)
 
 input group "=== Smart Visibility & Display (نمایش هوشمند چارت) ==="
 input bool             InpShowBoxes             = false;   // 👁️ نمایش تمام باکس‌های قیمتی روی چارت (پیش‌فرض: کاملاً هیدن و خاموش)
@@ -85,7 +86,7 @@ input double InpMinNetProfitRatioTP1      = 1.0;    // حداقل نسبت سو�
 
 input group "=== Structure Calculation (matches MarketStructure_v2) ==="
 input int              InpSwingBars   = 6;           // عمق امواج ماژور (Swing Bars)
-input int              InpMaxBarsTF   = 300000;      // حداکثر کندل‌های محاسبه (پوشش کامل ۶ ماه - ۳۰۰ هزار کندل)
+input int              InpMaxBarsTF   = 2000000;     // حداکثر کندل‌های محاسبه (۲ میلیون کندل - پوشش کامل تمام تایم‌ها از اول ۲۰۲۵)
 
 input group "=== Visuals ==="
 input int              InpLineWidth   = 1;           // ضخامت خط باکس‌ها (1 = نازک و ظریف)
@@ -260,9 +261,15 @@ int OnCalculate(const int rates_total,
    bool            useArr[7]      = {InpUseTF1, InpUseTF2, InpUseTF3, InpUseTF4, InpUseTF5, InpUseTF6, InpUseTF7};
    color           tfColorArr[7]  = {InpColorTF1, InpColorTF2, InpColorTF3, InpColorTF4, InpColorTF5, InpColorTF6, InpColorTF7};
    int daysBackArr[7];
+   int effectiveDays = InpBacktestDays;
+   if(InpBacktestStartDate > 0)
+   {
+      int startDays = (int)((TimeCurrent() - InpBacktestStartDate) / 86400) + 15;
+      if(startDays > effectiveDays) effectiveDays = startDays;
+   }
+
    if((bool)MQLInfoInteger(MQL_TESTER))
    {
-      int effectiveDays = (InpBacktestDays > 0) ? InpBacktestDays : 3;
       daysBackArr[0] = 0;
       daysBackArr[1] = 0;
       daysBackArr[2] = 0;
@@ -277,9 +284,9 @@ int OnCalculate(const int rates_total,
       daysBackArr[1] = 0;
       daysBackArr[2] = 0;
       daysBackArr[3] = 0;
-      daysBackArr[4] = InpM15DaysBack;
-      daysBackArr[5] = InpM5DaysBack;
-      daysBackArr[6] = InpM1DaysBack;
+      daysBackArr[4] = MathMax(InpM15DaysBack, effectiveDays);
+      daysBackArr[5] = MathMax(InpM5DaysBack, effectiveDays);
+      daysBackArr[6] = MathMax(InpM1DaysBack, effectiveDays);
    }
 
    // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)

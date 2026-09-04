@@ -1083,8 +1083,9 @@ def build_dashboard(custom_csv=None):
     peak_a = bal_initial
     max_dd_a = 0.0
 
-    pts_kings = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_k, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_k, 2), 'dd': 0.0, 'ddPct': 0.0}]
-    pts_all = [{'idx': 0, 't': '2026.03.09 00:00', 'b': round(bal_a, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_a, 2), 'dd': 0.0, 'ddPct': 0.0}]
+    t_init = date_start_str if date_start_str and date_start_str != 'N/A' else '2025.01.01 00:00'
+    pts_kings = [{'idx': 0, 't': t_init, 'b': round(bal_k, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_k, 2), 'dd': 0.0, 'ddPct': 0.0}]
+    pts_all = [{'idx': 0, 't': t_init, 'b': round(bal_a, 2), 'p': 0.0, 'n': 'موجودی اولیه (Initial Balance)', 'peak': round(bal_a, 2), 'dd': 0.0, 'ddPct': 0.0}]
 
     for r in sorted_closed:
         pnl = calc_scaleout_pnl(r)
@@ -4367,7 +4368,8 @@ def build_dashboard(custom_csv=None):
         }}
 
         function runEquitySimulation() {{
-            let pts = [{{ idx: 0, t: '2026.03.09 00:00', b: 100.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)', peak: 100.0, dd: 0.0, ddPct: 0.0 }}];
+            let t_init = (simTrades.length > 0 && simTrades[0].t) ? simTrades[0].t : '2025.01.01 00:00';
+            let pts = [{{ idx: 0, t: t_init, b: 100.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)', peak: 100.0, dd: 0.0, ddPct: 0.0 }}];
             let bal = 100.0;
             let peak = bal;
             let maxDD = 0.0;

@@ -1139,7 +1139,21 @@ void ExportAllTradesToCSV()
    ArraySetAsSeries(chartLow, false);
    ArraySetAsSeries(chartClose, false);
 
-   int barsToCopy = (InpBacktestDays > 0) ? (InpBacktestDays * 1440 * 2 + 1000) : 150000;
+   datetime minBacktestTime = 0;
+   if(InpBacktestStartDate > 0)
+      minBacktestTime = InpBacktestStartDate;
+   else if(InpBacktestDays > 0)
+      minBacktestTime = (TimeCurrent() - InpBacktestDays * 24 * 3600);
+
+   int effectiveBacktestDays = InpBacktestDays;
+   if(InpBacktestStartDate > 0)
+   {
+      int startDays = (int)((TimeCurrent() - InpBacktestStartDate) / 86400) + 30;
+      if(startDays > effectiveBacktestDays) effectiveBacktestDays = startDays;
+   }
+
+   int barsToCopy = MathMax(InpMaxBarsTF, effectiveBacktestDays * 1440 * 2 + 10000);
+   if(barsToCopy < 2000000) barsToCopy = 2000000;
    int copied = CopyTime(_Symbol, _Period, 0, barsToCopy, chartTime);
    CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
    CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);
@@ -1154,8 +1168,6 @@ void ExportAllTradesToCSV()
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = InpRSPipBuffer * pipSize;
    int exportedCount = 0;
-
-   datetime minBacktestTime = (InpBacktestDays > 0) ? (TimeCurrent() - InpBacktestDays * 24 * 3600) : 0;
    for(int b = 0; b < g_boxCount; b++)
    {
       if(g_drawnBoxes[b].top <= 0) continue;
