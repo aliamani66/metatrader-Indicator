@@ -152,6 +152,104 @@ const TabPresets = (function() {
         openExportModal(config);
     }
 
+    function buildFilename(cfg) {
+        const now = new Date();
+        const dateStr = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + '_' +
+            String(now.getHours()).padStart(2, '0') + '-' +
+            String(now.getMinutes()).padStart(2, '0');
+        const cleanTitle = (cfg.title || 'Preset')
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '') || 'Preset';
+        const wrStr = cfg.wr ? `_WR${Math.round(cfg.wr)}` : '';
+        const pfStr = cfg.pf && cfg.pf < 900 ? `_PF${Number(cfg.pf).toFixed(1)}` : '';
+        return `FlagPro_${cfg.symbol || 'EURUSD'}_${cleanTitle}${wrStr}${pfStr}_${dateStr}.set`;
+    }
+
+    function createUTF16LEBlob(text) {
+        // MetaTrader 5 strictly requires UTF-16 LE with BOM (0xFF, 0xFE)
+        const buffer = new ArrayBuffer(2 + text.length * 2);
+        const view = new DataView(buffer);
+        view.setUint16(0, 0xFEFF, true); // Little-Endian BOM (0xFF, 0xFE)
+        for (let i = 0; i < text.length; i++) {
+            view.setUint16(2 + i * 2, text.charCodeAt(i), true);
+        }
+        return new Blob([buffer], { type: 'application/octet-stream' });
+    }
+
+    function generateSetText(cfg) {
+        const now = new Date();
+        const nowStr = now.getFullYear() + '.' +
+            String(now.getMonth() + 1).padStart(2, '0') + '.' +
+            String(now.getDate()).padStart(2, '0') + ' ' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':' +
+            String(now.getSeconds()).padStart(2, '0');
+
+        return [
+            ';+------------------------------------------------------------------+',
+            ';| FlagPro_Trader EA Settings File (.set)                           |',
+            ';| File: ' + buildFilename(cfg) + ' |',
+            ';| Auto-generated from FlagPro Strategy Dashboard                   |',
+            ';| Date: ' + nowStr + ' |',
+            ';| Target Folder: MQL5/Experts/تنظیمات/                             |',
+            ';| Symbol: ' + (cfg.symbol || 'EURUSD') + ' | Scenario: ' + (cfg.title || 'Custom') + ' |',
+            ';| Win Rate: ' + (cfg.wr || 0).toFixed(1) + '% | Profit Factor: ' + (cfg.pf || 0).toFixed(2) + ' |',
+            ';| Avg Profit: $' + (cfg.avg || 0).toFixed(2) + ' | Active Kings: ' + (cfg.kings_count || 0) + ' |',
+            ';+------------------------------------------------------------------+',
+            'InpScenarioName=' + (cfg.title || 'Custom'),
+            'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
+            'InpAllowedTradingHours=' + (cfg.hours_str || ''),
+            'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
+            'InpConsecLossAction=' + parseInt(cfg.consec_action || 0),
+            'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+            'InpOnlyTradeKings=true',
+            'InpTradeOnlyGoldenKings=true',
+            'InpEnableKingsM15=true',
+            'InpEnableKingsM5=true',
+            'InpEnableKingsM1=true',
+            'InpAllowOverlappingTrades=true',
+            'InpSlippagePoints=20',
+            'InpMaxEntryDeviationPips=2.5',
+            'InpSLOffsetPips=3.0',
+            'InpMaxSLPips=0.0',
+            'InpMaxOpenGroups=5',
+            'InpMagicNumber=777123',
+            'InpEnableScaleOut=true',
+            'InpLot_TP1=0.01',
+            'InpLot_TP2=0.01',
+            'InpLot_TP3=0.01',
+            'InpLot_TP4=0.01',
+            'InpMoveToBreakEven=true',
+            'InpBEBufferPips=1.0',
+            'InpTrailToTP1=true',
+            'InpTrailToTP2=true',
+            'InpFilterSingleLS=true',
+            'InpFilterNightHours=true',
+            'InpFilterPreLondonHunt=true',
+            'InpFilterToxicPatterns=true',
+            'InpFilterPureFlags=true',
+            'InpHideFilteredBoxes=true',
+            'InpFilterLowRewardVsFriction=true',
+            'InpBrokerCommissionPerLot=6.0',
+            'InpEstimatedSpreadPips=0.8',
+            'InpMinNetProfitRatioTP1=1.0',
+            'InpUseTF7=true',
+            'InpUseTF6=true',
+            'InpUseTF5=true',
+            'InpTradeMacroTFs=false',
+            'InpLookbackBars=5000',
+            'InpHistoryMode=0',
+            'InpHistoryStartDate=1735689600',
+            'InpHistoryDays=365',
+            'InpShowBoxes=false',
+            'InpAutoDrawTrades=true',
+            'InpExportCSV=true'
+        ].join('\r\n');
+    }
+
     function openExportModal(cfg) {
         currentExportConfig = cfg;
         const modal = document.getElementById('mt5ExportModal');
@@ -160,7 +258,7 @@ const TabPresets = (function() {
         modal.style.display = 'flex';
         modal.style.zIndex = '99999999';
 
-        const filename = `FlagPro_${cfg.symbol}_${cfg.title.replace(/[^a-zA-Z0-9]/g, '')}.set`;
+        const filename = buildFilename(cfg);
         const elTitle = document.getElementById('mt5ModalTitle');
         if (elTitle) elTitle.textContent = cfg.title;
         const elFile = document.getElementById('mt5ModalFilename');
@@ -168,6 +266,12 @@ const TabPresets = (function() {
 
         const codeBox = document.getElementById('mt5ConfigCodeBox');
         if (codeBox) codeBox.textContent = generateSetText(cfg);
+
+        const statusEl = document.getElementById('saveStatusIndicator');
+        if (statusEl) {
+            statusEl.textContent = 'آماده ذخیره‌سازی';
+            statusEl.style.color = '#5eead4';
+        }
 
         showToast('🤖 پنجره خروجی متاتریدر ۵ باز شد.');
     }
@@ -177,34 +281,11 @@ const TabPresets = (function() {
         if (modal) modal.style.display = 'none';
     }
 
-    function generateSetText(cfg) {
-        return [
-            ';+------------------------------------------------------------------+',
-            ';| FlagPro_Trader EA Settings File (.set)                           |',
-            ';| Symbol: ' + cfg.symbol + ' | Scenario: ' + cfg.title + ' |',
-            ';+------------------------------------------------------------------+',
-            'InpScenarioName=' + cfg.title,
-            'InpMinTradePotential=' + (cfg.min_pot || 0).toFixed(2),
-            'InpAllowedTradingHours=' + (cfg.hours_str || ''),
-            'InpConsecLossTrigger=' + (cfg.consec_trig || 0),
-            'InpConsecLossAction=' + (cfg.consec_action || 0),
-            'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
-            'InpOnlyTradeKings=true',
-            'InpEnableScaleOut=true',
-            'InpLot_TP1=0.01',
-            'InpLot_TP2=0.01',
-            'InpLot_TP3=0.01',
-            'InpLot_TP4=0.01',
-            'InpMoveToBreakEven=true',
-            'InpBEBufferPips=0.0'
-        ].join('\r\n');
-    }
-
     function downloadSetFile() {
         if (!currentExportConfig) return;
         const text = generateSetText(currentExportConfig);
-        const filename = `FlagPro_${currentExportConfig.symbol}_Preset.set`;
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const filename = buildFilename(currentExportConfig);
+        const blob = createUTF16LEBlob(text);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -213,6 +294,92 @@ const TabPresets = (function() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showToast('📥 فایل تنظیمات «' + filename + '» با فرمت UTF-16 LE متاتریدر ۵ دانلود شد.');
+    }
+
+    async function saveToSettingsFolder() {
+        if (!currentExportConfig) return;
+        const text = generateSetText(currentExportConfig);
+        const filename = buildFilename(currentExportConfig);
+        const btn = document.getElementById('btnSaveToSettingsFolder');
+        const statusEl = document.getElementById('saveStatusIndicator');
+        if (btn) btn.innerHTML = '<span>⏳ در حال ذخیره...</span>';
+        if (statusEl) {
+            statusEl.textContent = 'در حال ارتباط با سرور...';
+            statusEl.style.color = '#facc15';
+        }
+
+        // 1. Try local bridge server
+        try {
+            const resp = await fetch('http://127.0.0.1:8288/save_set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filename, content: text })
+            });
+            if (resp.ok) {
+                const json = await resp.json();
+                if (json.success) {
+                    if (btn) btn.innerHTML = '<span>✅ در پوشه تنظیمات ذخیره شد!</span>';
+                    if (statusEl) {
+                        statusEl.textContent = '✅ فایل در Experts/تنظیمات ذخیره شد';
+                        statusEl.style.color = '#4ade80';
+                    }
+                    showToast('✅ فایل تنظیمات <b>' + filename + '</b> مستقیماً در پوشه <b>Experts/تنظیمات</b> ذخیره شد.');
+                    setTimeout(() => {
+                        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+                    }, 3500);
+                    return;
+                }
+            }
+        } catch (e) {
+            // Bridge server offline
+        }
+
+        // 2. Safe Fallback: Direct download in UTF-16 LE (Bypassing Chromium system-files block)
+        downloadSetFile();
+        if (btn) btn.innerHTML = '<span>📥 فایل دانلود شد</span>';
+        if (statusEl) {
+            statusEl.textContent = 'فایل دانلود شد (سرور خودکار خاموش است)';
+            statusEl.style.color = '#38bdf8';
+        }
+        showToast('📥 فایل با فرمت استاندارد متاتریدر دانلود شد. فایل <b>start_settings_bridge.bat</b> را اجرا کنید تا ذخیره مستقیم با یک کلیک فعال شود.');
+        setTimeout(() => {
+            if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+        }, 3500);
+    }
+
+    async function openSettingsFolder() {
+        try {
+            const resp = await fetch('http://127.0.0.1:8288/open_folder', { method: 'POST' });
+            if (resp.ok) {
+                const json = await resp.json();
+                if (json.success) {
+                    showToast('📂 پوشه تنظیمات در ویندوز باز شد.');
+                    return;
+                }
+            }
+        } catch (e) {}
+
+        const path = ['C:', 'Users', 'USER', 'AppData', 'Roaming', 'MetaQuotes', 'Terminal', '3F2C3A2F8B221C9D88E569F2FD1D3E97', 'MQL5', 'Experts', 'تنظیمات'].join(String.fromCharCode(92));
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(path).then(() => {
+                alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\n\n' + path + '\n\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
+            }).catch(() => {
+                prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
+            });
+        } else {
+            prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
+        }
+    }
+
+    function copyConfigText() {
+        if (!currentExportConfig) return;
+        const text = generateSetText(currentExportConfig);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('📋 متن تنظیمات در کلیپ‌بورد کپی شد.');
+            });
+        }
     }
 
     function loadCustomPresets() {
@@ -243,6 +410,9 @@ const TabPresets = (function() {
         exportPreset: exportPreset,
         openExportModal: openExportModal,
         closeExportModal: closeExportModal,
-        downloadSetFile: downloadSetFile
+        downloadSetFile: downloadSetFile,
+        saveToSettingsFolder: saveToSettingsFolder,
+        openSettingsFolder: openSettingsFolder,
+        copyConfigText: copyConfigText
     };
 })();

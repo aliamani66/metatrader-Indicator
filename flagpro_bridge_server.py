@@ -54,11 +54,16 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 path_fa = os.path.join(SETTINGS_DIR_FA, safe_name)
                 path_en = os.path.join(SETTINGS_DIR_EN, safe_name)
 
-                with open(path_fa, 'w', encoding='utf-8') as f:
-                    f.write(content)
+                # Normalize line breaks to standard CRLF
+                lines = [l.strip('\r\n') for l in content.splitlines()]
+                clean_content = '\r\n'.join(lines) + '\r\n'
 
-                with open(path_en, 'w', encoding='utf-8') as f:
-                    f.write(content)
+                # MetaTrader 5 strictly requires UTF-16 LE with BOM
+                with open(path_fa, 'w', encoding='utf-16') as f:
+                    f.write(clean_content)
+
+                with open(path_en, 'w', encoding='utf-16') as f:
+                    f.write(clean_content)
 
                 self.send_response(200)
                 self._send_cors_headers()

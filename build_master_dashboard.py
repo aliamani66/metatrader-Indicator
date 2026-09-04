@@ -3522,8 +3522,8 @@ def export_preset_set_files(symbols_data):
             for d in dirs:
                 fp = os.path.join(d, filename)
                 try:
-                    with open(fp, 'w', encoding='utf-8') as f:
-                        f.write(content)
+                    with open(fp, 'w', encoding='utf-16') as f:
+                        f.write(content + "\r\n")
                     saved_count += 1
                 except Exception as e:
                     pass
@@ -5236,8 +5236,18 @@ def build_dashboard(custom_csv=None):
             return lines.join(String.fromCharCode(13, 10));
         }}
 
+        function createUTF16LEBlob(text) {{
+            let buffer = new ArrayBuffer(2 + text.length * 2);
+            let view = new DataView(buffer);
+            view.setUint16(0, 0xFEFF, true);
+            for (let i = 0; i < text.length; i++) {{
+                view.setUint16(2 + i * 2, text.charCodeAt(i), true);
+            }}
+            return new Blob([buffer], {{ type: 'application/octet-stream' }});
+        }}
+
         function downloadSetFile(filename, text) {{
-            let blob = new Blob([text], {{ type: 'text/plain;charset=utf-8' }});
+            let blob = createUTF16LEBlob(text);
             let url = URL.createObjectURL(blob);
             let a = document.createElement('a');
             a.href = url;
@@ -5246,6 +5256,9 @@ def build_dashboard(custom_csv=None):
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            if (typeof showSaveNotification === 'function') {{
+                showSaveNotification('📥 فایل تنظیمات «' + filename + '» با فرمت متاتریدر ۵ (UTF-16 LE) دانلود شد.');
+            }}
         }}
 
         function exportPresetToMT5(idx) {{
@@ -5471,42 +5484,15 @@ def build_dashboard(custom_csv=None):
                 // Bridge server is offline
             }}
 
-            // 2. Fallback to showSaveFilePicker if supported
-            if (window.showSaveFilePicker) {{
-                try {{
-                    let handle = await window.showSaveFilePicker({{
-                        suggestedName: filename,
-                        types: [{{
-                            description: 'MT5 Expert Settings File (*.set)',
-                            accept: {{ 'text/plain': ['.set'] }}
-                        }}]
-                    }});
-                    let writable = await handle.createWritable();
-                    await writable.write(text);
-                    await writable.close();
-                    if (btn) btn.innerHTML = '<span>✅ ذخیره شد!</span>';
-                    if (ind) {{ ind.textContent = '✅ فایل ذخیره شد'; ind.style.color = '#4ade80'; }}
-                    showSaveNotification('فایل <b>' + filename + '</b> ذخیره شد.');
-                    setTimeout(() => {{
-                        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
-                    }}, 3000);
-                    return;
-                }} catch(err) {{
-                    if (err.name === 'AbortError') {{
-                        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
-                        return;
-                    }}
-                }}
-            }}
-
-            // 3. Fallback to standard download
+            // 2. Safe Fallback: Direct download in UTF-16 LE
+            // Bypasses window.showSaveFilePicker to avoid Chromium system files sandbox error in AppData
             downloadSetFile(filename, text);
             if (btn) btn.innerHTML = '<span>📥 فایل دانلود شد</span>';
-            if (ind) {{ ind.textContent = 'فایل دانلود شد (به پوشه تنظیمات منتقل کنید)'; ind.style.color = '#38bdf8'; }}
-            showSaveNotification('فایل <b>' + filename + '</b> دانلود شد. آن را به پوشه <b>MQL5/Experts/تنظیمات</b> منتقل نمایید.');
+            if (ind) {{ ind.textContent = 'فایل دانلود شد (سرور خودکار خاموش است)'; ind.style.color = '#38bdf8'; }}
+            showSaveNotification('فایل <b>' + filename + '</b> با فرمت متاتریدر ۵ دانلود شد. فایل <b>start_settings_bridge.bat</b> را اجرا کنید تا ذخیره مستقیم فعال شود.');
             setTimeout(() => {{
                 if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
-            }}, 3000);
+            }}, 3500);
         }}
 
         function showSaveNotification(msg) {{
