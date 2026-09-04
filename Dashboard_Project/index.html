@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlagPro Master Strategy Dashboard</title>
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/tables.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="brand-badge">FLAGPRO</span>
+                <span class="brand-title">داشبورد استراتژی</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" data-tab="equity">
+                        <span class="nav-icon">📈</span>
+                        <span>رشد سرمایه و شبیه‌ساز</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="kings">
+                        <span class="nav-icon">👑</span>
+                        <span>سلاطین برگزیده</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="scaleout">
+                        <span class="nav-icon">🎯</span>
+                        <span>کالبدشکافی پلکانی (TP1..4)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="timeframes">
+                        <span class="nav-icon">⏱️</span>
+                        <span>عملکرد تایم‌فریم‌ها</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="filters">
+                        <span class="nav-icon">🔍</span>
+                        <span>فیلترهای استراتژیک</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="loss_intel">
+                        <span class="nav-icon">🛡️</span>
+                        <span>هوش ضرر و استاپ</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="weekly">
+                        <span class="nav-icon">📊</span>
+                        <span>کارنامه هفته به هفته</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="presets">
+                        <span class="nav-icon">🤖</span>
+                        <span>پیشنهادات استراتژیک EA</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="tester_compare">
+                        <span class="nav-icon">🔬</span>
+                        <span>کالبدشکافی تست MT5</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="optimizer">
+                        <span class="nav-icon">⚡</span>
+                        <span>بهینه‌ساز شبکه هوشمند</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="journal">
+                        <span class="nav-icon">📋</span>
+                        <span>ژورنال جامع معاملات</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-workspace">
+            <!-- Top App Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:12px;color:var(--text-muted);">نماد فعال:</span>
+                        <select id="symbolSelector" style="background:#1e293b;border:1px solid #334155;color:#fff;padding:6px 12px;border-radius:6px;font-size:12.5px;font-weight:bold;cursor:pointer;">
+                            <option value="EURUSD">EURUSD</option>
+                            <option value="GBPUSD">GBPUSD</option>
+                        </select>
+                    </div>
+
+                    <!-- 🛡️ Data Health Indicator -->
+                    <div id="dataHealthBadge" class="data-health-badge" title="کیفیت و اصالت داده">
+                        <span>🟢</span>
+                        <span>داده معتبر</span>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <label class="btn btn-primary" style="cursor:pointer;">
+                        <span>📁 بارگذاری فایل CSV جدید</span>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+                    </label>
+                </div>
+            </header>
+
+            <!-- Content Area: Tab Panes -->
+            <div class="content-body">
+                <!-- Tab 1: Equity & Simulator -->
+                <div id="tab-equity" class="tab-pane active">
+                    <!-- KPI Cards -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <span class="kpi-title">💵 سود خالص کل</span>
+                            <span id="eqKpiNetVal" class="kpi-value pnl-pos">$0</span>
+                            <span class="kpi-subtext">پس از کسر هزینه اصطکاک</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">🎯 وین‌ریت (Win Rate)</span>
+                            <span id="eqKpiWR" class="kpi-value" style="color:#34d399;">0٪</span>
+                            <span class="kpi-subtext">نرخ تاچ حداقل TP1</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">⚖️ پرافیت فاکتور</span>
+                            <span id="eqKpiPF" class="kpi-value" style="color:#38bdf8;">0.00</span>
+                            <span class="kpi-subtext">نسبت سود ناخالص به زیان</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">🛡️ حداکثر افت سرمایه (Max DD)</span>
+                            <span id="eqKpiMaxDD" class="kpi-value" style="color:#fca5a5;">$0</span>
+                            <span class="kpi-subtext">بیشترین دراودان تاریخی</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">📊 تعداد معاملات</span>
+                            <span id="eqKpiCnt" class="kpi-value">0</span>
+                            <span class="kpi-subtext">معاملات واجد شرایط</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">⚡ میانگین هر ترید</span>
+                            <span id="eqKpiAvgTrade" class="kpi-value" style="color:#c084fc;">$0.00</span>
+                            <span class="kpi-subtext">امید ریاضی (Expectancy)</span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Box -->
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">📈 منحنی رشد بالانس و سرمایه (Equity Curve):</div>
+                            <div style="display:flex;gap:6px;">
+                                <button id="btnEqKings" class="btn btn-primary active" style="padding:4px 10px;font-size:11px;">👑 فقط سلاطین</button>
+                                <button id="btnEqAll" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">🌐 تمام معاملات</button>
+                            </div>
+                        </div>
+                        <canvas id="equityCanvas" style="width:100%;height:360px;display:block;"></canvas>
+                    </div>
+
+                    <!-- Simulator Controls -->
+                    <div class="section-box">
+                        <div class="section-title">🎛️ شبیه‌ساز و فیلترهای استراتژی:</div>
+                        <div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
+                            <!-- Min profit slider -->
+                            <div>
+                                <label style="font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;margin-bottom:6px;">
+                                    <span>کف پتانسیل سود ستاپ:</span>
+                                    <b id="simProfitSliderVal" style="color:#38bdf8;">$0.00</b>
+                                </label>
+                                <input type="range" id="simProfitSlider" min="0" max="5" step="0.5" value="0" style="width:100%;" />
+                            </div>
+                            <!-- Hours -->
+                            <div>
+                                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">ساعات معاملاتی مجاز سرور:</label>
+                                <div id="simHoursBar" style="display:flex;gap:3px;flex-wrap:wrap;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-top:14px;">
+                            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">سلاطین فعال در شبیه‌ساز:</label>
+                            <div id="simKingsGrid" style="display:flex;gap:6px;flex-wrap:wrap;max-height:120px;overflow-y:auto;padding:8px;background:#090e1a;border-radius:6px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Kings -->
+                <div id="tab-kings" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">👑 جدول جامع سلاطین منتخب نماد (رتبه‌بندی هج‌فاندی ۷ ستونه):</div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="btn btn-secondary kings-tf-btn active" data-tf="ALL" style="padding:4px 8px;font-size:11px;">همه تایم‌ها</button>
+                                <button class="btn btn-secondary kings-tf-btn" data-tf="M1" style="padding:4px 8px;font-size:11px;">M1</button>
+                                <button class="btn btn-secondary kings-tf-btn" data-tf="M5" style="padding:4px 8px;font-size:11px;">M5</button>
+                                <button class="btn btn-secondary kings-tf-btn" data-tf="M15" style="padding:4px 8px;font-size:11px;">M15</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">رتبه</th>
+                                        <th class="text-center">تایم‌فریم</th>
+                                        <th>نام ساختار / الگو</th>
+                                        <th class="text-center">امتیاز سلطان</th>
+                                        <th class="text-center">تعداد</th>
+                                        <th class="text-center">TP1</th>
+                                        <th class="text-center">TP2</th>
+                                        <th class="text-center">TP3</th>
+                                        <th class="text-center">TP4</th>
+                                        <th class="text-center">SL Rate</th>
+                                        <th class="text-center">PF</th>
+                                        <th class="text-center">زیان استاپ</th>
+                                        <th class="text-center">سود خالص</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kingsTableTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Scale-out -->
+                <div id="tab-scaleout" class="tab-pane">
+                    <div id="scaleoutContainer"></div>
+                </div>
+
+                <!-- Tab 4: Timeframes -->
+                <div id="tab-timeframes" class="tab-pane">
+                    <div id="timeframesContainer"></div>
+                </div>
+
+                <!-- Tab 5: Filters -->
+                <div id="tab-filters" class="tab-pane">
+                    <div id="filtersContainer"></div>
+                </div>
+
+                <!-- Tab 6: Loss Intel -->
+                <div id="tab-loss_intel" class="tab-pane">
+                    <div id="lossIntelContainer"></div>
+                </div>
+
+                <!-- Tab 7: Weekly -->
+                <div id="tab-weekly" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">📊 چارت میله‌ای ثبات هفتگی سود و زیان:</div>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <span id="weeklyGreenRatioBadge" class="badge badge-green">۰ هفته مثبت</span>
+                                <button id="btnWkKings" class="btn btn-primary active" style="padding:4px 8px;font-size:11px;">👑 فقط سلاطین</button>
+                                <button id="btnWkAll" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;">تمام تریدها</button>
+                            </div>
+                        </div>
+                        <canvas id="weeklyCanvas" style="width:100%;height:240px;display:block;"></canvas>
+                    </div>
+
+                    <div class="section-box">
+                        <div class="section-title">📋 جدول کارنامه تفکیکی هفته‌ها:</div>
+                        <div class="table-responsive" style="margin-top:14px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">هفته</th>
+                                        <th class="text-center">بازه تاریخ شروع (دوشنبه)</th>
+                                        <th class="text-center">تعداد معاملات</th>
+                                        <th class="text-center">وین‌ریت (Win Rate)</th>
+                                        <th class="text-center">سود خالص هفته</th>
+                                        <th class="text-center">وضعیت</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyTableTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 8: Presets -->
+                <div id="tab-presets" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title">🤖 سناریوهای استراتژیک پیشنهادی (Smart Presets):</div>
+                        <div class="table-responsive" style="margin-top:14px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">ردیف</th>
+                                        <th>عنوان و شرح سناریو</th>
+                                        <th class="text-center">فیلترها</th>
+                                        <th class="text-center">تعداد</th>
+                                        <th class="text-center">برد</th>
+                                        <th class="text-center">PF</th>
+                                        <th class="text-center">میانگین</th>
+                                        <th class="text-center">DD</th>
+                                        <th class="text-center">سود خالص</th>
+                                        <th class="text-center">اقدام</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="systemPresetsTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 9: Tester Compare -->
+                <div id="tab-tester_compare" class="tab-pane">
+                    <div id="testerCompareContainer"></div>
+                </div>
+
+                <!-- Tab 10: Optimizer -->
+                <div id="tab-optimizer" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">⚡ بهینه‌ساز شبکه و ترکیبات هوشمند:</div>
+                            <button id="btnRunOptimizer" class="btn btn-primary">🚀 شروع آنالیز هوشمند</button>
+                        </div>
+                        <div id="optimizerResults">
+                            <div style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">
+                                برای کشف ترکیب طلایی فیلترهای کف سود، ساعات معاملاتی و سلاطین، دکمه «شروع آنالیز» را فشار دهید.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 11: Journal -->
+                <div id="tab-journal" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">📋 ژورنال جامع تک‌تک معاملات:</div>
+                            <div style="display:flex;gap:10px;align-items:center;">
+                                <span id="journalPageInfo" style="font-size:12px;color:#94a3b8;">صفحه ۱</span>
+                                <button class="btn btn-secondary" onclick="TabJournal.prevPage()" style="padding:4px 8px;">قبلی</button>
+                                <button class="btn btn-secondary" onclick="TabJournal.nextPage()" style="padding:4px 8px;">بعدی</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">شناسه</th>
+                                        <th class="text-center">زمان ورود</th>
+                                        <th class="text-center">تایم</th>
+                                        <th class="text-center">جهت</th>
+                                        <th>نام ساختار</th>
+                                        <th class="text-center">ریسک (Pt)</th>
+                                        <th class="text-center">پتانسیل</th>
+                                        <th class="text-center">وضعیت تارگت‌ها</th>
+                                        <th class="text-center">سود خالص</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="journalTableTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 🤖 MT5 EXPORT MODAL -->
+    <div id="mt5ExportModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="margin:0;color:#34d399;font-size:16px;">🤖 خروجی تنظیمات اکسپرت متاتریدر ۵ (.set)</h3>
+                <button class="modal-close" onclick="TabPresets.closeExportModal()">✖</button>
+            </div>
+            <div style="margin-bottom:14px;background:#090e1a;padding:10px;border-radius:6px;border:1px solid #1e293b;">
+                <div style="font-weight:bold;color:#facc15;margin-bottom:4px;">🏷️ سناریو: <span id="mt5ModalTitle" style="color:#6ee7b7;">-</span></div>
+                <div id="mt5ModalFilename" style="font-family:monospace;direction:ltr;text-align:left;color:#38bdf8;font-size:11.5px;">FlagPro.set</div>
+            </div>
+            <details style="margin-bottom:16px;background:#050811;padding:8px;border-radius:6px;border:1px solid #1e293b;">
+                <summary style="cursor:pointer;color:#94a3b8;font-size:11.5px;font-weight:bold;">👁️ مشاهده متن فایل تنظیمات</summary>
+                <pre id="mt5ConfigCodeBox" style="font-family:Consolas, monospace;color:#4ade80;font-size:11px;direction:ltr;text-align:left;white-space:pre-wrap;margin-top:8px;max-height:180px;overflow-y:auto;"></pre>
+            </details>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button class="btn btn-secondary" onclick="TabPresets.closeExportModal()">بستن</button>
+                <button class="btn btn-success" onclick="TabPresets.downloadSetFile()">💾 دانلود فایل .set</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Toast Notification -->
+    <div id="flagproGlobalToast"></div>
+
+    <!-- Scripts -->
+    <script src="data/default_symbols.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/core/validator.js"></script>
+    <script src="js/core/data_engine.js"></script>
+    <script src="js/core/state_manager.js"></script>
+    <script src="js/core/router.js"></script>
+    <script src="js/tabs/tab_equity.js"></script>
+    <script src="js/tabs/tab_kings.js"></script>
+    <script src="js/tabs/tab_scaleout.js"></script>
+    <script src="js/tabs/tab_timeframes.js"></script>
+    <script src="js/tabs/tab_filters.js"></script>
+    <script src="js/tabs/tab_loss_intel.js"></script>
+    <script src="js/tabs/tab_weekly.js"></script>
+    <script src="js/tabs/tab_presets.js"></script>
+    <script src="js/tabs/tab_tester_compare.js"></script>
+    <script src="js/tabs/tab_optimizer.js"></script>
+    <script src="js/tabs/tab_journal.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
