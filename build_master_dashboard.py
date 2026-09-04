@@ -1659,6 +1659,28 @@ def build_dashboard():
             border-color: #38bdf8;
             background: #1e293b;
         }}
+                .consec-btn, .consec-btn-filter {{
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 5px 11px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }}
+        .consec-btn:hover, .consec-btn-filter:hover {{
+            color: #f8fafc;
+            border-color: #38bdf8;
+        }}
+        .consec-btn.active, .consec-btn-filter.active {{
+            background: #0c4a6e;
+            border-color: #38bdf8;
+            color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }}
+
         .eq-subtab-btn.active {{
             background: #0284c7;
             color: #fff;
@@ -2070,6 +2092,23 @@ def build_dashboard():
 
                 </div>
 
+                                <!-- 2C. CONSECUTIVE LOSS FILTER ROW -->
+                <div style="margin-top:12px;background:#061424;padding:12px 14px;border-radius:10px;border:1px solid #133352;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                        <div style="color:#ef4444;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                            <span>🛡️ فیلتر وقفه بعد از استاپ‌های متوالی (Consecutive Loss Breaker):</span>
+                        </div>
+                        <span id="simConsecBadge2" style="font-size:11px;color:#cbd5e1;background:#1e293b;padding:2px 8px;border-radius:6px;">بدون وقفه (خاموش)</span>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        <button class="consec-btn-filter active" data-trig="0" data-sk="0" data-day="0" onclick="applyConsecFromFilterTab(0, 0, false, this)">همه معاملات (عادی)</button>
+                        <button class="consec-btn-filter" data-trig="2" data-sk="1" data-day="0" onclick="applyConsecFromFilterTab(2, 1, false, this)" title="دقیقاً سناریوی درخواستی: اگر ۲ استاپ متوالی خورد، معامله سوم گرفته نمی‌شود">🎯 بعد از ۲ استاپ 👈 رد معامله سوم</button>
+                        <button class="consec-btn-filter" data-trig="2" data-sk="2" data-day="0" onclick="applyConsecFromFilterTab(2, 2, false, this)">🛑 بعد از ۲ استاپ 👈 رد ۲ معامله</button>
+                        <button class="consec-btn-filter" data-trig="3" data-sk="1" data-day="0" onclick="applyConsecFromFilterTab(3, 1, false, this)">⚠️ بعد از ۳ استاپ 👈 رد ۱ معامله</button>
+                        <button class="consec-btn-filter" data-trig="2" data-sk="0" data-day="1" onclick="applyConsecFromFilterTab(2, 0, true, this)">🌙 بعد از ۲ استاپ 👈 توقف تا فردا</button>
+                    </div>
+                </div>
+
                 <!-- Status Footer -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid #133352;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
                     <div>
@@ -2086,7 +2125,114 @@ def build_dashboard():
             <!-- SUBPANEL 3: STOP LOSS RISK -->
             <div id="eq-sub-risk" class="eq-subpanel" style="display:none;">
                 <!-- 🚨 STOP LOSS CONTROLLER & RISK ANALYZER -->
-                    <div id="slRiskPanel" style="background: linear-gradient(135deg, #1c0808, #110505); border: 2px solid #ef4444; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">
+                    <!-- 🛡️ CONSECUTIVE LOSSES ANALYZER & COOLDOWN CIRCUIT BREAKER -->
+                <div style="background: linear-gradient(135deg, #131b2e, #0c1222); border: 2px solid #38bdf8; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.15);">
+                    <!-- Header -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px; margin-bottom: 12px; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:20px;">🛡️</span>
+                            <div>
+                                <span style="font-weight:bold; color:#38bdf8; font-size:14px;">تحلیل تخصصی استاپ‌های پشت سر هم و فیلتر وقفه هوشمند (Consecutive Loss Breaker):</span>
+                                <div style="font-size:11px; color:#94a3b8; margin-top:2px;">بررسی آماری طول رگه‌های باخت و شبیه‌سازی زنده قانون «توقف بعد از استاپ‌های متوالی»</div>
+                            </div>
+                        </div>
+                        <!-- Quick Badge -->
+                        <div id="consecLossSummaryBadge" style="background:#0f2d4a; border:1px solid #0284c7; color:#7dd3fc; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold;">
+                            وضعیت: فیلتر خاموش (ترید عادی)
+                        </div>
+                    </div>
+
+                    <!-- Row 1: KPI Stats for Streaks -->
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-bottom:12px;">
+                        <div class="kpi-card" style="border-color:#ef4444; padding:8px 10px; background:#1e1420;">
+                            <div class="kpi-title" style="color:#fca5a5; font-size:10.5px;">🚨 سقف استاپ پشت هم</div>
+                            <div class="kpi-value" id="kpiMaxConsecLoss" style="color:#ef4444; font-size:18px;">۶ معامله</div>
+                            <div class="kpi-sub" id="kpiMaxLossSub" style="color:#cbd5e1; font-size:9.5px;">در کل بازه ۶ ماهه</div>
+                        </div>
+                        <div class="kpi-card" style="border-color:#10b981; padding:8px 10px; background:#0f241d;">
+                            <div class="kpi-title" style="color:#86efac; font-size:10.5px;">🏆 سقف برد پشت هم</div>
+                            <div class="kpi-value" id="kpiMaxConsecWin" style="color:#34d399; font-size:18px;">۱۳ معامله</div>
+                            <div class="kpi-sub" style="color:#cbd5e1; font-size:9.5px;">طولانی‌ترین رگه سود</div>
+                        </div>
+                        <div class="kpi-card" style="border-color:#f59e0b; padding:8px 10px; background:#241c0e;">
+                            <div class="kpi-title" style="color:#fcd34d; font-size:10.5px;">📊 تعداد رگه‌های باخت</div>
+                            <div class="kpi-value" id="kpiTotalLossStreaks" style="color:#facc15; font-size:18px;">۲۵۷ رگه</div>
+                            <div class="kpi-sub" style="color:#cbd5e1; font-size:9.5px;">توالی‌های منتهی به برد</div>
+                        </div>
+                        <div class="kpi-card" style="border-color:#a855f7; padding:8px 10px; background:#1c1328;">
+                            <div class="kpi-title" style="color:#d8b4fe; font-size:10.5px;">⚡ میانگین طول باخت‌ها</div>
+                            <div class="kpi-value" id="kpiAvgLossStreak" style="color:#c084fc; font-size:18px;">۱.۸ معامله</div>
+                            <div class="kpi-sub" style="color:#cbd5e1; font-size:9.5px;">اکثراً تک‌استاپ برمی‌گردد</div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Distribution Bars (1 SL, 2 SL, 3 SL, 4 SL, 5 SL, 6+ SL) -->
+                    <div style="background:#090e1a; border:1px solid #1e293b; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+                        <div style="font-size:11.5px; font-weight:bold; color:#cbd5e1; margin-bottom:8px; display:flex; justify-content:space-between;">
+                            <span>📊 فراوانی و توزیع رگه‌های استاپ متوالی در چیدمان فعال:</span>
+                            <span style="color:#64748b; font-size:10.5px;">(بررسی احتمال وقوع استاپ سوم بعد از خوردن ۲ استاپ)</span>
+                        </div>
+                        <div id="consecLossBarsGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:6px;">
+                            <!-- Filled dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Interactive Filter Controller -->
+                    <div style="background:#090e1a; border:1px solid #1e293b; border-radius:8px; padding:12px 14px;">
+                        <div style="font-size:12px; font-weight:bold; color:#38bdf8; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                            <span>🎛️ انتخاب سناریوی فیلتر استاپ متوالی (شبیه‌ساز آنی روی چارت):</span>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;">
+                            <button class="consec-btn active" id="btnConsecNone" onclick="setConsecLossFilter(0, 0, false, this)">
+                                ⚪ بدون فیلتر (ترید عادی)
+                            </button>
+                            <button class="consec-btn" id="btnConsec2Skip1" onclick="setConsecLossFilter(2, 1, false, this)" title="دقیقاً سناریوی درخواستی: اگر ۲ استاپ متوالی خورد، معامله سوم گرفته نمی‌شود">
+                                🎯 ۲ استاپ پشت‌هم 👈 معامله سوم رد شود (Skip 1)
+                            </button>
+                            <button class="consec-btn" id="btnConsec2Skip2" onclick="setConsecLossFilter(2, 2, false, this)">
+                                🛑 ۲ استاپ پشت‌هم 👈 ۲ معامله بعدی رد شود (Skip 2)
+                            </button>
+                            <button class="consec-btn" id="btnConsec3Skip1" onclick="setConsecLossFilter(3, 1, false, this)">
+                                ⚠️ ۳ استاپ پشت‌هم 👈 ۱ معامله بعدی رد شود
+                            </button>
+                            <button class="consec-btn" id="btnConsec2Daily" onclick="setConsecLossFilter(2, 0, true, this)" title="قانون شرکت‌های پراپ: اگر امروز ۲ استاپ خورد، کل باقی معاملات همان روز بسته شود">
+                                🌙 ۲ استاپ پشت‌هم 👈 توقف معاملات تا روز بعد
+                            </button>
+                        </div>
+
+                        <!-- Custom Controls Toggle / Inputs -->
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#070b14; padding:8px 12px; border-radius:6px; border:1px solid #1e293b; font-size:11.5px;">
+                            <span style="color:#94a3b8;">تنظیم دستی دلخواه:</span>
+                            <span>اگر</span>
+                            <select id="selConsecTrigger" onchange="onCustomConsecChange()" style="background:#0f172a; color:#f1f5f9; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:11px;">
+                                <option value="0">خاموش</option>
+                                <option value="1">۱ استاپ</option>
+                                <option value="2">۲ استاپ</option>
+                                <option value="3">۳ استاپ</option>
+                                <option value="4">۴ استاپ</option>
+                            </select>
+                            <span>پشت‌هم خورد،</span>
+                            <select id="selConsecAction" onchange="onCustomConsecChange()" style="background:#0f172a; color:#f1f5f9; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:11px;">
+                                <option value="skip_1">۱ معامله بعدی رد شود</option>
+                                <option value="skip_2">۲ معامله بعدی رد شود</option>
+                                <option value="skip_3">۳ معامله بعدی رد شود</option>
+                                <option value="skip_day">تا روز بعد ترید متوقف شود</option>
+                            </select>
+                        </div>
+
+                        <!-- Impact Result Box -->
+                        <div id="consecFilterImpactBox" style="margin-top:10px; padding:8px 12px; border-radius:6px; background:#0d1829; border:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:11px;">
+                            <div style="color:#cbd5e1;">
+                                📌 تأثیر فیلتر روی چارت: <b id="consecSkippedTradesVal" style="color:#facc15;">0</b> معامله اسکیپ شد (<span id="consecSavedLossesVal" style="color:#00e676; font-weight:bold;">0 استاپ نجات یافت</span> | <span id="consecMissedWinsVal" style="color:#f87171;">0 برد از دست رفت</span>)
+                            </div>
+                            <div style="color:#38bdf8;">
+                                🛡️ وضعیت دراودان: <b id="consecDDImpactVal">افت سرمایه فعلی: $42.75</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="slRiskPanel" style="background: linear-gradient(135deg, #1c0808, #110505); border: 2px solid #ef4444; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #450a0a; padding-bottom: 8px; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span style="font-size:18px;">🚨</span>
@@ -3319,7 +3465,10 @@ def build_dashboard():
             mode: 'kings',
             enabledKings: new Set(kingsSimList.map(k => k.kk)),
             allowedHours: new Array(24).fill(true),
-            minProfit: 0.0
+            minProfit: 0.0,
+            consecLossTrigger: 0,
+            consecLossSkipCount: 1,
+            consecLossSkipDay: false
         }};
 
         let simCanvasEventsInitialized = false;
@@ -3409,49 +3558,36 @@ def build_dashboard():
         let customPresetsList = [];
 
         function openSavePresetModal() {{
-            // Calculate current live stats
-            let sub = simTrades.filter(t => {{
-                let isMatchBase = (simState.mode === 'kings') ? (t.k === 1) : true;
-                if (!isMatchBase) return false;
-                if (simState.mode === 'kings' && !simState.enabledKings.has(t.kk)) return false;
-                if (!simState.allowedHours[t.h]) return false;
-                if (t.pot < simState.minProfit) return false;
-                return true;
-            }});
-
-            let c = sub.length;
-            let nt = sub.reduce((acc, t) => acc + t.p, 0);
-            let wins = sub.filter(t => t.p > 0).length;
-            let wr = c > 0 ? (wins / c * 100) : 0;
-            let avg = c > 0 ? (nt / c) : 0;
-            let gp = sub.filter(t => t.p > 0).reduce((acc, t) => acc + t.p, 0);
-            let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
-            let pf = gl > 0 ? (gp / gl) : 999;
-
-            let bal = 10000.0, peak = 10000.0, max_dd = 0.0;
-            for (let i = 0; i < sub.length; i++) {{
-                bal += sub[i].p;
-                if (bal > peak) peak = bal;
-                let dd = peak - bal;
-                if (dd > max_dd) max_dd = dd;
-            }}
-
             let activeHoursCount = simState.allowedHours.filter(Boolean).length;
             let activeKingsCount = simState.enabledKings.size;
+
+            let elCnt = document.getElementById('eqKpiCnt');
+            let elWR = document.getElementById('eqKpiWR');
+            let elPF = document.getElementById('eqKpiPF');
+            let elAvg = document.getElementById('eqKpiAvgTrade');
+            let elMaxDD = document.getElementById('eqKpiMaxDD');
+            let elNet = document.getElementById('eqKpiNetSub');
+
+            let tradesStr = elCnt ? elCnt.textContent : '0 معامله';
+            let wrStr = elWR ? elWR.textContent : '0%';
+            let pfStr = elPF ? elPF.textContent : '0.00';
+            let avgStr = elAvg ? elAvg.textContent : '$0.00';
+            let ddStr = elMaxDD ? elMaxDD.textContent : '$0.00';
+            let netStr = elNet ? elNet.textContent.replace('سود خالص: ', '').replace('سود: ', '') : '$0.00';
 
             document.getElementById('modalPreviewMinProfit').textContent = '$' + simState.minProfit.toFixed(2);
             document.getElementById('modalPreviewHours').textContent = activeHoursCount + ' ساعت فعال';
             document.getElementById('modalPreviewKings').textContent = activeKingsCount + ' سلطان فعال';
-            document.getElementById('modalPreviewTrades').textContent = c + ' معامله';
-            document.getElementById('modalPreviewWR').textContent = wr.toFixed(1) + '٪ (' + wins + ' برد)';
-            document.getElementById('modalPreviewPF').textContent = pf < 900 ? pf.toFixed(2) : '∞';
-            document.getElementById('modalPreviewAvg').textContent = '$' + avg.toFixed(2);
-            document.getElementById('modalPreviewDD').textContent = '$' + max_dd.toFixed(2);
-            document.getElementById('modalPreviewNet').textContent = (nt >= 0 ? '+' : '') + '$' + nt.toFixed(2);
+            document.getElementById('modalPreviewTrades').textContent = tradesStr;
+            document.getElementById('modalPreviewWR').textContent = wrStr;
+            document.getElementById('modalPreviewPF').textContent = pfStr;
+            document.getElementById('modalPreviewAvg').textContent = avgStr;
+            document.getElementById('modalPreviewDD').textContent = ddStr;
+            document.getElementById('modalPreviewNet').textContent = netStr;
 
             let titleInput = document.getElementById('modalPresetTitle');
             if (titleInput && !titleInput.value) {{
-                titleInput.value = 'سناریوی من (' + c + ' ترید - PF ' + (pf < 900 ? pf.toFixed(2) : 'MAX') + ')';
+                titleInput.value = 'سناریوی من (' + tradesStr + ' - PF ' + pfStr + ')';
             }}
 
             let modal = document.getElementById('savePresetModal');
@@ -3481,6 +3617,9 @@ def build_dashboard():
                 min_pot: simState.minProfit,
                 hours: [...simState.allowedHours],
                 kings: Array.from(simState.enabledKings),
+                consec_trig: simState.consecLossTrigger,
+                consec_sk: simState.consecLossSkipCount,
+                consec_day: simState.consecLossSkipDay,
                 createdAt: new Date().toLocaleDateString('fa-IR')
             }};
 
@@ -3625,6 +3764,14 @@ def build_dashboard():
             simState.enabledKings = new Set(p.kings);
 
             // 4. Update UI
+            // 4. Consecutive Loss Filter
+            if (p.consec_trig !== undefined) {{
+                simState.consecLossTrigger = p.consec_trig;
+                simState.consecLossSkipCount = p.consec_sk || 1;
+                simState.consecLossSkipDay = !!p.consec_day;
+                syncConsecButtonsUI();
+            }}
+
             renderSimKingsGrid();
             renderSimHoursBar();
 
@@ -3647,6 +3794,9 @@ def build_dashboard():
             p.min_pot = simState.minProfit;
             p.hours = [...simState.allowedHours];
             p.kings = Array.from(simState.enabledKings);
+            p.consec_trig = simState.consecLossTrigger;
+            p.consec_sk = simState.consecLossSkipCount;
+            p.consec_day = simState.consecLossSkipDay;
             p.updatedAt = new Date().toLocaleDateString('fa-IR');
 
             try {{
@@ -4038,6 +4188,15 @@ def build_dashboard():
             if (btnK) btnK.classList.add('active');
             if (btnA) btnA.classList.remove('active');
 
+            simState.consecLossTrigger = 0;
+            simState.consecLossSkipCount = 1;
+            simState.consecLossSkipDay = false;
+            let selTrig = document.getElementById('selConsecTrigger');
+            if (selTrig) selTrig.value = 0;
+            let selAct = document.getElementById('selConsecAction');
+            if (selAct) selAct.value = 'skip_1';
+            syncConsecButtonsUI();
+
             renderSimKingsGrid();
             renderSimHoursBar();
             runEquitySimulation();
@@ -4068,6 +4227,19 @@ def build_dashboard():
             let grossL = 0.0;
             let baseTotal = 0;
 
+            let consecLoss = 0;
+            let skipsLeft = 0;
+            let lastSkipDay = '';
+            let consecSkippedCount = 0;
+            let consecSavedLosses = 0;
+            let consecMissedWins = 0;
+
+            let maxConsecLoss = 0;
+            let maxConsecWin = 0;
+            let curConsecWin = 0;
+            let curLossStreak = 0;
+            let lossStreaks = [];
+
             for (let i = 0; i < simTrades.length; i++) {{
                 let t = simTrades[i];
                 let isMatchBase = (simState.mode === 'kings') ? (t.k === 1) : true;
@@ -4083,6 +4255,22 @@ def build_dashboard():
                 // Min profit filter
                 if (t.pot < simState.minProfit) continue;
 
+                // Consecutive loss circuit breaker filter
+                let tradeDate = t.t ? t.t.substring(0, 10) : '';
+                if (simState.consecLossTrigger > 0) {{
+                    if (simState.consecLossSkipDay && lastSkipDay === tradeDate) {{
+                        consecSkippedCount++;
+                        if (t.p <= 0) consecSavedLosses++; else consecMissedWins++;
+                        continue;
+                    }}
+                    if (skipsLeft > 0) {{
+                        skipsLeft--;
+                        consecSkippedCount++;
+                        if (t.p <= 0) consecSavedLosses++; else consecMissedWins++;
+                        continue;
+                    }}
+                }}
+
                 // Trade accepted!
                 totalTrades++;
                 bal += t.p;
@@ -4093,10 +4281,40 @@ def build_dashboard():
                 if (t.p > 0) {{
                     winCnt++;
                     grossP += t.p;
+                    curConsecWin++;
+                    if (curConsecWin > maxConsecWin) maxConsecWin = curConsecWin;
+                    if (curLossStreak > 0) {{
+                        lossStreaks.push(curLossStreak);
+                        curLossStreak = 0;
+                    }}
+                    consecLoss = 0;
                 }} else {{
                     grossL += Math.abs(t.p);
+                    curConsecWin = 0;
+                    curLossStreak++;
+                    if (curLossStreak > maxConsecLoss) maxConsecLoss = curLossStreak;
+                    consecLoss++;
+                    if (simState.consecLossTrigger > 0 && consecLoss >= simState.consecLossTrigger) {{
+                        if (simState.consecLossSkipDay) {{
+                            lastSkipDay = tradeDate;
+                        }} else {{
+                            skipsLeft = simState.consecLossSkipCount;
+                        }}
+                        consecLoss = 0;
+                    }}
                 }}
             }}
+
+            if (curLossStreak > 0) {{
+                lossStreaks.push(curLossStreak);
+            }}
+
+            let streakDist = {{}};
+            for (let s of lossStreaks) {{
+                streakDist[s] = (streakDist[s] || 0) + 1;
+            }}
+            let totalLossStreaks = lossStreaks.length;
+            let avgLossStreak = totalLossStreaks > 0 ? (lossStreaks.reduce((a, b) => a + b, 0) / totalLossStreaks) : 0;
 
             let net = bal - 10000.0;
             let netPct = (net / 10000.0) * 100;
@@ -4155,6 +4373,10 @@ def build_dashboard():
 
             let lbl = document.getElementById('lblEqPts');
             if (lbl) lbl.textContent = Math.max(0, pts.length - 1);
+
+            if (elMaxDDSub) elMaxDDSub.textContent = 'افت از سقف | سقف باخت: ' + maxConsecLoss + ' ترید';
+
+            updateConsecutiveLossUI(maxConsecLoss, maxConsecWin, totalLossStreaks, avgLossStreak, streakDist, consecSkippedCount, consecSavedLosses, consecMissedWins, maxDD);
 
             currentSimPts = pts;
             drawEquityChart();
@@ -4454,6 +4676,148 @@ def build_dashboard():
                     drawWeeklyBarChart(currentWeeklyBarMode);
                 }}, 40);
             }}
+        }}
+
+        
+        // ====================================================
+        // 🛡️ CONSECUTIVE LOSS FILTER CONTROLLER & UI SYNC
+        // ====================================================
+        function applyConsecFromFilterTab(trigger, skipCount, skipDay, btnEl) {{
+            setConsecLossFilter(trigger, skipCount, skipDay, btnEl);
+        }}
+
+        function setConsecLossFilter(trigger, skipCount, skipDay, btnEl) {{
+            simState.consecLossTrigger = trigger;
+            simState.consecLossSkipCount = skipCount;
+            simState.consecLossSkipDay = skipDay;
+
+            let selTrig = document.getElementById('selConsecTrigger');
+            let selAct = document.getElementById('selConsecAction');
+            if (selTrig) selTrig.value = trigger;
+            if (selAct) {{
+                if (skipDay) selAct.value = 'skip_day';
+                else selAct.value = 'skip_' + (skipCount || 1);
+            }}
+
+            syncConsecButtonsUI();
+            runEquitySimulation();
+        }}
+
+        function onCustomConsecChange() {{
+            let selTrig = document.getElementById('selConsecTrigger');
+            let selAct = document.getElementById('selConsecAction');
+            let trigger = parseInt(selTrig ? selTrig.value : 0, 10);
+            let act = selAct ? selAct.value : 'skip_1';
+
+            let skipDay = (act === 'skip_day');
+            let skipCount = 1;
+            if (act === 'skip_2') skipCount = 2;
+            if (act === 'skip_3') skipCount = 3;
+
+            simState.consecLossTrigger = trigger;
+            simState.consecLossSkipCount = skipCount;
+            simState.consecLossSkipDay = skipDay;
+
+            syncConsecButtonsUI();
+            runEquitySimulation();
+        }}
+
+        function syncConsecButtonsUI() {{
+            let t = simState.consecLossTrigger;
+            let sk = simState.consecLossSkipCount;
+            let day = simState.consecLossSkipDay;
+
+            document.querySelectorAll('.consec-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.consec-btn-filter').forEach(b => b.classList.remove('active'));
+
+            let badge1 = document.getElementById('consecLossSummaryBadge');
+            let badge2 = document.getElementById('simConsecBadge2');
+
+            if (t === 0) {{
+                let b0 = document.getElementById('btnConsecNone');
+                if (b0) b0.classList.add('active');
+                let f0 = document.querySelector('.consec-btn-filter[data-trig="0"]');
+                if (f0) f0.classList.add('active');
+                if (badge1) {{ badge1.textContent = 'وضعیت: فیلتر خاموش (ترید عادی)'; badge1.style.color = '#7dd3fc'; badge1.style.borderColor = '#0284c7'; }}
+                if (badge2) {{ badge2.textContent = 'بدون وقفه (خاموش)'; badge2.style.color = '#cbd5e1'; badge2.style.background = '#1e293b'; }}
+            }} else {{
+                let text = '';
+                if (day) {{
+                    text = 'توقف بعد از ' + t + ' باخت تا فردا';
+                    let bd = document.getElementById('btnConsec2Daily');
+                    if (bd && t === 2) bd.classList.add('active');
+                    let fd = document.querySelector('.consec-btn-filter[data-day="1"]');
+                    if (fd && t === 2) fd.classList.add('active');
+                }} else {{
+                    text = 'بعد از ' + t + ' باخت 👈 رد ' + sk + ' ترید';
+                    if (t === 2 && sk === 1) {{
+                        let b = document.getElementById('btnConsec2Skip1');
+                        if (b) b.classList.add('active');
+                        let fb = document.querySelector('.consec-btn-filter[data-trig="2"][data-sk="1"]');
+                        if (fb) fb.classList.add('active');
+                    }} else if (t === 2 && sk === 2) {{
+                        let b = document.getElementById('btnConsec2Skip2');
+                        if (b) b.classList.add('active');
+                        let fb = document.querySelector('.consec-btn-filter[data-trig="2"][data-sk="2"]');
+                        if (fb) fb.classList.add('active');
+                    }} else if (t === 3 && sk === 1) {{
+                        let b = document.getElementById('btnConsec3Skip1');
+                        if (b) b.classList.add('active');
+                        let fb = document.querySelector('.consec-btn-filter[data-trig="3"][data-sk="1"]');
+                        if (fb) fb.classList.add('active');
+                    }}
+                }}
+                if (badge1) {{ badge1.textContent = '⚡ فعال: ' + text; badge1.style.color = '#34d399'; badge1.style.borderColor = '#10b981'; }}
+                if (badge2) {{ badge2.textContent = '⚡ فعال: ' + text; badge2.style.color = '#34d399'; badge2.style.background = '#064e3b'; }}
+            }}
+        }}
+
+        function updateConsecutiveLossUI(maxLoss, maxWin, totalLossStreaks, avgLoss, streakDist, skippedCnt, savedLosses, missedWins, maxDD) {{
+            let elMaxLoss = document.getElementById('kpiMaxConsecLoss');
+            let elMaxWin = document.getElementById('kpiMaxConsecWin');
+            let elTotalStreaks = document.getElementById('kpiTotalLossStreaks');
+            let elAvgLoss = document.getElementById('kpiAvgLossStreak');
+
+            if (elMaxLoss) elMaxLoss.textContent = maxLoss + ' معامله';
+            if (elMaxWin) elMaxWin.textContent = maxWin + ' معامله';
+            if (elTotalStreaks) elTotalStreaks.textContent = totalLossStreaks.toLocaleString() + ' رگه';
+            if (elAvgLoss) elAvgLoss.textContent = avgLoss.toFixed(1) + ' معامله';
+
+            // Render distribution cards
+            let grid = document.getElementById('consecLossBarsGrid');
+            if (grid) {{
+                let html = '';
+                let streakKeys = [1, 2, 3, 4, 5, 6];
+                for (let k of streakKeys) {{
+                    let count = streakDist[k] || 0;
+                    let pct = totalLossStreaks > 0 ? ((count / totalLossStreaks) * 100) : 0;
+                    let color = k === 1 ? '#38bdf8' : (k === 2 ? '#facc15' : (k === 3 ? '#fb923c' : '#ef4444'));
+                    let bg = k === 1 ? 'rgba(56, 189, 248, 0.1)' : (k === 2 ? 'rgba(250, 204, 21, 0.1)' : 'rgba(239, 68, 68, 0.15)');
+                    let title = (k === 6) ? '۶+ باخت متوالی' : (k + ' باخت متوالی');
+                    html += `
+                        <div style="background:${{bg}};border:1px solid ${{color}};padding:6px 8px;border-radius:6px;text-align:center;">
+                            <div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">${{title}}</div>
+                            <div style="font-size:14px;font-weight:bold;color:${{color}};">${{count}} بار</div>
+                            <div style="font-size:9.5px;color:#cbd5e1;margin-top:2px;">${{pct.toFixed(1)}}٪</div>
+                            <div style="width:100%;height:3px;background:#1e293b;border-radius:2px;margin-top:4px;overflow:hidden;">
+                                <div style="width:${{Math.min(100, pct)}}%;height:100%;background:${{color}};"></div>
+                            </div>
+                        </div>
+                    `;
+                }}
+                grid.innerHTML = html;
+            }}
+
+            // Impact box
+            let elSkipped = document.getElementById('consecSkippedTradesVal');
+            let elSaved = document.getElementById('consecSavedLossesVal');
+            let elMissed = document.getElementById('consecMissedWinsVal');
+            let elDD = document.getElementById('consecDDImpactVal');
+
+            if (elSkipped) elSkipped.textContent = skippedCnt.toLocaleString();
+            if (elSaved) elSaved.textContent = savedLosses.toLocaleString() + ' استاپ نجات یافت';
+            if (elMissed) elMissed.textContent = missedWins.toLocaleString() + ' برد رد شد';
+            if (elDD) elDD.textContent = 'افت سرمایه فعلی: $' + maxDD.toFixed(2);
         }}
 
         function openTab(evt, tabId) {{
