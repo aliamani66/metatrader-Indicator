@@ -4656,10 +4656,15 @@ def build_dashboard(custom_csv=None):
                 }});
             }});
 
+            let allKingsKeys = clientKingsSimList.map(k => k.kk);
+            let sortedBySl = [...clientKingsSimList].sort((a, b) => (b.sl_usd || b.sl_cnt || 0) - (a.sl_usd || a.sl_cnt || 0));
+            let top3SlKeys = new Set(sortedBySl.slice(0, 3).map(k => k.kk));
+            let kingsWithoutTop3 = allKingsKeys.filter(kk => !top3SlKeys.has(kk));
+
             let clientSmartPresets = [
-                {{ idx: 1, title: 'حالت پایه سلاطین طلایی (بدون فیلتر)', desc: 'اجرای کامل تمام سلاطین شناسایی‌شده با تارگت‌های کامل', min_pot: 0, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته' }},
-                {{ idx: 2, title: 'استراتژی پر سود (کف پتانسیل ۳ دلار)', desc: 'فیلتر معاملاتی با پتانسیل رشد بالا برای کاهش نویز بازار', min_pot: 3, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته' }},
-                {{ idx: 3, title: 'حذف ۳ سلطان با بیشترین استاپ', desc: 'حذف سلاطینی که بیشترین تعداد استاپ لاس را ایجاد کرده‌اند', min_pot: 0, sl_mode: 'top3_cnt', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته' }}
+                {{ idx: 1, title: 'حالت پایه سلاطین طلایی (بدون فیلتر)', desc: 'اجرای کامل تمام سلاطین شناسایی‌شده با تارگت‌های کامل', min_pot: 0, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: allKingsKeys }},
+                {{ idx: 2, title: 'استراتژی پر سود (کف پتانسیل ۳ دلار)', desc: 'فیلتر معاملاتی با پتانسیل رشد بالا برای کاهش نویز بازار', min_pot: 3, sl_mode: 'none', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: allKingsKeys }},
+                {{ idx: 3, title: 'حذف ۳ سلطان با بیشترین استاپ', desc: 'حذف سلاطینی که بیشترین تعداد استاپ لاس را ایجاد کرده‌اند', min_pot: 0, sl_mode: 'top3_cnt', count: 0, wr: 0, pf: 0, net: 0, dd: 0, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: kingsWithoutTop3 }}
             ];
 
             let minDate = clientSimTrades[0].t.substring(0, 10);
@@ -5038,37 +5043,50 @@ def build_dashboard(custom_csv=None):
             if (btnA) btnA.classList.remove('active');
 
             // 2. Set min profit
-            simState.minProfit = p.min_pot;
+            simState.minProfit = (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0.0;
             let slider = document.getElementById('simProfitSlider');
-            if (slider) slider.value = p.min_pot;
+            if (slider) slider.value = simState.minProfit;
             let sliderVal = document.getElementById('simProfitSliderVal');
-            if (sliderVal) sliderVal.textContent = '$' + p.min_pot.toFixed(2);
+            if (sliderVal) sliderVal.textContent = '$' + simState.minProfit.toFixed(2);
             let pBadge = document.getElementById('simProfitBadge');
             if (pBadge) {{
-                pBadge.textContent = (p.min_pot === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + p.min_pot.toFixed(2);
-                pBadge.style.background = (p.min_pot === 0) ? '#064e3b' : '#0369a1';
+                pBadge.textContent = (simState.minProfit === 0) ? 'بدون فیلتر ($0)' : 'حداقل $' + simState.minProfit.toFixed(2);
+                pBadge.style.background = (simState.minProfit === 0) ? '#064e3b' : '#0369a1';
             }}
             document.querySelectorAll('.profit-preset-btn').forEach(b => {{
                 b.classList.remove('active');
-                if (parseFloat(b.dataset.val) === p.min_pot) b.classList.add('active');
+                if (parseFloat(b.dataset.val) === simState.minProfit) b.classList.add('active');
             }});
 
             // 3. Set allowed hours
-            simState.allowedHours = [...p.hours];
+            if (Array.isArray(p.hours) && p.hours.length === 24) {{
+                simState.allowedHours = [...p.hours];
+            }} else {{
+                simState.allowedHours = new Array(24).fill(true);
+            }}
             document.querySelectorAll('.hour-preset-btn').forEach(b => b.classList.remove('active'));
-            if (p.hours_name === 'all') {{
+            let hName = p.hours_name || 'all';
+            if (hName === 'all') {{
                 let b = document.getElementById('btnHAll');
                 if (b) b.classList.add('active');
-            }} else if (p.hours_name === 'no_night') {{
+            }} else if (hName === 'no_night') {{
                 let b = document.getElementById('btnHNoNight');
                 if (b) b.classList.add('active');
-            }} else if (p.hours_name === 'lon_ny') {{
+            }} else if (hName === 'lon_ny') {{
                 let b = document.getElementById('btnHLonNy');
                 if (b) b.classList.add('active');
             }}
 
             // 4. Set enabled kings
-            simState.enabledKings = new Set(p.kings);
+            if (Array.isArray(p.kings) && p.kings.length > 0) {{
+                simState.enabledKings = new Set(p.kings);
+            }} else if (p.sl_mode === 'top3_cnt') {{
+                let sortedBySl = [...kingsSimList].sort((a, b) => (b.sl_usd || b.sl_cnt || 0) - (a.sl_usd || a.sl_cnt || 0));
+                let bad = new Set(sortedBySl.slice(0, 3).map(k => k.kk));
+                simState.enabledKings = new Set(kingsSimList.filter(k => !bad.has(k.kk)).map(k => k.kk));
+            }} else {{
+                simState.enabledKings = new Set(kingsSimList.map(k => k.kk));
+            }}
 
             // 4B. Consecutive Loss Circuit Breaker from Preset
             if (p.consec_trig !== undefined) {{

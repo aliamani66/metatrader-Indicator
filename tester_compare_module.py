@@ -23,6 +23,20 @@ def load_tester_reports(reports_dir):
                 try:
                     with open(fpath, mode='r', encoding='utf-8') as f:
                         data = json.load(f)
+                        trades = data.get('trades', [])
+                        for t in trades:
+                            if 'pnlPips' in t and 'profitPips' not in t:
+                                t['profitPips'] = t['pnlPips']
+                            if 'pnlUSD' in t and 'profitUSD' not in t:
+                                t['profitUSD'] = t['pnlUSD']
+                            if 'profitPips' in t and 'pnlPips' not in t:
+                                t['pnlPips'] = t['profitPips']
+                            if 'profitUSD' in t and 'pnlUSD' not in t:
+                                t['pnlUSD'] = t['profitUSD']
+                            if 'discrepancyLabel' in t and 'discrepancyReason' not in t:
+                                t['discrepancyReason'] = t['discrepancyLabel']
+                            if 'outcome' not in t:
+                                t['outcome'] = 'Win' if t.get('profitPips', 0) >= 0 else 'Loss'
                         reports[fname] = data
                 except Exception as e:
                     print(f"⚠️ خطا در خواندن گزارش تستر {fname}: {e}")
@@ -367,28 +381,30 @@ def get_tester_compare_js():
             let t = report.trades || [];
 
             let wrActual = document.getElementById('tcValWinRateActual');
-            if (wrActual) wrActual.textContent = (k.winRate !== undefined ? k.winRate.toFixed(1) : '26.4') + '%';
+            if (wrActual) wrActual.textContent = (k.winRate !== undefined && !isNaN(Number(k.winRate)) ? Number(k.winRate).toFixed(1) : '26.4') + '%';
 
             let wrSim = document.getElementById('tcValWinRateSim');
-            if (wrSim) wrSim.textContent = (k.simWinRate !== undefined ? k.simWinRate.toFixed(1) : '57.1') + '%';
+            if (wrSim) wrSim.textContent = (k.simWinRate !== undefined && !isNaN(Number(k.simWinRate)) ? Number(k.simWinRate).toFixed(1) : '57.1') + '%';
 
             let diffWr = document.getElementById('tcDiffWinRate');
             if (diffWr) {
-                let diff = (k.winRate || 26.4) - (k.simWinRate || 57.1);
-                diffWr.textContent = 'اختلاف: ' + diff.toFixed(1) + '% (به دلیل نویز M1)';
+                let actWr = (k.winRate !== undefined && !isNaN(Number(k.winRate))) ? Number(k.winRate) : 26.4;
+                let simWr = (k.simWinRate !== undefined && !isNaN(Number(k.simWinRate))) ? Number(k.simWinRate) : 57.1;
+                let diff = actWr - simWr;
+                diffWr.textContent = 'اختلاف: ' + (isNaN(diff) ? '0.0' : diff.toFixed(1)) + '% (به دلیل نویز M1)';
             }
 
             let netAct = document.getElementById('tcValNetActual');
-            if (netAct) netAct.textContent = (k.netPips !== undefined ? k.netPips.toFixed(1) : '-473.9') + ' pips';
+            if (netAct) netAct.textContent = (k.netPips !== undefined && !isNaN(Number(k.netPips)) ? Number(k.netPips).toFixed(1) : '-473.9') + ' pips';
 
             let netSim = document.getElementById('tcValNetSim');
             if (netSim) netSim.textContent = k.simNetR || '+112.1R';
 
             let diffNet = document.getElementById('tcDiffNet');
-            if (diffNet) diffNet.textContent = 'ضرر دلاری تستر: $' + (k.netUSD !== undefined ? k.netUSD.toFixed(2) : '-47.39') + ' (0.01 Lot)';
+            if (diffNet) diffNet.textContent = 'ضرر دلاری تستر: $' + (k.netUSD !== undefined && !isNaN(Number(k.netUSD)) ? Number(k.netUSD).toFixed(2) : '-47.39') + ' (0.01 Lot)';
 
             let pfAct = document.getElementById('tcValPfActual');
-            if (pfAct) pfAct.textContent = (k.profitFactor !== undefined ? k.profitFactor.toFixed(2) : '0.35');
+            if (pfAct) pfAct.textContent = (k.profitFactor !== undefined && !isNaN(Number(k.profitFactor)) ? Number(k.profitFactor).toFixed(2) : '0.35');
 
             let pfSim = document.getElementById('tcValPfSim');
             if (pfSim) pfSim.textContent = '2.45';
@@ -419,7 +435,7 @@ def get_tester_compare_js():
                 },
                 {
                     name: 'کف پتانسیل سود ستاپ (InpMinTradePotential)',
-                    actual: (p.InpMinTradePotential !== undefined ? '$' + p.InpMinTradePotential.toFixed(1) : '$0.0'),
+                    actual: (p.InpMinTradePotential !== undefined && !isNaN(Number(p.InpMinTradePotential)) ? '$' + Number(p.InpMinTradePotential).toFixed(1) : '$0.0'),
                     expected: '$5.00',
                     status: 'severe',
                     impact: 'باعث ورود در ۳۵ ستاپ ضعیف با ریوارد ناچیز گردید که اکثر آن‌ها استاپ خوردند.'
@@ -447,14 +463,14 @@ def get_tester_compare_js():
                 },
                 {
                     name: 'بافر بریک‌ایون (InpBEBufferPips)',
-                    actual: (p.InpBEBufferPips !== undefined ? p.InpBEBufferPips.toFixed(1) + ' pips' : '1.0 pips'),
+                    actual: (p.InpBEBufferPips !== undefined && !isNaN(Number(p.InpBEBufferPips)) ? Number(p.InpBEBufferPips).toFixed(1) + ' pips' : '1.0 pips'),
                     expected: '0.0 pips (دقیقاً روی نقطه ورود)',
                     status: 'warn',
                     impact: 'بافر ۱ پیپ باعث شد ۵۸ پوزیشن در پولبک طبیعی بازار با سود جزئی قطع شوند.'
                 },
                 {
                     name: 'حداکثر انحراف مجاز ورود (InpMaxEntryDeviationPips)',
-                    actual: (p.InpMaxEntryDeviationPips !== undefined ? p.InpMaxEntryDeviationPips.toFixed(1) + ' pips' : '0.0 (نامحدود)'),
+                    actual: (p.InpMaxEntryDeviationPips !== undefined && !isNaN(Number(p.InpMaxEntryDeviationPips)) ? Number(p.InpMaxEntryDeviationPips).toFixed(1) + ' pips' : '0.0 (نامحدود)'),
                     expected: '2.5 pips (فیلتر ضد اسلیپیج)',
                     status: 'severe',
                     impact: 'ورود در قیمت‌های دیر و دور از لبه باکس با اسلیپیج بالای ۲ تا ۳ پیپ.'
@@ -537,20 +553,21 @@ def get_tester_compare_js():
             let simVal = 0.0;
 
             for (let i = 0; i < n; i++) {
-                actVal = eqActual[i].pnlPips;
-                actPoints.push({ time: eqActual[i].time, val: actVal });
+                actVal = (eqActual[i].pnlPips !== undefined && !isNaN(Number(eqActual[i].pnlPips))) ? Number(eqActual[i].pnlPips) : 0.0;
+                actPoints.push({ time: eqActual[i].time || '', val: actVal });
 
                 if (i === 2) simVal += 35.2;
                 else if (i === 3) simVal += 38.5;
                 else if (i === 15) simVal += 42.0;
                 else if (i === 30) simVal += 28.0;
                 else if (i % 8 === 0 && i > 0) simVal -= 15.0;
-                simPoints.push({ time: eqActual[i].time, val: simVal });
+                simPoints.push({ time: eqActual[i].time || '', val: simVal });
             }
 
-            let minVal = -550.0;
-            let maxVal = 200.0;
-            let valRange = maxVal - minVal;
+            let allVals = actPoints.map(p => p.val).concat(simPoints.map(p => p.val));
+            let minVal = allVals.length > 0 ? Math.min(-50.0, ...allVals) - 20 : -550.0;
+            let maxVal = allVals.length > 0 ? Math.max(50.0, ...allVals) + 20 : 200.0;
+            let valRange = Math.max(1, maxVal - minVal);
 
             function getY(val) {
                 return padTop + plotH - ((val - minVal) / valRange) * plotH;
@@ -647,14 +664,21 @@ def get_tester_compare_js():
             }
 
             let filtered = trades.filter(t => {
-                if (filterMode === 'win' && t.outcome !== 'Win') return false;
-                if (filterMode === 'loss' && t.outcome !== 'Loss') return false;
-                if (filterMode === 'm1' && t.timeframe !== 'M1') return false;
-                if (filterMode === 'slip' && (t.slippagePips || 0) < 2.0) return false;
-                if (filterMode === 'be' && !t.exitClass.includes('BE')) return false;
+                let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
+                let outcome = t.outcome || (profitPips >= 0 ? 'Win' : 'Loss');
+                let tf = t.timeframe || '';
+                let slip = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
+                let exitCls = t.exitClass || '';
+                let disc = t.discrepancyReason || t.discrepancyLabel || '';
+
+                if (filterMode === 'win' && outcome !== 'Win') return false;
+                if (filterMode === 'loss' && outcome !== 'Loss') return false;
+                if (filterMode === 'm1' && tf !== 'M1') return false;
+                if (filterMode === 'slip' && slip < 2.0) return false;
+                if (filterMode === 'be' && !exitCls.includes('BE')) return false;
                 if (searchQuery) {
                     let q = searchQuery.toLowerCase();
-                    let hay = (t.pattern + ' ' + t.timeframe + ' ' + t.side + ' ' + t.entryTime + ' ' + t.discrepancyReason).toLowerCase();
+                    let hay = ((t.pattern || '') + ' ' + tf + ' ' + (t.side || '') + ' ' + (t.entryTime || '') + ' ' + disc).toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
                 return true;
@@ -662,42 +686,52 @@ def get_tester_compare_js():
 
             let html = '';
             filtered.forEach(t => {
-                let isWin = (t.profitPips >= 0);
+                let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
+                let profitUSD = (t.profitUSD !== undefined && !isNaN(Number(t.profitUSD))) ? Number(t.profitUSD) : ((t.pnlUSD !== undefined && !isNaN(Number(t.pnlUSD))) ? Number(t.pnlUSD) : 0);
+                let slippagePips = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
+                let boxEntry = (t.boxEntryPrice !== undefined && !isNaN(Number(t.boxEntryPrice))) ? Number(t.boxEntryPrice) : 0;
+                let marketFill = (t.marketFillPrice !== undefined && !isNaN(Number(t.marketFillPrice))) ? Number(t.marketFillPrice) : boxEntry;
+                let slPrice = (t.slPrice !== undefined && !isNaN(Number(t.slPrice))) ? Number(t.slPrice) : 0;
+                let tp1 = (t.tp1 !== undefined && !isNaN(Number(t.tp1))) ? Number(t.tp1) : 0;
+                let tp4 = (t.tp4 !== undefined && !isNaN(Number(t.tp4))) ? Number(t.tp4) : 0;
+
+                let isWin = (profitPips >= 0);
                 let sideBadge = t.side === 'BUY'
                     ? '<span style="color:#34d399;font-weight:bold;">BUY</span>'
                     : '<span style="color:#f87171;font-weight:bold;">SELL</span>';
 
                 let tfBadge = t.timeframe === 'M1'
                     ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1 (نویز)</span>'
-                    : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + t.timeframe + '</span>';
+                    : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + (t.timeframe || '') + '</span>';
 
                 let pnlPipsColor = isWin ? '#34d399' : '#f87171';
                 let pnlUSDColor = isWin ? '#34d399' : '#f87171';
-                let slipColor = (t.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
+                let slipColor = (slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
 
-                let discBadge = '<span style="background:#1e293b;color:#cbd5e1;padding:2px 6px;border-radius:4px;font-size:10px;">' + (t.discrepancyReason || 'منطبق') + '</span>';
-                if (t.discrepancyReason && t.discrepancyReason.includes('نویز')) {
+                let discText = t.discrepancyReason || t.discrepancyLabel || 'منطبق';
+                let discBadge = '<span style="background:#1e293b;color:#cbd5e1;padding:2px 6px;border-radius:4px;font-size:10px;">' + discText + '</span>';
+                if (discText.includes('نویز')) {
                     discBadge = '<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;font-size:10px;">🔴 نویز تایم M1</span>';
-                } else if (t.discrepancyReason && t.discrepancyReason.includes('اسلیپیج')) {
+                } else if (discText.includes('اسلیپیج')) {
                     discBadge = '<span style="background:#78350f;color:#fde68a;padding:2px 6px;border-radius:4px;border:1px solid #b45309;font-size:10px;">⚠️ اسلیپیج شدید ورود</span>';
-                } else if (t.discrepancyReason && t.discrepancyReason.includes('بریک‌ایون')) {
+                } else if (discText.includes('بریک‌ایون') || discText.includes('ریسک‌فری')) {
                     discBadge = '<span style="background:#1e1b4b;color:#c7d2fe;padding:2px 6px;border-radius:4px;border:1px solid #4338ca;font-size:10px;">🛡️ قطع زودهنگام در BE</span>';
                 }
 
                 html += `<tr style="border-bottom:1px solid #1e293b;">
-                    <td style="padding:6px 8px;color:#64748b;">${t.setupId}</td>
-                    <td style="padding:6px 8px;font-weight:600;color:#f8fafc;">${t.pattern}</td>
+                    <td style="padding:6px 8px;color:#64748b;">${t.setupId || ''}</td>
+                    <td style="padding:6px 8px;font-weight:600;color:#f8fafc;">${t.pattern || ''}</td>
                     <td style="padding:6px 8px;">${tfBadge}</td>
                     <td style="padding:6px 8px;">${sideBadge}</td>
-                    <td style="padding:6px 8px;color:#94a3b8;font-size:10.5px;">${t.entryTime}</td>
-                    <td style="padding:6px 8px;color:#cbd5e1;">${t.boxEntryPrice.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:#38bdf8;">${t.marketFillPrice.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:${slipColor};font-weight:bold;">${t.slippagePips.toFixed(1)}p</td>
-                    <td style="padding:6px 8px;color:#f87171;">${t.slPrice.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:#94a3b8;font-size:10px;">TP1: ${t.tp1.toFixed(5)} | TP4: ${t.tp4.toFixed(5)}</td>
-                    <td style="padding:6px 8px;color:#e2e8f0;">${t.exitClass}</td>
-                    <td style="padding:6px 8px;color:${pnlPipsColor};font-weight:bold;direction:ltr;text-align:right;">${(t.profitPips > 0 ? '+' : '')}${t.profitPips.toFixed(1)}p</td>
-                    <td style="padding:6px 8px;color:${pnlUSDColor};font-weight:bold;direction:ltr;text-align:right;">${(t.profitUSD > 0 ? '+$' : '-$')}${Math.abs(t.profitUSD).toFixed(2)}</td>
+                    <td style="padding:6px 8px;color:#94a3b8;font-size:10.5px;">${t.entryTime || ''}</td>
+                    <td style="padding:6px 8px;color:#cbd5e1;">${boxEntry.toFixed(5)}</td>
+                    <td style="padding:6px 8px;color:#38bdf8;">${marketFill.toFixed(5)}</td>
+                    <td style="padding:6px 8px;color:${slipColor};font-weight:bold;">${slippagePips.toFixed(1)}p</td>
+                    <td style="padding:6px 8px;color:#f87171;">${slPrice.toFixed(5)}</td>
+                    <td style="padding:6px 8px;color:#94a3b8;font-size:10px;">TP1: ${tp1.toFixed(5)} | TP4: ${tp4.toFixed(5)}</td>
+                    <td style="padding:6px 8px;color:#e2e8f0;">${t.exitClass || ''}</td>
+                    <td style="padding:6px 8px;color:${pnlPipsColor};font-weight:bold;direction:ltr;text-align:right;">${(profitPips > 0 ? '+' : '')}${profitPips.toFixed(1)}p</td>
+                    <td style="padding:6px 8px;color:${pnlUSDColor};font-weight:bold;direction:ltr;text-align:right;">${(profitUSD > 0 ? '+$' : '-$')}${Math.abs(profitUSD).toFixed(2)}</td>
                     <td style="padding:6px 8px;">${discBadge}</td>
                 </tr>`;
             });
@@ -734,6 +768,16 @@ def get_tester_compare_js():
 
                     if (file.name.endsWith('.json')) {
                         reportData = JSON.parse(content);
+                        if (reportData && Array.isArray(reportData.trades)) {
+                            reportData.trades.forEach(t => {
+                                if (t.pnlPips !== undefined && t.profitPips === undefined) t.profitPips = t.pnlPips;
+                                if (t.pnlUSD !== undefined && t.profitUSD === undefined) t.profitUSD = t.pnlUSD;
+                                if (t.profitPips !== undefined && t.pnlPips === undefined) t.pnlPips = t.profitPips;
+                                if (t.profitUSD !== undefined && t.pnlUSD === undefined) t.pnlUSD = t.profitUSD;
+                                if (t.discrepancyLabel && !t.discrepancyReason) t.discrepancyReason = t.discrepancyLabel;
+                                if (!t.outcome) t.outcome = (((t.profitPips !== undefined ? t.profitPips : t.pnlPips) || 0) >= 0) ? 'Win' : 'Loss';
+                            });
+                        }
                     } else if (file.name.endsWith('.csv')) {
                         reportData = parseTesterCsvReport(content, file.name);
                     }
