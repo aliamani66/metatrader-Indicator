@@ -1451,41 +1451,39 @@ def build_dashboard(custom_csv=None):
 
         smart_presets_rows_html.append(f"""
         <tr id="presetRow{p['idx']}" style="{row_border}transition:all 0.2s;" class="preset-table-row {'featured-preset' if p['is_featured'] else ''}">
-            <td style="text-align:center;padding:10px 8px;font-weight:bold;font-size:13px;color:#facc15;">#{p['idx']+1}</td>
-            <td style="padding:10px 12px;">
-                <div style="font-weight:bold;color:#f1f5f9;font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#facc15;">#{p['idx']+1}</td>
+            <td style="padding:7px 8px;">
+                <div style="font-weight:bold;color:#f1f5f9;font-size:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                     <span>{p['title']}</span>
                     {featured_tag}
                 </div>
-                <div style="color:#94a3b8;font-size:11px;margin-top:3px;">{p['strategy_desc']}</div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">{p['strategy_desc']}</div>
             </td>
-            <td style="padding:10px 10px;font-size:11.5px;color:#cbd5e1;text-align:center;">
+            <td style="padding:7px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
                 <div>{p['filter_desc']}</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10.5px;margin-top:2px;">👑 {len(p['kings'])} سلطان فعال</div>
             </td>
-            <td style="text-align:center;padding:10px 8px;font-size:12px;font-weight:bold;color:#38bdf8;">
-                {len(p['kings'])} سلطان
-            </td>
-            <td style="text-align:center;padding:10px 8px;font-weight:bold;font-size:13px;color:#e2e8f0;">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#e2e8f0;">
                 {c:,}
             </td>
-            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#34d399;font-size:13px;">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#34d399;font-size:12px;">
                 {wr:.1f}٪
             </td>
-            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#38bdf8;font-size:13.5px;">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
                 {pf_display}
             </td>
-            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#facc15;font-size:13.5px;">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#facc15;font-size:12.5px;">
                 ${avg:+.2f}
             </td>
-            <td style="text-align:center;padding:10px 8px;font-weight:bold;color:#fca5a5;font-size:12.5px;">
+            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">
                 ${max_dd:.2f}
             </td>
-            <td style="text-align:center;padding:10px 10px;font-weight:bold;color:{net_col};font-size:15px;background:#064e3b22;">
+            <td style="text-align:center;padding:7px 6px;font-weight:bold;color:{net_col};font-size:13.5px;background:#064e3b22;white-space:nowrap;">
                 ${nt:+,.2f}
             </td>
-            <td style="text-align:center;padding:10px 10px;">
-                <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);">
-                    ⚡ اعمال روی نمودار
+            <td style="text-align:center;padding:7px 6px;">
+                <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);">
+                    ⚡ اعمال
                 </button>
             </td>
         </tr>
@@ -1806,10 +1804,10 @@ def build_dashboard(custom_csv=None):
             box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
         }}
 
-                /* 🌟 TWO-COLUMN WORKSPACE LAYOUT */
+        /* 🌟 TWO-COLUMN WORKSPACE LAYOUT (34% Chart / 66% Controls & Tables) */
         .equity-two-col-container {{
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-columns: 34% calc(66% - 12px);
             gap: 12px;
             align-items: stretch;
             margin-bottom: 12px;
@@ -1817,7 +1815,12 @@ def build_dashboard(custom_csv=None):
         .equity-two-col-container.single-col {{
             grid-template-columns: 1fr !important;
         }}
-        .equity-col-chart, .equity-col-controls {{
+        .equity-col-chart {{
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }}
+        .equity-col-controls {{
             min-width: 0;
             display: flex;
             flex-direction: column;
@@ -1825,9 +1828,14 @@ def build_dashboard(custom_csv=None):
         .eq-subpanels-wrapper {{
             flex: 1;
             overflow-y: auto;
-            overflow-x: auto;
+            overflow-x: hidden;
             max-height: 485px;
             padding-left: 2px;
+        }}
+        .eq-subpanel .section-box {{
+            padding: 12px !important;
+            margin-bottom: 12px !important;
+            border-radius: 8px !important;
         }}
         .eq-subpanels-wrapper::-webkit-scrollbar {{
             width: 6px;
@@ -2040,17 +2048,17 @@ def build_dashboard(custom_csv=None):
                     <!-- 📈 INTERACTIVE EQUITY CANVAS GRAPH (AT THE VERY TOP) -->
             <!-- Interactive Canvas Graph Container -->
             <div class="section-box" style="border:1px solid #38bdf8;background:#0b0f19;padding:10px 14px;border-radius:8px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;margin-bottom:0;">
-                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:10px;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:8px;gap:8px;">
                     <div>
-                        <h3 style="margin:0;color:#38bdf8;font-size:15px;display:flex;align-items:center;gap:6px;">
-                            <span>📈 نمودار تعاملی رشد بالانس و اکوئیتی (MT5 Strategy Tester Graph)</span>
+                        <h3 style="margin:0;color:#38bdf8;font-size:14px;display:flex;align-items:center;gap:6px;">
+                            <span>📈 منحنی تعاملی رشد بالانس و اکوئیتی</span>
                         </h3>
-                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">رسم دقیق منحنی رشد سرمایه معامله به معامله در طول زمان ۶ ماهه - موس را روی نمودار حرکت دهید تا جزئیات هر معامله را ببینید:</p>
+                        <p style="margin:3px 0 0 0;color:#94a3b8;font-size:11px;">رسم دقیق معامله به معامله با حرکت موس روی نقاط</p>
                     </div>
-                    <div style="display:flex;gap:8px;">
-                        <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین {len(qualified_kings)} گانه ({len(pts_kings)-1} معامله)</button>
-                        <button onclick="toggleTwoColLayout()" id="btnToggleTwoCol" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;" title="تغییر حالت به تمام‌صفحه یا دو ستونی">⛶</button>
-                        <button id="btnEqAll" class="sort-btn" onclick="switchEquityMode('all')">🌐 منحنی کل ساختارهای چارت ({len(pts_all)-1} معامله)</button>
+                    <div>
+                        <button onclick="toggleTwoColLayout()" id="btnToggleTwoCol" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="تغییر حالت بین دو ستونی و تمام‌صفحه">
+                            <span>⛶</span><span>تمام‌صفحه / ستونی</span>
+                        </button>
                     </div>
                 </div>
 
@@ -2061,15 +2069,15 @@ def build_dashboard(custom_csv=None):
                 </div>
 
                 <!-- Graph Legend & Stats Bar -->
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:10px;">
-                    <div style="display:flex;align-items:center;gap:16px;">
-                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:4px;background:#38bdf8;border-radius:2px;"></span> خط رشد بالانس (Balance Curve)</span>
-                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:4px;background:#475569;border-radius:2px;"></span> خط تراز پایه ۱۰ هزار دلار</span>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#38bdf8;border-radius:2px;"></span> رشد بالانس</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#475569;border-radius:2px;"></span> تراز پایه ($10K)</span>
                     </div>
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <span>تعداد نقاط ثبت‌شده: <b id="lblEqPts" style="color:#facc15;">{len(pts_kings)-1}</b></span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span>نقاط: <b id="lblEqPts" style="color:#facc15;">{len(pts_kings)-1}</b></span>
                         <span>|</span>
-                        <span>بازه زمانی: <b style="color:#38bdf8;">{date_start_str} تا {date_end_str}</b></span>
+                        <span>{date_start_str} تا {date_end_str}</span>
                     </div>
                 </div>
             </div>
@@ -2080,30 +2088,30 @@ def build_dashboard(custom_csv=None):
                     <div style="background:#080d1a;border:1px solid #1e3a5f;border-radius:10px;padding:10px 12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
                         <!-- Subtabs Navigation Bar -->
                         <!-- 📑 SUB-NAVIGATION FOR CONTROLS & PRESETS -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:10px;flex-wrap:wrap;gap:8px;">
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:10px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
                     <button class="eq-subtab-btn active" onclick="openEqSubtab(event, 'eq-sub-presets')">
-                        ⚡ سناریوهای استراتژی (پیش‌فرض‌ها و ذخیره‌شده‌ها)
+                        ⚡ سناریوهای استراتژی
                     </button>
                     <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-filters')">
-                        🎛️ شبیه‌ساز فیلترها (اسلایدر، ساعات و سلاطین)
+                        🎛️ شبیه‌ساز فیلترها
                     </button>
                     <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-risk')">
-                        🚨 کالبدشکافی استاپ‌ها و باخت‌ها
+                        🚨 کالبدشکافی استاپ‌ها
                     </button>
                     <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-weekly')">
-                        📊 کارنامه میله‌ای هفتگی
+                        📊 کارنامه هفتگی
                     </button>
                     <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-compare')">
-                        ⚖️ مقایسه سلاطین با کل چارت
+                        ⚖️ مقایسه با کل چارت
                     </button>
                 </div>
-                <div style="display:flex;gap:6px;">
-                    <button onclick="runClientAutoOptimizer()" style="background:linear-gradient(135deg, #7c3aed, #a855f7);border:1px solid #c084fc;color:#fff;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 10px rgba(168,85,247,0.4);display:flex;align-items:center;gap:6px;">
-                            <span>🤖 کشف خودکار بهترین چیدمان این دیتا (AI Optimizer)</span>
-                        </button>
-                        <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:5px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:bold;">💾 ذخیره چیدمان فعلی</button>
-                    <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:bold;">🔄 بازنشانی (Reset)</button>
+                <div style="display:flex;gap:5px;align-items:center;">
+                    <button onclick="runClientAutoOptimizer()" style="background:linear-gradient(135deg, #7c3aed, #a855f7);border:1px solid #c084fc;color:#fff;font-size:11.5px;padding:5px 11px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 10px rgba(168,85,247,0.4);display:flex;align-items:center;gap:5px;">
+                        <span>🤖 بهینه‌ساز خودکار (AI)</span>
+                    </button>
+                    <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;">💾 ذخیره چیدمان</button>
+                    <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;">🔄 بازنشانی</button>
                 </div>
             </div>
 
@@ -2112,43 +2120,42 @@ def build_dashboard(custom_csv=None):
                             <!-- SUBPANEL 1: PRESETS -->
             <div id="eq-sub-presets" class="eq-subpanel active">
                 <!-- ⚡ SMART PRESETS & CUSTOM STRATEGY PORTFOLIOS -->
-            <div class="section-box" style="border: 2px solid #facc15; background: #0b1528; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 14px; flex-wrap:wrap; gap:10px;">
+            <div class="section-box" style="border: 2px solid #facc15; background: #0b1528; padding: 12px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 10px; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
                     <div>
-                        <h3 style="margin:0;color:#facc15;font-size:18px;display:flex;align-items:center;gap:8px;">
-                            <span>⚡ پیشنهادات استراتژیک سیستم و سناریوهای شخصی شما (Strategy Portfolios & Saved Presets)</span>
+                        <h3 style="margin:0;color:#facc15;font-size:16px;display:flex;align-items:center;gap:6px;">
+                            <span>⚡ پیشنهادات استراتژیک سیستم و سناریوهای شخصی شما</span>
                         </h3>
-                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">با کلیک روی دکمه «اعمال روی نمودار»، فیلترها بلافاصله تنظیم می‌شوند. همچنین با دکمه سبز می‌توانید چیدمان‌های دلخواه خود را برای همیشه در مرورگر ذخیره کنید:</p>
+                        <p style="margin:3px 0 0 0;color:#94a3b8;font-size:11.5px;">با زدن دکمه «اعمال»، فیلترها روی چارت اعمال می‌شوند. با دکمه سبز می‌توانید هر چیدمانی را ذخیره کنید:</p>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <button onclick="openSavePresetModal()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 8px rgba(16,185,129,0.3);display:flex;align-items:center;gap:6px;">
-                            <span>💾 ذخیره چیدمان فعلی به عنوان سناریوی شخصی</span>
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                        <button onclick="openSavePresetModal()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;font-size:11.5px;padding:5px 11px;border-radius:5px;cursor:pointer;font-weight:bold;box-shadow:0 2px 8px rgba(16,185,129,0.3);display:flex;align-items:center;gap:4px;">
+                            <span>💾 ذخیره چیدمان فعلی</span>
                         </button>
-                        <button onclick="exportCustomPresets()" style="background:#1e293b;border:1px solid #38bdf8;color:#7dd3fc;font-size:11.5px;padding:6px 10px;border-radius:6px;cursor:pointer;" title="خروجی گرفتن از تمام سناریوهای شخصی شما در قالب فایل JSON">
-                            📥 دانلود فایل پشتیبان (JSON)
+                        <button onclick="exportCustomPresets()" style="background:#1e293b;border:1px solid #38bdf8;color:#7dd3fc;font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;" title="خروجی فایل پشتیبان JSON">
+                            📥 بکاپ (JSON)
                         </button>
-                        <button onclick="document.getElementById('importPresetsInput').click()" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;font-size:11.5px;padding:6px 10px;border-radius:6px;cursor:pointer;" title="وارد کردن سناریوها از فایل قبلی">
-                            📤 بارگذاری از فایل
+                        <button onclick="document.getElementById('importPresetsInput').click()" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;" title="بارگذاری سناریوهای ذخیره‌شده">
+                            📤 بارگذاری
                         </button>
                         <input type="file" id="importPresetsInput" accept=".json" style="display:none;" onchange="importCustomPresets(event)" />
                     </div>
                 </div>
 
                 <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:right;">
+                    <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:right;">
                         <thead>
-                            <tr style="background:#1e293b;color:#94a3b8;border-bottom:2px solid #334155;">
-                                <th style="padding:10px 8px;text-align:center;">#</th>
-                                <th style="padding:10px 12px;">سناریوی استراتژی و ویژگی‌ها</th>
-                                <th style="padding:10px 10px;text-align:center;">تنظیمات فیلتر</th>
-                                <th style="padding:10px 8px;text-align:center;">سلاطین</th>
-                                <th style="padding:10px 8px;text-align:center;">تعداد ترید</th>
-                                <th style="padding:10px 8px;text-align:center;">وین‌ریت</th>
-                                <th style="padding:10px 8px;text-align:center;">پرافیت فاکتور</th>
-                                <th style="padding:10px 8px;text-align:center;">میانگین هر سود</th>
-                                <th style="padding:10px 8px;text-align:center;">حداکثر افت (DD)</th>
-                                <th style="padding:10px 10px;text-align:center;">سود خالص نهایی</th>
-                                <th style="padding:10px 10px;text-align:center;">اقدام سریع</th>
+                            <tr style="background:#1e293b;color:#94a3b8;border-bottom:2px solid #334155;font-size:11.5px;">
+                                <th style="padding:7px 5px;text-align:center;">#</th>
+                                <th style="padding:7px 8px;">سناریوی استراتژی و ویژگی‌ها</th>
+                                <th style="padding:7px 6px;text-align:center;">تنظیمات و سلاطین</th>
+                                <th style="padding:7px 4px;text-align:center;">تعداد</th>
+                                <th style="padding:7px 4px;text-align:center;">وین‌ریت</th>
+                                <th style="padding:7px 4px;text-align:center;">PF</th>
+                                <th style="padding:7px 4px;text-align:center;">متوسط سود</th>
+                                <th style="padding:7px 4px;text-align:center;">Max DD</th>
+                                <th style="padding:7px 6px;text-align:center;">سود خالص</th>
+                                <th style="padding:7px 6px;text-align:center;">اقدام</th>
                             </tr>
                         </thead>
                         <!-- 1. SYSTEM BUILT-IN PRESETS -->
@@ -2158,14 +2165,14 @@ def build_dashboard(custom_csv=None):
                         <!-- 2. USER SAVED CUSTOM PRESETS HEADER -->
                         <tbody id="customPresetsHeaderTbody">
                             <tr style="background:#131d2e;border-top:2px solid #38bdf8;border-bottom:1px solid #1e3a5f;">
-                                <td colspan="11" style="padding:9px 14px;">
+                                <td colspan="10" style="padding:7px 10px;">
                                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                                        <div style="font-weight:bold;color:#38bdf8;font-size:13px;display:flex;align-items:center;gap:6px;">
-                                            <span>⭐ سناریوهای شخصی ذخیره‌شده شما (Your Custom Saved Portfolios):</span>
-                                            <span id="customPresetsCountBadge" style="background:#0c4a6e;color:#7dd3fc;font-size:10.5px;padding:2px 8px;border-radius:10px;">0 سناریو</span>
+                                        <div style="font-weight:bold;color:#38bdf8;font-size:12px;display:flex;align-items:center;gap:6px;">
+                                            <span>⭐ سناریوهای شخصی ذخیره‌شده شما:</span>
+                                            <span id="customPresetsCountBadge" style="background:#0c4a6e;color:#7dd3fc;font-size:10.5px;padding:1px 6px;border-radius:8px;">0 سناریو</span>
                                         </div>
-                                        <div style="font-size:11px;color:#94a3b8;">
-                                            این سناریوها در مرورگر شما ذخیره هستند و حتی با تغییر یا بروزرسانی دیتا، محاسبات آنها فوراً بروز می‌شود.
+                                        <div style="font-size:10.5px;color:#94a3b8;">
+                                            این سناریوها در مرورگر شما پایدارند و با هر دیتای جدید فوراً با همان شرایط بازمحاسبه می‌شوند.
                                         </div>
                                     </div>
                                 </td>
@@ -3762,8 +3769,8 @@ def build_dashboard(custom_csv=None):
             if (badge) badge.textContent = list.length + ' سناریو';
 
             if (list.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:16px;color:#64748b;font-size:12px;background:#06101c;">' +
-                    '💡 هنوز هیچ سناریوی شخصی ذخیره نکرده‌اید. هر زمان فیلترها، اسلایدر یا ساعات را طبق سلیقه خود تغییر دادید، دکمه «💾 ذخیره چیدمان فعلی» را بزنید تا برای همیشه در مرورگر شما ذخیره شود.' +
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:14px;color:#64748b;font-size:11.5px;background:#06101c;">' +
+                    '💡 هنوز هیچ سناریوی شخصی ذخیره نکرده‌اید. با زدن دکمه «💾 ذخیره چیدمان»، تنظیمات فعلی ذخیره خواهد شد.' +
                     '</td></tr>';
                 return;
             }}
@@ -3795,43 +3802,41 @@ def build_dashboard(custom_csv=None):
                 let hoursCnt = p.hours.filter(Boolean).length;
 
                 html += '<tr id="customRow_' + p.id + '" class="preset-table-row" style="border-bottom:1px solid #1e293b;background:#0c192c;transition:all 0.2s;">' +
-                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#38bdf8;">⭐ ' + (i + 1) + '</td>' +
-                    '<td style="padding:10px 12px;">' +
-                        '<div style="font-weight:bold;color:#f1f5f9;font-size:13px;display:flex;align-items:center;gap:6px;">' +
+                    '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12px;">⭐ ' + (i + 1) + '</td>' +
+                    '<td style="padding:7px 8px;">' +
+                        '<div style="font-weight:bold;color:#f1f5f9;font-size:12px;display:flex;align-items:center;gap:4px;">' +
                             '<span>' + p.title + '</span>' +
-                            '<span style="background:#1e3a8a;color:#93c5fd;font-size:10px;padding:1px 6px;border-radius:4px;font-weight:bold;">سفارشی</span>' +
+                            '<span style="background:#1e3a8a;color:#93c5fd;font-size:9.5px;padding:1px 5px;border-radius:4px;font-weight:bold;">سفارشی</span>' +
                         '</div>' +
-                        '<div style="color:#94a3b8;font-size:11px;margin-top:3px;">' + p.desc + '</div>' +
+                        '<div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">' + p.desc + '</div>' +
                     '</td>' +
-                    '<td style="padding:10px 10px;font-size:11.5px;color:#cbd5e1;text-align:center;">' +
-                        '<div>کف سود: <b>$' + p.min_pot.toFixed(2) + '</b> | ساعات: <b>' + hoursCnt + ' ساعت</b></div>' +
+                    '<td style="padding:7px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">' +
+                        '<div>کف سود: <b>$' + p.min_pot.toFixed(2) + '</b> | ' + hoursCnt + ' ساعت</div>' +
+                        '<div style="font-weight:bold;color:#facc15;font-size:10.5px;margin-top:2px;">👑 ' + p.kings.length + ' سلطان فعال</div>' +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 8px;font-size:12px;font-weight:bold;color:#facc15;">' +
-                        p.kings.length + ' سلطان' +
-                    '</td>' +
-                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;font-size:13px;color:#e2e8f0;">' +
+                    '<td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#e2e8f0;">' +
                         c.toLocaleString() +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#34d399;font-size:13px;">' +
+                    '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#34d399;font-size:12px;">' +
                         wr.toFixed(1) + '٪' +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#38bdf8;font-size:13.5px;">' +
+                    '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">' +
                         pfStr +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#c084fc;font-size:13.5px;">' +
+                    '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#facc15;font-size:12.5px;">' +
                         '$' + avg.toFixed(2) +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 8px;font-weight:bold;color:#fca5a5;font-size:12.5px;">' +
+                    '<td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">' +
                         '$' + max_dd.toFixed(2) +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 10px;font-weight:bold;color:' + netCol + ';font-size:15px;background:#064e3b22;">' +
+                    '<td style="text-align:center;padding:7px 6px;font-weight:bold;color:' + netCol + ';font-size:13.5px;background:#064e3b22;white-space:nowrap;">' +
                         (nt >= 0 ? '+' : '') + '$' + nt.toFixed(2) +
                     '</td>' +
-                    '<td style="text-align:center;padding:10px 10px;white-space:nowrap;">' +
-                        '<div style="display:flex;gap:4px;justify-content:center;align-items:center;">' +
-                            '<button data-id="' + p.id + '" onclick="applyCustomPreset(this.dataset.id)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 10px;border-radius:5px;font-size:11.5px;cursor:pointer;font-weight:bold;">⚡ اعمال</button>' +
-                            '<button data-id="' + p.id + '" onclick="updateCustomPresetWithCurrent(this.dataset.id)" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;" title="به‌روزرسانی این سناریو با فیلترهای فعلی چارت">🔄 بروزرسانی</button>' +
-                            '<button data-id="' + p.id + '" onclick="deleteCustomPreset(this.dataset.id)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;" title="حذف سناریو">🗑️</button>' +
+                    '<td style="text-align:center;padding:7px 6px;white-space:nowrap;">' +
+                        '<div style="display:flex;gap:3px;justify-content:center;align-items:center;">' +
+                            '<button data-id="' + p.id + '" onclick="applyCustomPreset(this.dataset.id)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;">⚡ اعمال</button>' +
+                            '<button data-id="' + p.id + '" onclick="updateCustomPresetWithCurrent(this.dataset.id)" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;padding:4px 6px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="به‌روزرسانی این سناریو">🔄</button>' +
+                            '<button data-id="' + p.id + '" onclick="deleteCustomPreset(this.dataset.id)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;padding:4px 6px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="حذف سناریو">🗑️</button>' +
                         '</div>' +
                     '</td>' +
                 '</tr>';
