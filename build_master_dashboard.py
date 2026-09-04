@@ -1143,22 +1143,26 @@ def build_dashboard():
             if hr >= 4: pnl += pts * 4.0 * 0.01
 
         trades_json_list.append({
-            'i': idx,
-            't': r.get('EntryTime', ''),
-            'xt': r.get('ExitTime', ''),
+            'id': idx,
+            'en_t': r.get('EntryTime', ''),
+            'ex_t': r.get('ExitTime', ''),
             'tf': tf,
-            'r': role,
-            'k': is_k,
-            'd': r.get('Direction', 'BUY'),
-            'ep': round(float(r.get('EntryPrice', 0.0)), 5),
+            'role': role,
+            'bname': r.get('BoxName', ''),
+            'is_k': is_k,
+            'dir': r.get('Direction', 'BUY'),
+            'en_p': round(float(r.get('EntryPrice', 0.0)), 5),
             'sl': round(float(r.get('StopLoss', 0.0)), 5),
             'pts': round(pts, 1),
             'tp1': round(float(r.get('TP1', 0.0)), 5),
             'tp2': round(float(r.get('TP2', 0.0)), 5),
             'tp3': round(float(r.get('TP3', 0.0)), 5),
             'tp4': round(float(r.get('TP4', 0.0)), 5),
-            'h': hr,
-            'p': round(pnl, 2)
+            't1': 1 if hr >= 1 else 0,
+            't2': 1 if hr >= 2 else 0,
+            't3': 1 if hr >= 3 else 0,
+            't4': 1 if hr >= 4 else 0,
+            'net': round(pnl, 2)
         })
     json_trades = json.dumps(trades_json_list, separators=(',', ':'))
 
