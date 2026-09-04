@@ -1,0 +1,32 @@
+;+------------------------------------------------------------------+
+;| FlagPro_Trader EA Settings File (.set)                           |
+;| File: FlagPro_EURUSD_LondonNY_WR67_PF2.4_2026-09-04_17-00.set |
+;| Auto-generated from FlagPro Master Strategy Dashboard            |
+;| Date: 2026.09.04 17:00:59 |
+;| Symbol: EURUSD | Scenario: ۳. اسنایپر سشن روزانه لندن و نیویورک (Day Session ☀️) |
+;| Win Rate: 67.2% | Profit Factor: 2.43 |
+;| Active Kings: 20 | Target Folder: Experts/تنظیمات    |
+;+------------------------------------------------------------------+
+InpScenarioName=۳. اسنایپر سشن روزانه لندن و نیویورک (Day Session ☀️)
+InpMinTradePotential=2.00
+InpAllowedTradingHours=
+InpConsecLossTrigger=0
+InpConsecLossAction=0
+InpDisabledKingsList=S-Flag|M15, OInner-BE > RS-BE|M5, S-RS|M1, OInner-BU > RS-BU|M1
+InpOnlyTradeKings=true
+InpEnableScaleOut=true
+InpLot_TP1=0.01
+InpLot_TP2=0.01
+InpLot_TP3=0.01
+InpLot_TP4=0.01
+InpMoveToBreakEven=true
+InpBEBufferPips=1.0
+InpTrailToTP1=true
+InpTrailToTP2=true
+InpMaxOpenGroups=5
+InpMagicNumber=777123
+InpHistoryMode=0
+InpHistoryStartDate=2025.01.01 00:00:00
+InpHistoryDays=365
+InpShowBoxes=false
+InpExportCSV=true

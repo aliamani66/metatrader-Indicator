@@ -1,0 +1,32 @@
+;+------------------------------------------------------------------+
+;| FlagPro_Trader EA Settings File (.set)                           |
+;| File: FlagPro_GBPUSD_UltraLowDDShield_WR65_PF2.2_2026-09-04_17-00.set |
+;| Auto-generated from FlagPro Master Strategy Dashboard            |
+;| Date: 2026.09.04 17:00:59 |
+;| Symbol: GBPUSD | Scenario: ۴. سپر محافظتی کمترین افت سرمایه (Ultra-Low DD Shield 🛡️) |
+;| Win Rate: 65.4% | Profit Factor: 2.20 |
+;| Active Kings: 14 | Target Folder: Experts/تنظیمات    |
+;+------------------------------------------------------------------+
+InpScenarioName=۴. سپر محافظتی کمترین افت سرمایه (Ultra-Low DD Shield 🛡️)
+InpMinTradePotential=2.50
+InpAllowedTradingHours=
+InpConsecLossTrigger=2
+InpConsecLossAction=1
+InpDisabledKingsList=OInner-BE > RS-BE|M1, S-RS|M1, OInner-BE|M1, LS-BE > OInner-BE|M5
+InpOnlyTradeKings=true
+InpEnableScaleOut=true
+InpLot_TP1=0.01
+InpLot_TP2=0.01
+InpLot_TP3=0.01
+InpLot_TP4=0.01
+InpMoveToBreakEven=true
+InpBEBufferPips=1.0
+InpTrailToTP1=true
+InpTrailToTP2=true
+InpMaxOpenGroups=5
+InpMagicNumber=777123
+InpHistoryMode=0
+InpHistoryStartDate=2025.01.01 00:00:00
+InpHistoryDays=365
+InpShowBoxes=false
+InpExportCSV=true

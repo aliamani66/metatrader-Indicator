@@ -1,0 +1,32 @@
+;+------------------------------------------------------------------+
+;| FlagPro_Trader EA Settings File (.set)                           |
+;| File: FlagPro_EURUSD_AllKings24H_WR62_PF2.0_2026-09-04_17-00.set |
+;| Auto-generated from FlagPro Master Strategy Dashboard            |
+;| Date: 2026.09.04 17:00:59 |
+;| Symbol: EURUSD | Scenario: ۵. سبد جامع پایه EURUSD! (تمام سلاطین ۲۴ ساعته 🌐) |
+;| Win Rate: 62.0% | Profit Factor: 1.96 |
+;| Active Kings: 24 | Target Folder: Experts/تنظیمات    |
+;+------------------------------------------------------------------+
+InpScenarioName=۵. سبد جامع پایه EURUSD! (تمام سلاطین ۲۴ ساعته 🌐)
+InpMinTradePotential=0.00
+InpAllowedTradingHours=
+InpConsecLossTrigger=0
+InpConsecLossAction=0
+InpDisabledKingsList=
+InpOnlyTradeKings=true
+InpEnableScaleOut=true
+InpLot_TP1=0.01
+InpLot_TP2=0.01
+InpLot_TP3=0.01
+InpLot_TP4=0.01
+InpMoveToBreakEven=true
+InpBEBufferPips=1.0
+InpTrailToTP1=true
+InpTrailToTP2=true
+InpMaxOpenGroups=5
+InpMagicNumber=777123
+InpHistoryMode=0
+InpHistoryStartDate=2025.01.01 00:00:00
+InpHistoryDays=365
+InpShowBoxes=false
+InpExportCSV=true

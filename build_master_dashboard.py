@@ -3433,6 +3433,104 @@ def process_symbol_dataset(csv_file):
     }
 
 
+
+def export_preset_set_files(symbols_data):
+    repo_root = r"c:\Users\USER\AppData\Roaming\MetaQuotes\Terminal\3F2C3A2F8B221C9D88E569F2FD1D3E97\MQL5"
+    dirs = [
+        os.path.join(repo_root, "Experts", "تنظیمات"),
+        os.path.join(repo_root, "Experts", "Settings")
+    ]
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
+
+    from datetime import datetime
+    now_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    today_date = datetime.now().strftime("%Y.%m.%d %H:%M:%S")
+
+    saved_count = 0
+    for sym, data in symbols_data.items():
+        presets = data.get('smart_presets', [])
+        kings_list = data.get('kings_sim_list', [])
+        all_kings_set = set(k['kk'] for k in kings_list)
+
+        for p in presets:
+            raw_title = p.get('title', 'Custom')
+            clean_title = "Custom"
+            if "محافظه" in raw_title or "Conservative" in raw_title: clean_title = "Conservative"
+            elif "تهاجمی" in raw_title or "Aggressive" in raw_title: clean_title = "Aggressive"
+            elif "طلا" in raw_title or "Golden" in raw_title or "متعادل" in raw_title or "Balanced" in raw_title: clean_title = "GoldenBalance"
+            elif "الماس" in raw_title or "Diamond" in raw_title or "Champion" in raw_title: clean_title = "DiamondKings"
+            elif "حداکثر" in raw_title or "MaxProfit" in raw_title or "Runner" in raw_title: clean_title = "MaxProfit"
+            elif "لندن" in raw_title or "London" in raw_title: clean_title = "LondonNY"
+            elif "سپر" in raw_title or "Shield" in raw_title or "UltraLow" in raw_title or "افت" in raw_title: clean_title = "UltraLowDDShield"
+            elif "سبد" in raw_title or "جامع" in raw_title or "تمام" in raw_title or "پایه" in raw_title: clean_title = "AllKings24H"
+            else: clean_title = "".join(c for c in raw_title if c.isalnum()) or "Preset"
+
+            wr = p.get('wr', 0.0)
+            pf = p.get('pf', 0.0)
+            hours = p.get('hours', [])
+            hours_str = ""
+            if hours and len(hours) < 24:
+                hours_str = ",".join(f"{h:02d}" for h in range(24) if hours[h])
+
+            p_kings = set(p.get('kings', []))
+            disabled_kings = [k for k in all_kings_set if k not in p_kings]
+            disabled_str = ", ".join(disabled_kings)
+
+            action_int = 3 if p.get('consec_day') else (2 if p.get('consec_sk') == 2 else 1)
+            trig_int = p.get('consec_trig', 0)
+            if trig_int <= 0: action_int = 0
+
+            filename = f"FlagPro_{sym}_{clean_title}_WR{round(wr)}_PF{pf:.1f}_{now_str}.set"
+
+            lines = [
+                ";+------------------------------------------------------------------+",
+                ";| FlagPro_Trader EA Settings File (.set)                           |",
+                f";| File: {filename} |",
+                ";| Auto-generated from FlagPro Master Strategy Dashboard            |",
+                f";| Date: {today_date} |",
+                f";| Symbol: {sym} | Scenario: {raw_title} |",
+                f";| Win Rate: {wr:.1f}% | Profit Factor: {pf:.2f} |",
+                f";| Active Kings: {len(p_kings)} | Target Folder: Experts/تنظیمات    |",
+                ";+------------------------------------------------------------------+",
+                f"InpScenarioName={raw_title}",
+                f"InpMinTradePotential={float(p.get('min_pot', 0.0)):.2f}",
+                f"InpAllowedTradingHours={hours_str}",
+                f"InpConsecLossTrigger={trig_int}",
+                f"InpConsecLossAction={action_int}",
+                f"InpDisabledKingsList={disabled_str}",
+                "InpOnlyTradeKings=true",
+                "InpEnableScaleOut=true",
+                "InpLot_TP1=0.01",
+                "InpLot_TP2=0.01",
+                "InpLot_TP3=0.01",
+                "InpLot_TP4=0.01",
+                "InpMoveToBreakEven=true",
+                "InpBEBufferPips=1.0",
+                "InpTrailToTP1=true",
+                "InpTrailToTP2=true",
+                "InpMaxOpenGroups=5",
+                "InpMagicNumber=777123",
+                "InpHistoryMode=0",
+                "InpHistoryStartDate=2025.01.01 00:00:00",
+                "InpHistoryDays=365",
+                "InpShowBoxes=false",
+                "InpExportCSV=true"
+            ]
+            content = "\r\n".join(lines)
+
+            for d in dirs:
+                fp = os.path.join(d, filename)
+                try:
+                    with open(fp, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    saved_count += 1
+                except Exception as e:
+                    pass
+    if saved_count > 0:
+        print(f"📁 ذخیره خودکار {saved_count} فایل تنظیمات (.set) در پوشه Experts/تنظیمات و Experts/Settings انجام شد.")
+
+
 def build_dashboard(custom_csv=None):
     files_dir = os.path.dirname(CSV_PATH_PRIMARY)
     repo_root = r"c:\Users\USER\AppData\Roaming\MetaQuotes\Terminal\3F2C3A2F8B221C9D88E569F2FD1D3E97\MQL5"
@@ -3465,6 +3563,9 @@ def build_dashboard(custom_csv=None):
     if not symbols_data:
         print("❌ هیچ داده معتبری برای تولید داشبورد یافت نشد!")
         return
+
+    # Auto-export smart preset .set files to Experts/تنظیمات
+    export_preset_set_files(symbols_data)
 
     default_sym = 'EURUSD' if 'EURUSD' in symbols_data else list(symbols_data.keys())[0]
     default_data = symbols_data[default_sym]
@@ -5021,38 +5122,49 @@ def build_dashboard(custom_csv=None):
             let cleanTitle = 'Custom';
             if (rawTitle.indexOf('Conservative') >= 0 || rawTitle.indexOf('محافظه') >= 0) cleanTitle = 'Conservative';
             else if (rawTitle.indexOf('Aggressive') >= 0 || rawTitle.indexOf('تهاجمی') >= 0) cleanTitle = 'Aggressive';
-            else if (rawTitle.indexOf('Balanced') >= 0 || rawTitle.indexOf('متعادل') >= 0) cleanTitle = 'Balanced';
-            else if (rawTitle.indexOf('Diamond') >= 0 || rawTitle.indexOf('الماس') >= 0 || rawTitle.indexOf('Champion') >= 0) cleanTitle = 'Diamond';
-            else if (rawTitle.indexOf('MaxProfit') >= 0 || rawTitle.indexOf('حداکثر') >= 0) cleanTitle = 'MaxProfit';
+            else if (rawTitle.indexOf('Golden') >= 0 || rawTitle.indexOf('طلا') >= 0 || rawTitle.indexOf('Balanced') >= 0 || rawTitle.indexOf('متعادل') >= 0) cleanTitle = 'GoldenBalance';
+            else if (rawTitle.indexOf('Diamond') >= 0 || rawTitle.indexOf('الماس') >= 0 || rawTitle.indexOf('Champion') >= 0) cleanTitle = 'DiamondKings';
+            else if (rawTitle.indexOf('MaxProfit') >= 0 || rawTitle.indexOf('حداکثر') >= 0 || rawTitle.indexOf('Runner') >= 0) cleanTitle = 'MaxProfit';
             else if (rawTitle.indexOf('London') >= 0 || rawTitle.indexOf('لندن') >= 0) cleanTitle = 'LondonNY';
-            else if (rawTitle.indexOf('چیدمان') >= 0 || rawTitle.indexOf('فعال') >= 0) cleanTitle = 'Custom';
+            else if (rawTitle.indexOf('سپر') >= 0 || rawTitle.indexOf('Shield') >= 0 || rawTitle.indexOf('UltraLow') >= 0 || rawTitle.indexOf('افت') >= 0) cleanTitle = 'UltraLowDDShield';
+            else if (rawTitle.indexOf('سبد') >= 0 || rawTitle.indexOf('جامع') >= 0 || rawTitle.indexOf('تمام') >= 0 || rawTitle.indexOf('پایه') >= 0) cleanTitle = 'AllKings24H';
+            else if (rawTitle.indexOf('چیدمان') >= 0 || rawTitle.indexOf('فعال') >= 0) cleanTitle = 'ActiveSetup';
             else {{
                 let asciiOnly = rawTitle.replace(/[^a-zA-Z0-9]/g, '');
                 if (asciiOnly.length >= 3 && asciiOnly.toUpperCase() !== sym.toUpperCase()) cleanTitle = asciiOnly;
-                else cleanTitle = 'Custom';
+                else cleanTitle = 'CustomSetup';
             }}
 
             let wrVal = parseFloat(String(cfg.wr).replace(/[^0-9.]/g, '')) || 0;
             let pfVal = parseFloat(String(cfg.pf).replace(/[^0-9.]/g, '')) || 0;
-            let avgVal = parseFloat(String(cfg.avg).replace(/[^0-9.-]/g, '')) || 0;
-            let kingsVal = parseInt(cfg.kings_count) || (cfg.disabled_kings_str ? Math.max(0, kingsSimList.length - cfg.disabled_kings_str.split(',').filter(x => x.trim().length > 0).length) : kingsSimList.length);
 
-            let wrPart = 'WR' + wrVal.toFixed(1).replace('.0', '') + 'pct';
-            let pfPart = 'PF' + pfVal.toFixed(2);
-            let avgPart = 'Avg' + (avgVal >= 0 ? '+' : '') + avgVal.toFixed(2) + 'usd';
-            let kingsPart = kingsVal + 'Kings';
+            let wrPart = 'WR' + Math.round(wrVal);
+            let pfPart = 'PF' + pfVal.toFixed(1);
 
-            return ['FlagPro', sym, cleanTitle, wrPart, pfPart, avgPart, kingsPart].join('_') + '.set';
+            // 📅 Current Date & Time format: YYYY-MM-DD_HH-mm
+            let now = new Date();
+            let y = now.getFullYear();
+            let m = String(now.getMonth() + 1).padStart(2, '0');
+            let d = String(now.getDate()).padStart(2, '0');
+            let hh = String(now.getHours()).padStart(2, '0');
+            let mm = String(now.getMinutes()).padStart(2, '0');
+            let dtPart = y + '-' + m + '-' + d + '_' + hh + '-' + mm;
+
+            return ['FlagPro', sym, cleanTitle, wrPart, pfPart, dtPart].join('_') + '.set';
         }}
 
         function generateSetFileText(cfg) {{
             let sym = (cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD'));
             let filename = buildMT5SetFilename(cfg);
+            let now = new Date();
+            let nowStr = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
             let lines = [
                 ';+------------------------------------------------------------------+',
                 ';| FlagPro_Trader EA Settings File (.set)                           |',
                 ';| File: ' + filename + ' |',
                 ';| Auto-generated from FlagPro Master Strategy Dashboard            |',
+                ';| Date: ' + nowStr + ' |',
+                ';| Target Folder: MQL5/Experts/تنظیمات/ (or Settings/)              |',
                 ';| Symbol: ' + sym + ' | Scenario: ' + cfg.title + ' |',
                 ';| Win Rate: ' + cfg.wr + ' | Profit Factor: ' + cfg.pf + ' |',
                 ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count + ' |',
@@ -5221,6 +5333,119 @@ def build_dashboard(custom_csv=None):
         function closeMT5ExportModal() {{
             let modal = document.getElementById('mt5ExportModal');
             if (modal) modal.style.display = 'none';
+        }}
+
+        function getMT5ExpertsSettingsFolderPath() {{
+            return ['C:', 'Users', 'USER', 'AppData', 'Roaming', 'MetaQuotes', 'Terminal', '3F2C3A2F8B221C9D88E569F2FD1D3E97', 'MQL5', 'Experts', 'تنظیمات'].join(String.fromCharCode(92));
+        }}
+
+        async function openSettingsFolder() {{
+            try {{
+                let resp = await fetch('http://127.0.0.1:8288/open_folder', {{ method: 'POST' }});
+                if (resp.ok) {{
+                    let json = await resp.json();
+                    if (json.success) return;
+                }}
+            }} catch(e) {{}}
+            
+            let path = getMT5ExpertsSettingsFolderPath();
+            if (navigator.clipboard && navigator.clipboard.writeText) {{
+                navigator.clipboard.writeText(path).then(() => {{
+                    alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\n\n' + path + '\n\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
+                }}).catch(() => {{
+                    prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
+                }});
+            }} else {{
+                prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
+            }}
+        }}
+
+        async function saveCurrentMT5SetFileToSettingsFolder() {{
+            if (!currentExportConfig) return;
+            let text = generateSetFileText(currentExportConfig);
+            let filename = buildMT5SetFilename(currentExportConfig);
+            let btn = document.getElementById('btnSaveToSettingsFolder');
+            let ind = document.getElementById('saveStatusIndicator');
+            if (btn) btn.innerHTML = '<span>⏳ در حال ذخیره در پوشه...</span>';
+            if (ind) {{ ind.textContent = 'در حال ذخیره‌سازی...'; ind.style.color = '#facc15'; }}
+
+            // 1. Try local bridge server first
+            try {{
+                let resp = await fetch('http://127.0.0.1:8288/save_set', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ filename: filename, content: text }})
+                }});
+                if (resp.ok) {{
+                    let json = await resp.json();
+                    if (json.success) {{
+                        if (btn) btn.innerHTML = '<span>✅ در تنظیمات ذخیره شد!</span>';
+                        if (ind) {{ ind.textContent = '✅ فایل در Experts/تنظیمات ذخیره شد'; ind.style.color = '#4ade80'; }}
+                        showSaveNotification('فایل تنظیمات <b>' + filename + '</b> با موفقیت در پوشه <b>MQL5/Experts/تنظیمات</b> ذخیره شد.');
+                        setTimeout(() => {{
+                            if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+                        }}, 3500);
+                        return;
+                    }}
+                }}
+            }} catch(e) {{
+                // Bridge server is offline
+            }}
+
+            // 2. Fallback to showSaveFilePicker if supported
+            if (window.showSaveFilePicker) {{
+                try {{
+                    let handle = await window.showSaveFilePicker({{
+                        suggestedName: filename,
+                        types: [{{
+                            description: 'MT5 Expert Settings File (*.set)',
+                            accept: {{ 'text/plain': ['.set'] }}
+                        }}]
+                    }});
+                    let writable = await handle.createWritable();
+                    await writable.write(text);
+                    await writable.close();
+                    if (btn) btn.innerHTML = '<span>✅ ذخیره شد!</span>';
+                    if (ind) {{ ind.textContent = '✅ فایل ذخیره شد'; ind.style.color = '#4ade80'; }}
+                    showSaveNotification('فایل <b>' + filename + '</b> ذخیره شد.');
+                    setTimeout(() => {{
+                        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+                    }}, 3000);
+                    return;
+                }} catch(err) {{
+                    if (err.name === 'AbortError') {{
+                        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+                        return;
+                    }}
+                }}
+            }}
+
+            // 3. Fallback to standard download
+            downloadSetFile(filename, text);
+            if (btn) btn.innerHTML = '<span>📥 فایل دانلود شد</span>';
+            if (ind) {{ ind.textContent = 'فایل دانلود شد (به پوشه تنظیمات منتقل کنید)'; ind.style.color = '#38bdf8'; }}
+            showSaveNotification('فایل <b>' + filename + '</b> دانلود شد. آن را به پوشه <b>MQL5/Experts/تنظیمات</b> منتقل نمایید.');
+            setTimeout(() => {{
+                if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+            }}, 3000);
+        }}
+
+        function showSaveNotification(msg) {{
+            let toast = document.getElementById('flagproGlobalToast');
+            if (!toast) {{
+                toast = document.createElement('div');
+                toast.id = 'flagproGlobalToast';
+                toast.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:9999999;background:rgba(15,23,42,0.95);border:1px solid #10b981;box-shadow:0 10px 25px rgba(0,0,0,0.8);border-radius:8px;padding:12px 18px;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:10px;direction:rtl;max-width:420px;transition:all 0.3s ease;';
+                document.body.appendChild(toast);
+            }}
+            toast.innerHTML = '<span style="font-size:18px;">💾</span><div>' + msg + '</div>';
+            toast.style.display = 'flex';
+            toast.style.opacity = '1';
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {{
+                toast.style.opacity = '0';
+                setTimeout(() => {{ toast.style.display = 'none'; }}, 300);
+            }}, 5000);
         }}
 
         function downloadCurrentMT5SetFile() {{
@@ -7519,13 +7744,22 @@ def build_dashboard(custom_csv=None):
             </div>
 
             <!-- 3 Step Quick Guide -->
-            <div style="background:#1e1b4b22;border:1px solid #6366f1;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:12px;">
-                <div style="font-weight:bold;color:#a5b4fc;margin-bottom:6px;">🚀 نحوه اعمال در متاتریدر ۵ (در ۳ ثانیه):</div>
+            <div style="background:#1e1b4b22;border:1px solid #6366f1;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;">
+                <div style="font-weight:bold;color:#a5b4fc;margin-bottom:6px;">🚀 نحوه اعمال مستقیم در متاتریدر ۵:</div>
                 <ol style="margin:0;padding-right:20px;color:#e2e8f0;line-height:1.8;">
-                    <li>روی دکمه سبز زیر کلیک کنید تا فایل <b><code>.set</code></b> دانلود شود.</li>
+                    <li>روی دکمه سبز <b>«💾 ذخیره تو تنظیمات (.set)»</b> کلیک کنید تا فایل با نام سناریو و تاریخ دقیق در پوشه تنظیمات کنار اکسپرت ذخیره شود.</li>
                     <li>در متاتریدر روی چارت کلید <b>F7</b> را بزنید (یا پنجره تنظیمات FlagPro_Trader را باز کنید).</li>
-                    <li>دکمه <b>Load...</b> را بزنید و این فایل را انتخاب کنید، سپس <b>OK</b> را بزنید. تمام! ✅</li>
+                    <li>دکمه <b>Load...</b> را بزنید و از پوشه <b>تنظیمات</b> فایل را انتخاب کنید. تمام! ✅</li>
                 </ol>
+            </div>
+
+            <!-- Destination Info Box -->
+            <div style="background:#042f2e;border:1px solid #0d9488;border-radius:6px;padding:8px 12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:#ccfbf1;flex-wrap:wrap;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span>📁 ذخیره در پوشه کنار اکسپرت:</span>
+                    <span style="font-family:Consolas, monospace;color:#facc15;direction:ltr;display:inline-block;font-weight:bold;">MQL5\\Experts\\تنظیمات\\</span>
+                </div>
+                <span id="saveStatusIndicator" style="color:#5eead4;font-size:11px;">آماده ذخیره‌سازی</span>
             </div>
 
             <!-- Preview Code Box (Collapsible) -->
@@ -7536,13 +7770,21 @@ def build_dashboard(custom_csv=None):
 
             <!-- Modal Action Buttons -->
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                <button onclick="copyMT5ConfigText()" style="background:#1e293b;border:1px solid #64748b;color:#f1f5f9;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;">
-                    <span>📋 کپی متن کانفیگ</span>
-                </button>
-                <div style="display:flex;gap:8px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button onclick="copyMT5ConfigText()" style="background:#1e293b;border:1px solid #64748b;color:#f1f5f9;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                        <span>📋 کپی متن</span>
+                    </button>
+                    <button onclick="openSettingsFolder()" id="btnOpenSettingsFolder" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="باز کردن مستقیم پوشه تنظیمات در ویندوز">
+                        <span>📂 باز کردن پوشه تنظیمات</span>
+                    </button>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button onclick="closeMT5ExportModal()" style="background:#1e293b;border:1px solid #475569;color:#cbd5e1;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;">بستن</button>
-                    <button onclick="downloadCurrentMT5SetFile()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;gap:6px;">
-                        <span>📥 دانلود فایل تنظیمات متاتریدر (.set)</span>
+                    <button onclick="downloadCurrentMT5SetFile()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="دانلود معمولی فایل از مرورگر">
+                        <span>📥 دانلود فایل</span>
+                    </button>
+                    <button onclick="saveCurrentMT5SetFileToSettingsFolder()" id="btnSaveToSettingsFolder" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;gap:6px;">
+                        <span>💾 ذخیره تو تنظیمات (.set)</span>
                     </button>
                 </div>
             </div>
