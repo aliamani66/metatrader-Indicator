@@ -1071,6 +1071,343 @@ def build_dashboard(custom_csv=None):
     top_consistent_box = consistency_list[0]['box'] if consistency_list else 'N/A'
 
     # =========================================================================
+    # MULTI-PERIOD CONSISTENCY & GOLDEN INTERSECTION ENGINE (1M, 2M, 3M, 6M, 9M, 1Y)
+    # =========================================================================
+    def get_period_key(dt, p_type):
+        yr = dt.year
+        m = dt.month
+        if p_type == '1M': return f"{yr}-{m:02d}"
+        elif p_type == '2M': return f"{yr}-B{(m - 1) // 2 + 1}"
+        elif p_type == '3M': return f"{yr}-Q{(m - 1) // 3 + 1}"
+        elif p_type == '6M': return f"{yr}-H{1 if m <= 6 else 2}"
+        elif p_type == '9M': return f"9M-P{((yr - 2025) * 12 + (m - 1)) // 9 + 1}"
+        elif p_type == '1Y': return f"{yr}"
+        return f"{yr}"
+
+    period_configs = [
+        ('1M', 'بازه ۱ ماهه (Monthly)', '۲۱ ماه مجزا از ابتدای ۲۰۲۵ تا سپتامبر ۲۰۲۶'),
+        ('2M', 'بازه ۲ ماهه (Bi-Monthly)', '۱۱ دوره دو ماهه متوالی'),
+        ('3M', 'بازه ۳ ماهه / فصلی (Quarterly)', '۷ فصل کامل'),
+        ('6M', 'بازه ۶ ماهه / نیم‌سال (Semi-Annual)', '۴ نیم‌سال'),
+        ('9M', 'بازه ۹ ماهه (9-Month)', '۳ دوره نه ماهه'),
+        ('1Y', 'بازه ۱ ساله (Annual)', 'دوره‌های سالانه بازار')
+    ]
+
+    # Group trades by (Role, TF)
+    box_trades_map = defaultdict(list)
+    for r in closed:
+        et = r.get('EntryTime', '')
+        if not et or et == 'None': continue
+        try:
+            dt = datetime.strptime(et, "%Y.%m.%d %H:%M")
+            role = r.get('Role', 'Unknown')
+            tf = r.get('Timeframe', 'M1')
+            box_trades_map[(role, tf)].append((dt, r))
+        except:
+            continue
+
+    mp_period_data = {}
+    for pt, ptitle, pdesc in period_configs:
+        all_p_set = set()
+        b_p_pnl = defaultdict(lambda: defaultdict(float))
+        b_p_cnt = defaultdict(lambda: defaultdict(int))
+        b_p_win = defaultdict(lambda: defaultdict(int))
+        b_p_sl  = defaultdict(lambda: defaultdict(int))
+
+        for (role, tf), t_list in box_trades_map.items():
+            b_key = f"{role} [{tf}]"
+            for dt, r in t_list:
+                pkey = get_period_key(dt, pt)
+                all_p_set.add(pkey)
+                pnl = calc_scaleout_pnl(r)
+                b_p_pnl[b_key][pkey] += pnl
+                b_p_cnt[b_key][pkey] += 1
+                hr = int(r.get('HitTargetRatio', 0))
+                if hr >= 1: b_p_win[b_key][pkey] += 1
+                elif hr == 0: b_p_sl[b_key][pkey] += 1
+
+        tot_p_cnt = len(all_p_set)
+        b_list = []
+        for (role, tf), t_list in box_trades_map.items():
+            b_key = f"{role} [{tf}]"
+            p_dict = b_p_cnt[b_key]
+            act_p = len(p_dict)
+            if act_p < 2 and pt in ['1M', '2M', '3M'] and len(t_list) < 4:
+                continue
+
+            green_c = sum(1 for pk, pnl in b_p_pnl[b_key].items() if pnl > 0.05)
+            red_c   = sum(1 for pk, pnl in b_p_pnl[b_key].items() if pnl < -0.05)
+            tot_pnl = sum(b_p_pnl[b_key].values())
+            tot_t   = sum(b_p_cnt[b_key].values())
+            tot_w   = sum(b_p_win[b_key].values())
+            tot_s   = sum(b_p_sl[b_key].values())
+
+            wr   = (tot_w / tot_t * 100) if tot_t else 0
+            sl_r = (tot_s / tot_t * 100) if tot_t else 0
+            cons = (green_c / act_p * 100) if act_p else 0
+            is_k = (role, tf) in king_keys
+
+            b_list.append({
+                'role': role, 'tf': tf, 'b_key': b_key,
+                'is_king': is_k,
+                'active_p': act_p, 'tot_p': tot_p_cnt,
+                'green': green_c, 'red': red_c, 'cons': cons,
+                'net': tot_pnl, 'trades': tot_t, 'wr': wr, 'sl_r': sl_r
+            })
+
+        b_list.sort(key=lambda x: (x['is_king'], x['cons'] >= 65, x['green'], x['net']), reverse=True)
+        mp_period_data[pt] = {
+            'title': ptitle, 'desc': pdesc, 'tot_p': tot_p_cnt, 'boxes': b_list
+        }
+
+    # Golden Intersection
+    mp_intersection_list = []
+    for (role, tf) in box_trades_map:
+        b_key = f"{role} [{tf}]"
+        b1 = next((x for x in mp_period_data['1M']['boxes'] if x['b_key'] == b_key), None)
+        b3 = next((x for x in mp_period_data['3M']['boxes'] if x['b_key'] == b_key), None)
+        b6 = next((x for x in mp_period_data['6M']['boxes'] if x['b_key'] == b_key), None)
+        b1y = next((x for x in mp_period_data['1Y']['boxes'] if x['b_key'] == b_key), None)
+
+        if b1 and b3 and b6 and b1y and b1['net'] > 20.0 and b1['cons'] >= 50.0 and b3['cons'] >= 60.0:
+            all_weather_score = (b1['cons'] * 0.35) + (b3['cons'] * 0.30) + (b6['cons'] * 0.20) + (b1y['cons'] * 0.15)
+            mp_intersection_list.append({
+                'role': role, 'tf': tf, 'b_key': b_key,
+                'is_king': (role, tf) in king_keys,
+                'b1': b1, 'b3': b3, 'b6': b6, 'b1y': b1y,
+                'score': all_weather_score,
+                'net': b1['net'], 'wr': b1['wr'], 'sl_r': b1['sl_r'], 'trades': b1['trades']
+            })
+
+    mp_intersection_list.sort(key=lambda x: (x['score'], x['net']), reverse=True)
+
+    # Generate HTML for Intersection Table Rows
+    mp_intersection_rows_html = []
+    for idx, k in enumerate(mp_intersection_list, 1):
+        k_tag = "👑 سلطان" if k['is_king'] else "سایر"
+        k_color = "#facc15" if k['is_king'] else "#94a3b8"
+        pnl_col = "#00e676" if k['net'] >= 0 else "#ef4444"
+        badge = "💎 الماس ضدضربه" if k['score'] >= 90 else ("⭐ طلایی همه‌فصول" if k['score'] >= 80 else "🟢 باثبات دائم")
+        badge_bg = "#064e3b" if k['score'] >= 90 else ("#1e3a8a" if k['score'] >= 80 else "#451a03")
+        badge_col = "#34d399" if k['score'] >= 90 else ("#93c5fd" if k['score'] >= 80 else "#fca5a5")
+
+        mp_intersection_rows_html.append(f"""
+        <tr class="mp-row" data-tf="{k['tf']}" style="border-bottom:1px solid #1e293b;">
+            <td style="text-align:center;font-weight:bold;color:#94a3b8;">#{idx}</td>
+            <td style="font-weight:bold;color:{k_color};">{k['b_key']}</td>
+            <td style="text-align:center;"><span style="background:{'#854d0e' if k['is_king'] else '#1e293b'};color:{k_color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">{k_tag}</span></td>
+            <td style="text-align:center;font-weight:bold;color:#38bdf8;font-size:14px;background:#0c253d;">{k['score']:.1f}</td>
+            <td style="text-align:center;color:#34d399;font-weight:bold;">{k['b1']['green']}/{k['b1']['active_p']} ({k['b1']['cons']:.0f}%)</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;">{k['b3']['green']}/{k['b3']['active_p']} ({k['b3']['cons']:.0f}%)</td>
+            <td style="text-align:center;color:#c084fc;font-weight:bold;">{k['b6']['green']}/{k['b6']['active_p']} ({k['b6']['cons']:.0f}%)</td>
+            <td style="text-align:center;color:#fbbf24;font-weight:bold;">{k['b1y']['green']}/{k['b1y']['active_p']} ({k['b1y']['cons']:.0f}%)</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">{k['wr']:.1f}%</td>
+            <td style="text-align:center;color:#ef4444;">{k['sl_r']:.1f}%</td>
+            <td style="text-align:center;font-weight:bold;">{k['trades']}</td>
+            <td style="text-align:center;font-weight:bold;color:{pnl_col};font-size:13.5px;">${k['net']:+.2f}</td>
+            <td style="text-align:center;"><span style="background:{badge_bg};color:{badge_col};padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">{badge}</span></td>
+        </tr>
+        """)
+
+    # Generate HTML for each Horizon's Table Rows
+    mp_tables_html = {}
+    for pt in ['1M', '2M', '3M', '6M', '9M', '1Y']:
+        b_rows = []
+        for idx, b in enumerate(mp_period_data[pt]['boxes'], 1):
+            k_tag = "👑 سلطان" if b['is_king'] else "سایر"
+            k_color = "#facc15" if b['is_king'] else "#94a3b8"
+            pnl_col = "#00e676" if b['net'] >= 0 else "#ef4444"
+            prog_col = "#10b981" if b['cons'] >= 75 else ("#38bdf8" if b['cons'] >= 60 else "#f59e0b")
+            badge = "💎 عالی" if b['cons'] >= 80 else ("⭐ خوب" if b['cons'] >= 65 else "⚠️ نوسانی")
+            badge_bg = "#064e3b" if b['cons'] >= 80 else ("#1e3a8a" if b['cons'] >= 65 else "#451a03")
+            badge_col = "#34d399" if b['cons'] >= 80 else ("#93c5fd" if b['cons'] >= 65 else "#fca5a5")
+
+            b_rows.append(f"""
+            <tr class="mp-row" data-tf="{b['tf']}" style="border-bottom:1px solid #1e293b;">
+                <td style="text-align:center;font-weight:bold;color:#94a3b8;">#{idx}</td>
+                <td style="font-weight:bold;color:{k_color};">{b['b_key']}</td>
+                <td style="text-align:center;"><span style="background:{'#854d0e' if b['is_king'] else '#1e293b'};color:{k_color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">{k_tag}</span></td>
+                <td style="text-align:center;">
+                    <div style="display:flex;align-items:center;gap:8px;justify-content:center;">
+                        <span style="font-weight:bold;color:{prog_col};min-width:42px;">{b['cons']:.1f}%</span>
+                        <div style="width:70px;background:#1e293b;border-radius:10px;height:7px;overflow:hidden;border:1px solid #334155;">
+                            <div style="width:{b['cons']}%;background:{prog_col};height:100%;"></div>
+                        </div>
+                    </div>
+                </td>
+                <td style="text-align:center;color:#34d399;font-weight:bold;">{b['green']} از {b['active_p']} دوره 🟢</td>
+                <td style="text-align:center;color:#ef4444;font-weight:bold;">{b['red']} 🔴</td>
+                <td style="text-align:center;color:#00e676;font-weight:bold;">{b['wr']:.1f}%</td>
+                <td style="text-align:center;color:#ef4444;">{b['sl_r']:.1f}%</td>
+                <td style="text-align:center;font-weight:bold;">{b['trades']}</td>
+                <td style="text-align:center;font-weight:bold;color:{pnl_col};font-size:13.5px;">${b['net']:+.2f}</td>
+                <td style="text-align:center;"><span style="background:{badge_bg};color:{badge_col};padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">{badge}</span></td>
+            </tr>
+            """)
+        
+        mp_tables_html[pt] = "".join(b_rows)
+
+    # Build the complete pre-rendered Multi-Period HTML section
+    mp_panels_list = []
+    for pt in ['1M', '2M', '3M', '6M', '9M', '1Y']:
+        p_info = mp_period_data[pt]
+        mp_panels_list.append(f"""
+        <div id="panel-horizon-{pt}" class="horizon-view-panel" style="display:none;">
+            <div class="section-box" style="border: 1px solid #38bdf8; background: #0c182c; margin-bottom: 0;">
+                <div style="border-bottom: 1px solid #1e3a5f; padding-bottom: 14px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="margin:0;color:#38bdf8;font-size:18px;display:flex;align-items:center;gap:8px;">
+                            <span>📅</span> جدول رتبه‌بندی سلاطین در {p_info['title']} ({p_info['tot_p']} دوره)
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">{p_info['desc']}:</p>
+                    </div>
+                    <span style="background:#0c4a6e;color:#7dd3fc;font-size:12px;padding:4px 10px;border-radius:8px;font-weight:bold;">
+                        📊 {len(p_info['boxes'])} الگوی فعال در این افق
+                    </span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;font-size:12.5px;">
+                        <thead>
+                            <tr style="background:#1e293b;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th>نام ساختار / تلاقی گره</th>
+                                <th style="text-align:center;">وضعیت</th>
+                                <th style="text-align:center;color:#38bdf8;">پایداری دوره‌ای (Consistency)</th>
+                                <th style="text-align:center;color:#34d399;">دوره‌های مثبت (سبز)</th>
+                                <th style="text-align:center;color:#ef4444;">دوره‌های منفی (قرمز)</th>
+                                <th style="text-align:center;color:#00e676;">وین‌ریت TP1</th>
+                                <th style="text-align:center;color:#ef4444;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;">تعداد ترید</th>
+                                <th style="text-align:center;color:#00e676;background:#064e3b44;">سود خالص واقعی</th>
+                                <th style="text-align:center;">ارزیابی</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {mp_tables_html[pt]}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        """)
+
+    mp_full_html_section = f"""
+    <!-- Sub-Navigation Toggle for Kings View -->
+    <div style="display:flex;gap:10px;margin-bottom:18px;border-bottom:1px solid #334155;padding-bottom:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="kings-sub-btn active" id="btnKingsMulti" onclick="switchKingsSubView('multi', this)" style="background:#0284c7;border:1px solid #38bdf8;color:#fff;padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;box-shadow:0 0 12px rgba(56,189,248,0.3);">
+                <span>🌟</span> کالبدشکافی چندبازه‌ای و اشتراک طلایی (1M, 2M, 3M, 6M, 9M, 1Y)
+            </button>
+            <button class="kings-sub-btn" id="btnKingsAllTime" onclick="switchKingsSubView('alltime', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;">
+                <span>🏛️</span> جدول جامع رتبه‌بندی شاخص سلطان (کل تاریخچه ۲۰ ماهه)
+            </button>
+        </div>
+        <div style="font-size:11.5px;color:#94a3b8;">
+            کالبدشکافی پیوسته تمام دوره‌ها از <b>۲۰۲۵.۰۱.۰۱ تا ۲۰۲۶.۰۹.۰۴</b>
+        </div>
+    </div>
+
+    <!-- VIEW 1: MULTI-PERIOD & GOLDEN INTERSECTION -->
+    <div id="kingsViewMulti">
+        <!-- Controls Bar: Horizon Switcher & Timeframe Filter -->
+        <div style="background:#0b1322;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:18px;box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+                <div>
+                    <h4 style="margin:0;color:#facc15;font-size:15px;display:flex;align-items:center;gap:6px;">
+                        <span>⏱️</span> انتخاب افق زمانی کالبدشکافی پایداری سلاطین:
+                    </h4>
+                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:11.5px;">
+                        سنجش استقامت و ثبات سودآوری الگوها در دوره‌های ۱ ماهه، ۲ ماهه، فصلی، نیم‌سال، ۹ ماهه، سالانه و اشتراک همه‌فصول:
+                    </p>
+                </div>
+                <!-- Timeframe Filter Pills -->
+                <div style="display:flex;align-items:center;gap:6px;background:#081424;padding:4px 8px;border-radius:6px;border:1px solid #1e293b;">
+                    <span style="font-size:11px;color:#94a3b8;font-weight:bold;">فیلتر تایم:</span>
+                    <button class="tf-filter-btn active" onclick="filterHorizonTF('ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;">همه</button>
+                    <button class="tf-filter-btn" onclick="filterHorizonTF('M15', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;">M15</button>
+                    <button class="tf-filter-btn" onclick="filterHorizonTF('M5', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;">M5</button>
+                    <button class="tf-filter-btn" onclick="filterHorizonTF('M1', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;">M1</button>
+                </div>
+            </div>
+
+            <!-- Horizon Pill Buttons -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="horizon-pill-btn active" onclick="showHorizonView('INTERSECTION', this)" style="background:#0284c7;border:1px solid #38bdf8;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;box-shadow:0 0 10px rgba(56,189,248,0.3);">
+                    🌟 اشتراک طلایی (همه‌فصول)
+                </button>
+                <button class="horizon-pill-btn" onclick="showHorizonView('1M', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;">
+                    📅 ۱ ماهه (Monthly - 21 دوره)
+                </button>
+                <button class="horizon-pill-btn" onclick="showHorizonView('2M', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;">
+                    📅 ۲ ماهه (Bi-Monthly - 11 دوره)
+                </button>
+                <button class="horizon-pill-btn" onclick="showHorizonView('3M', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;">
+                    📅 ۳ ماهه / فصلی (Quarterly - 7 فصل)
+                </button>
+                <button class="horizon-pill-btn" onclick="showHorizonView('6M', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;">
+                    📅 ۶ ماهه / نیم‌سال (Semi-Annual - 4 دوره)
+                </button>
+                <button class="horizon-pill-btn" onclick="showHorizonView('9M', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;">
+                    📅 ۹ ماهه (9-Month - 3 دوره)
+                </button>
+                <button class="horizon-pill-btn" onclick="showHorizonView('1Y', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;">
+                    📅 ۱ ساله (Annual - سالانه)
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel: All-Weather Golden Intersection -->
+        <div id="panel-horizon-INTERSECTION" class="horizon-view-panel" style="display:block;">
+            <div class="section-box" style="border: 1px solid #facc15; background: #131b2e; margin-bottom: 0;">
+                <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="margin:0;color:#facc15;font-size:19px;display:flex;align-items:center;gap:8px;">
+                            <span>👑</span> جدول اشتراک طلایی سلاطین همه‌فصول (All-Weather Golden Intersection)
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">
+                            این الگوها در <b>تک‌تک افق‌های کوتاه‌مدت (۱ ماهه)، فصلی (۳ ماهه)، نیم‌سال (۶ ماهه) و سالانه (۱ ساله)</b> همواره سبز، پایدار و با کمترین نوسان دراداون بوده‌اند:
+                        </p>
+                    </div>
+                    <span style="background:#854d0e;color:#fef08a;font-size:12px;padding:4px 10px;border-radius:8px;font-weight:bold;">
+                        🏆 {len(mp_intersection_list)} سلطان ضدضربه
+                    </span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;font-size:12.5px;">
+                        <thead>
+                            <tr style="background:#1e293b;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th>نام ساختار / تلاقی گره</th>
+                                <th style="text-align:center;">وضعیت</th>
+                                <th style="text-align:center;color:#38bdf8;" title="امتیاز پایداری ترکیبی در تمام افق‌های زمانی">شاخص همه‌فصول (Score)</th>
+                                <th style="text-align:center;color:#34d399;">ثبات ۱ ماهه (1M)</th>
+                                <th style="text-align:center;color:#38bdf8;">ثبات فصلی (3M)</th>
+                                <th style="text-align:center;color:#c084fc;">ثبات نیم‌سال (6M)</th>
+                                <th style="text-align:center;color:#fbbf24;">ثبات سالانه (1Y)</th>
+                                <th style="text-align:center;color:#00e676;">وین‌ریت کلی</th>
+                                <th style="text-align:center;color:#ef4444;">نرخ استاپ</th>
+                                <th style="text-align:center;">تعداد ترید</th>
+                                <th style="text-align:center;color:#00e676;background:#064e3b44;">سود خالص واقعی</th>
+                                <th style="text-align:center;">ارزیابی پایداری</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(mp_intersection_rows_html)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {''.join(mp_panels_list)}
+    </div> <!-- End kingsViewMulti -->
+    """
+
+
+
+    # =========================================================================
     # EQUITY & BALANCE CURVE ENGINE (منحنی رشد سرمایه و بالانس به سبک متاتریدر)
     # =========================================================================
     sorted_closed = sorted(closed, key=lambda x: x.get('ExitTime', x.get('EntryTime', '')))
@@ -2621,6 +2958,10 @@ def build_dashboard(custom_csv=None):
                 </div>
             </div>
 
+            {mp_full_html_section}
+
+            <!-- VIEW 2: ALL-TIME 7-PILLAR SCORE -->
+            <div id="kingsViewAllTime" style="display:none;">
             <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
                 <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
                     <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب بر مبنای شاخص ترکیبی و تفکیک تایم‌فریم</h3>
@@ -2677,6 +3018,7 @@ def build_dashboard(custom_csv=None):
                     </table>
                 </div>
             </div>
+            </div> <!-- End kingsViewAllTime -->
         </div>
 
         <!-- ==================== TAB: 📑 TRADES JOURNAL & EXIT POINTS ==================== -->
@@ -5673,6 +6015,76 @@ def build_dashboard(custom_csv=None):
             setTimeout(() => {{
                 drawEquityChart();
             }}, 50);
+        }}
+
+        
+        function switchKingsSubView(viewMode, el) {{
+            document.querySelectorAll('.kings-sub-btn').forEach(b => {{
+                b.style.background = '#0f172a';
+                b.style.borderColor = '#334155';
+                b.style.color = '#94a3b8';
+                b.style.boxShadow = 'none';
+            }});
+            el.style.background = '#0284c7';
+            el.style.borderColor = '#38bdf8';
+            el.style.color = '#fff';
+            el.style.boxShadow = '0 0 12px rgba(56,189,248,0.3)';
+
+            let vMulti = document.getElementById('kingsViewMulti');
+            let vAll = document.getElementById('kingsViewAllTime');
+            if(vMulti) vMulti.style.display = (viewMode === 'multi') ? 'block' : 'none';
+            if(vAll) vAll.style.display = (viewMode === 'alltime') ? 'block' : 'none';
+        }}
+
+        let currentHorizon = 'INTERSECTION';
+        let currentHorizonTF = 'ALL';
+
+        function showHorizonView(hKey, el) {{
+            currentHorizon = hKey;
+            document.querySelectorAll('.horizon-pill-btn').forEach(b => {{
+                b.style.background = '#0f172a';
+                b.style.borderColor = '#334155';
+                b.style.color = '#94a3b8';
+                b.style.boxShadow = 'none';
+            }});
+            el.style.background = '#0284c7';
+            el.style.borderColor = '#38bdf8';
+            el.style.color = '#fff';
+            el.style.boxShadow = '0 0 10px rgba(56,189,248,0.3)';
+
+            document.querySelectorAll('.horizon-view-panel').forEach(p => p.style.display = 'none');
+            let targetPanel = document.getElementById('panel-horizon-' + hKey);
+            if(targetPanel) targetPanel.style.display = 'block';
+
+            applyHorizonFilters();
+        }}
+
+        function filterHorizonTF(tf, el) {{
+            currentHorizonTF = tf;
+            document.querySelectorAll('.tf-filter-btn').forEach(b => {{
+                b.style.background = '#1e293b';
+                b.style.color = '#94a3b8';
+                b.style.fontWeight = 'normal';
+            }});
+            el.style.background = '#0284c7';
+            el.style.color = '#fff';
+            el.style.fontWeight = 'bold';
+
+            applyHorizonFilters();
+        }}
+
+        function applyHorizonFilters() {{
+            let activePanel = document.getElementById('panel-horizon-' + currentHorizon);
+            if(!activePanel) return;
+            let rows = activePanel.querySelectorAll('.mp-row');
+            rows.forEach(r => {{
+                let rTF = r.getAttribute('data-tf');
+                if(currentHorizonTF === 'ALL' || rTF === currentHorizonTF) {{
+                    r.style.display = '';
+                }} else {{
+                    r.style.display = 'none';
+                }}
+            }});
         }}
 
         function openTab(evt, tabId) {{
