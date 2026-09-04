@@ -94,10 +94,32 @@ function toggleSidebar() {
         
         
 // App Initialization
-window.addEventListener('DOMContentLoaded', function() {
+function initApp() {
+    try {
+        if (localStorage.getItem('flagpro_sidebar_collapsed') === 'true') {
+            let sb = document.getElementById('mainSidebar');
+            let icon = document.getElementById('btnToggleSidebarIcon');
+            let txt = document.getElementById('btnToggleSidebarText');
+            if (sb) sb.classList.add('collapsed');
+            if (icon) icon.textContent = '📑';
+            if (txt) txt.textContent = 'نمایش منو';
+        }
+    } catch(e) {}
+
     if (typeof initPersistedSymbols === 'function') initPersistedSymbols();
     if (typeof switchDashboardSymbol === 'function' && typeof currentActiveSymbol !== 'undefined') {
         switchDashboardSymbol(currentActiveSymbol);
     }
+    if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents();
+    if (typeof initSimUI === 'function') initSimUI();
+    if (typeof renderTrades === 'function') renderTrades();
     if (typeof initTesterCompareTab === 'function') initTesterCompareTab();
-});
+    if (typeof drawEquityChart === 'function') drawEquityChart();
+    if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
+        drawWeeklyBarChart(currentWeeklyBarMode);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+window.addEventListener('load', initApp);
+

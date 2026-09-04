@@ -211,22 +211,4 @@ function setTrFilter(key, val, btnElem) {
             if (btnP) btnP.disabled = (curPage <= 1);
             if (btnN) btnN.disabled = (curPage >= totalPages);
         }
-
-        // Initial render of trades journal and simulator
-        setTimeout(() => {
-            try {
-                if (localStorage.getItem('flagpro_sidebar_collapsed') === 'true') {
-                    let sb = document.getElementById('mainSidebar');
-                    let icon = document.getElementById('btnToggleSidebarIcon');
-                    let txt = document.getElementById('btnToggleSidebarText');
-                    if (sb) sb.classList.add('collapsed');
-                    if (icon) icon.textContent = '📑';
-                    if (txt) txt.textContent = 'نمایش منو';
-                }
-            } catch(e) {}
-            initPersistedSymbols();
-            initEquityCanvasEvents();
-            initSimUI();
-            renderTrades();
-        }, 60);
     
