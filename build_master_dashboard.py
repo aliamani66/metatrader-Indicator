@@ -71,6 +71,9 @@ def build_dashboard():
     dates = [r.get('BoxTimeStart') for r in rows if r.get('BoxTimeStart') and r.get('BoxTimeStart') != 'None']
     min_date = min(dates) if dates else 'نامشخص'
     max_date = max(dates) if dates else 'نامشخص'
+    entry_dates = [r.get('EntryTime', '') for r in closed if r.get('EntryTime')]
+    date_start_str = min(entry_dates)[:10] if entry_dates else min_date
+    date_end_str = max(entry_dates)[:10] if entry_dates else max_date
 
     # Filter evaluation
     accepted_trades = []
@@ -810,6 +813,7 @@ def build_dashboard():
             continue
 
     sorted_wk_keys = sorted(weekly_data.keys())
+    total_weeks = len(sorted_wk_keys)
 
     # 1. Weekly Consistency Ranking for All Boxes
     consistency_list = []
@@ -1400,7 +1404,7 @@ def build_dashboard():
 
         <!-- 📑 TABS NAVIGATION BAR -->
         <div class="tabs-nav">
-            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین برگزیده (۲۱ گره)</button>
+            <button class="tab-btn active" onclick="openTab(event, 'tab-kings')">👑 سلاطین برگزیده ({len(qualified_kings)} گره)</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-trades')">📑 ژورنال معاملات و نقاط خروج</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-equity')">📈 نمودار رشد و اکوئیتی</button>
             <button class="tab-btn" onclick="openTab(event, 'tab-scaleout')">💎 خروج پلکانی و بریک‌ایون (0.04)</button>
@@ -1418,7 +1422,7 @@ def build_dashboard():
                 <div class="kpi-card" style="border-color:#38bdf8;padding:10px 14px;">
                     <div class="kpi-title" style="font-size:11px;">💵 بالانس شروع حساب</div>
                     <div class="kpi-value" style="color:#f1f5f9;font-size:20px;">${bal_initial:,.2f}</div>
-                    <div class="kpi-sub" style="font-size:10px;">شروع از ۹ مارس ۲۰۲۶</div>
+                    <div class="kpi-sub" style="font-size:10px;">شروع از {date_start_str}</div>
                 </div>
                 <div class="kpi-card" style="border-color:#00e676;padding:10px 14px;">
                     <div class="kpi-title" style="font-size:11px;">📈 بالانس نهایی شبیه‌سازی</div>
@@ -1437,12 +1441,12 @@ def build_dashboard():
                 </div>
                 <div class="kpi-card" style="border-color:#38bdf8;padding:10px 14px;">
                     <div class="kpi-title" style="font-size:11px;">⚖️ پرافیت فاکتور (PF)</div>
-                    <div class="kpi-value" id="eqKpiPF" style="color:#38bdf8;font-size:20px;">2.44</div>
+                    <div class="kpi-value" id="eqKpiPF" style="color:#38bdf8;font-size:20px;">{s3_pf:.2f}</div>
                     <div class="kpi-sub" id="eqKpiPFSub" style="font-size:10px;">نسبت سود ناخالص به ضرر</div>
                 </div>
                 <div class="kpi-card" style="border-color:#10b981;padding:10px 14px;">
                     <div class="kpi-title" style="font-size:11px;">🎯 وین‌ریت پله ۱ (WinRate)</div>
-                    <div class="kpi-value" id="eqKpiWR" style="color:#34d399;font-size:20px;">66.5%</div>
+                    <div class="kpi-value" id="eqKpiWR" style="color:#34d399;font-size:20px;">{d_tot_kings['w1_p']:.1f}%</div>
                     <div class="kpi-sub" id="eqKpiWRSub" style="font-size:10px;">نرخ موفقیت حداقل ۱R</div>
                 </div>
                 <div class="kpi-card" style="border-color:#eab308;padding:10px 14px;">
@@ -1475,8 +1479,8 @@ def build_dashboard():
                 <div style="margin-bottom:18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
                         <div style="font-weight:bold;color:#facc15;font-size:13px;display:flex;align-items:center;gap:6px;">
-                            <span>👑 فیلتر سلاطین منتخب (انتخاب تک‌تک یا گروهی ۲۱ گره برتر):</span>
-                            <span id="simKingsCountLabel" style="background:#854d0e;color:#fef08a;font-size:11px;padding:2px 8px;border-radius:10px;">۲۱ از ۲۱ سلطان فعال</span>
+                            <span>👑 فیلتر سلاطین منتخب (انتخاب تک‌تک یا گروهی {len(qualified_kings)} گره برتر):</span>
+                            <span id="simKingsCountLabel" style="background:#854d0e;color:#fef08a;font-size:11px;padding:2px 8px;border-radius:10px;">{len(qualified_kings)} از {len(qualified_kings)} سلطان فعال</span>
                         </div>
                         <div style="display:flex;gap:6px;flex-wrap:wrap;">
                             <button onclick="selectAllKings(true)" style="background:#064e3b;border:1px solid #059669;color:#34d399;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:bold;">🟢 انتخاب همه</button>
@@ -1571,7 +1575,7 @@ def build_dashboard():
                         <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">رسم دقیق منحنی رشد سرمایه معامله به معامله در طول زمان ۶ ماهه - موس را روی نمودار حرکت دهید تا جزئیات هر معامله را ببینید:</p>
                     </div>
                     <div style="display:flex;gap:8px;">
-                        <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین ۲۱ گانه ({len(pts_kings)-1} معامله)</button>
+                        <button id="btnEqKings" class="sort-btn active" onclick="switchEquityMode('kings')">👑 منحنی سلاطین {len(qualified_kings)} گانه ({len(pts_kings)-1} معامله)</button>
                         <button id="btnEqAll" class="sort-btn" onclick="switchEquityMode('all')">🌐 منحنی کل ساختارهای چارت ({len(pts_all)-1} معامله)</button>
                     </div>
                 </div>
@@ -1591,7 +1595,7 @@ def build_dashboard():
                     <div style="display:flex;align-items:center;gap:12px;">
                         <span>تعداد نقاط ثبت‌شده: <b id="lblEqPts" style="color:#facc15;">{len(pts_kings)-1}</b></span>
                         <span>|</span>
-                        <span>بازه زمانی: <b style="color:#38bdf8;">۹ مارس ۲۰۲۶ تا ۳ سپتامبر ۲۰۲۶</b></span>
+                        <span>بازه زمانی: <b style="color:#38bdf8;">{date_start_str} تا {date_end_str}</b></span>
                     </div>
                 </div>
             </div>
@@ -1603,10 +1607,10 @@ def build_dashboard():
                         <h3 style="margin:0;color:#10b981;font-size:20px;display:flex;align-items:center;gap:8px;">
                             <span>📊 نمودار میله‌ای سود و زیان هفته به هفته (Weekly Net Profit & Loss)</span>
                         </h3>
-                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">توزیع عملکرد دلاری ۲۶ هفته متوالی - میله‌های سبز نشان‌دهنده سوددهی هفتگی و میله‌های قرمز نشان‌دهنده هفته‌های اصلاحی هستند:</p>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">توزیع عملکرد دلاری {total_weeks} هفته متوالی - میله‌های سبز نشان‌دهنده سوددهی هفتگی و میله‌های قرمز نشان‌دهنده هفته‌های اصلاحی هستند:</p>
                     </div>
                     <div style="display:flex;gap:8px;">
-                        <button id="btnWkKings" class="sort-btn active" onclick="switchWeeklyBarMode('kings')">👑 سلاطین ۱۸ گانه</button>
+                        <button id="btnWkKings" class="sort-btn active" onclick="switchWeeklyBarMode('kings')">👑 سلاطین {len(qualified_kings)} گانه</button>
                         <button id="btnWkAll" class="sort-btn" onclick="switchWeeklyBarMode('all')">🌐 کل معاملات چارت</button>
                     </div>
                 </div>
@@ -1625,11 +1629,11 @@ def build_dashboard():
                         <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:2px;background:#64748b;"></span> خط تراز صفر ($0)</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <span>تعداد کل هفته‌ها: <b style="color:#f1f5f9;">۲۶ هفته</b></span>
+                        <span>تعداد کل هفته‌ها: <b style="color:#f1f5f9;">{total_weeks} هفته</b></span>
                         <span>|</span>
-                        <span>هفته‌های سودده: <b style="color:#00e676;">{tot_kings_green_wks} هفته ({tot_kings_green_wks/26.0*100:.1f}٪)</b></span>
+                        <span>هفته‌های سودده: <b style="color:#00e676;">{tot_kings_green_wks} هفته ({tot_kings_green_wks/(total_weeks or 1)*100:.1f}٪)</b></span>
                         <span>|</span>
-                        <span>هفته‌های زیان‌ده: <b style="color:#ef4444;">{tot_kings_red_wks} هفته ({tot_kings_red_wks/26.0*100:.1f}٪)</b></span>
+                        <span>هفته‌های زیان‌ده: <b style="color:#ef4444;">{tot_kings_red_wks} هفته ({tot_kings_red_wks/(total_weeks or 1)*100:.1f}٪)</b></span>
                     </div>
                 </div>
             </div>
@@ -1655,7 +1659,7 @@ def build_dashboard():
                         </thead>
                         <tbody>
                             <tr style="border-bottom:1px solid #334155;">
-                                <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین ۱۸ گانه (گزینش هوشمند)</td>
+                                <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین {len(qualified_kings)} گانه (گزینش هوشمند)</td>
                                 <td style="text-align:center;font-weight:bold;">{len(pts_kings)-1}</td>
                                 <td style="text-align:center;">${bal_initial:,.2f}</td>
                                 <td style="text-align:center;font-weight:bold;color:#00e676;">${bal_k:,.2f}</td>
@@ -1912,7 +1916,7 @@ def build_dashboard():
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
                             <h3 style="margin:0;color:#38bdf8;font-size:20px;">💎 سیستم خروج پلکانی با حجم عملیاتی 0.04 لات (با اعمال ۳ شرط لایو بازار)</h3>
-                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین ۱۸ گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
+                            <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">کالبدشکافی رفتار {tot_k_cnt} معامله واقعی سلاطین {len(qualified_kings)} گانه با تایید قطعی پولبک، پرتاب و حجم <b>0.04 لات</b>:</p>
                         </div>
                         <div style="background:#0c4a6e;border:1px solid #0284c7;padding:8px 14px;border-radius:8px;font-size:12px;color:#7dd3fc;text-align:right;">
                             <div>💵 ارزش هر پیپ: <b>$0.40 دلار</b></div>
@@ -2041,7 +2045,7 @@ def build_dashboard():
         <div id="tab-timeframes" class="tab-content">
             <div class="section-box">
                 <div style="border-bottom:1px solid #334155;padding-bottom:14px;margin-bottom:16px;">
-                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین ۱۸ گانه FlagPro</h3>
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین {len(qualified_kings)} گانه FlagPro</h3>
                     <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
                 </div>
 
@@ -2072,14 +2076,14 @@ def build_dashboard():
                 <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                     <div>
                         <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">💡 تفاوت معاملات سلاطین با کل بازار خام چارت:</span>
-                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل ۲۰۸۴ باکس و نویز چارت بدون فیلتر معامله می‌شد، ۵۵۲- دلار زیان تولید می‌شد؛ اما سلاطین ۱۸ گانه با فیلتر هوشمند آن را به ۱۸۴+ دلار سود خالص رسانده‌اند!</div>
+                        <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">اگر کل {d_tot_raw['cnt']} معامله خام چارت بدون فیلتر معامله می‌شد، {abs(d_tot_raw['net']):.2f}$ {'زیان' if d_tot_raw['net'] < 0 else 'سود'} تولید می‌شد؛ اما سلاطین {len(qualified_kings)} گانه با فیلتر هوشمند آن را به {d_tot_kings['net']:+.2f}$ سود خالص رسانده‌اند!</div>
                     </div>
                     <button class="sort-btn" style="border-color:#a5b4fc;color:#a5b4fc;" onclick="let el = document.getElementById('rawTfTable'); el.style.display = el.style.display==='none'?'':'none';">👁️ مشاهده جدول کل دیتای خام چارت</button>
                 </div>
 
                 <!-- Hidden Comparative Raw Table -->
                 <div id="rawTfTable" style="display:none;overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
-                    <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل ۲۰۸۴ معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
+                    <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل {d_tot_raw['cnt']} معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
                     <table>
                         <thead>
                             <tr style="background:#1e293b;">
@@ -2395,12 +2399,12 @@ def build_dashboard():
             <div class="section-box" style="border:1px solid #10b981;background:#061a14;margin-bottom:24px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #064e3b;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                     <div>
-                        <h3 style="margin:0;color:#34d399;font-size:19px;">📅 کارنامه کامل هفته به هفته (Master 26-Week Timeline)</h3>
-                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">کالبدشکافی پیوسته تمام ۲۶ هفته از آغاز مارس تا کنون با تفکیک برد، استاپ و برترین سلطان هفته:</p>
+                        <h3 style="margin:0;color:#34d399;font-size:19px;">📅 کارنامه کامل هفته به هفته (Master {total_weeks}-Week Timeline)</h3>
+                        <p style="margin:4px 0 0 0;color:#a7f3d0;font-size:12px;">کالبدشکافی پیوسته تمام {total_weeks} هفته با تفکیک برد، استاپ و برترین سلطان هفته:</p>
                     </div>
                     <div style="display:flex;gap:8px;">
-                        <button id="btnWkKings" class="sort-btn active" onclick="filterWeeklyMode('kings')">👑 فقط سلاطین ۱۸ گانه</button>
-                        <button id="btnWkAll" class="sort-btn" onclick="filterWeeklyMode('all')">🌐 کل ساختارهای چارت</button>
+                        <button id="btnWkTableKings" class="sort-btn active" onclick="filterWeeklyMode('kings')">👑 فقط سلاطین {len(qualified_kings)} گانه</button>
+                        <button id="btnWkTableAll" class="sort-btn" onclick="filterWeeklyMode('all')">🌐 کل ساختارهای چارت</button>
                     </div>
                 </div>
 
@@ -2611,9 +2615,11 @@ def build_dashboard():
             canvas._plotH = plotH;
         }}
 
+        let weeklyBarEventsInitialized = false;
         function initWeeklyBarCanvasEvents() {{
             let canvas = document.getElementById('weeklyBarCanvas');
-            if (!canvas) return;
+            if (!canvas || weeklyBarEventsInitialized) return;
+            weeklyBarEventsInitialized = true;
 
             canvas.addEventListener('mousemove', function(evt) {{
                 if (!canvas._barCoords) return;
@@ -3286,8 +3292,8 @@ def build_dashboard():
         function filterWeeklyMode(mode) {{
             let kingsRows = document.querySelectorAll('.wk-row-kings');
             let allRows = document.querySelectorAll('.wk-row-all');
-            let btnKings = document.getElementById('btnWkKings');
-            let btnAll = document.getElementById('btnWkAll');
+            let btnKings = document.getElementById('btnWkTableKings');
+            let btnAll = document.getElementById('btnWkTableAll');
             if(mode === 'kings') {{
                 kingsRows.forEach(r => r.style.display = '');
                 allRows.forEach(r => r.style.display = 'none');
