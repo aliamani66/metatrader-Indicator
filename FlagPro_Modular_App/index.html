@@ -13056,7 +13056,7 @@
                 </div>
 
                 <!-- Hidden Comparative Raw Table -->
-                <div id="rawTfTable" style="display:none;overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
+                <div id="rawTfTable" style="overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
                     <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل 14125 معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
                     <table>
                         <thead>
@@ -48735,10 +48735,18 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <select id="testerRunSelector" onchange="switchTesterReport(this.value)" style="background:#1e293b;border:1px solid #38bdf8;color:#f8fafc;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:280px;font-family:inherit;">
-                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-14_24Trades.json" selected>تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.08.01 - 2026.08.14) - 24 ترید</option>
-                        <option value="FlagPro_Test_GBPUSD_M1_2026-07-10_to_2026-07-14_17Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.07.10 - 2026.07.14) - 17 ترید</option>
-                        <option value="FlagPro_Test_GBPUSD_M1_2026-07-01_to_2026-07-09_37Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.07.01 - 2026.07.09) - 37 ترید</option>
-                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-15_53Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 (2026.08.01 - 2026.08.15) - 53 ترید</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-14_24Trades.json" selected>تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: 2026.08.01 - 2026.08.14 | 24 معامله</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-07-10_to_2026-07-14_17Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: 2026.07.10 - 2026.07.14 | 17 معامله</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-07-01_to_2026-07-09_37Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: 2026.07.01 - 2026.07.09 | 37 معامله</option>
+                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-01_to_2026-08-15_53Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: 2026.08.01 - 2026.08.15 | 53 معامله</option>
+                    </select>
+                    <select id="testerScenarioSelector" onchange="switchTesterScenario(this.value)" style="background:#0f172a;border:1px solid #10b981;color:#a7f3d0;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:240px;font-family:inherit;font-weight:600;" title="انتخاب سناریوی بهینه جهت مقایسه انحراف پارامترها و بازده تئوریک">
+                        <option value="auto" selected>🔍 تشخیص خودکار سناریو از فایل تستر</option>
+                        <option value="golden">⚖️ تعادل طلایی حجم و سود (Golden Balance)</option>
+                        <option value="champion">💎 سلاطین برتر و اسنایپر (Champion Sniper)</option>
+                        <option value="day">☀️ سشن لندن و نیویورک (London & NY)</option>
+                        <option value="shield">🛡️ سپر حداقل دروداون (Stop Loss Shield)</option>
+                        <option value="base">🌐 تمام سلاطین ۲۴ ساعته (All Kings Base)</option>
                     </select>
                     <input type="file" id="testerReportFileInput" accept=".json,.csv" style="display:none;" onchange="handleTesterReportUpload(event)">
                     <button class="action-btn" onclick="copyTesterReportsFolder()" style="background:linear-gradient(135deg, #1e1b4b, #312e81);color:#c7d2fe;border:1px solid #6366f1;padding:6px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="کپی آدرس پوشه گزارشات متاتریدر ۵ در کلیپ‌بورد برای پیست در پنجره انتخاب فایل">
@@ -48879,7 +48887,7 @@
                 <div style="font-size:13.5px;font-weight:bold;color:#38bdf8;display:flex;align-items:center;gap:6px;">
                     <span>🎛️</span> جدول کالبدشکافی انحراف پارامترها (MT5 Test Inputs vs Strategy Scenario)
                 </div>
-                <span style="font-size:11px;color:#fca5a5;background:#450a0a;padding:3px 8px;border-radius:4px;border:1px solid #991b1b;">⚠️ علت ۹۰٪ باخت‌ها: تست با کانفیگ Default بدون لود فایل .set سناریو انجام شده بود</span>
+                <span id="tcDriftSummaryBadge" style="font-size:11px;color:#fca5a5;background:#450a0a;padding:3px 8px;border-radius:4px;border:1px solid #991b1b;">⚠️ وضعیت انحراف پارامترها</span>
             </div>
             <div style="overflow-x:auto;">
                 <table class="data-table" style="width:100%;font-size:11.5px;border-collapse:collapse;">
@@ -48887,7 +48895,7 @@
                         <tr style="background:#131c2e;color:#94a3b8;text-align:right;">
                             <th style="padding:7px 10px;">نام پارامتر اکسپرت</th>
                             <th style="padding:7px 10px;">مقدار در تست متاتریدر ۵</th>
-                            <th style="padding:7px 10px;">مقدار در سناریوی بهینه داشبورد</th>
+                            <th id="tcColExpectedScenario" style="padding:7px 10px;">مقدار در سناریوی انتخابی</th>
                             <th style="padding:7px 10px;">وضعیت تطابق</th>
                             <th style="padding:7px 10px;">تأثیر بر عملکرد و راهکار اصلاح</th>
                         </tr>

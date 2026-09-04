@@ -38,7 +38,11 @@ function switchWeeklyBarMode(mode) {
             let plotW = w - padLeft - padRight;
             let plotH = h - padTop - padBottom;
 
-            let bars = dataWeeklyBars;
+            let bars = (typeof dataWeeklyBars !== 'undefined' && Array.isArray(dataWeeklyBars) && dataWeeklyBars.length > 0)
+                ? dataWeeklyBars
+                : (window.ALL_SYMBOLS_DATA && typeof currentActiveSymbol !== 'undefined' && (window.ALL_SYMBOLS_DATA[currentActiveSymbol] || window.ALL_SYMBOLS_DATA[currentActiveSymbol.replace(/[!#]/g, '').trim()]))
+                    ? (window.ALL_SYMBOLS_DATA[currentActiveSymbol] || window.ALL_SYMBOLS_DATA[currentActiveSymbol.replace(/[!#]/g, '').trim()]).weekly_bar_data
+                    : [];
             if (!bars || bars.length === 0) return;
 
             let minVal = 0;
@@ -159,8 +163,8 @@ function switchWeeklyBarMode(mode) {
         let weeklyBarEventsInitialized = false;
         function initWeeklyBarCanvasEvents() {
             let canvas = document.getElementById('weeklyBarCanvas');
-            if (!canvas || weeklyBarEventsInitialized) return;
-            weeklyBarEventsInitialized = true;
+            if (!canvas || canvas._eventsBound) return;
+            canvas._eventsBound = true;
 
             canvas.addEventListener('mousemove', function(evt) {
                 if (!canvas._barCoords) return;

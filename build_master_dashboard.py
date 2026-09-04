@@ -3027,7 +3027,7 @@ def process_symbol_dataset(csv_file):
                 </div>
 
                 <!-- Hidden Comparative Raw Table -->
-                <div id="rawTfTable" style="display:none;overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
+                <div id="rawTfTable" style="overflow-x:auto;margin-bottom:24px;border:1px dashed #475569;border-radius:8px;padding:10px;">
                     <div style="color:#94a3b8;font-size:12px;margin-bottom:6px;font-weight:bold;">⚠️ عملکرد کل {d_tot_raw['cnt']} معامله خام چارت بدون گزینش سلاطین (Raw Market Noise):</div>
                     <table>
                         <thead>
@@ -4914,7 +4914,11 @@ def build_dashboard(custom_csv=None):
             let plotW = w - padLeft - padRight;
             let plotH = h - padTop - padBottom;
 
-            let bars = dataWeeklyBars;
+            let bars = (typeof dataWeeklyBars !== 'undefined' && Array.isArray(dataWeeklyBars) && dataWeeklyBars.length > 0)
+                ? dataWeeklyBars
+                : (window.ALL_SYMBOLS_DATA && typeof currentActiveSymbol !== 'undefined' && (window.ALL_SYMBOLS_DATA[currentActiveSymbol] || window.ALL_SYMBOLS_DATA[currentActiveSymbol.replace(/[!#]/g, '').trim()]))
+                    ? (window.ALL_SYMBOLS_DATA[currentActiveSymbol] || window.ALL_SYMBOLS_DATA[currentActiveSymbol.replace(/[!#]/g, '').trim()]).weekly_bar_data
+                    : [];
             if (!bars || bars.length === 0) return;
 
             let minVal = 0;
@@ -7780,10 +7784,19 @@ def build_dashboard(custom_csv=None):
 
             if (tabId === 'tab-equity') {{
                 setTimeout(() => {{
-                    initEquityCanvasEvents();
-                    initSimUI();
-                    initWeeklyBarCanvasEvents();
-                    drawWeeklyBarChart(currentWeeklyBarMode);
+                    if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents();
+                    if (typeof initSimUI === 'function') initSimUI();
+                    if (typeof loadCustomPresets === 'function') loadCustomPresets();
+                    if (typeof drawEquityChart === 'function') drawEquityChart();
+                }}, 50);
+            }}
+
+            if (tabId === 'tab-weekly') {{
+                setTimeout(() => {{
+                    if (typeof initWeeklyBarCanvasEvents === 'function') initWeeklyBarCanvasEvents();
+                    if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {{
+                        drawWeeklyBarChart(currentWeeklyBarMode);
+                    }}
                 }}, 50);
             }}
 
