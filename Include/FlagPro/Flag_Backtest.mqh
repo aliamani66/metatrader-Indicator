@@ -212,12 +212,11 @@ void ShowTradeSetupForBox(int boxIdx)
    bool isEntered = false;
    int  entryBarIdx = -1;
    datetime entryTime = 0;
-
-   // جستجوی پولبک برای ورود به معامله مطابق با لایو بازار:
-   // ۱. شروع جستجو فقط از زمان تایید قطعی استراکچر در لایو (confirmTime)
-   // ۲. قیمت باید ابتدا با کلوز کندل فاصله بگیرد (departedBar)
-   // ۳. ورود منحصراً در کندل‌های بعدی روی پولبک و لمس سطح ورود (k > departedBar)
    int departedBar = -1;
+
+   double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
+   if(simSpread <= 0) simSpread = 1.0 * pipSize;
+
    datetime maxBoxTime = g_drawnBoxes[boxIdx].t2;
    if(maxBoxTime <= confirmTime) 
       maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
@@ -247,7 +246,7 @@ void ShowTradeSetupForBox(int boxIdx)
       }
       else
       {
-         if(chartHigh[k] >= slPrice)
+         if((chartHigh[k] + simSpread) >= slPrice)
          {
             cancelBarIdx = k;
             cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
@@ -377,18 +376,18 @@ void ShowTradeSetupForBox(int boxIdx)
          }
          else // SELL
          {
-            // بررسی برخورد به تارگت‌های سود
+            // بررسی برخورد به تارگت‌های سود (با احتساب اسپرد خرید جهت تسویه)
             for(int tp = maxHit; tp < 4; tp++)
             {
-               if(chartLow[k] <= tps[tp])
+               if((chartLow[k] + simSpread) <= tps[tp])
                {
                   maxHit = tp + 1;
                   hitTime = chartTime[k];
                }
             }
 
-            // بررسی حد ضرر
-            if(chartHigh[k] >= slPrice)
+            // بررسی حد ضرر (با احتساب اسپرد خرید جهت تسویه)
+            if((chartHigh[k] + simSpread) >= slPrice)
             {
                hitTP = maxHit;
                isClosed = true;
@@ -601,6 +600,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = InpRSPipBuffer * pipSize;
+   double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
+   if(simSpread <= 0) simSpread = 1.0 * pipSize;
 
    // مرحله ۱: شناسایی و ثبت معاملات جدید در مخزن پایدار g_tradeSetups
    for(int b = 0; b < g_boxCount; b++)
@@ -761,7 +762,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(chartTime[k] > maxBoxTime) break;
 
          if(isBull && chartLow[k] <= slPrice) break;
-         if(!isBull && chartHigh[k] >= slPrice) break;
+         if(!isBull && (chartHigh[k] + simSpread) >= slPrice) break;
 
          if(departedBar < 0)
          {
@@ -845,13 +846,13 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          {
             for(int tp = hitTP; tp < 4; tp++)
             {
-               if(chartLow[k] <= tps[tp])
+               if((chartLow[k] + simSpread) <= tps[tp])
                {
                   hitTP = tp + 1;
                   hitTime = chartTime[k];
                }
             }
-            if(chartHigh[k] >= slPrice)
+            if((chartHigh[k] + simSpread) >= slPrice)
             {
                isClosed = true;
                exitTime = (hitTP > 0) ? hitTime : chartTime[k];
@@ -967,13 +968,13 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             {
                for(int tp = currentHitTP; tp < 4; tp++)
                {
-                  if(chartLow[k] <= tps[tp])
+                  if((chartLow[k] + simSpread) <= tps[tp])
                   {
                      currentHitTP = tp + 1;
                      hitTime = chartTime[k];
                   }
                }
-               if(chartHigh[k] >= g_tradeSetups[t].slPrice)
+               if((chartHigh[k] + simSpread) >= g_tradeSetups[t].slPrice)
                {
                   g_tradeSetups[t].isClosed = true;
                   g_tradeSetups[t].exitTime = (currentHitTP > 0) ? hitTime : chartTime[k];
@@ -1189,6 +1190,8 @@ void ExportAllTradesToCSV()
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = InpRSPipBuffer * pipSize;
+   double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
+   if(simSpread <= 0) simSpread = 1.0 * pipSize;
    int exportedCount = 0;
    for(int b = 0; b < g_boxCount; b++)
    {
@@ -1363,7 +1366,7 @@ void ExportAllTradesToCSV()
          }
          else
          {
-            if(chartHigh[k] >= slPrice) break;
+            if((chartHigh[k] + simSpread) >= slPrice) break;
          }
 
          if(departedBar < 0)
@@ -1466,14 +1469,14 @@ void ExportAllTradesToCSV()
             {
                for(int tp = maxHit; tp < 4; tp++)
                {
-                  if(chartLow[k] <= tps[tp])
+                  if((chartLow[k] + simSpread) <= tps[tp])
                   {
                      maxHit = tp + 1;
                      hitTime = chartTime[k];
                   }
                }
 
-               if(chartHigh[k] >= slPrice)
+               if((chartHigh[k] + simSpread) >= slPrice)
                {
                   hitTP = maxHit;
                   isClosed = true;

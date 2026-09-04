@@ -29,6 +29,7 @@ input double           InpMaxSLPips              = 0.0;          // حداکثر
 input int              InpMaxOpenGroups          = 5;            // حداکثر تعداد ستاپ‌های همزمان فعال (امکان معاملات هم‌زمان)
 input ulong            InpMagicNumber            = 777123;       // شناسه جادویی معامله‌گر (Magic Number)
 input int              InpSlippagePoints         = 20;           // حداکثر لغزش قیمت مجاز (Slippage Points)
+input double           InpMaxEntryDeviationPips  = 2.5;          // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
 
 enum ENUM_CONSEC_ACTION
 {
@@ -687,15 +688,42 @@ void OnTick()
       if(IsTradeAlreadyExecuted(tradeKey))
          continue;
 
-      // ثبت کلید معامله در لیست پردازش‌شده‌ها تا در تیک‌های بعدی تکرار نشود
-      int newSize = ArraySize(m_executedTradesKeys) + 1;
-      ArrayResize(m_executedTradesKeys, newSize);
-      m_executedTradesKeys[newSize - 1] = tradeKey;
-
       double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
       double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
       bool isBuy = g_tradeSetups[t].isBuy;
       double sendPrice = isBuy ? ask : bid;
+
+      // 🛡️ اعتبارسنجی انحراف ورود: اگر قیمت بیش از حد مجاز از لبه باکس فاصله گرفته یا قبلاً به تارگت/استاپ رسیده، ورود لغو می‌شود
+      double maxDev = (InpMaxEntryDeviationPips > 0) ? (InpMaxEntryDeviationPips * pipSize) : (3.0 * pipSize);
+      if(isBuy)
+      {
+         if(sendPrice <= g_tradeSetups[t].slPrice || sendPrice >= g_tradeSetups[t].tp1)
+         {
+            int newSize = ArraySize(m_executedTradesKeys) + 1;
+            ArrayResize(m_executedTradesKeys, newSize);
+            m_executedTradesKeys[newSize - 1] = tradeKey;
+            continue;
+         }
+         if(sendPrice > g_tradeSetups[t].entryPrice + maxDev)
+            continue; // قیمت خیلی بالا رفته، از تعقیب دیرهنگام در سقف خودداری شود
+      }
+      else
+      {
+         if(sendPrice >= g_tradeSetups[t].slPrice || sendPrice <= g_tradeSetups[t].tp1)
+         {
+            int newSize = ArraySize(m_executedTradesKeys) + 1;
+            ArrayResize(m_executedTradesKeys, newSize);
+            m_executedTradesKeys[newSize - 1] = tradeKey;
+            continue;
+         }
+         if(sendPrice < g_tradeSetups[t].entryPrice - maxDev)
+            continue; // قیمت خیلی پایین ریخته، از تعقیب دیرهنگام در کف خودداری شود
+      }
+
+      // ثبت کلید معامله در لیست پردازش‌شده‌ها تا در تیک‌های بعدی تکرار نشود
+      int newSize = ArraySize(m_executedTradesKeys) + 1;
+      ArrayResize(m_executedTradesKeys, newSize);
+      m_executedTradesKeys[newSize - 1] = tradeKey;
 
       // حد ضرر دقیقاً مطابق با خط قرمز چارت (بدون هیچ مغایرت و تفاوتی)
       double sl = NormalizeDouble(g_tradeSetups[t].slPrice, _Digits);
