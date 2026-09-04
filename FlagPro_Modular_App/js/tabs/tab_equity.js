@@ -18,6 +18,8 @@ var simTrades = (typeof simTrades !== 'undefined') ? simTrades : [];
 var smartPresets = (typeof smartPresets !== 'undefined') ? smartPresets : [];
 var allTrades = (typeof allTrades !== 'undefined') ? allTrades : [];
 var currentExportConfig = (typeof currentExportConfig !== 'undefined') ? currentExportConfig : null;
+var simCanvasEventsInitialized = (typeof simCanvasEventsInitialized !== 'undefined') ? simCanvasEventsInitialized : false;
+var currentSimPts = (typeof currentSimPts !== 'undefined') ? currentSimPts : [];
 
 
 function clearPresetActiveState() {

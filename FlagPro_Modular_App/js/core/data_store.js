@@ -21,9 +21,19 @@ var simState = {
 };
 
 function switchDashboardSymbol(symName) {
-            if (!window.ALL_SYMBOLS_DATA || !window.ALL_SYMBOLS_DATA[symName]) return;
-            currentActiveSymbol = symName;
-            let sData = window.ALL_SYMBOLS_DATA[symName];
+    if (!window.ALL_SYMBOLS_DATA) return;
+    if (!window.ALL_SYMBOLS_DATA[symName]) {
+        let clean = symName.replace(/[!#]/g, '').trim();
+        if (window.ALL_SYMBOLS_DATA[clean]) {
+            symName = clean;
+        } else if (window.ALL_SYMBOLS_DATA[symName + '!']) {
+            symName = symName + '!';
+        } else {
+            return;
+        }
+    }
+    currentActiveSymbol = symName;
+    let sData = window.ALL_SYMBOLS_DATA[symName];
 
             // 1. Update Header Info
             let badge = document.getElementById('headerSymbolBadge');
@@ -134,18 +144,20 @@ function switchDashboardSymbol(symName) {
                 p.style.color = '#38bdf8';
             });
 
-            // Re-render UI components
-            initEquityCanvasEvents();
-            clearPresetActiveState();
-            renderSimKingsGrid();
-            if (typeof renderSLRiskPanel === 'function') renderSLRiskPanel();
-            if (typeof renderSimHoursBar === 'function') renderSimHoursBar();
-            trFilters.page = 1;
-            renderTrades();
-            runEquitySimulation();
-            if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
-                drawWeeklyBarChart(currentWeeklyBarMode);
-            }
+            // Re-render UI components safely
+            try { if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents(); } catch(e) { console.error('initEquityCanvasEvents error:', e); }
+            try { if (typeof clearPresetActiveState === 'function') clearPresetActiveState(); } catch(e) { console.error('clearPresetActiveState error:', e); }
+            try { if (typeof renderSimKingsGrid === 'function') renderSimKingsGrid(); } catch(e) { console.error('renderSimKingsGrid error:', e); }
+            try { if (typeof renderSLRiskPanel === 'function') renderSLRiskPanel(); } catch(e) { console.error('renderSLRiskPanel error:', e); }
+            try { if (typeof renderSimHoursBar === 'function') renderSimHoursBar(); } catch(e) { console.error('renderSimHoursBar error:', e); }
+            try { if (typeof trFilters !== 'undefined') trFilters.page = 1; } catch(e) {}
+            try { if (typeof renderTrades === 'function') renderTrades(); } catch(e) { console.error('renderTrades error:', e); }
+            try { if (typeof runEquitySimulation === 'function') runEquitySimulation(); } catch(e) { console.error('runEquitySimulation error:', e); }
+            try {
+                if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
+                    drawWeeklyBarChart(currentWeeklyBarMode);
+                }
+            } catch(e) { console.error('drawWeeklyBarChart error:', e); }
         }
 
         async function processUploadedFile(file) {
@@ -536,6 +548,11 @@ function switchDashboardSymbol(symName) {
                 tab_weekly_html: generateClientWeeklyHTML(detectedSym, rawTrades, clientKingsSimList, clientWeeklyBars, friction),
                 smart_presets_rows_html: generateClientSmartPresetsRowsHTML(detectedSym, clientSmartPresets)
             };
+
+            let cleanSym = detectedSym.replace(/[!#]/g, '').trim();
+            if (cleanSym && cleanSym !== detectedSym) {
+                window.ALL_SYMBOLS_DATA[cleanSym] = window.ALL_SYMBOLS_DATA[detectedSym];
+            }
 
             return detectedSym;
         }
