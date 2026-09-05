@@ -888,6 +888,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
+      // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها) - انطباق ۱۰۰٪ با موتور ترید اکسپرت
+      if(IsSetupFilteredOut(role, entryTime, risk / _Point))
+         continue;
+
       // محاسبه فوری سرنوشت و زمان خروج واقعی معامله
       double tps[4];
       for(int tp = 0; tp < 4; tp++)
@@ -1104,6 +1108,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    {
       // 👑 فقط رسم معاملات ۱۸ سلطان برگزیده بر اساس تایم‌فریم
       if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+         continue;
+
+      // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها) - انطباق ۱۰۰٪ با موتور ترید اکسپرت
+      if(IsSetupFilteredOut(g_tradeSetups[t].boxRole, g_tradeSetups[t].entryTime, g_tradeSetups[t].risk / _Point))
          continue;
 
       datetime t1 = g_tradeSetups[t].entryTime;
