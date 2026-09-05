@@ -103,6 +103,7 @@ input int                InpHistoryDays           = 2;           // ⏳ بازه
 //+------------------------------------------------------------------+
 input group "=== 🎯 ۷. خطوط معامله روی چارت (متمایز از خطوط تستر) ==="
 input bool               InpAutoDrawTrades        = true;        // 🎯 رسم خودکار گرافیک معاملات فعال‌شده روی چارت
+input bool               InpUniqueTradeColors     = true;        // 🎨 رنگ مجزا برای هر معامله (تفکیک آسان معاملات همزمان)
 input color              InpTradeEntryColor       = clrWhite;    // رنگ خط ورود به معامله (Entry)
 input color              InpTradeSLColor          = clrDarkOrange;// رنگ خط حد ضرر (SL - متمایز از قرمز تستر)
 input color              InpTradeTPColor          = clrDodgerBlue;// رنگ خطوط تارگت (TP - متمایز از سبز تستر)

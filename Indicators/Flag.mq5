@@ -130,6 +130,7 @@ input int              InpSwapBoxWidth          = 2;            // ضخامت خ
 
 input group "=== Visual Trade Simulation (نمایش بصری معاملات و تارگت‌ها) ==="
 input bool             InpShowVisualTrades      = true;         // نمایش بصری ستاپ‌های معاملاتی روی چارت
+input bool             InpUniqueTradeColors     = true;         // 🎨 رنگ مجزا برای هر معامله (تفکیک آسان معاملات همزمان)
 input int              InpMaxVisualTrades       = 10;           // حداکثر معاملات اخیر جهت رسم (خلوت بودن چارت)
 input double           InpRSPipBuffer           = 10.0;         // فاصله استاپ RS بر حسب پیپ
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط نقطه ورود
@@ -1508,6 +1509,29 @@ void ApplyProChartTheme()
 }
 
 //+------------------------------------------------------------------+
+//| پالت رنگی معاملات جهت تفکیک کامل معاملات همزمان روی چارت         |
+//| فاقد هرگونه رنگ سبز و قرمز (بدون تداخل با خطوط تستر متاتریدر)   |
+//+------------------------------------------------------------------+
+color GetTradeSetupColor(int tradeIndex)
+{
+   static const color s_tradePalette[12] = {
+      clrDodgerBlue,       // ۱. آبی آسمانی زنده (C'30,144,255')
+      clrDarkOrange,       // ۲. نارنجی تیره (C'255,140,0')
+      clrMagenta,          // ۳. سرخابی (C'255,0,255')
+      clrCyan,             // ۴. فیروزه‌ای روشن (C'0,255,255')
+      clrGold,             // ۵. طلایی (C'255,215,0')
+      clrDeepPink,         // ۶. صورتی پررنگ (C'255,20,147')
+      clrMediumSlateBlue,  // ۷. آبی بنفش متالیک (C'123,104,238')
+      clrSandyBrown,       // ۸. کهربایی شنی (C'244,164,96')
+      clrTurquoise,        // ۹. فیروزه‌ای دریایی (C'64,224,208')
+      clrCoral,            // ۱۰. مرجانی (C'255,127,80')
+      clrViolet,           // ۱۱. بنفش روشن (C'238,130,238')
+      clrCornflowerBlue    // ۱۲. آبی متالیک (C'100,149,237')
+   };
+   return s_tradePalette[MathAbs(tradeIndex) % 12];
+}
+
+//+------------------------------------------------------------------+
 //| Interactive On-Demand Trade Simulation for Clicked Box in History |
 //+------------------------------------------------------------------+
 void ShowTradeSetupForBox(int boxIdx)
@@ -1775,23 +1799,45 @@ void ShowTradeSetupForBox(int boxIdx)
 
    string pfx = "FLAG_CLICK_TRADE_";
 
+   // انتخاب پالت رنگی معامله (در صورت روشن بودن InpUniqueTradeColors هر معامله رنگ مجزا و اختصاصی دارد)
+   color tradeClr = InpUniqueTradeColors ? GetTradeSetupColor(boxIdx) : InpTradeTPColor;
+   color entryClr = InpUniqueTradeColors ? tradeClr : InpTradeEntryColor;
+   color slClr    = InpUniqueTradeColors ? tradeClr : InpTradeSLColor;
+   color tpClr    = InpUniqueTradeColors ? tradeClr : InpTradeTPColor;
+
    // ۱. خط نقطه ورود (امتداد تا انتهای معامله t2)
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
-   ObjectSetInteger(0, entryLine, OBJPROP_COLOR, InpTradeEntryColor);
+   ObjectSetInteger(0, entryLine, OBJPROP_COLOR, entryClr);
    ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
    ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
    ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
-   // ۲. خط استاپ لاس (امتداد تا انتهای معامله t2)
+   string entryLbl = pfx + "ENTRY_LBL";
+   ObjectCreate(0, entryLbl, OBJ_TEXT, 0, t1, entryPrice);
+   ObjectSetString(0, entryLbl, OBJPROP_TEXT, " ENTRY");
+   ObjectSetInteger(0, entryLbl, OBJPROP_COLOR, entryClr);
+   ObjectSetInteger(0, entryLbl, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, entryLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+   ObjectSetInteger(0, entryLbl, OBJPROP_SELECTABLE, false);
+
+   // ۲. خط استاپ لاس متمایز از قرمز تستر (امتداد تا انتهای معامله t2 با خط‌چین)
    string slLine = pfx + "SL";
    ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
-   ObjectSetInteger(0, slLine, OBJPROP_COLOR, InpTradeSLColor);
-   ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, slLine, OBJPROP_COLOR, slClr);
+   ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
    ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
    ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
+
+   string slLbl = pfx + "SL_LBL";
+   ObjectCreate(0, slLbl, OBJ_TEXT, 0, t2, slPrice);
+   ObjectSetString(0, slLbl, OBJPROP_TEXT, " SL");
+   ObjectSetInteger(0, slLbl, OBJPROP_COLOR, slClr);
+   ObjectSetInteger(0, slLbl, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, slLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+   ObjectSetInteger(0, slLbl, OBJPROP_SELECTABLE, false);
 
    // ۳. خطوط تارگت‌های ۱ تا ۴ (فقط تا جایی که تاچ شده‌اند امتداد دارند و بیشتر ادامه پیدا نمی‌کنند)
    double tps[4] = {tp1, tp2, tp3, tp4};
@@ -1804,7 +1850,7 @@ void ShowTradeSetupForBox(int boxIdx)
 
       string tpLine = pfx + "TP" + IntegerToString(tp + 1);
       ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], tpEnd, tps[tp]);
-      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
+      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, tpClr);
       ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
       ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
       ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
@@ -1813,7 +1859,7 @@ void ShowTradeSetupForBox(int boxIdx)
       string tpLbl = tpLine + "_LBL";
       ObjectCreate(0, tpLbl, OBJ_TEXT, 0, tpEnd, tps[tp]);
       ObjectSetString(0, tpLbl, OBJPROP_TEXT, "TP " + tpLabels[tp]);
-      ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
+      ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, tpClr);
       ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 8);
       ObjectSetInteger(0, tpLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
       ObjectSetInteger(0, tpLbl, OBJPROP_SELECTABLE, false);
@@ -1822,17 +1868,17 @@ void ShowTradeSetupForBox(int boxIdx)
    // ۴. برچسب نتیجه
    string resName = pfx + "RES";
    string resText = "";
-   color  resColor = clrGray;
+   color  resColor = clrSilver;
 
-   if(hitTP == 4)        { resText = "WIN 1:4 🎯"; resColor = clrLime; }
-   else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = clrMediumSpringGreen; }
-   else if(hitTP == 2)   { resText = "WIN 1:2 ✅"; resColor = clrDodgerBlue; }
-   else if(hitTP == 1)   { resText = "WIN 1:1 👍"; resColor = clrCyan; }
-   else if(isClosed)     { resText = "LOSS ❌";   resColor = InpTradeSLColor; }
-   else if(isPending)    { resText = "PENDING ⏳"; resColor = clrYellow; }
+   if(hitTP == 4)        { resText = "WIN 1:4 🎯"; resColor = InpUniqueTradeColors ? tradeClr : InpTradeTPColor; }
+   else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = InpUniqueTradeColors ? tradeClr : InpTradeTPColor; }
+   else if(hitTP == 2)   { resText = "WIN 1:2 ✅"; resColor = InpUniqueTradeColors ? tradeClr : InpTradeTPColor; }
+   else if(hitTP == 1)   { resText = "WIN 1:1 👍"; resColor = InpUniqueTradeColors ? tradeClr : InpTradeTPColor; }
+   else if(isClosed)     { resText = "LOSS ❌";   resColor = InpUniqueTradeColors ? tradeClr : InpTradeSLColor; }
+   else if(isPending)    { resText = "PENDING ⏳"; resColor = clrGold; }
    else                  { resText = "OPEN ⏳";   resColor = clrGold; }
 
-   string fullBadge = (isBull ? "🟢 BUY " : "🔴 SELL ") + role + " -> " + resText;
+   string fullBadge = (isBull ? "🔵 BUY " : "🟠 SELL ") + role + " -> " + resText;
    ObjectCreate(0, resName, OBJ_TEXT, 0, t1, entryPrice);
    ObjectSetString(0, resName, OBJPROP_TEXT, fullBadge);
    ObjectSetInteger(0, resName, OBJPROP_COLOR, resColor);

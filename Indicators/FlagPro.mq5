@@ -72,6 +72,7 @@ input bool              InpTradeMacroTFs      = false;                  // مع�
 input group "=== 🎨 ۵. تنظیمات ظاهری، رسم خطوط و رنگ‌های چارت (پایین لیست) ==="
 input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها (فقط سلاطین برگزیده)
 input bool              InpHideFilteredBoxes  = true;                   // مخفی‌سازی باکس‌های فیلترشده از روی چارت
+input bool              InpUniqueTradeColors  = true;                   // 🎨 رنگ مجزا برای هر معامله (تفکیک آسان معاملات همزمان)
 input bool              InpShowTradeShading   = false;                  // 🎨 نمایش پس‌زمینه رنگی معاملات
 input color             InpTradeEntryColor    = clrWhite;               // رنگ خط ورود به معامله (Entry)
 input color             InpTradeSLColor       = clrDarkOrange;          // رنگ خط حد ضرر (SL - متمایز از قرمز تستر)
