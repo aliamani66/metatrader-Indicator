@@ -782,6 +782,213 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     let totRawNet = Object.values(tfMapRaw).reduce((s, r) => s + r.net, 0);
     let totRawCount = rawTrades.length;
 
+    // Group all closed rawTrades by (tf, role) for the Detailed Entity Table
+    let tfRoleMap = {};
+    rawTrades.forEach(t => {
+        let tf = t.tf || 'M1';
+        let role = t.role || 'Unknown';
+        let key = tf + '|' + role;
+        if (!tfRoleMap[key]) {
+            tfRoleMap[key] = { tf: tf, role: role, trades: [] };
+        }
+        tfRoleMap[key].trades.push(t);
+    });
+
+    let computedTfRoles = [];
+    for (let key in tfRoleMap) {
+        let item = tfRoleMap[key];
+        let tList = item.trades;
+        let cnt = tList.length;
+        let w1 = 0, w2 = 0, w3 = 0, w4 = 0, sl = 0;
+        tList.forEach(t => {
+            let hr = t.hr || 0;
+            if (hr >= 1) w1++;
+            if (hr >= 2) w2++;
+            if (hr >= 3) w3++;
+            if (hr >= 4) w4++;
+            if (hr === 0) sl++;
+        });
+
+        let w1_p = (w1 / cnt) * 100.0;
+        let w2_p = (w2 / cnt) * 100.0;
+        let w3_p = (w3 / cnt) * 100.0;
+        let w4_p = (w4 / cnt) * 100.0;
+        let sl_p = (sl / cnt) * 100.0;
+
+        let is_perfect = (cnt >= 2 && sl === 0);
+        let is_runner = (w3_p >= 30.0 || w4_p >= 30.0);
+
+        // Calculate Net Profit with 0.04 scale-out
+        let gross = 0.0;
+        tList.forEach(t => {
+            let pts = t.pts || 0;
+            let hr = t.hr || 0;
+            if (hr === 0) {
+                gross -= pts * 0.04;
+            } else {
+                if (hr >= 1) gross += pts * 1.0 * 0.01;
+                if (hr >= 2) gross += pts * 2.0 * 0.01;
+                if (hr >= 3) gross += pts * 3.0 * 0.01;
+                if (hr >= 4) gross += pts * 4.0 * 0.01;
+            }
+        });
+        let fric = cnt * friction;
+        let net = gross - fric;
+
+        // Chronological Max Drawdown & Profit Factor
+        let cum_pnl = 0.0, peak = 0.0, max_dd = 0.0, gross_win = 0.0, gross_loss = 0.0;
+        let sortedTrades = tList.slice().sort((a, b) => (a.et > b.et ? 1 : (a.et < b.et ? -1 : 0)));
+        sortedTrades.forEach(t => {
+            let pts = t.pts || 0;
+            let hr = t.hr || 0;
+            let pnl = 0.0;
+            if (hr === 0) {
+                pnl = -pts * 0.04 - friction;
+                gross_loss += Math.abs(pnl);
+            } else {
+                pnl = -friction;
+                if (hr >= 1) pnl += pts * 1.0 * 0.01;
+                if (hr >= 2) pnl += pts * 2.0 * 0.01;
+                if (hr >= 3) pnl += pts * 3.0 * 0.01;
+                if (hr >= 4) pnl += pts * 4.0 * 0.01;
+                if (pnl > 0) gross_win += pnl;
+                if (pnl < 0) gross_loss += Math.abs(pnl);
+            }
+            cum_pnl += pnl;
+            if (cum_pnl > peak) peak = cum_pnl;
+            let dd = peak - cum_pnl;
+            if (dd > max_dd) max_dd = dd;
+        });
+
+        let pf = gross_loss > 0 ? (gross_win / gross_loss) : (gross_win > 0 ? 99.0 : 0.0);
+        let ret_dd = max_dd > 0 ? (net / max_dd) : (net > 0 ? net : 0.0);
+
+        // 7-Pillar Institutional King Score Formula
+        let profit_per_trade = net / Math.max(cnt, 1);
+        let final_score = 0.0;
+
+        if (net <= 0) {
+            final_score = net * 2.0 - sl_p;
+        } else {
+            // Pillar 1: Purity (0 to 500)
+            let f_purity = 0.0;
+            if (cnt >= 2 && sl === 0) f_purity = 500.0;
+            else if (cnt >= 3 && sl_p <= 15.0) f_purity = 300.0;
+            else if (cnt >= 3 && sl_p <= 25.0) f_purity = 200.0;
+            else if (cnt >= 4 && sl_p <= 35.0) f_purity = 100.0;
+            else if (cnt >= 4 && sl_p <= 45.0) f_purity = 50.0;
+
+            // Pillar 2: TP2 Depth (0 to 400)
+            let f_tp2 = w2_p * 4.0;
+
+            // Pillar 3: Runner Progression (up to ~250)
+            let f_prog = (w1_p * 0.5) + (w3_p * 1.0) + (w4_p * 1.5) - (sl_p * 0.5);
+
+            // Pillar 4: Efficiency (0 to 200)
+            let f_eff = Math.min(Math.max(profit_per_trade, 0.0) * 20.0, 200.0);
+
+            // Pillar 5: Statistical Confidence (0 to 50)
+            let f_rel = Math.min(Math.log10(cnt + 9) * 20.0, 50.0);
+
+            // Pillar 6: Institutional PF (0 to 100)
+            let f_pf = (sl === 0 && cnt >= 2) ? 100.0 : Math.min(Math.max(pf - 1.0, 0.0) * 50.0, 100.0);
+
+            // Pillar 7: Recovery Factor (0 to 100)
+            let f_rec = 0.0;
+            if (sl === 0 && cnt >= 2) {
+                f_rec = 100.0;
+            } else {
+                f_rec = Math.min(ret_dd * 6.0, 100.0);
+                if (max_dd > 30.0) f_rec = Math.max(f_rec - (max_dd - 30.0) * 1.5, 0.0);
+            }
+
+            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel + f_pf + f_rec;
+        }
+
+        computedTfRoles.push({
+            tf: item.tf, role: item.role, cnt: cnt,
+            w1_p: w1_p, w2_p: w2_p, w3_p: w3_p, w4_p: w4_p, sl_p: sl_p,
+            score: final_score, is_perfect: is_perfect, is_runner: is_runner,
+            gross: gross, fric: fric, net: net,
+            max_dd: max_dd, pf: pf, ret_dd: ret_dd
+        });
+    }
+
+    // Sort by King Score descending
+    computedTfRoles.sort((a, b) => (b.score !== a.score ? b.score - a.score : b.cnt - a.cnt));
+
+    let tfRoleRows = computedTfRoles.map(item => {
+        let tf = item.tf;
+        let role = item.role;
+        let cnt = item.cnt;
+        let w1_p = item.w1_p;
+        let w2_p = item.w2_p;
+        let w3_p = item.w3_p;
+        let w4_p = item.w4_p;
+        let sl_p = item.sl_p;
+        let score = item.score;
+        let net = item.net;
+        let net_col = net >= 0 ? "#00e676" : "#ef4444";
+
+        let pf = item.pf;
+        let pf_str = pf >= 90 ? "<span style='color:#00e676;'>MAX</span>" : pf.toFixed(2);
+        let max_dd = item.max_dd;
+        let dd_str = max_dd === 0 ? "<span style='color:#00e676;'>$0.00</span>" : (max_dd <= 25 ? `<span style='color:#fbbf24;'>$${max_dd.toFixed(2)}</span>` : `<span style='color:#f87171;'>$${max_dd.toFixed(2)}</span>`);
+        let ret_dd = item.ret_dd;
+        let ret_str = `<span style='color:#facc15;font-weight:bold;'>${ret_dd.toFixed(1)}x</span>`;
+
+        let badge_html = "";
+        if (item.is_perfect) {
+            badge_html += " <span style='background:#064e3b;color:#34d399;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #059669;'>💎 ۱۰۰٪ قطعی</span>";
+        } else if (item.is_runner) {
+            badge_html += " <span style='background:#312e81;color:#a5b4fc;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #4338ca;'>🚀 دونده</span>";
+        }
+
+        let score_html = "";
+        if (score >= 1000) {
+            score_html = `<span style='color:#facc15;font-weight:bold;font-size:15px;'>${score.toFixed(1)} 👑</span>`;
+        } else if (score >= 500) {
+            score_html = `<span style='color:#38bdf8;font-weight:bold;font-size:14px;'>${score.toFixed(1)} ⭐</span>`;
+        } else if (score >= 250) {
+            score_html = `<span style='color:#00e676;font-weight:bold;font-size:13px;'>${score.toFixed(1)}</span>`;
+        } else {
+            score_html = `<span style='color:#ef4444;font-size:13px;'>${score.toFixed(1)}</span>`;
+        }
+
+        return `
+        <tr class="tf-row" data-tf="${tf}" data-role="${role}" data-cnt="${cnt}" data-w1="${w1_p.toFixed(2)}" data-w2="${w2_p.toFixed(2)}" data-w3="${w3_p.toFixed(2)}" data-w4="${w4_p.toFixed(2)}" data-sl="${sl_p.toFixed(2)}" data-net="${net.toFixed(2)}" data-pf="${pf.toFixed(2)}" data-dd="${max_dd.toFixed(2)}" data-retdd="${ret_dd.toFixed(2)}" data-score="${score.toFixed(2)}">
+            <td style="color:#38bdf8;font-weight:bold;">${tf}</td>
+            <td style="color:#facc15;font-weight:bold;">${role}${badge_html}</td>
+            <td style="text-align:center;font-weight:bold;">${cnt}</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">${w1_p.toFixed(1)}%</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">${w2_p.toFixed(1)}%</td>
+            <td style="text-align:center;color:#38bdf8;">${w3_p.toFixed(1)}%</td>
+            <td style="text-align:center;color:#c084fc;">${w4_p.toFixed(1)}%</td>
+            <td style="text-align:center;color:#ef4444;font-weight:bold;">${sl_p.toFixed(1)}%</td>
+            <td style="text-align:center;color:${net_col};font-weight:bold;font-size:14px;background:#064e3b18;">${net >= 0 ? '+' : ''}$${net.toFixed(2)}</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;">${pf_str}</td>
+            <td style="text-align:center;font-weight:bold;">${dd_str}</td>
+            <td style="text-align:center;font-weight:bold;">${ret_str}</td>
+            <td style="text-align:center;">${score_html}</td>
+        </tr>
+        `;
+    }).join('');
+
+    let tfCountMap = {};
+    computedTfRoles.forEach(it => {
+        tfCountMap[it.tf] = (tfCountMap[it.tf] || 0) + 1;
+    });
+
+    let tfButtonsHtml = `<button class="sort-btn active tf-btn" onclick="filterTF('ALL', this)">همه تایم‌ها</button>`;
+    let tfColors = { 'M1': '#38bdf8', 'M5': '#00e676', 'M15': '#f59e0b', 'M30': '#c084fc', 'H1': '#ec4899' };
+    let tfIcons = { 'M1': '⚡', 'M5': '🌟', 'M15': '🕒', 'M30': '⏱️', 'H1': '⏳' };
+    tfKeys.forEach(tf => {
+        let col = tfColors[tf] || '#38bdf8';
+        let icon = tfIcons[tf] || '🕒';
+        let count = tfCountMap[tf] || 0;
+        tfButtonsHtml += `<button class="sort-btn tf-btn" style="border-color:${col};color:${col};" onclick="filterTF('${tf}', this)">${icon} ${tf} (${count})</button>`;
+    });
+
     return `
         <div class="section-box">
             <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
@@ -851,6 +1058,69 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                     </thead>
                     <tbody>
                         ${rawRows}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Detailed Entity Breakdown by Timeframe -->
+            <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;padding-top:14px;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <h4 style="margin:0;color:#f8fafc;font-size:15px;">تفکیک جزئی گره‌ها در هر تایم‌فریم:</h4>
+                </div>
+                <div>
+                    ${tfButtonsHtml}
+                </div>
+            </div>
+
+            <!-- Formula Explainer Box -->
+            <div style="font-size:12px;color:#94a3b8;margin:10px 0;background:#0f172a;padding:10px 14px;border-radius:8px;border-right:4px solid #facc15;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <b style="color:#facc15;">🏛️ شاخص ۷ ستونه هج‌فاندی سلطان (7-Pillar Institutional King Score):</b>
+                    <span style="direction:ltr;display:inline-block;font-family:monospace;background:#1e293b;padding:2px 8px;border-radius:4px;color:#38bdf8;margin:0 6px;">Score = 🛡️خلوص(۵۰۰) + 🎯وین‌ریت ۱:۲(۴۰۰) + ⚡عمق تارگت‌ها + 💰راندمان ترید + 📊اعتبار + ⚖️پرافیت فاکتور(۱۰۰) + 🛡️کنترل افت و ریکاوری(۱۰۰)</span>
+                </div>
+                <div>
+                    <span style="background:#064e3b;color:#34d399;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #059669;margin-left:4px;">👑 ۱۰۰٪ وین‌ریت (+۵۰۰ قطعی)</span>
+                    <span style="background:#1e3a8a;color:#93c5fd;font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #3b82f6;">⚖️ کنترل دراوداون و پرافیت فاکتور</span>
+                </div>
+            </div>
+
+            <!-- Quick Combined Sorting Buttons -->
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;background:#0f172a;padding:8px 12px;border-radius:8px;border:1px solid #334155;">
+                <span style="color:#94a3b8;font-size:12px;font-weight:bold;">🔀 دکمه‌های سورت هوشمند و ترکیبی:</span>
+                <button class="sort-btn active" id="btnSortScore" onclick="sortTableByAttr('tfTable', 'data-score', true, true, this)">👑 بیشترین امتیاز سلطان (Score)</button>
+                <button class="sort-btn" id="btnSortNet" style="border-color:#00e676;color:#00e676;" onclick="sortTableByAttr('tfTable', 'data-net', true, true, this)">💵 بیشترین سود خالص دلاری</button>
+                <button class="sort-btn" style="border-color:#38bdf8;color:#38bdf8;" onclick="sortTableByAttr('tfTable', 'data-pf', true, true, this)">⚖️ بیشترین پرافیت فاکتور (PF)</button>
+                <button class="sort-btn" style="border-color:#f87171;color:#f87171;" onclick="sortTableByAttr('tfTable', 'data-dd', true, false, this)">🛡️ کمترین افت (Max DD)</button>
+                <button class="sort-btn" style="border-color:#facc15;color:#facc15;" onclick="sortTableByAttr('tfTable', 'data-retdd', true, true, this)">🚀 نسبت سود به افت (Ret/DD)</button>
+                <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w4', true, true, this)">🚀 بیشترین تارگت دونده (TP4)</button>
+                <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w2', true, true, this)">🎯 بیشترین وین‌ریت ۱:۲</button>
+                <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-w1', true, true, this)">🥇 بیشترین وین‌ریت ۱:۱</button>
+                <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-cnt', true, true, this)">📦 بیشترین تعداد معامله</button>
+                <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-sl', true, false, this)">🛡️ کمترین باخت (SL)</button>
+                <button class="sort-btn" onclick="sortTableByAttr('tfTable', 'data-tf', false, false, this)">🕒 بر اساس تایم‌فریم</button>
+            </div>
+
+            <div style="overflow-x:auto;margin-top:6px;">
+                <table id="tfTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTableByAttr('tfTable', 'data-tf', false, false)" data-sort="data-tf" style="cursor:pointer;" title="کلیک برای مرتب‌سازی صعودی/نزولی">تایم‌فریم <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-role', false, false)" data-sort="data-role" style="cursor:pointer;" title="کلیک برای مرتب‌سازی">موجودیت باکس / سواپ <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-cnt', true, true)" data-sort="data-cnt" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">تعداد معامله <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-w1', true, true)" data-sort="data-w1" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:1 <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-w2', true, true)" data-sort="data-w2" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:2 <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-w3', true, true)" data-sort="data-w3" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:3 <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-w4', true, true)" data-sort="data-w4" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:4 <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-sl', true, false)" data-sort="data-sl" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">باخت (SL) <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-net', true, true)" data-sort="data-net" style="cursor:pointer;text-align:center;color:#00e676;background:#064e3b33;" title="کلیک برای مرتب‌سازی بر اساس سود خالص دلاری">💵 سود خالص دلاری <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-pf', true, true)" data-sort="data-pf" style="cursor:pointer;text-align:center;color:#38bdf8;" title="کلیک برای مرتب‌سازی بر اساس Profit Factor">⚖️ PF <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-dd', true, false)" data-sort="data-dd" style="cursor:pointer;text-align:center;color:#f87171;" title="کلیک برای مرتب‌سازی بر اساس کمترین افت سرمایه (Max DD)">🛡️ Max DD <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-retdd', true, true)" data-sort="data-retdd" style="cursor:pointer;text-align:center;color:#facc15;" title="کلیک برای مرتب‌سازی بر اساس Recovery Factor (سود به افت)">🚀 Ret/DD <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-score', true, true)" data-sort="data-score" style="cursor:pointer;text-align:center;color:#facc15;background:#1e293b;" title="مرتب‌سازی شده بر مبنای فرمول شاخص سلطان">امتیاز سلطان (Score) <span class="sort-icon">▼</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tfRoleRows}
                     </tbody>
                 </table>
             </div>

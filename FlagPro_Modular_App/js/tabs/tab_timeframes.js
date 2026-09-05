@@ -56,10 +56,14 @@ function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
             rows.forEach(r => tbody.appendChild(r));
         }
 
-        function filterTF(tf) {
+        function filterTF(tf, btnElem) {
             let btns = document.querySelectorAll('.tf-btn');
             btns.forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            if (btnElem) {
+                btnElem.classList.add('active');
+            } else if (typeof event !== 'undefined' && event && (event.currentTarget || event.target)) {
+                (event.currentTarget || event.target).classList.add('active');
+            }
 
             let rows = document.querySelectorAll('.tf-row');
             rows.forEach(r => {
@@ -70,5 +74,3 @@ function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
                 }
             });
         }
-
-        
