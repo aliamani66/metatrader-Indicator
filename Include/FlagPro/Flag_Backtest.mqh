@@ -308,9 +308,10 @@ void ShowTradeSetupForBox(int boxIdx)
       }
       else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
       {
+         double barSpread = GetBarSpread(k, chartSpread, simSpread);
          if(isBull)
          {
-            if(chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+            if((chartLow[k] + barSpread) <= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
@@ -320,7 +321,7 @@ void ShowTradeSetupForBox(int boxIdx)
          }
          else
          {
-            if(chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            if(chartHigh[k] >= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
@@ -416,9 +417,10 @@ void ShowTradeSetupForBox(int boxIdx)
          else // SELL
          {
             // بررسی برخورد به تارگت‌های سود (با احتساب اسپرد خرید جهت تسویه)
+            double barSpread = GetBarSpread(k, chartSpread, simSpread);
             for(int tp = maxHit; tp < 4; tp++)
             {
-               if((chartLow[k] + simSpread) <= tps[tp])
+               if((chartLow[k] + barSpread) <= tps[tp])
                {
                   maxHit = tp + 1;
                   hitTime = chartTime[k];
@@ -427,7 +429,7 @@ void ShowTradeSetupForBox(int boxIdx)
             }
 
             // بررسی حد ضرر (با احتساب اسپرد خرید جهت تسویه)
-            if((chartHigh[k] + simSpread) >= slPrice)
+            if((chartHigh[k] + barSpread) >= slPrice)
             {
                hitTP = maxHit;
                isClosed = true;
@@ -849,14 +851,15 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          }
          else
          {
-            if(isBull && chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+            double barSpread = GetBarSpread(k, chartSpread, simSpread);
+            if(isBull && (chartLow[k] + barSpread) <= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
                entryTime = chartTime[k];
                break;
             }
-            else if(!isBull && chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            else if(!isBull && chartHigh[k] >= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
@@ -1514,9 +1517,10 @@ void ExportAllTradesToCSV()
          }
          else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
          {
+            double barSpread = GetBarSpread(k, chartSpread, simSpread);
             if(isBull)
             {
-               if(chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+               if((chartLow[k] + barSpread) <= entryPrice)
                {
                   isEntered = true;
                   entryBarIdx = k;
@@ -1526,7 +1530,7 @@ void ExportAllTradesToCSV()
             }
             else
             {
-               if(chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+               if(chartHigh[k] >= entryPrice)
                {
                   isEntered = true;
                   entryBarIdx = k;

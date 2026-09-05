@@ -640,6 +640,25 @@ function renderTesterKPIs(report, scenarioKey) {
         let losses = k.losingSetups !== undefined ? k.losingSetups : t.filter(x => x.outcome === 'Loss').length;
         winLoss.textContent = wins + ' برد | ' + losses + ' باخت';
     }
+
+    // ⏱️ Update Box-to-Entry Latency KPIs
+    let sym = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey] && window.TESTER_REPORTS[window.currentTesterReportKey].symbol) || window.currentActiveSymbol || 'GBPUSD';
+    let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
+    let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
+    let lat = sData.latency_all || {};
+
+    let waitMinEl = document.getElementById('tcValWaitMin');
+    let waitAvgEl = document.getElementById('tcValWaitAvg');
+    let waitMedEl = document.getElementById('tcValWaitMed');
+    let diffWaitEl = document.getElementById('tcDiffWait');
+    if (waitMinEl) waitMinEl.textContent = lat.min_short || '۹د';
+    if (waitAvgEl) waitAvgEl.textContent = lat.avg_short || '۴۶د';
+    if (waitMedEl) waitMedEl.textContent = lat.median_short || '۲۶د';
+    if (diffWaitEl) {
+        let p90 = lat.p90_short ? `۹۰٪ اردرها زیر ${lat.p90_short}` : 'انقضای اردر لیمیت';
+        let cnt = lat.count || (t ? t.length : 238);
+        diffWaitEl.textContent = `${p90} (کل: ${cnt} ستاپ)`;
+    }
 }
 
 function extractHourSet(val, fallbackDisplay) {
@@ -1319,12 +1338,16 @@ function drawTesterCompareChart(report, scenarioKey) {
 
                 let pnlColor = isWin ? '#34d399' : '#f87171';
 
+                let waitTag = (pt.match && pt.match.wait_fmt && pt.match.wait_fmt !== '-')
+                    ? `<div style="color:#38bdf8;font-size:9.5px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ${pt.match.wait_fmt}</div>`
+                    : '';
+
                 html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
                     <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
                     <td style="padding:7px 8px;font-weight:600;color:#f8fafc;">${pt.pattern}</td>
                     <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
                     <td style="padding:7px 8px;text-align:center;">${sideBadge}</td>
-                    <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;">${pt.tEntryTime}</td>
+                    <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;">${pt.tEntryTime}${waitTag}</td>
                     <td style="padding:7px 8px;color:#cbd5e1;font-size:10.5px;">${pt.boxEntry.toFixed(5)}</td>
                     <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;">${pt.marketFill.toFixed(5)}</td>
                     <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>

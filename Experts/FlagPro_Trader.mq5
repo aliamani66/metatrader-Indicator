@@ -858,11 +858,44 @@ void ManageActiveTradeGroups()
       bool isBuy = m_activeGroups[g].isBuy;
       double currentP = isBuy ? currentBid : currentAsk;
 
+      // 🎯 خروج اکتیو و تضمینی به محض عبور قیمت اسک (Ask) در معاملات فروش یا بید (Bid) در معاملات خرید از تارگت
+      double targetTPs[4] = {m_activeGroups[g].tp1, m_activeGroups[g].tp2, m_activeGroups[g].tp3, m_activeGroups[g].tp4};
+      for(int p = 0; p < 4; p++)
+      {
+         if(ticketOpen[p])
+         {
+            bool tpCrossed = false;
+            if(isBuy)
+            {
+               // معامله خرید: با قیمت بید تسویه می‌شود
+               if(currentBid >= targetTPs[p])
+                  tpCrossed = true;
+            }
+            else
+            {
+               // معامله فروش: با قیمت اسک (خط قرمز) تسویه می‌شود
+               if(currentAsk <= targetTPs[p])
+                  tpCrossed = true;
+            }
+
+            if(tpCrossed)
+            {
+               if(m_trade.PositionClose(m_activeGroups[g].tickets[p]))
+               {
+                  ticketOpen[p] = false;
+                  PrintFormat("🎯 [FlagPro Active TP Close] پوزیشن %d معامله %s با تاچ قیمت %s (%.5f) در تارگت TP%d (%.5f) تسویه گردید.",
+                              p + 1, m_activeGroups[g].role, (isBuy ? "Bid" : "Ask"),
+                              (isBuy ? currentBid : currentAsk), p + 1, targetTPs[p]);
+               }
+            }
+         }
+      }
+
       // مرحله ۱: انتقال به بریک‌ایون (Break-Even) پس از تاچ TP1 یا خروج پوزیشن اول
       if(InpMoveToBreakEven && !m_activeGroups[g].beApplied)
       {
          bool tp1Reached = (!ticketOpen[0] && m_activeGroups[g].tickets[0] > 0) ||
-                           (isBuy ? (currentP >= m_activeGroups[g].tp1) : (currentP <= m_activeGroups[g].tp1));
+                           (isBuy ? (currentBid >= m_activeGroups[g].tp1) : (currentAsk <= m_activeGroups[g].tp1));
 
          if(tp1Reached)
          {
