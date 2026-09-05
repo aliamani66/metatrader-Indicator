@@ -158,8 +158,13 @@ function switchDashboardSymbol(symName) {
             try { if (typeof renderSLRiskPanel === 'function') renderSLRiskPanel(); } catch(e) { console.error('renderSLRiskPanel error:', e); }
             try { if (typeof renderSimHoursBar === 'function') renderSimHoursBar(); } catch(e) { console.error('renderSimHoursBar error:', e); }
             try { if (typeof trFilters !== 'undefined') trFilters.page = 1; } catch(e) {}
-            try { if (typeof renderTrades === 'function') renderTrades(); } catch(e) { console.error('renderTrades error:', e); }
             try { if (typeof runEquitySimulation === 'function') runEquitySimulation(); } catch(e) { console.error('runEquitySimulation error:', e); }
+            requestAnimationFrame(() => {
+                try { if (typeof drawEquityChart === 'function') drawEquityChart(); } catch(e) {}
+                setTimeout(() => {
+                    try { if (typeof drawEquityChart === 'function') drawEquityChart(); } catch(e) {}
+                }, 80);
+            });
             try {
                 if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
                     drawWeeklyBarChart(currentWeeklyBarMode);

@@ -3753,6 +3753,24 @@ def build_dashboard(custom_csv=None):
             'smart_presets_rows_html': s_data.get('smart_presets_rows_html', ''),
         }
 
+    # 1. Update FlagPro_Modular_App initial data (merging existing symbols so none are lost)
+    modular_dir = os.path.join(repo_root, "FlagPro_Modular_App")
+    modular_data_file = os.path.join(modular_dir, "data", "initial_data.js")
+    os.makedirs(os.path.dirname(modular_data_file), exist_ok=True)
+    if os.path.exists(modular_data_file):
+        try:
+            with open(modular_data_file, 'r', encoding='utf-8') as mf:
+                old_content = mf.read()
+            old_prefix = 'window.ALL_SYMBOLS_DATA = '
+            if old_prefix in old_content:
+                old_json_str = old_content[len(old_prefix):old_content.find(';\nwindow.TESTER_REPORTS')]
+                existing_symbols = json.loads(old_json_str)
+                for sym_k, sym_v in existing_symbols.items():
+                    if sym_k not in client_symbols_payload:
+                        client_symbols_payload[sym_k] = sym_v
+        except Exception as ex:
+            print(f"Notice: Could not merge existing symbols: {ex}")
+
     json_symbols_payload = json.dumps(client_symbols_payload, separators=(',', ':'))
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -3764,10 +3782,6 @@ def build_dashboard(custom_csv=None):
     tester_compare_js = tester_compare_module.get_tester_compare_js()
     json_tester_reports_payload = json.dumps(tester_reports, separators=(',', ':'))
 
-    # 1. Update FlagPro_Modular_App initial data
-    modular_dir = os.path.join(repo_root, "FlagPro_Modular_App")
-    modular_data_file = os.path.join(modular_dir, "data", "initial_data.js")
-    os.makedirs(os.path.dirname(modular_data_file), exist_ok=True)
     with open(modular_data_file, mode='w', encoding='utf-8') as f:
         f.write(f"window.ALL_SYMBOLS_DATA = {json_symbols_payload};\nwindow.TESTER_REPORTS = {json_tester_reports_payload};\n")
     print(f"✅ داده‌های پروژه ماژولار به‌روزرسانی شد: {modular_data_file}")

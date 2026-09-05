@@ -9,12 +9,15 @@ function openTab(evt, tabId) {
             evt.currentTarget.classList.add('active');
 
             if (tabId === 'tab-equity') {
-                setTimeout(() => {
+                requestAnimationFrame(() => {
                     if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents();
                     if (typeof initSimUI === 'function') initSimUI();
                     if (typeof loadCustomPresets === 'function') loadCustomPresets();
                     if (typeof drawEquityChart === 'function') drawEquityChart();
-                }, 50);
+                    setTimeout(() => {
+                        if (typeof drawEquityChart === 'function') drawEquityChart();
+                    }, 60);
+                });
             }
 
             if (tabId === 'tab-weekly') {
@@ -90,14 +93,19 @@ function toggleSidebar() {
             if (!container) return;
             if (container.classList.contains('single-col')) {
                 container.classList.remove('single-col');
-                if (btn) { btn.textContent = '⛶'; btn.title = 'حالت تمام‌صفحه'; }
+                try { localStorage.setItem('flagpro_equity_layout', 'two-col'); } catch(e) {}
+                if (btn) { btn.textContent = '⛶ تمام‌صفحه'; btn.title = 'حالت تمام‌صفحه (نمودار تمام‌عرض)'; }
             } else {
                 container.classList.add('single-col');
-                if (btn) { btn.textContent = '🗗'; btn.title = 'حالت دو ستونی'; }
+                try { localStorage.setItem('flagpro_equity_layout', 'single-col'); } catch(e) {}
+                if (btn) { btn.textContent = '🗗 دو ستونی'; btn.title = 'حالت دو ستونی (چارت و جدول کنار هم)'; }
             }
-            setTimeout(() => {
-                drawEquityChart();
-            }, 50);
+            requestAnimationFrame(() => {
+                if (typeof drawEquityChart === 'function') drawEquityChart();
+                setTimeout(() => {
+                    if (typeof drawEquityChart === 'function') drawEquityChart();
+                }, 60);
+            });
         }
 
         
@@ -112,6 +120,16 @@ function initApp() {
             if (sb) sb.classList.add('collapsed');
             if (icon) icon.textContent = '📑';
             if (txt) txt.textContent = 'نمایش منو';
+        }
+    } catch(e) {}
+
+    try {
+        let savedLayout = localStorage.getItem('flagpro_equity_layout');
+        let container = document.getElementById('eqTwoColContainer');
+        let btn = document.getElementById('btnToggleTwoCol');
+        if (savedLayout === 'single-col' && container) {
+            container.classList.add('single-col');
+            if (btn) { btn.textContent = '🗗 دو ستونی'; btn.title = 'حالت دو ستونی (چارت و جدول کنار هم)'; }
         }
     } catch(e) {}
 
@@ -130,8 +148,20 @@ function initApp() {
     if (typeof updateValidationStatus === 'function') {
         updateValidationStatus();
     }
+
+    // Safety multi-stage redraw to ensure painting after fonts, CSS, and layout calculations
+    requestAnimationFrame(() => {
+        if (typeof drawEquityChart === 'function') drawEquityChart();
+        setTimeout(() => {
+            if (typeof drawEquityChart === 'function') drawEquityChart();
+        }, 100);
+        setTimeout(() => {
+            if (typeof drawEquityChart === 'function') drawEquityChart();
+        }, 300);
+    });
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
 window.addEventListener('load', initApp);
+
 

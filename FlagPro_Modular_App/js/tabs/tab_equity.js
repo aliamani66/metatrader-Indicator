@@ -1039,6 +1039,7 @@ function openSavePresetModal() {
 
             currentSimPts = pts;
             drawEquityChart();
+            requestAnimationFrame(() => { drawEquityChart(); });
         }
 
         function drawEquityChart() {
@@ -1049,14 +1050,31 @@ function openSavePresetModal() {
 
             let dpr = window.devicePixelRatio || 1;
             let rect = canvas.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) return;
+            let w = rect.width || canvas.offsetWidth || canvas.clientWidth || (canvas.parentElement ? canvas.parentElement.clientWidth : 0);
+            let h = rect.height || canvas.offsetHeight || canvas.clientHeight || (canvas.parentElement ? canvas.parentElement.clientHeight : 0) || 450;
 
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
+            if (w <= 0 || h <= 0) {
+                if (!canvas._retryCount) canvas._retryCount = 0;
+                if (canvas._retryCount < 40) {
+                    canvas._retryCount++;
+                    requestAnimationFrame(() => setTimeout(drawEquityChart, 50));
+                }
+                return;
+            }
+            canvas._retryCount = 0;
+
+            if (window.ResizeObserver && canvas.parentElement && !canvas._roAttached) {
+                canvas._roAttached = true;
+                const ro = new ResizeObserver(() => {
+                    requestAnimationFrame(() => drawEquityChart());
+                });
+                ro.observe(canvas.parentElement);
+            }
+
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
             ctx.scale(dpr, dpr);
 
-            let w = rect.width;
-            let h = rect.height;
             let padLeft = 30;
             let padRight = 75;
             let padTop = 20;
@@ -1066,6 +1084,11 @@ function openSavePresetModal() {
 
             let pts = currentSimPts;
             if (!pts || pts.length <= 1) {
+                if (typeof runEquitySimulation === 'function' && typeof simTrades !== 'undefined' && simTrades.length > 0 && !canvas._simRanOnce) {
+                    canvas._simRanOnce = true;
+                    runEquitySimulation();
+                    return;
+                }
                 ctx.clearRect(0, 0, w, h);
                 ctx.fillStyle = '#0b0f19';
                 ctx.fillRect(0, 0, w, h);
@@ -1076,6 +1099,7 @@ function openSavePresetModal() {
                 canvas._coords = [];
                 return;
             }
+            canvas._simRanOnce = false;
 
             let minBal = Infinity;
             let maxBal = -Infinity;
@@ -1460,7 +1484,8 @@ function openSavePresetModal() {
 
         function initEquityCanvasEvents() {
             let canvas = document.getElementById('equityCanvas');
-            if (!canvas || simCanvasEventsInitialized) return;
+            if (!canvas || canvas._eventsBound) return;
+            canvas._eventsBound = true;
             simCanvasEventsInitialized = true;
 
             canvas.addEventListener('mousemove', function(evt) {

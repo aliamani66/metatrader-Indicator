@@ -23,10 +23,29 @@ function switchWeeklyBarMode(mode) {
 
             let dpr = window.devicePixelRatio || 1;
             let rect = canvas.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) return;
+            let w = rect.width || canvas.offsetWidth || canvas.clientWidth || (canvas.parentElement ? canvas.parentElement.clientWidth : 0);
+            let h = rect.height || canvas.offsetHeight || canvas.clientHeight || (canvas.parentElement ? canvas.parentElement.clientHeight : 0) || 300;
 
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
+            if (w <= 0 || h <= 0) {
+                if (!canvas._retryCount) canvas._retryCount = 0;
+                if (canvas._retryCount < 40) {
+                    canvas._retryCount++;
+                    requestAnimationFrame(() => setTimeout(() => drawWeeklyBarChart(mode), 50));
+                }
+                return;
+            }
+            canvas._retryCount = 0;
+
+            if (window.ResizeObserver && canvas.parentElement && !canvas._roAttached) {
+                canvas._roAttached = true;
+                const ro = new ResizeObserver(() => {
+                    requestAnimationFrame(() => drawWeeklyBarChart(currentWeeklyBarMode));
+                });
+                ro.observe(canvas.parentElement);
+            }
+
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
             ctx.scale(dpr, dpr);
 
             let w = rect.width;

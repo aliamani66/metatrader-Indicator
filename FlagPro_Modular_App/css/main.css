@@ -224,10 +224,10 @@ body {
             box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
         }
 
-        /* 🌟 TWO-COLUMN WORKSPACE LAYOUT (34% Chart / 66% Controls & Tables) */
+        /* 🌟 TWO-COLUMN WORKSPACE LAYOUT (Balanced 50% Chart / 50% Controls & Tables) */
         .equity-two-col-container {
             display: grid;
-            grid-template-columns: 34% calc(66% - 12px);
+            grid-template-columns: 50% calc(50% - 12px);
             gap: 12px;
             align-items: stretch;
             margin-bottom: 12px;
@@ -249,7 +249,7 @@ body {
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            max-height: 485px;
+            max-height: 520px;
             padding-left: 2px;
         }
         .eq-subpanel .section-box {
@@ -272,7 +272,7 @@ body {
         .eq-subpanels-wrapper::-webkit-scrollbar-thumb:hover {
             background: #38bdf8;
         }
-        @media (max-width: 1250px) {
+        @media (max-width: 1400px) {
             .equity-two-col-container {
                 grid-template-columns: 1fr;
             }
