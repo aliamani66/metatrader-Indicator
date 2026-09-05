@@ -875,6 +875,9 @@
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(mt5Path).catch(function(){});
             }
+            if (typeof showSaveNotification === 'function') {
+                showSaveNotification('📋 آدرس پوشه متاتریدر در کلیپ‌بورد کپی شد!<br><span style="color:#38bdf8;font-size:11.5px;">در کادر بالای پنجره انتخاب فایل، کلید <b>Ctrl+V</b> و سپس <b>Enter</b> را بزنید تا مستقیم به فایل‌های CSV بروید.</span>');
+            }
             document.getElementById('csvFileInput').click();
         }
 
