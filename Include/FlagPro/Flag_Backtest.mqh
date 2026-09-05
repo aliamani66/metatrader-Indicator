@@ -451,14 +451,14 @@ void ShowTradeSetupForBox(int boxIdx)
 
 
 
-   // بک‌گراند کم‌رنگ و ملایم معامله (فقط در صورت روشن بودن InpShowTradeShading)
+   // بک‌گراند ملایم معامله (فقط در صورت روشن بودن InpShowTradeShading - رنگ‌های آبی و کهربایی بدون تداخل با قرمز/سبز تستر)
    if(InpShowTradeShading)
    {
       double tpTop = isBull ? tps[3] : entryPrice;
       double tpBtm = isBull ? entryPrice : tps[3];
       string profitZone = pfx + "PROFIT_BG";
       ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
-      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
+      ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'15,35,55'); // آبی دودی ملایم
       ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
       ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
       ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
@@ -467,7 +467,7 @@ void ShowTradeSetupForBox(int boxIdx)
       double slBtm = isBull ? slPrice : entryPrice;
       string lossZone = pfx + "LOSS_BG";
       ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
-      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
+      ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'55,35,15'); // کهربایی نارنجی ملایم
       ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
       ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
       ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
@@ -482,7 +482,7 @@ void ShowTradeSetupForBox(int boxIdx)
 
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
-   ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, entryLine, OBJPROP_COLOR, InpTradeEntryColor);
    ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
    ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
@@ -490,7 +490,7 @@ void ShowTradeSetupForBox(int boxIdx)
 
    string slLine = pfx + "SL";
    ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
-   ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrRed);
+   ObjectSetInteger(0, slLine, OBJPROP_COLOR, InpTradeSLColor);
    ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
    ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
@@ -500,7 +500,7 @@ void ShowTradeSetupForBox(int boxIdx)
    {
       string tpLine = pfx + "TP" + IntegerToString(tp + 1);
       ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], t2, tps[tp]);
-      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
       ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
       ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
@@ -509,7 +509,7 @@ void ShowTradeSetupForBox(int boxIdx)
       string tpLbl = tpLine + "_LBL";
       ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[tp]);
       ObjectSetString(0, tpLbl, OBJPROP_TEXT, "TP" + IntegerToString(tp + 1) + " (1:" + IntegerToString(tp + 1) + ")");
-      ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 8);
       ObjectSetInteger(0, tpLbl, OBJPROP_ANCHOR, (isBull ? ANCHOR_LOWER : ANCHOR_UPPER));
       ObjectSetInteger(0, tpLbl, OBJPROP_SELECTABLE, false);
@@ -530,11 +530,11 @@ void ShowTradeSetupForBox(int boxIdx)
          resColor = clrGold;
       }
    }
-   else if(hitTP == 4)   { resText = "WIN 1:4 🎯"; resColor = clrLime; }
-   else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = clrMediumSpringGreen; }
-   else if(hitTP == 2)   { resText = "WIN 1:2 ✨"; resColor = clrSpringGreen; }
-   else if(hitTP == 1)   { resText = "WIN 1:1 👍"; resColor = clrAqua; }
-   else if(isClosed)     { resText = "STOP LOSS ❌"; resColor = clrRed; }
+   else if(hitTP == 4)   { resText = "WIN 1:4 🎯"; resColor = InpTradeTPColor; }
+   else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = InpTradeTPColor; }
+   else if(hitTP == 2)   { resText = "WIN 1:2 ✨"; resColor = InpTradeTPColor; }
+   else if(hitTP == 1)   { resText = "WIN 1:1 👍"; resColor = InpTradeTPColor; }
+   else if(isClosed)     { resText = "STOP LOSS ❌"; resColor = InpTradeSLColor; }
    else                  { resText = "IN TRADE ⏱"; resColor = clrGold; }
 
    string resLbl = pfx + "RESULT_LBL";
@@ -1064,7 +1064,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             double tpBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].entryPrice : activeTPPrice;
             string profitZone = pfx + "PROFIT_BG";
             ObjectCreate(0, profitZone, OBJ_RECTANGLE, 0, t1, tpTop, t2, tpBtm);
-            ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'16,52,38');
+            ObjectSetInteger(0, profitZone, OBJPROP_COLOR, C'15,35,55'); // آبی دودی ملایم
             ObjectSetInteger(0, profitZone, OBJPROP_FILL, true);
             ObjectSetInteger(0, profitZone, OBJPROP_BACK, true);
             ObjectSetInteger(0, profitZone, OBJPROP_SELECTABLE, false);
@@ -1076,7 +1076,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
             double slBtm = g_tradeSetups[t].isBuy ? g_tradeSetups[t].slPrice : g_tradeSetups[t].entryPrice;
             string lossZone = pfx + "LOSS_BG";
             ObjectCreate(0, lossZone, OBJ_RECTANGLE, 0, t1, slTop, t2, slBtm);
-            ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'54,20,26');
+            ObjectSetInteger(0, lossZone, OBJPROP_COLOR, C'55,35,15'); // کهربایی نارنجی ملایم
             ObjectSetInteger(0, lossZone, OBJPROP_FILL, true);
             ObjectSetInteger(0, lossZone, OBJPROP_BACK, true);
             ObjectSetInteger(0, lossZone, OBJPROP_SELECTABLE, false);
@@ -1090,30 +1090,30 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(ObjectFind(0, lossZone) >= 0)   ObjectDelete(0, lossZone);
       }
 
-      // ۱. خط ورود سفید یکدست و تمیز
+      // ۱. خط ورود هماهنگ با رنگ ورودی کاربر
       string entryLine = pfx + "ENTRY";
       ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, g_tradeSetups[t].entryPrice, t2, g_tradeSetups[t].entryPrice);
-      ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
+      ObjectSetInteger(0, entryLine, OBJPROP_COLOR, InpTradeEntryColor);
       ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 1);
       ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
       ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
-      // ۲. خط حد ضرر قرمز یکدست
+      // ۲. خط حد ضرر متمایز از خط قرمز تستر (اورنج/رنگ انتخابی)
       string slLine = pfx + "SL";
       ObjectCreate(0, slLine, OBJ_TREND, 0, t1, g_tradeSetups[t].slPrice, t2, g_tradeSetups[t].slPrice);
-      ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrRed);
+      ObjectSetInteger(0, slLine, OBJPROP_COLOR, InpTradeSLColor);
       ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
       ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_SOLID);
       ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
-      // ۳. خطوط تارگت‌های ۴ گانه
+      // ۳. خطوط تارگت‌های ۴ گانه متمایز از خط سبز تستر (آبی/رنگ انتخابی)
       for(int p = 0; p < 4; p++)
       {
          string tpLine = pfx + "TP" + IntegerToString(p + 1);
          ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[p], t2, tps[p]);
-         ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
+         ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
          ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, 1);
          ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (p == 0 ? STYLE_SOLID : STYLE_DOT));
          ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
@@ -1122,7 +1122,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          string tpLbl = pfx + "TP" + IntegerToString(p + 1) + "_LBL";
          ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[p]);
          ObjectSetString(0, tpLbl, OBJPROP_TEXT, StringFormat(" TP%d", p + 1));
-         ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, clrLimeGreen);
+         ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
          ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 7);
          ObjectSetInteger(0, tpLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
          ObjectSetInteger(0, tpLbl, OBJPROP_SELECTABLE, false);
@@ -1136,7 +1136,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       else
          resTxt = (hitTP > 0) ? StringFormat("🎯 TP%d (+%dR)", hitTP, hitTP) : "❌ SL (-1R)";
 
-      color resClr = (hitTP > 0) ? clrLimeGreen : (g_tradeSetups[t].isClosed ? clrTomato : clrGold);
+      color resClr = (hitTP > 0) ? InpTradeTPColor : (g_tradeSetups[t].isClosed ? InpTradeSLColor : clrGold);
 
       double labelPrice = (hitTP > 0) ? activeTPPrice : g_tradeSetups[t].slPrice;
       ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, labelPrice);

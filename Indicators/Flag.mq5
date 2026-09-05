@@ -133,8 +133,8 @@ input bool             InpShowVisualTrades      = true;         // نمایش ب
 input int              InpMaxVisualTrades       = 10;           // حداکثر معاملات اخیر جهت رسم (خلوت بودن چارت)
 input double           InpRSPipBuffer           = 10.0;         // فاصله استاپ RS بر حسب پیپ
 input color            InpTradeEntryColor       = clrWhite;     // رنگ خط نقطه ورود
-input color            InpTradeSLColor          = clrRed;       // رنگ خط استاپ لاس (SL)
-input color            InpTradeTPColor          = clrLimeGreen; // رنگ خطوط تارگت (TP)
+input color            InpTradeSLColor          = clrDarkOrange;// رنگ خط استاپ لاس (SL - متمایز از قرمز تستر)
+input color            InpTradeTPColor          = clrDodgerBlue;// رنگ خطوط تارگت (TP - متمایز از سبز تستر)
 
 input group "=== Chart Theme & Display (تم فوق‌حرفه‌ای چارت) ==="
 input bool             InpApplyProTheme = true;        // اعمال تم حرفه‌ای خنثی (کندل‌های نقره‌ای/دودی با کنتراست حداکثری باکس‌ها)
@@ -1731,7 +1731,7 @@ void ShowTradeSetupForBox(int boxIdx)
    // ۱. خط نقطه ورود
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
-   ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, entryLine, OBJPROP_COLOR, InpTradeEntryColor);
    ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
    ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
@@ -1740,7 +1740,7 @@ void ShowTradeSetupForBox(int boxIdx)
    // ۲. خط استاپ لاس
    string slLine = pfx + "SL";
    ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
-   ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrRed);
+   ObjectSetInteger(0, slLine, OBJPROP_COLOR, InpTradeSLColor);
    ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
    ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
    ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
@@ -1754,7 +1754,7 @@ void ShowTradeSetupForBox(int boxIdx)
    {
       string tpLine = pfx + "TP" + IntegerToString(tp + 1);
       ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], t2, tps[tp]);
-      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
       ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
       ObjectSetInteger(0, tpLine, OBJPROP_RAY_RIGHT, false);
@@ -1763,7 +1763,7 @@ void ShowTradeSetupForBox(int boxIdx)
       string tpLbl = tpLine + "_LBL";
       ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[tp]);
       ObjectSetString(0, tpLbl, OBJPROP_TEXT, "TP " + tpLabels[tp]);
-      ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, clrLimeGreen);
+      ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 8);
       ObjectSetInteger(0, tpLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
       ObjectSetInteger(0, tpLbl, OBJPROP_SELECTABLE, false);
@@ -1778,7 +1778,7 @@ void ShowTradeSetupForBox(int boxIdx)
    else if(hitTP == 3)   { resText = "WIN 1:3 🚀"; resColor = clrMediumSpringGreen; }
    else if(hitTP == 2)   { resText = "WIN 1:2 ✅"; resColor = clrDodgerBlue; }
    else if(hitTP == 1)   { resText = "WIN 1:1 👍"; resColor = clrCyan; }
-   else if(isClosed)     { resText = "LOSS ❌";   resColor = clrRed; }
+   else if(isClosed)     { resText = "LOSS ❌";   resColor = InpTradeSLColor; }
    else if(isPending)    { resText = "PENDING ⏳"; resColor = clrYellow; }
    else                  { resText = "OPEN ⏳";   resColor = clrGold; }
 

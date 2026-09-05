@@ -24,34 +24,9 @@ enum ENUM_CONSEC_ACTION
 };
 
 //+------------------------------------------------------------------+
-//| ۱. 👑 سلاطین طلایی، سناریوی داشبورد و انتخاب استراتژی           |
+//| ۱. 🎯 حجم معاملات و سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing)  |
 //+------------------------------------------------------------------+
-input group "=== 👑 ۱. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ==="
-input string             InpScenarioName          = "Default";   // 🏷️ نام سناریوی معاملاتی (Dashboard Scenario Name)
-input bool               InpOnlyTradeKings        = true;        // 👑 فقط معامله سلاطین برگزیده (Kings Only)
-input string             InpDisabledKingsList     = "";          // 🚫 لیست سلاطین غیرمجاز (جدا شده با کاما، مثلاً "OInner-BE [M1]")
-input bool               InpEnableKingsM15        = true;        // 👑 فعال‌سازی سلاطین تایم M15 (۲ ساختار برتر)
-input bool               InpEnableKingsM5         = true;        // 👑 فعال‌سازی سلاطین تایم M5 (۷ ساختار برتر)
-input bool               InpEnableKingsM1         = true;        // 👑 فعال‌سازی سلاطین تایم M1 (۹ ساختار برتر)
-input bool               InpTradeOnlyGoldenKings  = true;        // 👑 فیلتر انحصاری سلاطین طلایی
-input bool               InpAllowOverlappingTrades= true;        // 🔓 اجازه معاملات همزمان (ستاپ‌های هم‌پوشان)
-
-//+------------------------------------------------------------------+
-//| ۲. ⚡ اسلیپیج، انحراف مجاز ورود و مدیریت ریسک                  |
-//+------------------------------------------------------------------+
-input group "=== ⚡ ۲. اسلیپیج، دقت ورود و مدیریت ریسک معامله ==="
-input int                InpSlippagePoints        = 20;          // ⚡ حداکثر اسلیپیج مجاز (لغزش قیمت به پوینت - 20 = 2 پیپ)
-input double             InpMaxEntryDeviationPips = 2.5;         // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
-input double             InpSLOffsetPips          = 3.0;         // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
-#define InpRSPipBuffer InpSLOffsetPips
-input double             InpMaxSLPips             = 0.0;         // حداکثر حد ضرر مجاز به پیپ (0 = منطبق بر خط قرمز چارت)
-input int                InpMaxOpenGroups         = 5;           // حداکثر تعداد ستاپ‌های همزمان فعال
-input ulong              InpMagicNumber           = 777123;      // شناسه جادویی اکسپرت (Magic Number)
-
-//+------------------------------------------------------------------+
-//| ۳. 🎯 سیستم خروج ۴ مرحله‌ای، بریک‌ایون و تریلینگ                |
-//+------------------------------------------------------------------+
-input group "=== 🎯 ۳. سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing) ==="
+input group "=== 🎯 ۱. حجم معاملات و خروج ۴ مرحله‌ای (Scale-Out & Trailing) ==="
 input bool               InpEnableScaleOut        = true;        // فعال‌سازی سیستم خروج ۴ مرحله‌ای
 input double             InpLot_TP1               = 0.01;        // 🎯 حجم خروج مرحله ۱ در TP1 (25% کل حجم)
 input double             InpLot_TP2               = 0.01;        // 🎯 حجم خروج مرحله ۲ در TP2 (25% کل حجم)
@@ -61,6 +36,31 @@ input bool               InpMoveToBreakEven       = true;        // 🛡️ مر
 input double             InpBEBufferPips          = 1.0;         // 🛡️ بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ)
 input bool               InpTrailToTP1            = true;        // 🔒 مرحله ۲: تریل و قفل حد ضرر به TP1 پس از لمس TP2
 input bool               InpTrailToTP2            = true;        // 🚀 مرحله ۳: تریل و قفل حد ضرر به TP2 پس از لمس TP3
+
+//+------------------------------------------------------------------+
+//| ۲. 👑 سلاطین طلایی، سناریوی داشبورد و انتخاب استراتژی           |
+//+------------------------------------------------------------------+
+input group "=== 👑 ۲. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ==="
+input string             InpScenarioName          = "Default";   // 🏷️ نام سناریوی معاملاتی (Dashboard Scenario Name)
+input bool               InpOnlyTradeKings        = true;        // 👑 فقط معامله سلاطین برگزیده (Kings Only)
+input bool               InpTradeOnlyGoldenKings  = true;        // 👑 قفل انحصاری سلاطین طلایی
+input string             InpDisabledKingsList     = "";          // 🚫 لیست سلاطین غیرمجاز (جدا شده با کاما، مثلاً "OInner-BE [M1]")
+input bool               InpEnableKingsM15        = true;        // 👑 فعال‌سازی سلاطین تایم M15 (۲ ساختار برتر)
+input bool               InpEnableKingsM5         = true;        // 👑 فعال‌سازی سلاطین تایم M5 (۷ ساختار برتر)
+input bool               InpEnableKingsM1         = true;        // 👑 فعال‌سازی سلاطین تایم M1 (۹ ساختار برتر)
+input bool               InpAllowOverlappingTrades= true;        // 🔓 اجازه معاملات همزمان (ستاپ‌های هم‌پوشان)
+
+//+------------------------------------------------------------------+
+//| ۳. ⚡ مدیریت ریسک، حد ضرر، اسلیپیج و مجیک نامبر                |
+//+------------------------------------------------------------------+
+input group "=== ⚡ ۳. مدیریت ریسک، حد ضرر، لغزش و مجیک نامبر ==="
+input ulong              InpMagicNumber           = 777123;      // شناسه جادویی اکسپرت (Magic Number)
+input double             InpSLOffsetPips          = 3.0;         // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
+#define InpRSPipBuffer InpSLOffsetPips
+input double             InpMaxSLPips             = 0.0;         // حداکثر حد ضرر مجاز به پیپ (0 = منطبق بر خط استاپ چارت)
+input int                InpSlippagePoints        = 20;          // ⚡ حداکثر اسلیپیج مجاز (لغزش قیمت به پوینت - 20 = 2 پیپ)
+input double             InpMaxEntryDeviationPips = 2.5;         // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
+input int                InpMaxOpenGroups         = 5;           // حداکثر تعداد ستاپ‌های همزمان فعال
 
 //+------------------------------------------------------------------+
 //| ۴. ⏰ ساعات مجاز، کف سود ستاپ و فیوز ایمنی                     |
@@ -74,7 +74,7 @@ input ENUM_CONSEC_ACTION InpConsecLossAction      = CONSEC_ACTION_SKIP_1; // ⚡
 //+------------------------------------------------------------------+
 //| ۵. 🛡️ فیلترهای ضد استاپ و اصطکاک کمیسیون بروکر                  |
 //+------------------------------------------------------------------+
-input group "=== 🛡️ ۵. فیلترهای ضد استاپ و هزینه کمیسیون ==="
+input group "=== 🛡️ ۵. فیلترهای هوشمند ضد استاپ و هزینه بروکر ==="
 input bool               InpFilterNightHours      = true;        // 🛡️ فیلتر ۱: مسدودسازی بازه شب ۲۱ تا ۰۱ (اسپرد شبانه)
 input bool               InpFilterPreLondonHunt   = true;        // 🛡️ فیلتر ۲: مسدودسازی ساعت ۰۷:۰۰ قبل لندن (استاپ هانت)
 input bool               InpFilterToxicPatterns   = true;        // 🛡️ فیلتر ۳: حذف زنجیره‌های سمی و بازگشتی
@@ -86,7 +86,7 @@ input double             InpEstimatedSpreadPips   = 0.8;         // اسپرد �
 input double             InpMinNetProfitRatioTP1 = 1.0;         // حداقل نسبت سود TP1 به کل اصطکاک
 
 //+------------------------------------------------------------------+
-//| ۶. ⏱️ تایم‌فریم‌های فعال معامله و عمق پردازش                   |
+//| ۶. ⏱️ تایم‌فریم‌های فعال معامله و عمق پردازش چارت                |
 //+------------------------------------------------------------------+
 input group "=== ⏱️ ۶. تایم‌فریم‌های فعال معامله و سرعت پردازش ==="
 input bool               InpUseTF7                = true;        // معامله در تایم‌فریم ۱ دقیقه (PERIOD_M1)
@@ -99,19 +99,23 @@ input datetime           InpHistoryStartDate      = D'2025.01.01 00:00'; // 📅
 input int                InpHistoryDays           = 10;          // ⏳ بازه روز گذشته (۱۰ روز برای تست سریع)
 
 //+------------------------------------------------------------------+
-//| ۷. 🎨 تنظیمات ظاهری، رسم خطوط و رنگ‌های چارت (پایین لیست)       |
+//| ۷. 🎯 گرافیک و رنگ خطوط معامله روی چارت (پایین فرم - متمایز از تستر) |
 //+------------------------------------------------------------------+
-input group "=== 🎨 ۷. تنظیمات ظاهری، رسم خطوط و رنگ‌های چارت (پایین لیست) ==="
-input bool               InpShowBoxes             = false;       // 👁️ رسم باکس‌های قیمتی روی چارت
+input group "=== 🎯 ۷. خطوط معامله روی چارت (متمایز از خطوط تستر) ==="
 input bool               InpAutoDrawTrades        = true;        // 🎯 رسم خودکار گرافیک معاملات فعال‌شده روی چارت
-input bool               InpExportCSV             = false;       // 📁 استخراج خودکار فایل CSV
+input color              InpTradeEntryColor       = clrWhite;    // رنگ خط ورود به معامله (Entry)
+input color              InpTradeSLColor          = clrDarkOrange;// رنگ خط حد ضرر (SL - متمایز از قرمز تستر)
+input color              InpTradeTPColor          = clrDodgerBlue;// رنگ خطوط تارگت (TP - متمایز از سبز تستر)
 input bool               InpShowTradeShading      = false;       // 🎨 پس‌زمینه رنگی معاملات
+input bool               InpExportCSV             = false;       // 📁 استخراج خودکار فایل CSV
+
+//+------------------------------------------------------------------+
+//| ۸. 🎨 رنگ‌ها، تنظیمات ظاهری باکس‌ها و تم چارت (پایین‌ترین بخش)   |
+//+------------------------------------------------------------------+
+input group "=== 🎨 ۸. رنگ‌ها و تنظیمات ظاهری باکس‌های چارت ==="
+input bool               InpShowBoxes             = false;       // 👁️ رسم باکس‌های قیمتی روی چارت
 input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها روی چارت
 input bool               InpHideFilteredBoxes     = true;        // مخفی‌سازی باکس‌های فیلترشده از چارت
-
-input color              InpTradeEntryColor       = clrWhite;    // رنگ خط ورود به معامله (Entry)
-input color              InpTradeSLColor          = clrRed;      // رنگ خط حد ضرر (SL)
-input color              InpTradeTPColor          = clrLimeGreen;// رنگ خطوط تارگت (TP)
 
 input ENUM_TIMEFRAMES    InpTF7                   = PERIOD_M1;
 input color              InpColorTF7              = clrYellow;   // رنگ تایم‌فریم ۱ دقیقه

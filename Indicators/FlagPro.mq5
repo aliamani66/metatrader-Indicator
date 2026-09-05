@@ -74,8 +74,8 @@ input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // 
 input bool              InpHideFilteredBoxes  = true;                   // مخفی‌سازی باکس‌های فیلترشده از روی چارت
 input bool              InpShowTradeShading   = false;                  // 🎨 نمایش پس‌زمینه رنگی معاملات
 input color             InpTradeEntryColor    = clrWhite;               // رنگ خط ورود به معامله (Entry)
-input color             InpTradeSLColor       = clrRed;                 // رنگ خط حد ضرر (SL)
-input color             InpTradeTPColor       = clrLimeGreen;           // رنگ خطوط تارگت (TP)
+input color             InpTradeSLColor       = clrDarkOrange;          // رنگ خط حد ضرر (SL - متمایز از قرمز تستر)
+input color             InpTradeTPColor       = clrDodgerBlue;          // رنگ خطوط تارگت (TP - متمایز از سبز تستر)
 
 input ENUM_TIMEFRAMES   InpTF7                = PERIOD_M1;
 input color             InpColorTF7           = clrYellow;              // رنگ تایم‌فریم M1
