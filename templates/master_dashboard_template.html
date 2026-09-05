@@ -1578,15 +1578,32 @@
         // ==========================================
         let customPresetsList = [];
 
-        let currentExportConfig = null;
+        // ==============================================================================
+        // 🤖 FlagPro Strategy Dashboard - MT5 Strategy Tester (.ini) & EA (.set) Exporter
+        // ==============================================================================
 
-        function buildMT5SetFilename(cfg) {
-            let sym = (cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD')).replace(/[^a-zA-Z0-9]/g, '');
-            if (!sym) sym = 'EURUSD';
+        var currentExportConfig = null;
 
-            // Clean scenario title to safe descriptive ASCII
-            let rawTitle = cfg.title || 'Custom';
+        function getExactBrokerSymbol(baseSym) {
+            if (typeof tradesRaw !== 'undefined' && tradesRaw && tradesRaw.length > 0 && tradesRaw[0].Symbol) {
+                return tradesRaw[0].Symbol;
+            }
+            if (typeof ALL_SYMBOLS_DATA !== 'undefined' && ALL_SYMBOLS_DATA && ALL_SYMBOLS_DATA[baseSym]) {
+                let sData = ALL_SYMBOLS_DATA[baseSym];
+                if (sData.tradesRaw && sData.tradesRaw.length > 0 && sData.tradesRaw[0].Symbol) {
+                    return sData.tradesRaw[0].Symbol;
+                }
+            }
+            let sym = baseSym || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD');
+            if (!sym.endsWith('!')) {
+                sym = sym + '!';
+            }
+            return sym;
+        }
+
+        function buildCleanScenarioTitle(rawTitle, sym) {
             let cleanTitle = 'Custom';
+            if (!rawTitle) return cleanTitle;
             if (rawTitle.indexOf('Conservative') >= 0 || rawTitle.indexOf('محافظه') >= 0) cleanTitle = 'Conservative';
             else if (rawTitle.indexOf('Aggressive') >= 0 || rawTitle.indexOf('تهاجمی') >= 0) cleanTitle = 'Aggressive';
             else if (rawTitle.indexOf('Golden') >= 0 || rawTitle.indexOf('طلا') >= 0 || rawTitle.indexOf('Balanced') >= 0 || rawTitle.indexOf('متعادل') >= 0) cleanTitle = 'GoldenBalance';
@@ -1598,17 +1615,146 @@
             else if (rawTitle.indexOf('چیدمان') >= 0 || rawTitle.indexOf('فعال') >= 0) cleanTitle = 'ActiveSetup';
             else {
                 let asciiOnly = rawTitle.replace(/[^a-zA-Z0-9]/g, '');
-                if (asciiOnly.length >= 3 && asciiOnly.toUpperCase() !== sym.toUpperCase()) cleanTitle = asciiOnly;
+                if (asciiOnly.length >= 3 && asciiOnly.toUpperCase() !== (sym || '').toUpperCase()) cleanTitle = asciiOnly;
                 else cleanTitle = 'CustomSetup';
             }
+            return cleanTitle;
+        }
 
+        // --------------------------------------------------------------------------
+        // 📄 MT5 Strategy Tester (.ini) Filename & Content Generator
+        // --------------------------------------------------------------------------
+
+        function buildMT5IniFilename(cfg) {
+            let rawSym = cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD');
+            let sym = rawSym.replace(/[^a-zA-Z0-9]/g, '');
+            if (!sym) sym = 'EURUSD';
+
+            let cleanTitle = buildCleanScenarioTitle(cfg.title, sym);
             let wrVal = parseFloat(String(cfg.wr).replace(/[^0-9.]/g, '')) || 0;
             let pfVal = parseFloat(String(cfg.pf).replace(/[^0-9.]/g, '')) || 0;
-
             let wrPart = 'WR' + Math.round(wrVal);
             let pfPart = 'PF' + pfVal.toFixed(1);
 
-            // 📅 Current Date & Time format: YYYY-MM-DD_HH-mm
+            return ['FlagPro_Tester', sym, cleanTitle, wrPart, pfPart].join('_') + '.ini';
+        }
+
+        function generateIniFileText(cfg) {
+            let rawSym = cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD');
+            let sym = getExactBrokerSymbol(rawSym);
+
+            let safeTitle = (cfg.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-]/g, ' ').trim();
+            if (!safeTitle) safeTitle = 'Custom Strategy';
+
+            let minPotVal = parseFloat(cfg.min_pot || 0).toFixed(2);
+            let hoursStr = cfg.hours_str || '';
+            let consecTrigVal = parseInt(cfg.consec_trig || 0);
+            let consecActVal = parseInt(cfg.consec_action || 1);
+            let disabledStr = cfg.disabled_kings_str || '';
+
+            let now = new Date();
+            let toDate = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0');
+            let tenDaysAgo = new Date(now.getTime() - 10 * 24 * 3600 * 1000);
+            let fromDate = tenDaysAgo.getFullYear() + '.' + String(tenDaysAgo.getMonth() + 1).padStart(2, '0') + '.' + String(tenDaysAgo.getDate()).padStart(2, '0');
+
+            let cleanTitle = buildCleanScenarioTitle(cfg.title, sym);
+            let isBaseScenario = (cleanTitle === 'AllKings24H');
+            let useTF7Val = (cfg.use_tf7 !== undefined) ? (cfg.use_tf7 ? 'true' : 'false') : (isBaseScenario ? 'true' : 'false');
+            let enableKingsM1Val = (cfg.enable_kings_m1 !== undefined) ? (cfg.enable_kings_m1 ? 'true' : 'false') : useTF7Val;
+            let beBufferVal = (cfg.be_buffer !== undefined) ? parseFloat(cfg.be_buffer).toFixed(1) : (isBaseScenario ? '1.0' : '0.0');
+            let maxDevVal = (cfg.max_dev !== undefined) ? parseFloat(cfg.max_dev).toFixed(1) : ((cleanTitle.indexOf('Diamond') >= 0 || cleanTitle.indexOf('Shield') >= 0) ? '2.0' : '2.5');
+
+            let lines = [
+                ';MetaTrader 5 Strategy Tester Configuration (.ini)',
+                ';Auto-generated by FlagPro Strategy Dashboard',
+                ';Drag & drop this file onto MetaTrader 5 Strategy Tester window (Ctrl+R)',
+                '[Tester]',
+                'Expert=FlagPro_Trader.ex5',
+                'Symbol=' + sym,
+                'Period=M1',
+                'Optimization=0',
+                'Model=4',
+                'FromDate=' + fromDate,
+                'ToDate=' + toDate,
+                'ForwardMode=0',
+                'Deposit=10000',
+                'Currency=USD',
+                'ProfitInPips=0',
+                'Leverage=100',
+                'ExecutionMode=0',
+                'OptimizationCriterion=0',
+                'Visual=1',
+                '[TesterInputs]',
+                '; === 👑 ۱. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
+                'InpScenarioName=' + safeTitle,
+                'InpOnlyTradeKings=true',
+                'InpDisabledKingsList=' + disabledStr,
+                'InpEnableKingsM15=true',
+                'InpEnableKingsM5=true',
+                'InpEnableKingsM1=' + enableKingsM1Val,
+                'InpTradeOnlyGoldenKings=true',
+                'InpAllowOverlappingTrades=true',
+                '; === ⚡ ۲. اسلیپیج، دقت ورود و مدیریت ریسک معامله ===',
+                'InpSlippagePoints=20',
+                'InpMaxEntryDeviationPips=' + maxDevVal,
+                'InpSLOffsetPips=3.0',
+                'InpMaxSLPips=0.0',
+                'InpMaxOpenGroups=5',
+                'InpMagicNumber=777123',
+                '; === 🎯 ۳. سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing) ===',
+                'InpEnableScaleOut=true',
+                'InpLot_TP1=0.01',
+                'InpLot_TP2=0.01',
+                'InpLot_TP3=0.01',
+                'InpLot_TP4=0.01',
+                'InpMoveToBreakEven=true',
+                'InpBEBufferPips=' + beBufferVal,
+                'InpTrailToTP1=true',
+                'InpTrailToTP2=true',
+                '; === ⏰ ۴. ساعات معاملاتی، کف سود و فیوز ایمنی ===',
+                'InpAllowedTradingHours=' + hoursStr,
+                'InpMinTradePotential=' + minPotVal,
+                'InpConsecLossTrigger=' + consecTrigVal,
+                'InpConsecLossAction=' + consecActVal,
+                '; === 🛡️ ۵. فیلترهای ضد استاپ و هزینه کمیسیون ===',
+                'InpFilterNightHours=true',
+                'InpFilterPreLondonHunt=true',
+                'InpFilterToxicPatterns=true',
+                'InpFilterSingleLS=true',
+                'InpFilterPureFlags=true',
+                'InpFilterLowRewardVsFriction=true',
+                'InpBrokerCommissionPerLot=6.0',
+                'InpEstimatedSpreadPips=0.8',
+                'InpMinNetProfitRatioTP1=1.0',
+                '; === ⏱️ ۶. تایم‌فریم‌های فعال معامله و سرعت پردازش ===',
+                'InpUseTF7=' + useTF7Val,
+                'InpUseTF6=true',
+                'InpUseTF5=true',
+                'InpTradeMacroTFs=false',
+                'InpLookbackBars=15000',
+                'InpHistoryMode=1',
+                'InpHistoryStartDate=2025.01.01 00:00:00',
+                'InpHistoryDays=10'
+            ];
+
+            return lines.join(String.fromCharCode(13, 10));
+        }
+
+        // --------------------------------------------------------------------------
+        // 📄 MT5 EA Settings (.set) Filename & Content Generator
+        // --------------------------------------------------------------------------
+
+        function buildMT5SetFilename(cfg) {
+            let rawSym = cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD');
+            let sym = rawSym.replace(/[^a-zA-Z0-9]/g, '');
+            if (!sym) sym = 'EURUSD';
+
+            let cleanTitle = buildCleanScenarioTitle(cfg.title, sym);
+            let wrVal = parseFloat(String(cfg.wr).replace(/[^0-9.]/g, '')) || 0;
+            let pfVal = parseFloat(String(cfg.pf).replace(/[^0-9.]/g, '')) || 0;
+            let wrPart = 'WR' + Math.round(wrVal);
+            let pfPart = 'PF' + pfVal.toFixed(1);
+
             let now = new Date();
             let y = now.getFullYear();
             let m = String(now.getMonth() + 1).padStart(2, '0');
@@ -1621,55 +1767,96 @@
         }
 
         function generateSetFileText(cfg) {
-            let sym = (cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD'));
+            let rawSym = cfg.symbol || (typeof currentActiveSymbol !== 'undefined' ? currentActiveSymbol : 'EURUSD');
+            let sym = rawSym.replace(/[^a-zA-Z0-9]/g, '') || 'EURUSD';
             let filename = buildMT5SetFilename(cfg);
             let now = new Date();
             let nowStr = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
-            let isBase = (cfg.title && (cfg.title.indexOf('AllKings') >= 0 || cfg.title.indexOf('سبد') >= 0 || cfg.title.indexOf('جامع') >= 0 || cfg.title.indexOf('تمام') >= 0 || cfg.title.indexOf('پایه') >= 0));
-            let beBuf = isBase ? '1.0' : '0.0';
-            let maxDev = isBase ? '2.5' : '2.0';
-            let useTF7 = isBase ? 'true' : 'false';
+
+            let safeTitle = (cfg.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-]/g, ' ').trim();
+            if (!safeTitle) safeTitle = 'Custom Strategy';
+
+            let cleanTitle = buildCleanScenarioTitle(cfg.title, sym);
+            let isBaseScenario = (cleanTitle === 'AllKings24H');
+            let useTF7Val = (cfg.use_tf7 !== undefined) ? (cfg.use_tf7 ? 'true' : 'false') : (isBaseScenario ? 'true' : 'false');
+            let enableKingsM1Val = (cfg.enable_kings_m1 !== undefined) ? (cfg.enable_kings_m1 ? 'true' : 'false') : useTF7Val;
+            let beBufferVal = (cfg.be_buffer !== undefined) ? parseFloat(cfg.be_buffer).toFixed(1) : (isBaseScenario ? '1.0' : '0.0');
+            let maxDevVal = (cfg.max_dev !== undefined) ? parseFloat(cfg.max_dev).toFixed(1) : ((cleanTitle.indexOf('Diamond') >= 0 || cleanTitle.indexOf('Shield') >= 0) ? '2.0' : '2.5');
+
             let lines = [
                 ';+------------------------------------------------------------------+',
-                ';| FlagPro_Trader EA Settings File (.set)                           |',
-                ';| File: ' + filename + ' |',
-                ';| Auto-generated from FlagPro Master Strategy Dashboard            |',
-                ';| Date: ' + nowStr + ' |',
-                ';| Target Folder: MQL5/Experts/تنظیمات/ (or Settings/)              |',
-                ';| Symbol: ' + sym + ' | Scenario: ' + cfg.title + ' |',
-                ';| Win Rate: ' + cfg.wr + ' | Profit Factor: ' + cfg.pf + ' |',
-                ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count + ' |',
+                ';| FlagPro_Trader EA - Expert Advisor Settings (.set)               |',
+                ';| File: ' + filename,
+                ';| Auto-generated from FlagPro Strategy Dashboard                   |',
+                ';| Date: ' + nowStr,
+                ';| Target Folder: MQL5/Experts/Settings/ (or تنظیمات/)              |',
+                ';| Symbol: ' + sym + ' | Scenario: ' + safeTitle,
+                ';| Win Rate: ' + cfg.wr + ' | Profit Factor: ' + cfg.pf,
+                ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count,
                 ';+------------------------------------------------------------------+',
-                'InpScenarioName=' + cfg.title,
-                'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
-                'InpAllowedTradingHours=' + (cfg.hours_str || ''),
-                'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
-                'InpConsecLossAction=' + parseInt(cfg.consec_action || 1),
-                'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+                '',
+                ';=== ۱. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
+                'InpScenarioName=' + safeTitle,
                 'InpOnlyTradeKings=true',
+                'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+                'InpEnableKingsM15=true',
+                'InpEnableKingsM5=true',
+                'InpEnableKingsM1=' + enableKingsM1Val,
+                'InpTradeOnlyGoldenKings=true',
+                'InpAllowOverlappingTrades=true',
+                '',
+                ';=== ۲. اسلیپیج، انحراف مجاز ورود و مدیریت ریسک معامله ===',
+                'InpSlippagePoints=20',
+                'InpMaxEntryDeviationPips=' + maxDevVal,
+                'InpSLOffsetPips=3.0',
+                'InpMaxSLPips=0.0',
+                'InpMaxOpenGroups=5',
+                'InpMagicNumber=777123',
+                '',
+                ';=== ۳. سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing) ===',
                 'InpEnableScaleOut=true',
                 'InpLot_TP1=0.01',
                 'InpLot_TP2=0.01',
                 'InpLot_TP3=0.01',
                 'InpLot_TP4=0.01',
                 'InpMoveToBreakEven=true',
-                'InpBEBufferPips=' + beBuf,
-                'InpMaxEntryDeviationPips=' + maxDev,
-                'InpUseTF7=' + useTF7,
-                'InpEnableKingsM1=' + useTF7,
+                'InpBEBufferPips=' + beBufferVal,
                 'InpTrailToTP1=true',
                 'InpTrailToTP2=true',
-                'InpMaxOpenGroups=5',
-                'InpMagicNumber=777123',
+                '',
+                ';=== ۴. ساعات معاملاتی، کف سود و فیوز ایمنی ===',
+                'InpAllowedTradingHours=' + (cfg.hours_str || ''),
+                'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
+                'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
+                'InpConsecLossAction=' + parseInt(cfg.consec_action || 1),
+                '',
+                ';=== ۵. فیلترهای ضد استاپ و هزینه کمیسیون ===',
+                'InpFilterNightHours=true',
+                'InpFilterPreLondonHunt=true',
+                'InpFilterToxicPatterns=true',
+                'InpFilterSingleLS=true',
+                'InpFilterPureFlags=true',
+                'InpFilterLowRewardVsFriction=true',
+                'InpBrokerCommissionPerLot=6.0',
+                'InpEstimatedSpreadPips=0.8',
+                'InpMinNetProfitRatioTP1=1.0',
+                '',
+                ';=== ۶. تایم‌فریم‌های فعال معامله ===',
+                'InpUseTF7=' + useTF7Val,
+                'InpUseTF6=true',
+                'InpUseTF5=true',
+                'InpTradeMacroTFs=false',
                 'InpLookbackBars=15000',
                 'InpHistoryMode=1',
                 'InpHistoryStartDate=2025.01.01 00:00:00',
-                'InpHistoryDays=10',
-                'InpShowBoxes=false',
-                'InpExportCSV=true'
+                'InpHistoryDays=10'
             ];
             return lines.join(String.fromCharCode(13, 10));
         }
+
+        // --------------------------------------------------------------------------
+        // 💾 Binary / UTF-16 LE Encoding and File Download
+        // --------------------------------------------------------------------------
 
         function createUTF16LEBlob(text) {
             let buffer = new ArrayBuffer(2 + text.length * 2);
@@ -1679,6 +1866,42 @@
                 view.setUint16(2 + i * 2, text.charCodeAt(i), true);
             }
             return new Blob([buffer], { type: 'application/octet-stream' });
+        }
+
+        function downloadCurrentMT5IniFile() {
+            if (!currentExportConfig) return;
+            let filename = buildMT5IniFilename(currentExportConfig);
+            let text = generateIniFileText(currentExportConfig);
+            let blob = createUTF16LEBlob(text);
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if (typeof showSaveNotification === 'function') {
+                showSaveNotification('📥 فایل استراتژی تستر «' + filename + '» با فرمت (.ini) دانلود شد. می‌توانید آن را مستقیماً داخل پنجره Strategy Tester متاتریدر Drag & Drop کنید.');
+            }
+        }
+
+        function downloadCurrentMT5SetFile() {
+            if (!currentExportConfig) return;
+            let filename = buildMT5SetFilename(currentExportConfig);
+            let text = generateSetFileText(currentExportConfig);
+            let blob = createUTF16LEBlob(text);
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            if (typeof showSaveNotification === 'function') {
+                showSaveNotification('📥 فایل تنظیمات اکسپرت «' + filename + '» با فرمت (.set) دانلود شد.');
+            }
         }
 
         function downloadSetFile(filename, text) {
@@ -1719,7 +1942,8 @@
                 let enabledSet = new Set(p.kings || []);
                 for (let k of (kingsSimList || [])) {
                     if (k && k.kk && !enabledSet.has(k.kk)) {
-                        disabledKings.push(k.kk);
+                        let kClean = k.kk.replace(/\|(M\d+)/, ' [$1]');
+                        disabledKings.push(kClean);
                     }
                 }
                 let disabledStr = disabledKings.join(', ');
@@ -1728,13 +1952,22 @@
                 if (!p.consec_trig || p.consec_trig <= 0) actionInt = 0;
 
                 let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
+                let isBase = (p.idx === 4 || (p.title && (p.title.includes('پایه') || p.title.includes('جامع') || p.title.includes('AllKings'))));
+                let useTF7 = isBase ? true : false;
+                let beBuffer = isBase ? 1.0 : 0.0;
+                let maxDev = (p.title && (p.title.includes('الماس') || p.title.includes('سپر'))) ? 2.0 : 2.5;
+
                 let config = {
-                    title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\\s\\-\\u0600-\\u06FF]/gi, '').trim(),
+                    title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-\u0600-\u06FF]/gi, '').trim(),
                     min_pot: (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0,
                     hours_str: hoursStr,
                     consec_trig: p.consec_trig || 0,
                     consec_action: actionInt,
                     disabled_kings_str: disabledStr,
+                    use_tf7: useTF7,
+                    enable_kings_m1: useTF7,
+                    be_buffer: beBuffer,
+                    max_dev: maxDev,
                     cnt: p.cnt || p.count || '-',
                     wr: p.wr || 0,
                     pf: p.pf || 0,
@@ -1762,7 +1995,8 @@
                 let disabledKings = [];
                 for (let k of (kingsSimList || [])) {
                     if (k && k.kk && simState.enabledKings && !simState.enabledKings.has(k.kk)) {
-                        disabledKings.push(k.kk);
+                        let kClean = k.kk.replace(/\|(M\d+)/, ' [$1]');
+                        disabledKings.push(kClean);
                     }
                 }
                 let disabledStr = disabledKings.join(', ');
@@ -1782,6 +2016,16 @@
                 let kingsCount = simState.enabledKings ? simState.enabledKings.size : (kingsSimList ? kingsSimList.length : 0);
                 let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
 
+                let hasM1Kings = false;
+                if (simState.enabledKings) {
+                    for (let kk of simState.enabledKings) {
+                        if (kk.includes('|M1') || kk.includes('[M1]')) {
+                            hasM1Kings = true;
+                            break;
+                        }
+                    }
+                }
+
                 let config = {
                     title: 'چیدمان فعال (' + sym + ')',
                     min_pot: simState.minProfit || 0,
@@ -1789,6 +2033,10 @@
                     consec_trig: simState.consecLossTrigger || 0,
                     consec_action: actionInt,
                     disabled_kings_str: disabledStr,
+                    use_tf7: hasM1Kings,
+                    enable_kings_m1: hasM1Kings,
+                    be_buffer: 0.0,
+                    max_dev: 2.5,
                     cnt: elCnt ? elCnt.textContent : '-',
                     wr: wrVal,
                     pf: pfVal,
@@ -1879,6 +2127,13 @@
             }
         }
 
+        // Export functions to global scope
+        if (typeof window !== 'undefined') {
+            window.exportPresetToMT5 = exportPresetToMT5;
+            window.exportCustomPresetToMT5 = exportCustomPresetToMT5;
+            window.exportCurrentStateToMT5 = exportCurrentStateToMT5;
+        }
+
         function openMT5ExportModal(cfg) {
             try {
                 currentExportConfig = cfg;
@@ -1889,15 +2144,14 @@
                     return;
                 }
 
-                // Display modal prominently
                 modal.style.display = 'flex';
                 modal.style.zIndex = '99999999';
 
-                let filename = buildMT5SetFilename(cfg);
+                let filenameIni = buildMT5IniFilename(cfg);
                 let elTitle = document.getElementById('mt5ModalTitle');
                 if (elTitle) elTitle.textContent = cfg.title;
                 let fileBadge = document.getElementById('mt5ModalFilename');
-                if (fileBadge) fileBadge.textContent = filename;
+                if (fileBadge) fileBadge.textContent = filenameIni;
 
                 let elMinPot = document.getElementById('mt5ParamMinPot');
                 if (elMinPot) elMinPot.textContent = '$' + Number(cfg.min_pot || 0).toFixed(2);
@@ -1918,12 +2172,12 @@
                 let elDisabled = document.getElementById('mt5ParamDisabled');
                 if (elDisabled) elDisabled.textContent = cfg.disabled_kings_str ? cfg.disabled_kings_str : 'هیچ‌کدام (تمام سلاطین فعال)';
 
-                let fullText = generateSetFileText(cfg);
+                let fullIniText = generateIniFileText(cfg);
                 let codeBox = document.getElementById('mt5ConfigCodeBox');
-                if (codeBox) codeBox.textContent = fullText;
+                if (codeBox) codeBox.textContent = fullIniText;
 
                 if (typeof showSaveNotification === 'function') {
-                    showSaveNotification('🤖 پنجره خروجی متاتریدر ۵ برای «' + (cfg.title || 'سناریو') + '» باز شد.');
+                    showSaveNotification('🤖 پنجره کانفیگ استراتژی تستر متاتریدر ۵ (.ini) برای «' + (cfg.title || 'سناریو') + '» باز شد.');
                 }
             } catch(err) {
                 console.error('Error in openMT5ExportModal:', err);
@@ -1936,8 +2190,33 @@
             if (modal) modal.style.display = 'none';
         }
 
+        function getMT5TesterProfilesFolderPath() {
+            return ['C:', 'Users', 'USER', 'AppData', 'Roaming', 'MetaQuotes', 'Terminal', '3F2C3A2F8B221C9D88E569F2FD1D3E97', 'MQL5', 'Profiles', 'Tester'].join(String.fromCharCode(92));
+        }
+
         function getMT5ExpertsSettingsFolderPath() {
             return ['C:', 'Users', 'USER', 'AppData', 'Roaming', 'MetaQuotes', 'Terminal', '3F2C3A2F8B221C9D88E569F2FD1D3E97', 'MQL5', 'Experts', 'تنظیمات'].join(String.fromCharCode(92));
+        }
+
+        async function openTesterFolder() {
+            try {
+                let resp = await fetch('http://127.0.0.1:8288/open_tester_folder', { method: 'POST' });
+                if (resp.ok) {
+                    let json = await resp.json();
+                    if (json.success) return;
+                }
+            } catch(e) {}
+            
+            let path = getMT5TesterProfilesFolderPath();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(path).then(() => {
+                    alert('📋 مسیر پوشه پروفایل تستر متاتریدر در کلیپ‌بورد کپی شد:\n\n' + path + '\n\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
+                }).catch(() => {
+                    prompt('مسیر پوشه تستر (Ctrl+C برای کپی):', path);
+                });
+            } else {
+                prompt('مسیر پوشه تستر (Ctrl+C برای کپی):', path);
+            }
         }
 
         async function openSettingsFolder() {
@@ -1952,7 +2231,7 @@
             let path = getMT5ExpertsSettingsFolderPath();
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(path).then(() => {
-                    alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\\\\n\\\\n' + path + '\\\\n\\\\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
+                    alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\n\n' + path + '\n\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
                 }).catch(() => {
                     prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
                 });
@@ -1961,13 +2240,55 @@
             }
         }
 
+        async function saveCurrentMT5IniFileToTesterFolder() {
+            if (!currentExportConfig) return;
+            let text = generateIniFileText(currentExportConfig);
+            let filename = buildMT5IniFilename(currentExportConfig);
+            let btn = document.getElementById('btnSaveToTesterFolder');
+            let ind = document.getElementById('saveStatusIndicator');
+            if (btn) btn.innerHTML = '<span>⏳ در حال ذخیره در تستر...</span>';
+            if (ind) { ind.textContent = 'در حال ذخیره‌سازی در تستر...'; ind.style.color = '#facc15'; }
+
+            // 1. Try local bridge server
+            try {
+                let resp = await fetch('http://127.0.0.1:8288/save_ini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename, content: text })
+                });
+                if (resp.ok) {
+                    let json = await resp.json();
+                    if (json.success) {
+                        if (btn) btn.innerHTML = '<span>✅ در Profiles/Tester ذخیره شد!</span>';
+                        if (ind) { ind.textContent = '✅ فایل در Profiles/Tester ذخیره شد'; ind.style.color = '#4ade80'; }
+                        showSaveNotification('فایل تستر <b>' + filename + '</b> با موفقیت در پوشه <b>MQL5/Profiles/Tester</b> ذخیره شد.');
+                        setTimeout(() => {
+                            if (btn) btn.innerHTML = '<span>💾 ذخیره تو تستر (.ini)</span>';
+                        }, 3500);
+                        return;
+                    }
+                }
+            } catch(e) {
+                // Bridge server is offline
+            }
+
+            // 2. Safe Fallback: Direct download in UTF-16 LE
+            downloadCurrentMT5IniFile();
+            if (btn) btn.innerHTML = '<span>📥 فایل تستر دانلود شد</span>';
+            if (ind) { ind.textContent = 'فایل دانلود شد (فایل را به پنجره Strategy Tester بکشید)'; ind.style.color = '#38bdf8'; }
+            showSaveNotification('فایل تستر <b>' + filename + '</b> با فرمت (.ini) دانلود شد. می‌توانید آن را مستقیماً داخل پنجره Strategy Tester متاتریدر Drag & Drop کنید.');
+            setTimeout(() => {
+                if (btn) btn.innerHTML = '<span>💾 ذخیره تو تستر (.ini)</span>';
+            }, 3500);
+        }
+
         async function saveCurrentMT5SetFileToSettingsFolder() {
             if (!currentExportConfig) return;
             let text = generateSetFileText(currentExportConfig);
             let filename = buildMT5SetFilename(currentExportConfig);
             let btn = document.getElementById('btnSaveToSettingsFolder');
             let ind = document.getElementById('saveStatusIndicator');
-            if (btn) btn.innerHTML = '<span>⏳ در حال ذخیره در پوشه...</span>';
+            if (btn) btn.innerHTML = '<span>⏳ در حال ذخیره در تنظیمات...</span>';
             if (ind) { ind.textContent = 'در حال ذخیره‌سازی...'; ind.style.color = '#facc15'; }
 
             // 1. Try local bridge server first
@@ -1994,11 +2315,10 @@
             }
 
             // 2. Safe Fallback: Direct download in UTF-16 LE
-            // Bypasses window.showSaveFilePicker to avoid Chromium system files sandbox error in AppData
-            downloadSetFile(filename, text);
-            if (btn) btn.innerHTML = '<span>📥 فایل دانلود شد</span>';
-            if (ind) { ind.textContent = 'فایل دانلود شد (سرور خودکار خاموش است)'; ind.style.color = '#38bdf8'; }
-            showSaveNotification('فایل <b>' + filename + '</b> با فرمت متاتریدر ۵ دانلود شد. فایل <b>start_settings_bridge.bat</b> را اجرا کنید تا ذخیره مستقیم فعال شود.');
+            downloadCurrentMT5SetFile();
+            if (btn) btn.innerHTML = '<span>📥 فایل تنظیمات دانلود شد</span>';
+            if (ind) { ind.textContent = 'فایل دانلود شد'; ind.style.color = '#38bdf8'; }
+            showSaveNotification('فایل <b>' + filename + '</b> دانلود شد.');
             setTimeout(() => {
                 if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
             }, 3500);
@@ -2022,19 +2342,20 @@
             }, 5000);
         }
 
-        function downloadCurrentMT5SetFile() {
-            if (!currentExportConfig) return;
-            let text = generateSetFileText(currentExportConfig);
-            let filename = buildMT5SetFilename(currentExportConfig);
-            downloadSetFile(filename, text);
-        }
-
         function copyMT5ConfigText() {
             if (!currentExportConfig) return;
-            let text = generateSetFileText(currentExportConfig);
-            navigator.clipboard.writeText(text).then(() => {
-                alert('📋 تمام پارامترهای اکسپرت با موفقیت کپی شد! می‌توانید در متاتریدر استفاده کنید.');
-            }).catch(() => {
+            let text = generateIniFileText(currentExportConfig);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('📋 تمام کانفیگ Strategy Tester (.ini) با موفقیت کپی شد!');
+                }).catch(() => {
+                    fallbackCopy();
+                });
+            } else {
+                fallbackCopy();
+            }
+
+            function fallbackCopy() {
                 let box = document.getElementById('mt5ConfigCodeBox');
                 if (box) {
                     let range = document.createRange();
@@ -2043,9 +2364,9 @@
                     sel.removeAllRanges();
                     sel.addRange(range);
                     document.execCommand('copy');
-                    alert('📋 پارامترها کپی شد!');
+                    alert('📋 کانفیگ استراتژی تستر کپی شد!');
                 }
-            });
+            }
         }
 
         function openSavePresetModal() {
@@ -4444,10 +4765,10 @@
 
     <!-- 🤖 MT5 EXPORT & SCENARIO GUIDE MODAL -->
     <div id="mt5ExportModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;align-items:center;justify-content:center;backdrop-filter:blur(6px);direction:rtl;">
-        <div style="background:#0f172a;border:2px solid #10b981;border-radius:14px;padding:24px;width:90%;max-width:620px;box-shadow:0 20px 40px rgba(0,0,0,0.9);color:#f1f5f9;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
+        <div style="background:#0f172a;border:2px solid #10b981;border-radius:14px;padding:24px;width:90%;max-width:640px;box-shadow:0 20px 40px rgba(0,0,0,0.9);color:#f1f5f9;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
             <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
                 <h3 style="margin:0;color:#34d399;font-size:17px;display:flex;align-items:center;gap:8px;">
-                    <span>🤖 خروجی مستقیم برای اکسپرت متاتریدر ۵ (FlagPro_Trader EA)</span>
+                    <span>🤖 خروجی مستقیم استراتژی تستر متاتریدر ۵ (.ini)</span>
                 </h3>
                 <button onclick="closeMT5ExportModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">✖</button>
             </div>
@@ -4456,16 +4777,16 @@
                 <div style="font-weight:bold;color:#facc15;font-size:13.5px;margin-bottom:6px;">🏷️ سناریوی انتخابی: <span id="mt5ModalTitle" style="color:#6ee7b7;">-</span></div>
                 <div style="font-size:11.5px;color:#38bdf8;font-family:monospace;direction:ltr;text-align:left;background:#030712;padding:6px 10px;border-radius:6px;border:1px solid #1e3a5f;margin-bottom:8px;display:flex;align-items:center;gap:6px;word-break:break-all;">
                     <span>📁</span>
-                    <span id="mt5ModalFilename" style="font-weight:bold;">FlagPro.set</span>
+                    <span id="mt5ModalFilename" style="font-weight:bold;">FlagPro_Tester.ini</span>
                 </div>
                 <div style="font-size:12px;color:#cbd5e1;line-height:1.7;">
-                    این تنظیمات تمام فیلترهای بهینه‌شده (کف سود، ساعات معاملاتی، فیوز استاپ و سلاطین فعال) را عیناً به اکسپرت معامله‌گر شما منتقل می‌کند.
+                    این کانفیگ شامل بخش‌های استاندارد <code>[Tester]</code> و <code>[TesterInputs]</code> متاتریدر ۵ است و تمام فیلترهای بهینه‌شده، کف سود، ساعات، فیوز استاپ و سلاطین فعال را به استراتژی تستر تزریق می‌کند.
                 </div>
             </div>
 
             <!-- Parameters Grid -->
             <div style="background:#080d1a;border:1px solid #1e293b;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;">
-                <div style="font-weight:bold;color:#38bdf8;margin-bottom:8px;border-bottom:1px solid #1e293b;padding-bottom:5px;">📋 متغیرهای تنظیمی متاتریدر (MT5 Inputs):</div>
+                <div style="font-weight:bold;color:#38bdf8;margin-bottom:8px;border-bottom:1px solid #1e293b;padding-bottom:5px;">📋 متغیرهای تنظیمی تستر (MT5 Inputs):</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;color:#cbd5e1;">
                     <div>💰 کف سود دلاری (<code style="color:#facc15;">InpMinTradePotential</code>): <b id="mt5ParamMinPot" style="color:#34d399;">-</b></div>
                     <div>⏰ ساعات معامله (<code style="color:#facc15;">InpAllowedTradingHours</code>): <b id="mt5ParamHours" style="color:#38bdf8;">-</b></div>
@@ -4477,27 +4798,27 @@
 
             <!-- 3 Step Quick Guide -->
             <div style="background:#1e1b4b22;border:1px solid #6366f1;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;">
-                <div style="font-weight:bold;color:#a5b4fc;margin-bottom:6px;">🚀 نحوه اعمال مستقیم در متاتریدر ۵:</div>
+                <div style="font-weight:bold;color:#a5b4fc;margin-bottom:6px;">🚀 نحوه اعمال مستقیم در استراتژی تستر متاتریدر ۵ (Drag & Drop):</div>
                 <ol style="margin:0;padding-right:20px;color:#e2e8f0;line-height:1.8;">
-                    <li>روی دکمه سبز <b>«💾 ذخیره تو تنظیمات (.set)»</b> کلیک کنید تا فایل با نام سناریو و تاریخ دقیق در پوشه تنظیمات کنار اکسپرت ذخیره شود.</li>
-                    <li>در متاتریدر روی چارت کلید <b>F7</b> را بزنید (یا پنجره تنظیمات FlagPro_Trader را باز کنید).</li>
-                    <li>دکمه <b>Load...</b> را بزنید و از پوشه <b>تنظیمات</b> فایل را انتخاب کنید. تمام! ✅</li>
+                    <li>روی دکمه سبز و درخشان <b>«📥 دانلود فایل تستر (.ini)»</b> کلیک کنید.</li>
+                    <li>پنجره <b>Strategy Tester</b> متاتریدر ۵ را باز کنید (کلید <b>Ctrl + R</b>).</li>
+                    <li>فایل <b>.ini</b> دانلود شده را با ماوس بکشید و داخل پنجره استراتژی تستر رها کنید (<b>Drag & Drop</b>). اکسپرت، نماد، تایم‌فریم و تمام ورودی‌ها فوراً لود می‌شوند! ✅</li>
                 </ol>
             </div>
 
             <!-- Destination Info Box -->
             <div style="background:#042f2e;border:1px solid #0d9488;border-radius:6px;padding:8px 12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:#ccfbf1;flex-wrap:wrap;gap:6px;">
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <span>📁 ذخیره در پوشه کنار اکسپرت:</span>
-                    <span style="font-family:Consolas, monospace;color:#facc15;direction:ltr;display:inline-block;font-weight:bold;">MQL5\\Experts\\تنظیمات\\</span>
+                    <span>📁 پوشه ذخیره پروفایل‌های تستر متاتریدر:</span>
+                    <span style="font-family:Consolas, monospace;color:#facc15;direction:ltr;display:inline-block;font-weight:bold;">MQL5\\Profiles\\Tester\\</span>
                 </div>
-                <span id="saveStatusIndicator" style="color:#5eead4;font-size:11px;">آماده ذخیره‌سازی</span>
+                <span id="saveStatusIndicator" style="color:#5eead4;font-size:11px;">آماده ذخیره‌سازی و درگ‌اند‌دراپ</span>
             </div>
 
             <!-- Preview Code Box (Collapsible) -->
             <details style="margin-bottom:18px;background:#050811;border:1px solid #1e293b;border-radius:6px;padding:8px 12px;font-size:11px;">
-                <summary style="cursor:pointer;color:#94a3b8;font-weight:bold;">👁️ مشاهده متن فایل تنظیمات (.set content)</summary>
-                <pre id="mt5ConfigCodeBox" style="margin-top:8px;direction:ltr;text-align:left;color:#4ade80;font-family:Consolas, monospace;white-space:pre-wrap;font-size:11px;user-select:all;"></pre>
+                <summary style="cursor:pointer;color:#94a3b8;font-weight:bold;">👁️ مشاهده متن فایل کانفیگ استراتژی تستر (.ini content)</summary>
+                <pre id="mt5ConfigCodeBox" style="margin-top:8px;direction:ltr;text-align:left;color:#4ade80;font-family:Consolas, monospace;white-space:pre-wrap;font-size:11px;user-select:all;max-height:220px;overflow-y:auto;"></pre>
             </details>
 
             <!-- Modal Action Buttons -->
@@ -4506,17 +4827,26 @@
                     <button onclick="copyMT5ConfigText()" style="background:#1e293b;border:1px solid #64748b;color:#f1f5f9;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;">
                         <span>📋 کپی متن</span>
                     </button>
-                    <button onclick="openSettingsFolder()" id="btnOpenSettingsFolder" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="باز کردن مستقیم پوشه تنظیمات در ویندوز">
-                        <span>📂 باز کردن پوشه تنظیمات</span>
+                    <button onclick="openTesterFolder()" id="btnOpenTesterFolder" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="باز کردن مستقیم پوشه تستر متاتریدر در ویندوز">
+                        <span>📂 پوشه تستر</span>
+                    </button>
+                    <button onclick="openSettingsFolder()" id="btnOpenSettingsFolder" style="background:#0f172a;border:1px solid #64748b;color:#94a3b8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="باز کردن پوشه تنظیمات اکسپرت">
+                        <span>📂 پوشه تنظیمات</span>
                     </button>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button onclick="closeMT5ExportModal()" style="background:#1e293b;border:1px solid #475569;color:#cbd5e1;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;">بستن</button>
-                    <button onclick="downloadCurrentMT5SetFile()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="دانلود معمولی فایل از مرورگر">
-                        <span>📥 دانلود فایل</span>
+                    <button onclick="downloadCurrentMT5SetFile()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="دانلود فایل ست معمولی (.set)">
+                        <span>📥 فایل (.set)</span>
                     </button>
-                    <button onclick="saveCurrentMT5SetFileToSettingsFolder()" id="btnSaveToSettingsFolder" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;gap:6px;">
-                        <span>💾 ذخیره تو تنظیمات (.set)</span>
+                    <button onclick="saveCurrentMT5SetFileToSettingsFolder()" id="btnSaveToSettingsFolder" style="background:#0f766e;border:1px solid #14b8a6;color:#f0fdfa;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="ذخیره خودکار در پوشه Experts/تنظیمات">
+                        <span>💾 ذخیره (.set)</span>
+                    </button>
+                    <button onclick="saveCurrentMT5IniFileToTesterFolder()" id="btnSaveToTesterFolder" style="background:#047857;border:1px solid #10b981;color:#ecfdf5;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="ذخیره خودکار مستقیم در پوشه Profiles/Tester متاتریدر">
+                        <span>💾 ذخیره تو تستر (.ini)</span>
+                    </button>
+                    <button onclick="downloadCurrentMT5IniFile()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;gap:6px;" title="دانلود فایل .ini جهت Drag & Drop به تستر">
+                        <span>📥 دانلود فایل تستر (.ini) - برای Drag & Drop</span>
                     </button>
                 </div>
             </div>
