@@ -512,12 +512,12 @@ void ShowTradeSetupForBox(int boxIdx)
    color slClr    = InpUniqueTradeColors ? tradeClr : InpTradeSLColor;
    color tpClr    = InpUniqueTradeColors ? tradeClr : InpTradeTPColor;
 
-   // ۱. خط نقطه ورود
+   // ۱. خط نقطه ورود (خط‌چین)
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
    ObjectSetInteger(0, entryLine, OBJPROP_COLOR, entryClr);
-   ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
-   ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
+   ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_DASH);
    ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
    ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
@@ -529,12 +529,12 @@ void ShowTradeSetupForBox(int boxIdx)
    ObjectSetInteger(0, entryLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
    ObjectSetInteger(0, entryLbl, OBJPROP_SELECTABLE, false);
 
-   // ۲. خط حد ضرر متمایز از قرمز تستر (خط‌چین با عرض ۲)
+   // ۲. خط حد ضرر متمایز از قرمز تستر (نقطه‌چین)
    string slLine = pfx + "SL";
    ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
    ObjectSetInteger(0, slLine, OBJPROP_COLOR, slClr);
-   ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 2);
-   ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
+   ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
+   ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DOT);
    ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
    ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
@@ -1173,12 +1173,12 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       color slClr    = InpUniqueTradeColors ? tradeClr : InpTradeSLColor;
       color tpClr    = InpUniqueTradeColors ? tradeClr : InpTradeTPColor;
 
-      // ۱. خط ورود (امتداد تا انتهای معامله t2)
+      // ۱. خط ورود (امتداد تا انتهای معامله t2 با خط‌چین)
       string entryLine = pfx + "ENTRY";
       ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, g_tradeSetups[t].entryPrice, t2, g_tradeSetups[t].entryPrice);
       ObjectSetInteger(0, entryLine, OBJPROP_COLOR, entryClr);
-      ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 2);
-      ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 1);
+      ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_DASH);
       ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
@@ -1190,12 +1190,12 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, entryLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
       ObjectSetInteger(0, entryLbl, OBJPROP_SELECTABLE, false);
 
-      // ۲. خط حد ضرر متمایز از خط قرمز تستر (امتداد تا انتهای معامله t2 با خط‌چین و برچسب SL)
+      // ۲. خط حد ضرر متمایز از خط قرمز تستر (امتداد تا انتهای معامله t2 با نقطه‌چین و برچسب SL)
       string slLine = pfx + "SL";
       ObjectCreate(0, slLine, OBJ_TREND, 0, t1, g_tradeSetups[t].slPrice, t2, g_tradeSetups[t].slPrice);
       ObjectSetInteger(0, slLine, OBJPROP_COLOR, slClr);
-      ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 2);
-      ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DASH);
+      ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
+      ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DOT);
       ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
