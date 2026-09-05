@@ -373,7 +373,7 @@
                 </button>
                 <button class="tab-btn" onclick="openTab(event, 'tab-kings')">
                     <span class="tab-icon">👑</span>
-                    <span class="tab-title">سلاطین برگزیده (__DEFAULT_KINGS_COUNT__)</span>
+                    <span class="tab-title" id="sidebarKingsTitle">سلاطین برگزیده (__DEFAULT_KINGS_COUNT__)</span>
                 </button>
                 <button class="tab-btn" onclick="openTab(event, 'tab-trades')">
                     <span class="tab-icon">📑</span>
@@ -680,6 +680,13 @@
             let selElem = document.getElementById('symbolSelector');
             if (selElem && selElem.value !== symName) selElem.value = symName;
 
+            // 1.2 Update Sidebar King Count dynamically
+            let kCount = (sData.kings_sim_list ? sData.kings_sim_list.length : 0);
+            let sidebarKings = document.getElementById('sidebarKingsTitle');
+            if (sidebarKings) {
+                sidebarKings.textContent = 'سلاطین برگزیده (' + kCount + ')';
+            }
+
             // 2. Update Pre-rendered Tab HTML Containers (Never overwrite with placeholder divs)
             let cEq = document.getElementById('tab-equity-container');
             if (cEq && sData.tab_equity_html && sData.tab_equity_html.includes('equityCanvas')) {
@@ -854,9 +861,9 @@
                 if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {
                     let sel = document.getElementById('symbolSelector');
                     if (sel) sel.value = lastSym;
-                    if (lastSym !== currentActiveSymbol) {
-                        switchDashboardSymbol(lastSym);
-                    }
+                    switchDashboardSymbol(lastSym);
+                } else if (typeof currentActiveSymbol !== 'undefined' && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[currentActiveSymbol]) {
+                    switchDashboardSymbol(currentActiveSymbol);
                 }
             } catch(e) {}
         }

@@ -1279,6 +1279,17 @@ def process_symbol_dataset(csv_file):
         </tr>
         """)
 
+    if not mp_intersection_rows_html:
+        mp_intersection_rows_html.append(f"""
+        <tr>
+            <td colspan="14" style="text-align:center;padding:26px 14px;color:#94a3b8;font-size:12.5px;background:#0d1527;">
+                <div style="font-size:22px;margin-bottom:6px;">ℹ️</div>
+                <b>در بازه تاریخی فعلی ({history_span_title})، افق‌های بلندمدت چندگانه به دلیل کوتاه‌تر بودن تاریخچه آزمون فعال نشده‌اند.</b><br>
+                <span style="color:#facc15;display:inline-block;margin-top:6px;font-size:12px;">برای مشاهده {len(qualified_kings)} سلطان منتخب و عملکرد سودآوری آنها، از دکمه تب <b>«🏛️ جدول جامع رتبه‌بندی شاخص سلطان ({len(qualified_kings)} سلطان)»</b> در بالای همین جدول استفاده کنید.</span>
+            </td>
+        </tr>
+        """)
+
     # 3. Generate HTML for Comparison Matrix View (All-Time vs All-Weather)
     compare_rows_html = []
     for m_idx, k in enumerate(qualified_kings, 1):
@@ -1446,15 +1457,25 @@ def process_symbol_dataset(csv_file):
                 </button>
     """
 
+    has_intersection = (len(mp_intersection_list) > 0)
+    btn_multi_cls = "kings-sub-btn active" if has_intersection else "kings-sub-btn"
+    btn_multi_style = "background:#0284c7;border:1px solid #38bdf8;color:#fff;box-shadow:0 0 12px rgba(56,189,248,0.3);" if has_intersection else "background:#0f172a;border:1px solid #334155;color:#94a3b8;box-shadow:none;"
+
+    btn_all_cls = "kings-sub-btn" if has_intersection else "kings-sub-btn active"
+    btn_all_style = "background:#0f172a;border:1px solid #334155;color:#94a3b8;box-shadow:none;" if has_intersection else "background:#0284c7;border:1px solid #38bdf8;color:#fff;box-shadow:0 0 12px rgba(56,189,248,0.3);"
+
+    disp_multi = "block" if has_intersection else "none"
+    disp_all = "none" if has_intersection else "block"
+
     mp_full_html_section = f"""
     <!-- Sub-Navigation Toggle for Kings View (3 Sub-Views) -->
     <div style="display:flex;gap:10px;margin-bottom:18px;border-bottom:1px solid #334155;padding-bottom:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="kings-sub-btn active" id="btnKingsMulti" onclick="switchKingsSubView('multi', this)" style="background:#0284c7;border:1px solid #38bdf8;color:#fff;padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;box-shadow:0 0 12px rgba(56,189,248,0.3);">
+            <button class="{btn_multi_cls}" id="btnKingsMulti" onclick="switchKingsSubView('multi', this)" style="{btn_multi_style}padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;">
                 <span>🌟</span> کالبدشکافی چندبازه‌ای و اشتراک طلایی (1M تا 3Y)
             </button>
-            <button class="kings-sub-btn" id="btnKingsAllTime" onclick="switchKingsSubView('alltime', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;">
-                <span>🏛️</span> جدول جامع رتبه‌بندی شاخص سلطان (کل تاریخچه {history_span_title})
+            <button class="{btn_all_cls}" id="btnKingsAllTime" onclick="switchKingsSubView('alltime', this)" style="{btn_all_style}padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;">
+                <span>🏛️</span> جدول جامع رتبه‌بندی شاخص سلطان ({len(qualified_kings)} سلطان - {history_span_title})
             </button>
             <button class="kings-sub-btn" id="btnKingsCompare" onclick="switchKingsSubView('compare', this)" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:8px 16px;border-radius:6px;font-size:12.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;">
                 <span>⚖️</span> ماتریس تطبیق و مقایسه دو جدول (All-Time vs All-Weather)
@@ -1466,7 +1487,7 @@ def process_symbol_dataset(csv_file):
     </div>
 
     <!-- VIEW 1: MULTI-PERIOD & GOLDEN INTERSECTION -->
-    <div id="kingsViewMulti">
+    <div id="kingsViewMulti" style="display:{disp_multi};">
         <!-- Controls Bar: Horizon Switcher & Timeframe Filter -->
         <div style="background:#0b1322;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:18px;box-shadow:0 4px 15px rgba(0,0,0,0.3);">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
@@ -2802,7 +2823,7 @@ def process_symbol_dataset(csv_file):
             {mp_full_html_section}
 
             <!-- VIEW 2: ALL-TIME 7-PILLAR SCORE -->
-            <div id="kingsViewAllTime" style="display:none;">
+            <div id="kingsViewAllTime" style="display:{disp_all};">
             <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
                 <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
                     <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب بر مبنای شاخص ترکیبی و تفکیک تایم‌فریم</h3>
@@ -3667,6 +3688,23 @@ def build_dashboard(custom_csv=None):
             print(f"⚠️ رد کردن فایل {os.path.basename(c_file)}: {e}")
 
     if not symbols_data:
+        init_data_path = os.path.join(repo_root, "FlagPro_Modular_App", "data", "initial_data.js")
+        if os.path.exists(init_data_path):
+            try:
+                with open(init_data_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                s_idx = content.find("window.ALL_SYMBOLS_DATA = ") + len("window.ALL_SYMBOLS_DATA = ")
+                e_idx = content.find("window.TESTER_REPORTS", s_idx)
+                if e_idx > s_idx:
+                    json_str = content[s_idx:e_idx].strip().rstrip(';')
+                    cached = json.loads(json_str)
+                    if cached:
+                        symbols_data = cached
+                        print(f"ℹ️ داده‌های نمادها از حافظه کش بازیابی شدند ({len(symbols_data)} نماد: {', '.join(symbols_data.keys())}).")
+            except Exception as e:
+                print(f"⚠️ خطا در خواندن حافظه کش: {e}")
+
+    if not symbols_data:
         print("❌ هیچ داده معتبری برای تولید داشبورد یافت نشد!")
         return
 
@@ -3681,7 +3719,8 @@ def build_dashboard(custom_csv=None):
     symbol_options_list = []
     for s_name, s_info in sorted(symbols_data.items()):
         sel_attr = 'selected' if s_name == default_sym else ''
-        symbol_options_list.append(f'<option value="{s_name}" {sel_attr}>{s_name} ({s_info["tfs_str"]}) - {s_info["closed_count"]} معامله</option>')
+        c_count = s_info.get("closed_count", len(s_info.get("trades_json_list", [])))
+        symbol_options_list.append(f'<option value="{s_name}" {sel_attr}>{s_name} ({s_info["tfs_str"]}) - {c_count} معامله</option>')
     symbol_options_html = "\n".join(symbol_options_list)
 
     # Client payload for all symbols
@@ -3711,7 +3750,7 @@ def build_dashboard(custom_csv=None):
             'tab_filters_html': s_data['tab_filters_html'],
             'tab_loss_intel_html': s_data['tab_loss_intel_html'],
             'tab_weekly_html': s_data['tab_weekly_html'],
-            'smart_presets_rows_html': s_data['smart_presets_rows_html'],
+            'smart_presets_rows_html': s_data.get('smart_presets_rows_html', ''),
         }
 
     json_symbols_payload = json.dumps(client_symbols_payload, separators=(',', ':'))
@@ -3754,9 +3793,10 @@ def build_dashboard(custom_csv=None):
     for placeholder, val in replacements.items():
         html = html.replace(placeholder, str(val))
 
+    clean_sym_name = default_data.get('clean_symbol', default_sym)
     out_paths = [
         os.path.join(files_dir, "flagpro_performance_dashboard.html"),
-        os.path.join(files_dir, f"{default_data['clean_symbol'].lower()}_performance_report.html"),
+        os.path.join(files_dir, f"{clean_sym_name.lower()}_performance_report.html"),
         os.path.join(repo_root, "FlagPro_Master_Dashboard.html"),
         r"C:\Users\USER\Desktop\FlagPro_Dashboard.html"
     ]

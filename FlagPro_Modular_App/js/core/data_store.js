@@ -50,6 +50,13 @@ function switchDashboardSymbol(symName) {
             let selElem = document.getElementById('symbolSelector');
             if (selElem && selElem.value !== symName) selElem.value = symName;
 
+            // 1.2 Update Sidebar King Count dynamically
+            let kCount = (sData.kings_sim_list ? sData.kings_sim_list.length : 0);
+            let sidebarKings = document.getElementById('sidebarKingsTitle');
+            if (sidebarKings) {
+                sidebarKings.textContent = 'سلاطین برگزیده (' + kCount + ')';
+            }
+
             
             // 2. Update Pre-rendered Tab HTML Containers
             let cEq = document.getElementById('tab-equity-container');
@@ -239,9 +246,9 @@ function switchDashboardSymbol(symName) {
                 if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {
                     let sel = document.getElementById('symbolSelector');
                     if (sel) sel.value = lastSym;
-                    if (lastSym !== currentActiveSymbol) {
-                        switchDashboardSymbol(lastSym);
-                    }
+                    switchDashboardSymbol(lastSym);
+                } else if (typeof currentActiveSymbol !== 'undefined' && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[currentActiveSymbol]) {
+                    switchDashboardSymbol(currentActiveSymbol);
                 }
             } catch(e) {}
         }
