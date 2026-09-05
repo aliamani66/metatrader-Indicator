@@ -3764,34 +3764,24 @@ def build_dashboard(custom_csv=None):
     tester_compare_js = tester_compare_module.get_tester_compare_js()
     json_tester_reports_payload = json.dumps(tester_reports, separators=(',', ':'))
 
-    # Load HTML template from templates/master_dashboard_template.html
-    tpl_path = os.path.join(repo_root, "templates", "master_dashboard_template.html")
-    with open(tpl_path, 'r', encoding='utf-8') as f:
-        html = f.read()
+    # 1. Update FlagPro_Modular_App initial data
+    modular_dir = os.path.join(repo_root, "FlagPro_Modular_App")
+    modular_data_file = os.path.join(modular_dir, "data", "initial_data.js")
+    os.makedirs(os.path.dirname(modular_data_file), exist_ok=True)
+    with open(modular_data_file, mode='w', encoding='utf-8') as f:
+        f.write(f"window.ALL_SYMBOLS_DATA = {json_symbols_payload};\nwindow.TESTER_REPORTS = {json_tester_reports_payload};\n")
+    print(f"✅ داده‌های پروژه ماژولار به‌روزرسانی شد: {modular_data_file}")
 
-    replacements = {
-        "__DEFAULT_SYM__": default_sym,
-        "__DEFAULT_SYMBOL__": default_data['symbol'],
-        "__DEFAULT_TFS_STR__": default_data['tfs_str'],
-        "__DEFAULT_KINGS_COUNT__": str(len(default_data.get('kings_sim_list', []))),
-        "__DEFAULT_MIN_DATE__": default_data['min_date'],
-        "__DEFAULT_MAX_DATE__": default_data['max_date'],
-        "__SYMBOL_OPTIONS_HTML__": symbol_options_html,
-        "__JSON_SYMBOLS_PAYLOAD__": json_symbols_payload,
-        "__JSON_TESTER_REPORTS_PAYLOAD__": json_tester_reports_payload,
-        "__NOW_STR__": now_str,
-        "__TESTER_COMPARE_TAB_HTML__": tester_compare_tab_html,
-        "__TESTER_COMPARE_JS__": tester_compare_js,
-        "__DEFAULT_TAB_EQUITY_HTML__": default_data['tab_equity_html'],
-        "__DEFAULT_TAB_KINGS_HTML__": default_data['tab_kings_html'],
-        "__DEFAULT_TAB_SCALEOUT_HTML__": default_data['tab_scaleout_html'],
-        "__DEFAULT_TAB_TIMEFRAMES_HTML__": default_data['tab_timeframes_html'],
-        "__DEFAULT_TAB_FILTERS_HTML__": default_data['tab_filters_html'],
-        "__DEFAULT_TAB_LOSS_INTEL_HTML__": default_data['tab_loss_intel_html'],
-        "__DEFAULT_TAB_WEEKLY_HTML__": default_data['tab_weekly_html'],
-    }
-    for placeholder, val in replacements.items():
-        html = html.replace(placeholder, str(val))
+    # 2. Run bundler to generate standalone single-file distribution
+    bundler_script = os.path.join(modular_dir, "tools", "bundler.py")
+    if os.path.exists(bundler_script):
+        import subprocess
+        subprocess.run([sys.executable, bundler_script], check=True)
+
+    # 3. Read generated bundled distribution and deploy to targets
+    dist_html_file = os.path.join(modular_dir, "dist", "FlagPro_Modular_App.html")
+    with open(dist_html_file, 'r', encoding='utf-8') as f:
+        html = f.read()
 
     clean_sym_name = default_data.get('clean_symbol', default_sym)
     out_paths = [
@@ -3806,24 +3796,9 @@ def build_dashboard(custom_csv=None):
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             with open(out_path, mode='w', encoding='utf-8') as f:
                 f.write(html)
-            print(f"✅ فایل با موفقیت نوشته شد: {out_path}")
+            print(f"✅ داشبورد ماژولار با موفقیت مستقر شد: {out_path}")
         except Exception as e:
             print(f"❌ خطا در نوشتن {out_path}: {e}")
-
-    # Also sync FlagPro_Modular_App initial data & bundled dist
-    try:
-        modular_data_file = os.path.join(repo_root, "FlagPro_Modular_App", "data", "initial_data.js")
-        if os.path.exists(os.path.dirname(modular_data_file)):
-            with open(modular_data_file, mode='w', encoding='utf-8') as f:
-                f.write(f"window.ALL_SYMBOLS_DATA = {json_symbols_payload};\nwindow.TESTER_REPORTS = {json_tester_reports_payload};\n")
-            print(f"✅ داده‌های پروژه ماژولار به‌روزرسانی شد: {modular_data_file}")
-
-            bundler_script = os.path.join(repo_root, "FlagPro_Modular_App", "tools", "bundler.py")
-            if os.path.exists(bundler_script):
-                import subprocess
-                subprocess.run([sys.executable, bundler_script], check=False)
-    except Exception as e:
-        print(f"⚠️ همگام‌سازی پروژه ماژولار: {e}")
 
 if __name__ == "__main__":
     build_dashboard()

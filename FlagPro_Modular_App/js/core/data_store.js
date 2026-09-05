@@ -223,6 +223,19 @@ function switchDashboardSymbol(symName) {
 
         function initPersistedSymbols() {
             try {
+                let sel = document.getElementById('symbolSelector');
+                if (sel && window.ALL_SYMBOLS_DATA) {
+                    sel.innerHTML = '';
+                    for (let sym in window.ALL_SYMBOLS_DATA) {
+                        let sData = window.ALL_SYMBOLS_DATA[sym];
+                        let trCount = (sData.trades_json_list ? sData.trades_json_list.length : (sData.trades_sim_list ? sData.trades_sim_list.length : 0));
+                        let opt = document.createElement('option');
+                        opt.value = sym;
+                        opt.textContent = (sData.symbol || sym) + ' (' + (sData.tfs_str || 'M1, M15, M5') + ') - ' + trCount + ' معامله';
+                        sel.appendChild(opt);
+                    }
+                }
+
                 for (let i = 0; i < localStorage.length; i++) {
                     let k = localStorage.key(i);
                     if (k && k.startsWith('FLAGPRO_SAVED_CSV_')) {
@@ -231,7 +244,6 @@ function switchDashboardSymbol(symName) {
                         let fileName = localStorage.getItem('FLAGPRO_SAVED_NAME_' + symName) || (symName + '.csv');
                         if (csvText && !window.ALL_SYMBOLS_DATA[symName]) {
                             parseClientCSV(csvText, fileName);
-                            let sel = document.getElementById('symbolSelector');
                             if (sel && !Array.from(sel.options).some(o => o.value === symName)) {
                                 let opt = document.createElement('option');
                                 opt.value = symName;
@@ -244,11 +256,15 @@ function switchDashboardSymbol(symName) {
 
                 let lastSym = localStorage.getItem('FLAGPRO_LAST_ACTIVE_SYMBOL');
                 if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {
-                    let sel = document.getElementById('symbolSelector');
                     if (sel) sel.value = lastSym;
                     switchDashboardSymbol(lastSym);
                 } else if (typeof currentActiveSymbol !== 'undefined' && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[currentActiveSymbol]) {
+                    if (sel) sel.value = currentActiveSymbol;
                     switchDashboardSymbol(currentActiveSymbol);
+                } else if (window.ALL_SYMBOLS_DATA && Object.keys(window.ALL_SYMBOLS_DATA).length > 0) {
+                    let firstSym = Object.keys(window.ALL_SYMBOLS_DATA)[0];
+                    if (sel) sel.value = firstSym;
+                    switchDashboardSymbol(firstSym);
                 }
             } catch(e) {}
         }
