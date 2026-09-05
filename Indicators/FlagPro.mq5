@@ -6,12 +6,17 @@
 #property link      ""
 #property version   "1.00"
 #property indicator_chart_window
-#property indicator_buffers 1
+#property indicator_buffers 2
 #property indicator_plots   1
-#property indicator_label1  "FlagPro Active"
-#property indicator_type1   DRAW_NONE
+#property indicator_label1  "Ask Price (Spread)"
+#property indicator_type1   DRAW_LINE
+#property indicator_color1  C'220,75,75'
+#property indicator_style1  STYLE_SOLID
+#property indicator_width1  1
 
+double g_askBuffer[];
 double g_dummyBuffer[];
+bool   g_askLineVisible = true;
 
 #include <FlagPro\Flag_Types.mqh>
 
@@ -77,6 +82,11 @@ input bool              InpShowTradeShading   = false;                  // 🎨 
 input color             InpTradeEntryColor    = clrWhite;               // رنگ خط ورود به معامله (Entry)
 input color             InpTradeSLColor       = clrDarkOrange;          // رنگ خط حد ضرر (SL - متمایز از قرمز تستر)
 input color             InpTradeTPColor       = clrDodgerBlue;          // رنگ خطوط تارگت (TP - متمایز از سبز تستر)
+
+input bool              InpShowAskLine        = true;                   // 🔴 رسم خط قیمت اسک Ask روی چارت (مشابه استراتژی تستر)
+input color             InpAskLineColor       = C'220,75,75';           // 🎨 رنگ خط اسک (قرمز ملایم / مشابه استراتژی تستر)
+input ENUM_LINE_STYLE   InpAskLineStyle       = STYLE_SOLID;            // 📏 استایل خط اسک (پیوسته / خط‌چین)
+input int               InpAskLineWidth       = 1;                      // ✏️ ضخامت خط اسک
 
 input ENUM_TIMEFRAMES   InpTF7                = PERIOD_M1;
 input color             InpColorTF7           = clrYellow;              // رنگ تایم‌فریم M1
@@ -179,7 +189,25 @@ int OnInit()
    InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
    g_testerStartBase = 0;
    g_boxesVisible = InpShowBoxes;
-   SetIndexBuffer(0, g_dummyBuffer, INDICATOR_DATA);
+   g_askLineVisible = InpShowAskLine;
+
+   SetIndexBuffer(0, g_askBuffer, INDICATOR_DATA);
+   SetIndexBuffer(1, g_dummyBuffer, INDICATOR_CALCULATIONS);
+
+   PlotIndexSetString(0, PLOT_LABEL, "Ask Price (Spread)");
+   PlotIndexSetDouble(0, PLOT_EMPTY_VALUE, EMPTY_VALUE);
+   if(!InpShowAskLine)
+   {
+      PlotIndexSetInteger(0, PLOT_DRAW_TYPE, DRAW_NONE);
+   }
+   else
+   {
+      PlotIndexSetInteger(0, PLOT_DRAW_TYPE, DRAW_LINE);
+      PlotIndexSetInteger(0, PLOT_LINE_COLOR, InpAskLineColor);
+      PlotIndexSetInteger(0, PLOT_LINE_STYLE, InpAskLineStyle);
+      PlotIndexSetInteger(0, PLOT_LINE_WIDTH, InpAskLineWidth);
+   }
+
    ApplyProChartTheme();
 
    ArrayResize(g_tradeSetups, 0);
@@ -188,10 +216,11 @@ int OnInit()
    ChartRedraw(0);
    g_forceRecalc = true;
    IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro v1.00");
-   PrintFormat("🚀 [FlagPro v1.00] بازه فعال: از تاریخ %s (%d روز گذشته) | کندل‌های پردازش: %d | باکس‌ها: %s | معاملات: %s",
+   PrintFormat("🚀 [FlagPro v1.00] بازه فعال: از تاریخ %s (%d روز گذشته) | کندل‌های پردازش: %d | باکس‌ها: %s | خط اسک: %s | معاملات: %s",
                (g_effectiveStartDate > 0 ? TimeToString(g_effectiveStartDate, TIME_DATE) : "کل تاریخچه"),
                g_effectiveDaysBack, g_effectiveTargetBars,
                (InpShowBoxes ? "روشن" : "خاموش"),
+               (InpShowAskLine ? "روشن" : "خاموش"),
                (InpAutoDrawTrades ? "روشن" : "خاموش"));
    return INIT_SUCCEEDED;
 }
@@ -223,6 +252,24 @@ int OnCalculate(const int rates_total,
                 const int &spread[])
 {
    if(rates_total < 10) return 0;
+
+   // به‌روزرسانی خط قیمت اسک (Ask Price Overlay - مطابق استراتژی تستر متاتریدر)
+   int askStart = (prev_calculated > 1) ? (prev_calculated - 1) : 0;
+   double pt = _Point;
+   int fallbackSpread = (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
+   if(fallbackSpread <= 0) fallbackSpread = (int)MathRound(InpEstimatedSpreadPips * 10);
+   double curAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   for(int i = askStart; i < rates_total; i++)
+   {
+      if(i == rates_total - 1 && curAsk > 0)
+         g_askBuffer[i] = curAsk;
+      else
+      {
+         int sp = (i < ArraySize(spread) && spread[i] > 0) ? spread[i] : fallbackSpread;
+         g_askBuffer[i] = close[i] + (sp * pt);
+      }
+   }
 
    g_dummyBuffer[rates_total - 1] = close[rates_total - 1];
 
@@ -386,6 +433,14 @@ void OnChartEvent(const int id,
          CopyTime(_Symbol, _Period, 0, 1, tArr);
          RenderFinalBoxes(tArr, 1);
          ChartRedraw(0);
+      }
+      // فشردن کلید A در کیبورد برای مخفی یا نمایان کردن خط قیمت اسک (Ask)
+      else if(lparam == 'A' || lparam == 'a')
+      {
+         g_askLineVisible = !g_askLineVisible;
+         PlotIndexSetInteger(0, PLOT_DRAW_TYPE, g_askLineVisible ? DRAW_LINE : DRAW_NONE);
+         ChartRedraw(0);
+         Print("FlagPro: وضعیت نمایش خط قیمت اسک (Ask): ", (g_askLineVisible ? "روشن (نمایان)" : "خاموش (مخفی)"));
       }
    }
 }
