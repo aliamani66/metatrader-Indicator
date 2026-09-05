@@ -3519,9 +3519,10 @@ def export_preset_set_files(symbols_data):
                 "InpTrailToTP2=true",
                 "InpMaxOpenGroups=5",
                 "InpMagicNumber=777123",
-                "InpHistoryMode=0",
+                "InpLookbackBars=15000",
+                "InpHistoryMode=1",
                 "InpHistoryStartDate=2025.01.01 00:00:00",
-                "InpHistoryDays=365",
+                "InpHistoryDays=10",
                 "InpShowBoxes=false",
                 "InpExportCSV=true"
             ]
@@ -3550,7 +3551,7 @@ def export_preset_set_files(symbols_data):
                 "Period=M1",
                 "Optimization=0",
                 "Model=4",
-                "FromDate=2025.01.01",
+                f"FromDate={(datetime.now() - timedelta(days=10)).strftime('%Y.%m.%d')}",
                 f"ToDate={datetime.now().strftime('%Y.%m.%d')}",
                 "ForwardMode=0",
                 "Deposit=10000",
@@ -3601,10 +3602,10 @@ def export_preset_set_files(symbols_data):
                 "InpUseTF6=true",
                 "InpUseTF5=true",
                 "InpTradeMacroTFs=false",
-                "InpLookbackBars=5000",
-                "InpHistoryMode=0",
+                "InpLookbackBars=15000",
+                "InpHistoryMode=1",
                 "InpHistoryStartDate=2025.01.01 00:00:00",
-                "InpHistoryDays=365"
+                "InpHistoryDays=10"
             ]
             ini_content = "\r\n".join(ini_lines)
             try:
@@ -5360,9 +5361,10 @@ def build_dashboard(custom_csv=None):
                 'InpTrailToTP2=true',
                 'InpMaxOpenGroups=5',
                 'InpMagicNumber=777123',
-                'InpHistoryMode=0',
+                'InpLookbackBars=15000',
+                'InpHistoryMode=1',
                 'InpHistoryStartDate=2025.01.01 00:00:00',
-                'InpHistoryDays=365',
+                'InpHistoryDays=10',
                 'InpShowBoxes=false',
                 'InpExportCSV=true'
             ];

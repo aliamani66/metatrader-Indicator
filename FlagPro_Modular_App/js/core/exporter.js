@@ -74,6 +74,8 @@ function generateIniFileText(cfg) {
 
     let now = new Date();
     let toDate = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0');
+    let tenDaysAgo = new Date(now.getTime() - 10 * 24 * 3600 * 1000);
+    let fromDate = tenDaysAgo.getFullYear() + '.' + String(tenDaysAgo.getMonth() + 1).padStart(2, '0') + '.' + String(tenDaysAgo.getDate()).padStart(2, '0');
 
     let cleanTitle = buildCleanScenarioTitle(cfg.title, sym);
     let isBaseScenario = (cleanTitle === 'AllKings24H');
@@ -92,7 +94,7 @@ function generateIniFileText(cfg) {
         'Period=M1',
         'Optimization=0',
         'Model=4',
-        'FromDate=2025.01.01',
+        'FromDate=' + fromDate,
         'ToDate=' + toDate,
         'ForwardMode=0',
         'Deposit=10000',
@@ -149,10 +151,10 @@ function generateIniFileText(cfg) {
         'InpUseTF6=true',
         'InpUseTF5=true',
         'InpTradeMacroTFs=false',
-        'InpLookbackBars=5000',
-        'InpHistoryMode=0',
+        'InpLookbackBars=15000',
+        'InpHistoryMode=1',
         'InpHistoryStartDate=2025.01.01 00:00:00',
-        'InpHistoryDays=365'
+        'InpHistoryDays=10'
     ];
 
     return lines.join(String.fromCharCode(13, 10));
@@ -264,10 +266,10 @@ function generateSetFileText(cfg) {
         'InpUseTF6=true',
         'InpUseTF5=true',
         'InpTradeMacroTFs=false',
-        'InpLookbackBars=5000',
-        'InpHistoryMode=0',
+        'InpLookbackBars=15000',
+        'InpHistoryMode=1',
         'InpHistoryStartDate=2025.01.01 00:00:00',
-        'InpHistoryDays=365'
+        'InpHistoryDays=10'
     ];
     return lines.join(String.fromCharCode(13, 10));
 }

@@ -93,10 +93,10 @@ input bool               InpUseTF7                = true;        // معامله
 input bool               InpUseTF6                = true;        // معامله در تایم‌فریم ۵ دقیقه (PERIOD_M5)
 input bool               InpUseTF5                = true;        // معامله در تایم‌فریم ۱۵ دقیقه (PERIOD_M15)
 input bool               InpTradeMacroTFs         = false;       // معامله در تایم‌های ماکرو H1, H4, D1, W1 (پیش‌فرض: غیرفعال)
-input int                InpLookbackBars          = 5000;        // ⚡ عمق اسکن کندل‌ها در لحظه (۵۰۰۰ کندل = تست سریع)
-input ENUM_HISTORY_MODE  InpHistoryMode           = HIST_START_DATE; // ⚙️ مبنای بازه تاریخی
+input int                InpLookbackBars          = 15000;       // ⚡ عمق اسکن کندل‌ها در لحظه (۱۵۰۰۰ کندل = ۱۰ روز کامل تایم ۱ دقیقه)
+input ENUM_HISTORY_MODE  InpHistoryMode           = HIST_DAYS_BACK; // ⚙️ مبنای بازه تاریخی (تعداد روز گذشته)
 input datetime           InpHistoryStartDate      = D'2025.01.01 00:00'; // 📅 تاریخ شروع
-input int                InpHistoryDays           = 365;         // ⏳ بازه روز گذشته
+input int                InpHistoryDays           = 10;          // ⏳ بازه روز گذشته (۱۰ روز برای تست سریع)
 
 //+------------------------------------------------------------------+
 //| ۷. 🎨 تنظیمات ظاهری، رسم خطوط و رنگ‌های چارت (پایین لیست)       |
@@ -248,6 +248,7 @@ int OnInit()
    // اعمال تم شیک چارت (حذف چهارخونه‌های گرید و تنظیم رنگ‌های نرم)
    ApplyProChartTheme();
 
+   InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
    g_boxesVisible = InpShowBoxes;
    if(!InpShowBoxes)
    {
@@ -884,11 +885,12 @@ void OnTick()
    bool            useArr[7]     = {false, false, false, false, InpUseTF5, InpUseTF6, InpUseTF7};
    color           tfColorArr[7] = {clrNONE, clrNONE, clrNONE, clrNONE, InpColorTF5, InpColorTF6, InpColorTF7};
 
-   // تنظیم بازه عمق بررسی متناسب با targetBars جهت جلوگیری از افت سرعت در تست‌های طولانی
-   int effectiveDays = (int)(targetBars / 1440) + 3;
+   // تنظیم بازه عمق بررسی متناسب با بازه انتخابی کاربر و targetBars
+   InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
+   int effectiveDays = (InpHistoryMode == HIST_DAYS_BACK && InpHistoryDays > 0) ? InpHistoryDays : ((int)(targetBars / 1440) + 3);
    int daysBackArr[7];
    for(int s = 0; s < 7; s++) daysBackArr[s] = effectiveDays;
-   InpBacktestStartDate = 0;
+   InpBacktestStartDate = g_effectiveStartDate;
    InpBacktestDays = effectiveDays;
    InpMaxBarsTF = targetBars;
 

@@ -58,7 +58,7 @@ void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
    }
 
    // تشخیص کاملاً هوشمند تنظیمات کاربر:
-   // ۱. اگر کاربر تعداد روز گذشته را تغییر داده باشد (مثلاً ۳۰ برای یک ماه پیش یا ۱۵ روز)
+   // ۱. اگر کاربر تعداد روز گذشته را تغییر داده باشد (مثلاً ۱۰ برای ده روز اخیر یا ۳۰ برای یک ماه پیش)
    bool userChangedDays = (daysBack > 0 && daysBack != 365);
    // ۲. اگر کاربر تاریخ شروع را تغییر داده و جلو آورده باشد (مثلاً 2026.08.01)
    bool userChangedDate = (startDate > D'2025.01.01 00:00');
@@ -70,8 +70,8 @@ void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
    }
    else if(mode == HIST_DAYS_BACK || (mode == HIST_START_DATE && userChangedDays && !userChangedDate))
    {
-      // اولویت با تعداد روزهای دستی تنظیم‌شده توسط کاربر (مثلاً ۳۰ روز برای ۱ ماه پیش)
-      g_effectiveDaysBack  = (daysBack > 0) ? daysBack : 30;
+      // اولویت با تعداد روزهای دستی تنظیم‌شده توسط کاربر (پیش‌فرض: ۱۰ روز اخیر)
+      g_effectiveDaysBack  = (daysBack > 0) ? daysBack : 10;
       g_effectiveStartDate = (now > g_effectiveDaysBack * 86400) ? (now - g_effectiveDaysBack * 86400) : 0;
    }
    else // HIST_START_DATE
@@ -82,7 +82,7 @@ void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
          if(now > g_effectiveStartDate)
             g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
          else
-            g_effectiveDaysBack = 30;
+            g_effectiveDaysBack = 10;
       }
       else if(userChangedDays)
       {
@@ -95,7 +95,7 @@ void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
          if(now > g_effectiveStartDate)
             g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
          else
-            g_effectiveDaysBack = 365;
+            g_effectiveDaysBack = 10;
       }
    }
 

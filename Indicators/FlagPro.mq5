@@ -23,8 +23,8 @@ double g_dummyBuffer[];
 //+------------------------------------------------------------------+
 input group "=== 🎯 ۱. تنظیم بازه تاریخی و عملکرد ==="
 input datetime          InpHistoryStartDate   = D'2025.01.01 00:00';    // 📅 تاریخ شروع دلخواه (مثلاً 2026.08.01 برای یک ماه پیش)
-input int               InpHistoryDays        = 365;                    // ⏳ یا تعداد روز گذشته (مثلاً 30 برای ۱ ماه اخیر، 15 برای ۱۵ روز)
-input ENUM_HISTORY_MODE InpHistoryMode        = HIST_START_DATE;         // ⚙️ مبنای بازه تاریخی (تاریخ شروع دلخواه / تعداد روز گذشته / کل تاریخچه)
+input int               InpHistoryDays        = 10;                     // ⏳ یا تعداد روز گذشته (پیش‌فرض: ۱۰ روز برای تست سریع)
+input ENUM_HISTORY_MODE InpHistoryMode        = HIST_DAYS_BACK;         // ⚙️ مبنای بازه تاریخی (تعداد روز گذشته / تاریخ شروع دلخواه / کل تاریخچه)
 input bool              InpShowBoxes          = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (کلید B برای سوئیچ سریع)
 input bool              InpAutoDrawTrades     = true;                   // 🎯 رسم معاملات (خطوط ورود، حد ضرر، تارگت‌ها و نتیجه) روی چارت
 input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار فایل CSV برای داشبورد
