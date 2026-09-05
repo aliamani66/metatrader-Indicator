@@ -33,17 +33,17 @@ input color            InpColorTF4 = clrYellow;
 input ENUM_TIMEFRAMES InpTF5      = PERIOD_M15;
 input bool             InpUseTF5  = true;           // محاسبه ۱۵ دقیقه (M15)
 input color            InpColorTF5 = clrLime;
-input int              InpM15DaysBack = 10;          // تاریخچه ۱۵ دقیقه (۱۰ روز)
+input int              InpM15DaysBack = 2;           // تاریخچه ۱۵ دقیقه (۲ روز)
 
 input ENUM_TIMEFRAMES InpTF6      = PERIOD_M5;
 input bool             InpUseTF6  = true;           // محاسبه ۵ دقیقه (M5)
 input color            InpColorTF6 = clrAqua;
-input int              InpM5DaysBack = 10;          // تاریخچه ۵ دقیقه (۱۰ روز)
+input int              InpM5DaysBack = 2;           // تاریخچه ۵ دقیقه (۲ روز)
 
 input ENUM_TIMEFRAMES InpTF7      = PERIOD_M1;
 input bool             InpUseTF7  = true;           // محاسبه ۱ دقیقه (M1)
 input color            InpColorTF7 = clrYellow;
-input int              InpM1DaysBack = 10;          // تاریخچه ۱ دقیقه (۱۰ روز)
+input int              InpM1DaysBack = 2;           // تاریخچه ۱ دقیقه (۲ روز)
 
 input group "=== Smart Visibility & RS Display (نمایش هوشمند چارت) ==="
 input bool             InpShowMacroAlways       = true;   // نمایش همیشگی باکس‌های ماکرو (W1, D1, H4)
@@ -1679,6 +1679,7 @@ void ShowTradeSetupForBox(int boxIdx)
    int      hitTP     = 0;
    bool     isClosed  = false;
    bool     isPending = false;
+   datetime tpHitTime[4] = {0, 0, 0, 0};
 
    if(entryBar < 0)
    {
@@ -1701,10 +1702,33 @@ void ShowTradeSetupForBox(int boxIdx)
                exitTime = chartTime[k];
                break;
             }
-            if(chartHigh[k] >= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
-            else if(chartHigh[k] >= tp3 && hitTP < 3) { hitTP = 3; }
-            else if(chartHigh[k] >= tp2 && hitTP < 2) { hitTP = 2; }
-            else if(chartHigh[k] >= tp1 && hitTP < 1) { hitTP = 1; }
+            if(chartHigh[k] >= tp4)
+            {
+               hitTP = 4; isClosed = true; exitTime = chartTime[k];
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+               if(tpHitTime[1] == 0) tpHitTime[1] = chartTime[k];
+               if(tpHitTime[2] == 0) tpHitTime[2] = chartTime[k];
+               if(tpHitTime[3] == 0) tpHitTime[3] = chartTime[k];
+               break;
+            }
+            else if(chartHigh[k] >= tp3)
+            {
+               if(hitTP < 3) hitTP = 3;
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+               if(tpHitTime[1] == 0) tpHitTime[1] = chartTime[k];
+               if(tpHitTime[2] == 0) tpHitTime[2] = chartTime[k];
+            }
+            else if(chartHigh[k] >= tp2)
+            {
+               if(hitTP < 2) hitTP = 2;
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+               if(tpHitTime[1] == 0) tpHitTime[1] = chartTime[k];
+            }
+            else if(chartHigh[k] >= tp1)
+            {
+               if(hitTP < 1) hitTP = 1;
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+            }
          }
          else
          {
@@ -1714,10 +1738,33 @@ void ShowTradeSetupForBox(int boxIdx)
                exitTime = chartTime[k];
                break;
             }
-            if(chartLow[k] <= tp4) { hitTP = 4; isClosed = true; exitTime = chartTime[k]; break; }
-            else if(chartLow[k] <= tp3 && hitTP < 3) { hitTP = 3; }
-            else if(chartLow[k] <= tp2 && hitTP < 2) { hitTP = 2; }
-            else if(chartLow[k] <= tp1 && hitTP < 1) { hitTP = 1; }
+            if(chartLow[k] <= tp4)
+            {
+               hitTP = 4; isClosed = true; exitTime = chartTime[k];
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+               if(tpHitTime[1] == 0) tpHitTime[1] = chartTime[k];
+               if(tpHitTime[2] == 0) tpHitTime[2] = chartTime[k];
+               if(tpHitTime[3] == 0) tpHitTime[3] = chartTime[k];
+               break;
+            }
+            else if(chartLow[k] <= tp3)
+            {
+               if(hitTP < 3) hitTP = 3;
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+               if(tpHitTime[1] == 0) tpHitTime[1] = chartTime[k];
+               if(tpHitTime[2] == 0) tpHitTime[2] = chartTime[k];
+            }
+            else if(chartLow[k] <= tp2)
+            {
+               if(hitTP < 2) hitTP = 2;
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+               if(tpHitTime[1] == 0) tpHitTime[1] = chartTime[k];
+            }
+            else if(chartLow[k] <= tp1)
+            {
+               if(hitTP < 1) hitTP = 1;
+               if(tpHitTime[0] == 0) tpHitTime[0] = chartTime[k];
+            }
          }
       }
    }
@@ -1728,7 +1775,7 @@ void ShowTradeSetupForBox(int boxIdx)
 
    string pfx = "FLAG_CLICK_TRADE_";
 
-   // ۱. خط نقطه ورود
+   // ۱. خط نقطه ورود (امتداد تا انتهای معامله t2)
    string entryLine = pfx + "ENTRY";
    ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
    ObjectSetInteger(0, entryLine, OBJPROP_COLOR, InpTradeEntryColor);
@@ -1737,7 +1784,7 @@ void ShowTradeSetupForBox(int boxIdx)
    ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
    ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
-   // ۲. خط استاپ لاس
+   // ۲. خط استاپ لاس (امتداد تا انتهای معامله t2)
    string slLine = pfx + "SL";
    ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
    ObjectSetInteger(0, slLine, OBJPROP_COLOR, InpTradeSLColor);
@@ -1746,14 +1793,17 @@ void ShowTradeSetupForBox(int boxIdx)
    ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
    ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
-   // ۳. خطوط تارگت‌های ۱ تا ۴
+   // ۳. خطوط تارگت‌های ۱ تا ۴ (فقط تا جایی که تاچ شده‌اند امتداد دارند و بیشتر ادامه پیدا نمی‌کنند)
    double tps[4] = {tp1, tp2, tp3, tp4};
    string tpLabels[4] = {"1:1", "1:2", "1:3", "1:4"};
 
    for(int tp = 0; tp < 4; tp++)
    {
+      datetime tpEnd = (tpHitTime[tp] > 0) ? tpHitTime[tp] : t2;
+      if(tpEnd <= t1) tpEnd = t1 + PeriodSeconds(_Period);
+
       string tpLine = pfx + "TP" + IntegerToString(tp + 1);
-      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], t2, tps[tp]);
+      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], tpEnd, tps[tp]);
       ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
       ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
@@ -1761,7 +1811,7 @@ void ShowTradeSetupForBox(int boxIdx)
       ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
 
       string tpLbl = tpLine + "_LBL";
-      ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[tp]);
+      ObjectCreate(0, tpLbl, OBJ_TEXT, 0, tpEnd, tps[tp]);
       ObjectSetString(0, tpLbl, OBJPROP_TEXT, "TP " + tpLabels[tp]);
       ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 8);

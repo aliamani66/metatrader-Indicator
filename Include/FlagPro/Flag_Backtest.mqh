@@ -206,6 +206,7 @@ void ShowTradeSetupForBox(int boxIdx)
    if(risk < _Point * 2.0) risk = _Point * 2.0;
 
    double tps[4];
+   datetime tpHitTime[4] = {0, 0, 0, 0};
    for(int tp = 0; tp < 4; tp++)
    {
       if(isBull) tps[tp] = entryPrice + risk * (tp + 1);
@@ -367,6 +368,7 @@ void ShowTradeSetupForBox(int boxIdx)
                {
                   maxHit = tp + 1;
                   hitTime = chartTime[k];
+                  if(tpHitTime[tp] == 0) tpHitTime[tp] = chartTime[k];
                }
             }
 
@@ -397,6 +399,7 @@ void ShowTradeSetupForBox(int boxIdx)
                {
                   maxHit = tp + 1;
                   hitTime = chartTime[k];
+                  if(tpHitTime[tp] == 0) tpHitTime[tp] = chartTime[k];
                }
             }
 
@@ -498,8 +501,12 @@ void ShowTradeSetupForBox(int boxIdx)
 
    for(int tp = 0; tp < 4; tp++)
    {
+      // خط TP فقط تا جایی امتداد می‌یابد که تاچ شده است و بیشتر ادامه پیدا نمی‌کند
+      datetime tpEnd = (tpHitTime[tp] > 0) ? tpHitTime[tp] : t2;
+      if(tpEnd <= t1) tpEnd = t1 + PeriodSeconds(_Period);
+
       string tpLine = pfx + "TP" + IntegerToString(tp + 1);
-      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], t2, tps[tp]);
+      ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[tp], tpEnd, tps[tp]);
       ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, (hitTP >= tp + 1 ? 2 : 1));
       ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (hitTP >= tp + 1 ? STYLE_SOLID : STYLE_DOT));
@@ -507,7 +514,7 @@ void ShowTradeSetupForBox(int boxIdx)
       ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
 
       string tpLbl = tpLine + "_LBL";
-      ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[tp]);
+      ObjectCreate(0, tpLbl, OBJ_TEXT, 0, tpEnd, tps[tp]);
       ObjectSetString(0, tpLbl, OBJPROP_TEXT, "TP" + IntegerToString(tp + 1) + " (1:" + IntegerToString(tp + 1) + ")");
       ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
       ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 8);
@@ -755,8 +762,11 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       double risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
-      if(IsSetupFilteredOut(role, g_drawnBoxes[b].t1, risk / _Point))
-         continue;
+      // ۱. فیلترهای الگویی اولیه و اصطکاک (مستقل از زمان ورود)
+      if(InpFilterSingleLS && IsSingleLSPattern(role)) continue;
+      if(InpFilterToxicPatterns && IsToxicPattern(role)) continue;
+      if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
+      if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
 
       datetime confirmTime = g_drawnBoxes[b].confirmationTime;
       if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].formationTime + PeriodSeconds(g_drawnBoxes[b].tf) * InpSwingBars;
@@ -811,6 +821,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       if(!isEntered) continue;
 
+      // ۲. فیلترهای زمانی ورود (بر مبنای زمان واقعی ورود entryTime - هماهنگ ۱۰۰٪ با اکسپرت)
+      if(InpFilterNightHours && IsNightSessionHour(entryTime)) continue;
+      if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime)) continue;
+
       g_drawnBoxes[b].hasTradeEntered = true;
 
       // به‌روزرسانی نهایی حد ضرر و تارگت‌ها بر مبنای نوک واقعی شدوها از ابتدا تا دقیقاً لحظه ورود (entryBarIdx)
@@ -835,6 +849,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       bool isClosed = false;
       datetime exitTime = 0;
       datetime hitTime = 0;
+      datetime tpTimes[4] = {0, 0, 0, 0};
 
       for(int k = entryBarIdx; k < ratesTotal; k++)
       {
@@ -846,6 +861,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                {
                   hitTP = tp + 1;
                   hitTime = chartTime[k];
+                  if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
                }
             }
             if(chartLow[k] <= slPrice)
@@ -870,6 +886,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                {
                   hitTP = tp + 1;
                   hitTime = chartTime[k];
+                  if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
                }
             }
             if((chartHigh[k] + barSpread) >= slPrice)
@@ -938,6 +955,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          g_tradeSetups[g_tradeCount].exitTime   = exitTime;
          g_tradeSetups[g_tradeCount].hitTP      = hitTP;
          g_tradeSetups[g_tradeCount].isClosed   = isClosed;
+         g_tradeSetups[g_tradeCount].tp1Time    = tpTimes[0];
+         g_tradeSetups[g_tradeCount].tp2Time    = tpTimes[1];
+         g_tradeSetups[g_tradeCount].tp3Time    = tpTimes[2];
+         g_tradeSetups[g_tradeCount].tp4Time    = tpTimes[3];
          g_tradeCount++;
       }
    }
@@ -969,6 +990,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                   {
                      currentHitTP = tp + 1;
                      hitTime = chartTime[k];
+                     if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
+                     else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
+                     else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
+                     else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
                   }
                }
                if(chartLow[k] <= g_tradeSetups[t].slPrice)
@@ -993,6 +1018,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                   {
                      currentHitTP = tp + 1;
                      hitTime = chartTime[k];
+                     if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
+                     else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
+                     else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
+                     else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
                   }
                }
                if((chartHigh[k] + barSpread) >= g_tradeSetups[t].slPrice)
@@ -1026,7 +1055,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    for(int t = g_tradeCount - 1; t >= 0; t--)
    {
       // 👑 فقط رسم معاملات ۱۸ سلطان برگزیده بر اساس تایم‌فریم
-      if(InpOnlyTradeKings && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
          continue;
 
       datetime t1 = g_tradeSetups[t].entryTime;
@@ -1090,7 +1119,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          if(ObjectFind(0, lossZone) >= 0)   ObjectDelete(0, lossZone);
       }
 
-      // ۱. خط ورود هماهنگ با رنگ ورودی کاربر
+      // ۱. خط ورود هماهنگ با رنگ ورودی کاربر (امتداد تا انتهای معامله t2)
       string entryLine = pfx + "ENTRY";
       ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, g_tradeSetups[t].entryPrice, t2, g_tradeSetups[t].entryPrice);
       ObjectSetInteger(0, entryLine, OBJPROP_COLOR, InpTradeEntryColor);
@@ -1099,7 +1128,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
 
-      // ۲. خط حد ضرر متمایز از خط قرمز تستر (اورنج/رنگ انتخابی)
+      // ۲. خط حد ضرر متمایز از خط قرمز تستر (امتداد تا انتهای معامله t2)
       string slLine = pfx + "SL";
       ObjectCreate(0, slLine, OBJ_TREND, 0, t1, g_tradeSetups[t].slPrice, t2, g_tradeSetups[t].slPrice);
       ObjectSetInteger(0, slLine, OBJPROP_COLOR, InpTradeSLColor);
@@ -1108,11 +1137,21 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
       ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
 
-      // ۳. خطوط تارگت‌های ۴ گانه متمایز از خط سبز تستر (آبی/رنگ انتخابی)
+      // ۳. خطوط تارگت‌های ۴ گانه (فقط تا جایی که تاچ شده‌اند امتداد دارند و بیشتر ادامه پیدا نمی‌کنند)
+      datetime tpTimes[4];
+      tpTimes[0] = g_tradeSetups[t].tp1Time;
+      tpTimes[1] = g_tradeSetups[t].tp2Time;
+      tpTimes[2] = g_tradeSetups[t].tp3Time;
+      tpTimes[3] = g_tradeSetups[t].tp4Time;
+
       for(int p = 0; p < 4; p++)
       {
+         // خط TP فقط تا جایی امتداد دارد که تاچ شده است؛ بیشتر ادامه پیدا نکند
+         datetime tpEnd = (tpTimes[p] > 0) ? tpTimes[p] : t2;
+         if(tpEnd <= t1) tpEnd = t1 + PeriodSeconds(_Period);
+
          string tpLine = pfx + "TP" + IntegerToString(p + 1);
-         ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[p], t2, tps[p]);
+         ObjectCreate(0, tpLine, OBJ_TREND, 0, t1, tps[p], tpEnd, tps[p]);
          ObjectSetInteger(0, tpLine, OBJPROP_COLOR, InpTradeTPColor);
          ObjectSetInteger(0, tpLine, OBJPROP_WIDTH, 1);
          ObjectSetInteger(0, tpLine, OBJPROP_STYLE, (p == 0 ? STYLE_SOLID : STYLE_DOT));
@@ -1120,7 +1159,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          ObjectSetInteger(0, tpLine, OBJPROP_SELECTABLE, false);
 
          string tpLbl = pfx + "TP" + IntegerToString(p + 1) + "_LBL";
-         ObjectCreate(0, tpLbl, OBJ_TEXT, 0, t2, tps[p]);
+         ObjectCreate(0, tpLbl, OBJ_TEXT, 0, tpEnd, tps[p]);
          ObjectSetString(0, tpLbl, OBJPROP_TEXT, StringFormat(" TP%d", p + 1));
          ObjectSetInteger(0, tpLbl, OBJPROP_COLOR, InpTradeTPColor);
          ObjectSetInteger(0, tpLbl, OBJPROP_FONTSIZE, 7);

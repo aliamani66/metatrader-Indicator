@@ -93,10 +93,10 @@ input bool               InpUseTF7                = true;        // معامله
 input bool               InpUseTF6                = true;        // معامله در تایم‌فریم ۵ دقیقه (PERIOD_M5)
 input bool               InpUseTF5                = true;        // معامله در تایم‌فریم ۱۵ دقیقه (PERIOD_M15)
 input bool               InpTradeMacroTFs         = false;       // معامله در تایم‌های ماکرو H1, H4, D1, W1 (پیش‌فرض: غیرفعال)
-input int                InpLookbackBars          = 15000;       // ⚡ عمق اسکن کندل‌ها در لحظه (۱۵۰۰۰ کندل = ۱۰ روز کامل تایم ۱ دقیقه)
+input int                InpLookbackBars          = 4000;        // ⚡ عمق اسکن کندل‌ها در لحظه (۴۰۰۰ کندل = بیش از ۲ روز کامل تایم ۱ دقیقه)
 input ENUM_HISTORY_MODE  InpHistoryMode           = HIST_DAYS_BACK; // ⚙️ مبنای بازه تاریخی (تعداد روز گذشته)
 input datetime           InpHistoryStartDate      = D'2025.01.01 00:00'; // 📅 تاریخ شروع
-input int                InpHistoryDays           = 10;          // ⏳ بازه روز گذشته (۱۰ روز برای تست سریع)
+input int                InpHistoryDays           = 2;           // ⏳ بازه روز گذشته (۲ روز برای تست سریع)
 
 //+------------------------------------------------------------------+
 //| ۷. 🎯 گرافیک و رنگ خطوط معامله روی چارت (پایین فرم - متمایز از تستر) |

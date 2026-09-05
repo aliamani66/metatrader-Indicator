@@ -173,6 +173,10 @@ struct STradeSetup
    datetime exitTime;
    int      hitTP; // 0=SL hit, 1=TP1, 2=TP2, 3=TP3, 4=TP4, -1=Open
    bool     isClosed;
+   datetime tp1Time; // زمان دقیق لمس TP1 جهت خاتمه خط
+   datetime tp2Time; // زمان دقیق لمس TP2 جهت خاتمه خط
+   datetime tp3Time; // زمان دقیق لمس TP3 جهت خاتمه خط
+   datetime tp4Time; // زمان دقیق لمس TP4 جهت خاتمه خط
 };
 
 // ساختار نگهداری پیووت‌های مستقل
