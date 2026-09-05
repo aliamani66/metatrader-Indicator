@@ -23,11 +23,19 @@ enum ENUM_CONSEC_ACTION
    CONSEC_ACTION_SKIP_DAY = 3  // توقف معاملات تا پایان امروز (Pause Today)
 };
 
+enum ENUM_ORDER_EXEC_MODE
+{
+   EXEC_MODE_LIMIT   = 0, // ⚡ اردر لیمیت در لبه باکس (Pending Limit Orders - ورود دقیق و بدون اسلیپیج)
+   EXEC_MODE_MARKET  = 1  // 🏃 ورود مارکت پس از تایید پولبک (Market Order on Pullback)
+};
+
 //+------------------------------------------------------------------+
 //| ۱. 🎯 حجم معاملات و سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing)  |
 //+------------------------------------------------------------------+
 input group "=== 🎯 ۱. حجم معاملات و خروج ۴ مرحله‌ای (Scale-Out & Trailing) ==="
-input bool               InpEnableScaleOut        = true;        // فعال‌سازی سیستم خروج ۴ مرحله‌ای
+input ENUM_ORDER_EXEC_MODE InpOrderExecMode         = EXEC_MODE_LIMIT; // ⚡ حالت اجرای سفارشات (اردر لیمیت دقیق / مارکت اردر)
+input int                  InpLimitExpirationBars   = 40;              // ⏳ حداکثر طول عمر اردر لیمیت به کندل (در صورت عدم تاچ)
+input bool                 InpEnableScaleOut        = true;        // فعال‌سازی سیستم خروج ۴ مرحله‌ای
 input double             InpLot_TP1               = 0.01;        // 🎯 حجم خروج مرحله ۱ در TP1 (25% کل حجم)
 input double             InpLot_TP2               = 0.01;        // 🎯 حجم خروج مرحله ۲ در TP2 (25% کل حجم)
 input double             InpLot_TP3               = 0.01;        // 🎯 حجم خروج مرحله ۳ در TP3 (25% کل حجم)
@@ -209,24 +217,28 @@ input bool               InpHideVolumes            = true;
 #include <FlagPro\Flag_Backtest.mqh>
 #include <FlagPro\Flag_Render.mqh>
 
-// ساختار مدیریت گروهی پوزیشن‌های ۴ مرحله‌ای
+// ساختار مدیریت گروهی پوزیشن‌های ۴ مرحله‌ای (پشتیبانی کامل از لیمیت اردر و مارکت اردر)
 struct SActiveTradeGroup
 {
    string            tradeKey;
+   string            boxName;
    string            role;
    ENUM_TIMEFRAMES   tf;
    datetime          entryTime;
    bool              isBuy;
-   double            entryPrice;      // قیمت واقعی پر شدن اردر مارکت
+   double            entryPrice;      // قیمت واقعی پر شدن یا قیمت اردر لیمیت
    double            boxEntryPrice;   // قیمت تئوریک لبه باکس
    double            initialSL;       // استاپ ارسالی
    double            boxSL;           // استاپ تئوریک باکس
    double            tp1, tp2, tp3, tp4;
-   ulong             tickets[4];
+   ulong             tickets[4];      // تیکت‌های پوزیشن باز پس از اجرا
+   ulong             orderTickets[4]; // تیکت‌های سفارشات لیمیت پندینگ
+   bool              isPending;       // آیا سفارشات هنوز در صف لیمیت پندینگ هستند؟
    bool              beApplied;
    bool              trailTP1Applied;
    bool              trailTP2Applied;
    bool              isFinished;
+   datetime          expireTime;      // زمان انقضای اردر لیمیت در صورت عدم تاچ
 };
 
 // متغیرهای گلوبال اکسپرت
@@ -354,6 +366,7 @@ void ExportTesterRunSummary()
    // پارامترهای تستر
    jsonContent += "  \"parameters\": {\n";
    jsonContent += "    \"InpScenarioName\": \"" + InpScenarioName + "\",\n";
+   jsonContent += "    \"InpOrderExecMode\": \"" + (InpOrderExecMode == EXEC_MODE_LIMIT ? "LIMIT (اردر لیمیت دقیق)" : "MARKET (مارکت اردر)") + "\",\n";
    jsonContent += "    \"InpMinTradePotential\": " + DoubleToString(InpMinTradePotential, 1) + ",\n";
    jsonContent += "    \"InpAllowedTradingHours\": \"" + (InpAllowedTradingHours == "" ? "24 Hours (تمام ساعات شبانه‌روز)" : InpAllowedTradingHours) + "\",\n";
    jsonContent += "    \"InpConsecLossTrigger\": " + IntegerToString(InpConsecLossTrigger) + ",\n";
@@ -378,14 +391,18 @@ void ExportTesterRunSummary()
    string equityJson = "  \"equityCurve\": [\n";
    double runningPips = 0.0;
    double runningUSD = 0.0;
+   int validSetupsCount = 0;
 
    for(int g = 0; g < nSetups; g++)
    {
+      if(m_activeGroups[g].isPending) continue;
+
       double setupProfitUSD = 0.0;
       double setupProfitPips = 0.0;
       datetime closeTime = m_activeGroups[g].entryTime;
       int tpsHit = 0;
       bool fullSL = false;
+      bool hasDeals = false;
 
       for(int p = 0; p < 4; p++)
       {
@@ -400,6 +417,7 @@ void ExportTesterRunSummary()
                ulong dTk = HistoryDealGetTicket(d);
                if(dTk > 0 && HistoryDealGetInteger(dTk, DEAL_ENTRY) == DEAL_ENTRY_OUT)
                {
+                  hasDeals = true;
                   double pUSD = HistoryDealGetDouble(dTk, DEAL_PROFIT);
                   double exitPr = HistoryDealGetDouble(dTk, DEAL_PRICE);
                   datetime exTm = (datetime)HistoryDealGetInteger(dTk, DEAL_TIME);
@@ -417,6 +435,9 @@ void ExportTesterRunSummary()
             }
          }
       }
+
+      if(!hasDeals) continue;
+      validSetupsCount++;
 
       totalProfitUSD += setupProfitUSD;
       totalProfitPips += setupProfitPips;
@@ -452,7 +473,7 @@ void ExportTesterRunSummary()
 
       if(hCsv != INVALID_HANDLE)
       {
-         FileWrite(hCsv, IntegerToString(g + 1), m_activeGroups[g].role, EnumToString(m_activeGroups[g].tf),
+         FileWrite(hCsv, IntegerToString(validSetupsCount), m_activeGroups[g].role, EnumToString(m_activeGroups[g].tf),
                    (m_activeGroups[g].isBuy ? "BUY" : "SELL"),
                    TimeToString(m_activeGroups[g].entryTime, TIME_DATE|TIME_MINUTES|TIME_SECONDS),
                    TimeToString(closeTime, TIME_DATE|TIME_MINUTES|TIME_SECONDS),
@@ -469,14 +490,14 @@ void ExportTesterRunSummary()
                    DoubleToString(setupProfitPips, 1), outcome);
       }
 
-      if(g > 0)
+      if(validSetupsCount > 1)
       {
          tradesJson += ",\n";
          equityJson += ",\n";
       }
 
       tradesJson += StringFormat("    {\"setupId\": %d, \"pattern\": \"%s\", \"timeframe\": \"%s\", \"side\": \"%s\", \"entryTime\": \"%s\", \"closeTime\": \"%s\", \"boxEntryPrice\": %.5f, \"marketFillPrice\": %.5f, \"slippagePips\": %.1f, \"slPrice\": %.5f, \"tp1\": %.5f, \"tp2\": %.5f, \"tp3\": %.5f, \"tp4\": %.5f, \"tpsHit\": %d, \"exitClass\": \"%s\", \"outcome\": \"%s\", \"profitPips\": %.1f, \"profitUSD\": %.2f, \"discrepancyReason\": \"%s\"}",
-                                 g + 1, m_activeGroups[g].role, EnumToString(m_activeGroups[g].tf),
+                                 validSetupsCount, m_activeGroups[g].role, EnumToString(m_activeGroups[g].tf),
                                  (m_activeGroups[g].isBuy ? "BUY" : "SELL"),
                                  TimeToString(m_activeGroups[g].entryTime, TIME_DATE|TIME_MINUTES),
                                  TimeToString(closeTime, TIME_DATE|TIME_MINUTES),
@@ -491,11 +512,11 @@ void ExportTesterRunSummary()
    tradesJson += "\n  ]\n";
    equityJson += "\n  ]\n";
 
-   double wr = (nSetups > 0) ? ((double)winSetups / nSetups * 100.0) : 0.0;
+   double wr = (validSetupsCount > 0) ? ((double)winSetups / validSetupsCount * 100.0) : 0.0;
    double pf = (grossLossPips > 0) ? (grossProfitPips / grossLossPips) : 0.0;
 
    string kpisJson = "  \"kpis\": {\n";
-   kpisJson += "    \"totalSetups\": " + IntegerToString(nSetups) + ",\n";
+   kpisJson += "    \"totalSetups\": " + IntegerToString(validSetupsCount) + ",\n";
    kpisJson += "    \"winningSetups\": " + IntegerToString(winSetups) + ",\n";
    kpisJson += "    \"losingSetups\": " + IntegerToString(lossSetups) + ",\n";
    kpisJson += "    \"winRate\": " + DoubleToString(wr, 1) + ",\n";
@@ -536,6 +557,18 @@ void OnDeinit(const int reason)
    {
       ExportTesterRunSummary();
    }
+   // حذف تمام اردرهای لیمیت معلق در زمان حذف یا خروج اکسپرت
+   for(int g = 0; g < ArraySize(m_activeGroups); g++)
+   {
+      if(m_activeGroups[g].isPending && !m_activeGroups[g].isFinished)
+      {
+         for(int p = 0; p < 4; p++)
+         {
+            if(m_activeGroups[g].orderTickets[p] > 0 && OrderSelect(m_activeGroups[g].orderTickets[p]))
+               m_trade.OrderDelete(m_activeGroups[g].orderTickets[p]);
+         }
+      }
+   }
    ArrayResize(m_executedTradesKeys, 0);
    ArrayResize(m_activeGroups, 0);
    ArrayResize(g_tradeSetups, 0);
@@ -544,7 +577,7 @@ void OnDeinit(const int reason)
 }
 
 //+------------------------------------------------------------------+
-//| شمارش تعداد گروه‌های فعال معاملاتی                                |
+//| شمارش تعداد گروه‌های فعال معاملاتی (پوزیشن‌های باز + لیمیت‌های معلق) |
 //+------------------------------------------------------------------+
 int CountOpenPositionGroups()
 {
@@ -552,19 +585,30 @@ int CountOpenPositionGroups()
    for(int g = 0; g < ArraySize(m_activeGroups); g++)
    {
       if(m_activeGroups[g].isFinished) continue;
-      bool hasOpen = false;
-      for(int p = 0; p < 4; p++)
+      bool hasActive = false;
+      if(m_activeGroups[g].isPending)
       {
-         if(m_activeGroups[g].tickets[p] > 0)
+         for(int p = 0; p < 4; p++)
          {
-            if(PositionSelectByTicket(m_activeGroups[g].tickets[p]))
+            if(m_activeGroups[g].orderTickets[p] > 0 && OrderSelect(m_activeGroups[g].orderTickets[p]))
             {
-               hasOpen = true;
+               hasActive = true;
                break;
             }
          }
       }
-      if(hasOpen) count++;
+      else
+      {
+         for(int p = 0; p < 4; p++)
+         {
+            if(m_activeGroups[g].tickets[p] > 0 && PositionSelectByTicket(m_activeGroups[g].tickets[p]))
+            {
+               hasActive = true;
+               break;
+            }
+         }
+      }
+      if(hasActive) count++;
       else m_activeGroups[g].isFinished = true;
    }
    return count;
@@ -584,7 +628,7 @@ bool IsTradeAlreadyExecuted(const string tradeKey)
 }
 
 //+------------------------------------------------------------------+
-//| ارسال ایمن سفارش با مدیریت حالت‌های پر شدن بروکر (Filling Modes)  |
+//| ارسال ایمن سفارش مارکت با مدیریت حالت‌های پر شدن بروکر             |
 //+------------------------------------------------------------------+
 ulong SafeSendOrder(bool isBuy, double lot, double price, double sl, double tp, string comment)
 {
@@ -615,7 +659,39 @@ ulong SafeSendOrder(bool isBuy, double lot, double price, double sl, double tp, 
 }
 
 //+------------------------------------------------------------------+
-//| مدیریت بریک‌ایون و تریل سود پوزیشن‌های فعال (Scale-Out Management) |
+//| ارسال ایمن سفارش لیمیت (Pending Limit Order) با انواع Filling      |
+//+------------------------------------------------------------------+
+ulong SafeSendLimitOrder(bool isBuy, double lot, double price, double sl, double tp, string comment, datetime expiration=0)
+{
+   bool success = false;
+   if(isBuy)
+      success = m_trade.BuyLimit(lot, price, _Symbol, sl, tp, ORDER_TIME_GTC, expiration, comment);
+   else
+      success = m_trade.SellLimit(lot, price, _Symbol, sl, tp, ORDER_TIME_GTC, expiration, comment);
+
+   if(!success && (m_trade.ResultRetcode() == 10030 || m_trade.ResultRetcode() == TRADE_RETCODE_INVALID_FILL))
+   {
+      m_trade.SetTypeFilling(ORDER_FILLING_IOC);
+      success = isBuy ? m_trade.BuyLimit(lot, price, _Symbol, sl, tp, ORDER_TIME_GTC, expiration, comment)
+                      : m_trade.SellLimit(lot, price, _Symbol, sl, tp, ORDER_TIME_GTC, expiration, comment);
+      if(!success)
+      {
+         m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
+         success = isBuy ? m_trade.BuyLimit(lot, price, _Symbol, sl, tp, ORDER_TIME_GTC, expiration, comment)
+                         : m_trade.SellLimit(lot, price, _Symbol, sl, tp, ORDER_TIME_GTC, expiration, comment);
+      }
+   }
+
+   if(success)
+      return m_trade.ResultOrder();
+
+   PrintFormat("⚠️ [FlagPro Limit Order Error] خطا در ثبت %s Limit @ %.5f, حجم=%.2f, SL=%.5f, TP=%.5f. کد خطا=%u (%s)",
+               (isBuy ? "BUY" : "SELL"), price, lot, sl, tp, m_trade.ResultRetcode(), m_trade.ResultRetcodeDescription());
+   return 0;
+}
+
+//+------------------------------------------------------------------+
+//| مدیریت بریک‌ایون، تریل سود و وضعیت اردرهای لیمیت روی هر تیک        |
 //+------------------------------------------------------------------+
 void ManageActiveTradeGroups()
 {
@@ -627,6 +703,137 @@ void ManageActiveTradeGroups()
    {
       if(m_activeGroups[g].isFinished) continue;
 
+      // -------------------------------------------------------------
+      // ۱. مدیریت سفارشات در حالت لیمیت پندینگ (Pending Limit Orders)
+      // -------------------------------------------------------------
+      if(m_activeGroups[g].isPending)
+      {
+         bool anyOrderActive = false;
+         bool anyOrderFilled = false;
+
+         for(int p = 0; p < 4; p++)
+         {
+            ulong ordTicket = m_activeGroups[g].orderTickets[p];
+            if(ordTicket <= 0) continue;
+
+            if(OrderSelect(ordTicket))
+            {
+               ENUM_ORDER_STATE state = (ENUM_ORDER_STATE)OrderGetInteger(ORDER_STATE);
+               if(state == ORDER_STATE_PLACED)
+                  anyOrderActive = true;
+            }
+            else
+            {
+               if(HistoryOrderSelect(ordTicket))
+               {
+                  ENUM_ORDER_STATE hState = (ENUM_ORDER_STATE)HistoryOrderGetInteger(ordTicket, ORDER_STATE);
+                  if(hState == ORDER_STATE_FILLED)
+                  {
+                     anyOrderFilled = true;
+                     ulong posId = HistoryOrderGetInteger(ordTicket, ORDER_POSITION_ID);
+                     if(posId > 0)
+                        m_activeGroups[g].tickets[p] = posId;
+                     else
+                        m_activeGroups[g].tickets[p] = ordTicket;
+                  }
+               }
+
+               if(m_activeGroups[g].tickets[p] <= 0)
+               {
+                  int totalPos = PositionsTotal();
+                  for(int i = 0; i < totalPos; i++)
+                  {
+                     ulong pTicket = PositionGetTicket(i);
+                     if(pTicket > 0 && PositionGetInteger(POSITION_IDENTIFIER) == ordTicket)
+                     {
+                        m_activeGroups[g].tickets[p] = pTicket;
+                        anyOrderFilled = true;
+                        break;
+                     }
+                  }
+               }
+            }
+         }
+
+         if(anyOrderFilled)
+         {
+            m_activeGroups[g].isPending = false;
+            for(int p = 0; p < 4; p++)
+            {
+               if(m_activeGroups[g].tickets[p] > 0 && PositionSelectByTicket(m_activeGroups[g].tickets[p]))
+               {
+                  m_activeGroups[g].entryPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+                  m_activeGroups[g].entryTime  = (datetime)PositionGetInteger(POSITION_TIME);
+                  break;
+               }
+            }
+            PrintFormat("🎯 [FlagPro Limit Executed] اردر لیمیت %s در قیمت %.5f فعال و وارد بازار شد!",
+                        m_activeGroups[g].role, m_activeGroups[g].entryPrice);
+         }
+         else if(!anyOrderActive)
+         {
+            m_activeGroups[g].isFinished = true;
+            continue;
+         }
+         else
+         {
+            bool cancelNeeded = false;
+            string cancelReason = "";
+
+            if(m_activeGroups[g].isBuy)
+            {
+               if(currentBid <= m_activeGroups[g].initialSL)
+               {
+                  cancelNeeded = true;
+                  cancelReason = "شکست حد ضرر قبل از ورود";
+               }
+               else if(currentBid >= m_activeGroups[g].tp1)
+               {
+                  cancelNeeded = true;
+                  cancelReason = "رسیدن قیمت به TP1 بدون تاچ لیمیت";
+               }
+            }
+            else
+            {
+               if(currentAsk >= m_activeGroups[g].initialSL)
+               {
+                  cancelNeeded = true;
+                  cancelReason = "شکست حد ضرر قبل از ورود";
+               }
+               else if(currentAsk <= m_activeGroups[g].tp1)
+               {
+                  cancelNeeded = true;
+                  cancelReason = "رسیدن قیمت به TP1 بدون تاچ لیمیت";
+               }
+            }
+
+            if(!cancelNeeded && m_activeGroups[g].expireTime > 0 && TimeCurrent() > m_activeGroups[g].expireTime)
+            {
+               cancelNeeded = true;
+               cancelReason = "انقضای طول عمر ستاپ";
+            }
+
+            if(cancelNeeded)
+            {
+               for(int p = 0; p < 4; p++)
+               {
+                  ulong ordTicket = m_activeGroups[g].orderTickets[p];
+                  if(ordTicket > 0 && OrderSelect(ordTicket))
+                     m_trade.OrderDelete(ordTicket);
+               }
+               m_activeGroups[g].isFinished = true;
+               PrintFormat("🚫 [FlagPro Limit Cancelled] اردرهای لیمیت %s لغو گردید | علت: %s",
+                           m_activeGroups[g].role, cancelReason);
+               continue;
+            }
+
+            continue;
+         }
+      }
+
+      // -------------------------------------------------------------
+      // ۲. مدیریت پوزیشن‌های فعال (Scale-Out, Break-Even & Trailing)
+      // -------------------------------------------------------------
       bool anyOpen = false;
       bool ticketOpen[4] = {false, false, false, false};
 
@@ -839,9 +1046,405 @@ bool IsConsecutiveLossAllowed()
    return true;
 }
 
+//+------------------------------------------------------------------+
+//| اسکن و ثبت سفارشات لیمیت در لبه باکس (Pending Limit Orders)       |
+//+------------------------------------------------------------------+
+void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHigh[], const double &chartLow[], const double &chartClose[], int ratesTotal, double pipSize)
+{
+   double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
+   if(simSpread <= 0) simSpread = 1.0 * pipSize;
+
+   int chartSpread[];
+   ArraySetAsSeries(chartSpread, false);
+   CopySpread(_Symbol, _Period, 0, ratesTotal, chartSpread);
+
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+   double minStops = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+   if(minStops < 15.0 * _Point) minStops = 15.0 * _Point;
+
+   double maxDev = (InpMaxEntryDeviationPips > 0) ? (InpMaxEntryDeviationPips * pipSize) : (3.0 * pipSize);
+
+   for(int b = 0; b < g_boxCount; b++)
+   {
+      if(CountOpenPositionGroups() >= InpMaxOpenGroups) break;
+      if(g_drawnBoxes[b].top <= 0) continue;
+      if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
+      if(g_effectiveStartDate > 0 && g_drawnBoxes[b].t1 < g_effectiveStartDate) continue;
+
+      // ۱. استخراج نقش (Role) ستاپ
+      string role = "Flag";
+      bool isSwap = g_drawnBoxes[b].isSwap;
+      bool isLS   = false;
+      bool isRS   = false;
+      bool isOI   = false;
+      string swapTag = "";
+
+      if(isSwap)
+      {
+         role = "S-" + g_drawnBoxes[b].swapSourceRole;
+      }
+      else
+      {
+         for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
+         {
+            string tgName = g_drawnBoxes[b].rsTags[tg];
+            if(tgName == "LS") isLS = true;
+            else if(tgName == "RS") isRS = true;
+            else if(tgName == "OInner") isOI = true;
+            else if(StringFind(tgName, "S-") == 0)
+            {
+               isSwap = true;
+               swapTag += (swapTag == "" ? "" : "+") + tgName;
+            }
+         }
+
+         if(g_drawnBoxes[b].isPreIP) isLS = true;
+         string tagCombo = "";
+         if(isLS)
+         {
+            string lsDir = g_drawnBoxes[b].isLSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "LS" + lsDir : " > LS" + lsDir);
+         }
+         if(isOI)
+         {
+            string oiDir = g_drawnBoxes[b].isOInnerBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "OInner" + oiDir : " > OInner" + oiDir);
+         }
+         if(isRS)
+         {
+            string rsDir = g_drawnBoxes[b].isRSBull ? "-BU" : "-BE";
+            tagCombo += (tagCombo == "" ? "RS" + rsDir : " > RS" + rsDir);
+         }
+         if(isSwap)
+         {
+            string swDir = g_drawnBoxes[b].isSwapBull ? "-BU" : "-BE";
+            string fullSwap = swapTag + swDir;
+            tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
+         }
+         if(tagCombo != "") role = tagCombo;
+         else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
+      }
+
+      // ۲. فیلتر سلاطین برگزیده بر مبنای تایم‌فریم
+      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[b].tf, role))
+         continue;
+
+      // ۳. فیلتر سناریوی داشبورد: سلاطین غیرمجاز انتخابی کاربر
+      if(!IsKingAllowedByScenario(g_drawnBoxes[b].tf, role))
+         continue;
+
+      // ۴. بررسی تداخل و معاملات همپوشان
+      if(!InpAllowOverlappingTrades)
+      {
+         bool isBusy = false;
+         for(int g = 0; g < ArraySize(m_activeGroups); g++)
+         {
+            if(m_activeGroups[g].isFinished) continue;
+            if(m_activeGroups[g].tf == g_drawnBoxes[b].tf)
+            {
+               isBusy = true;
+               break;
+            }
+         }
+         if(isBusy) continue;
+      }
+
+      // ۵. تعیین جهت معامله
+      bool isBull = true;
+      double pivotP = 0;
+      if(isOI)
+      {
+         isBull = g_drawnBoxes[b].isOInnerBull;
+         datetime closestPivotTime = 0;
+         for(int k = 0; k < g_indepCount; k++)
+         {
+            if(!g_indepPivots[k].hasIP) continue;
+            if(!IsPivotTimeframeMatch(k, g_drawnBoxes[b].tfTag)) continue;
+            if(g_indepPivots[k].time <= g_drawnBoxes[b].t1)
+            {
+               bool pivotValidForTrade = (isBull ? !g_indepPivots[k].isHigh : g_indepPivots[k].isHigh);
+               if(pivotValidForTrade)
+               {
+                  if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
+                  {
+                     closestPivotTime = g_indepPivots[k].time;
+                     pivotP = g_indepPivots[k].price;
+                  }
+               }
+            }
+         }
+      }
+      else
+      {
+         if(isSwap) isBull = g_drawnBoxes[b].isSwapBull;
+         else if(isRS) isBull = g_drawnBoxes[b].isRSBull;
+         else if(isLS) isBull = g_drawnBoxes[b].isLSBull;
+         else isBull = g_drawnBoxes[b].isBullish;
+      }
+
+      int bStartIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t1);
+      int bEndIdx   = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].confirmationTime);
+      if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
+      if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
+
+      double patternHigh = g_drawnBoxes[b].top;
+      double patternLow  = g_drawnBoxes[b].bottom;
+
+      if(isOI && pivotP > 0)
+      {
+         if(pivotP > patternHigh) patternHigh = pivotP;
+         if(pivotP < patternLow)  patternLow  = pivotP;
+      }
+
+      for(int ck = bStartIdx; ck <= bEndIdx && ck < ratesTotal; ck++)
+      {
+         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
+         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+      }
+
+      double bufferPips = InpRSPipBuffer * pipSize;
+      double entryPrice = isBull ? g_drawnBoxes[b].top : g_drawnBoxes[b].bottom;
+      double slPrice    = isBull ? (patternLow - bufferPips) : (patternHigh + bufferPips);
+      double risk       = MathAbs(entryPrice - slPrice);
+      if(risk < _Point * 2.0) risk = _Point * 2.0;
+
+      // ۶. فیلترهای ضد استاپ اولیه
+      if(InpFilterSingleLS && IsSingleLSPattern(role)) continue;
+      if(InpFilterToxicPatterns && IsToxicPattern(role)) continue;
+      if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
+      if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
+
+      datetime confirmTime = g_drawnBoxes[b].confirmationTime;
+      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].formationTime + PeriodSeconds(g_drawnBoxes[b].tf) * InpSwingBars;
+      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].t1;
+
+      // ⏰ فیلتر ساعات مجاز معامله
+      if(!IsHourAllowedByScenario(confirmTime)) continue;
+
+      // 💰 فیلتر کف سود دلاری معامله
+      if(!IsPotentialAllowedByScenario(risk / _Point)) continue;
+
+      // 🚨 فیلتر فیوز استاپ‌های متوالی
+      if(!IsConsecutiveLossAllowed()) continue;
+
+      // 🛡️ فیلترهای تکمیلی ضد استاپ (شبانه و قبل لندن)
+      if(IsSetupFilteredOut(role, confirmTime, risk / _Point)) continue;
+
+      int confirmIdx = FindBarIndex(chartTime, ratesTotal, confirmTime);
+      if(confirmIdx < 0) confirmIdx = 0;
+
+      double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
+      double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
+
+      int departedBar = -1;
+      datetime maxBoxTime = g_drawnBoxes[b].t2;
+      if(maxBoxTime <= confirmTime)
+         maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
+
+      bool isSlBreached = false;
+      bool isAlreadyEntered = false;
+
+      for(int k = confirmIdx; k < ratesTotal; k++)
+      {
+         if(chartTime[k] > maxBoxTime) break;
+
+         if(isBull && chartLow[k] <= slPrice) { isSlBreached = true; break; }
+         if(!isBull && (chartHigh[k] + GetBarSpread(k, chartSpread, simSpread)) >= slPrice) { isSlBreached = true; break; }
+
+         if(departedBar < 0)
+         {
+            if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
+            else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+            if(k - confirmIdx > 30) break;
+         }
+         else
+         {
+            if(isBull && chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+            {
+               isAlreadyEntered = true;
+               break;
+            }
+            else if(!isBull && chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            {
+               isAlreadyEntered = true;
+               break;
+            }
+            if(k - departedBar > InpLimitExpirationBars) break;
+         }
+      }
+
+      // ستاپ باید حتماً خروج (Departure) کرده باشد، استاپ نزده باشد، و هنوز وارد نشده باشد (منتظر پولبک)
+      if(departedBar < 0 || isSlBreached || isAlreadyEntered) continue;
+
+      // فقط ستاپ‌هایی که اخیراً خروج کرده‌اند مجاز به ثبت اردر لیمیت هستند
+      if(ratesTotal - 1 - departedBar > InpLimitExpirationBars) continue;
+
+      string tradeKey = g_drawnBoxes[b].boxName + "_LIMIT_" + IntegerToString((int)confirmTime);
+      if(IsTradeAlreadyExecuted(tradeKey)) continue;
+
+      // محاسبه دقیق SL و TPها
+      double sl = NormalizeDouble(slPrice, _Digits);
+      double riskDist = MathAbs(entryPrice - sl);
+
+      if(InpMaxSLPips > 0 && riskDist > InpMaxSLPips * pipSize)
+      {
+         riskDist = InpMaxSLPips * pipSize;
+         sl = NormalizeDouble(isBull ? (entryPrice - riskDist) : (entryPrice + riskDist), _Digits);
+      }
+      else if(riskDist < minStops)
+      {
+         riskDist = minStops + 5.0 * _Point;
+         sl = NormalizeDouble(isBull ? (entryPrice - riskDist) : (entryPrice + riskDist), _Digits);
+      }
+
+      double tp1 = NormalizeDouble(isBull ? (entryPrice + riskDist * 1.0) : (entryPrice - riskDist * 1.0), _Digits);
+      double tp2 = NormalizeDouble(isBull ? (entryPrice + riskDist * 2.0) : (entryPrice - riskDist * 2.0), _Digits);
+      double tp3 = NormalizeDouble(isBull ? (entryPrice + riskDist * 3.0) : (entryPrice - riskDist * 3.0), _Digits);
+      double tp4 = NormalizeDouble(isBull ? (entryPrice + riskDist * 4.0) : (entryPrice - riskDist * 4.0), _Digits);
+
+      // اعتبارسنجی حداقل فاصله قانونی تارگت‌ها با نقطه ورود
+      if(isBull)
+      {
+         if(tp1 <= entryPrice + minStops) tp1 = NormalizeDouble(entryPrice + minStops + 5.0 * _Point, _Digits);
+         if(tp2 <= tp1) tp2 = NormalizeDouble(tp1 + 10.0 * _Point, _Digits);
+         if(tp3 <= tp2) tp3 = NormalizeDouble(tp2 + 10.0 * _Point, _Digits);
+         if(tp4 <= tp3) tp4 = NormalizeDouble(tp3 + 10.0 * _Point, _Digits);
+      }
+      else
+      {
+         if(tp1 >= entryPrice - minStops) tp1 = NormalizeDouble(entryPrice - minStops - 5.0 * _Point, _Digits);
+         if(tp2 >= tp1) tp2 = NormalizeDouble(tp1 - 10.0 * _Point, _Digits);
+         if(tp3 >= tp2) tp3 = NormalizeDouble(tp2 - 10.0 * _Point, _Digits);
+         if(tp4 >= tp3) tp4 = NormalizeDouble(tp3 - 10.0 * _Point, _Digits);
+      }
+
+      // بررسی امکان ثبت لیمیت نسبت به قیمت فعلی بازار
+      bool canPlaceLimit = false;
+      if(isBull)
+      {
+         if(entryPrice <= ask - minStops)
+            canPlaceLimit = true;
+      }
+      else
+      {
+         if(entryPrice >= bid + minStops)
+            canPlaceLimit = true;
+      }
+
+      // ثبت کلید معامله جهت جلوگیری از ارسال مجدد در تیک‌های بعدی
+      int newSize = ArraySize(m_executedTradesKeys) + 1;
+      ArrayResize(m_executedTradesKeys, newSize);
+      m_executedTradesKeys[newSize - 1] = tradeKey;
+
+      double stageLots[4] = {InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4};
+      double tps[4] = {tp1, tp2, tp3, tp4};
+      ulong openedTickets[4] = {0, 0, 0, 0};
+      int successfulOrders = 0;
+
+      datetime limitExpire = TimeCurrent() + PeriodSeconds(_Period) * InpLimitExpirationBars;
+
+      if(canPlaceLimit)
+      {
+         for(int p = 0; p < 4; p++)
+         {
+            if(stageLots[p] <= 0) continue;
+            string comment = StringFormat("FP [%s] TP%d", role, p + 1);
+            openedTickets[p] = SafeSendLimitOrder(isBull, stageLots[p], entryPrice, sl, tps[p], comment, limitExpire);
+            if(openedTickets[p] > 0) successfulOrders++;
+         }
+
+         if(successfulOrders > 0)
+         {
+            int gSize = ArraySize(m_activeGroups) + 1;
+            ArrayResize(m_activeGroups, gSize);
+            m_activeGroups[gSize - 1].tradeKey      = tradeKey;
+            m_activeGroups[gSize - 1].boxName       = g_drawnBoxes[b].boxName;
+            m_activeGroups[gSize - 1].role          = role;
+            m_activeGroups[gSize - 1].tf            = g_drawnBoxes[b].tf;
+            m_activeGroups[gSize - 1].entryTime     = TimeCurrent();
+            m_activeGroups[gSize - 1].isBuy         = isBull;
+            m_activeGroups[gSize - 1].entryPrice    = entryPrice;
+            m_activeGroups[gSize - 1].boxEntryPrice = entryPrice;
+            m_activeGroups[gSize - 1].initialSL     = sl;
+            m_activeGroups[gSize - 1].boxSL         = slPrice;
+            m_activeGroups[gSize - 1].tp1           = tp1;
+            m_activeGroups[gSize - 1].tp2           = tp2;
+            m_activeGroups[gSize - 1].tp3           = tp3;
+            m_activeGroups[gSize - 1].tp4           = tp4;
+            for(int p = 0; p < 4; p++)
+            {
+               m_activeGroups[gSize - 1].orderTickets[p] = openedTickets[p];
+               m_activeGroups[gSize - 1].tickets[p]      = 0;
+            }
+            m_activeGroups[gSize - 1].isPending       = true;
+            m_activeGroups[gSize - 1].beApplied        = false;
+            m_activeGroups[gSize - 1].trailTP1Applied = false;
+            m_activeGroups[gSize - 1].trailTP2Applied = false;
+            m_activeGroups[gSize - 1].isFinished       = false;
+            m_activeGroups[gSize - 1].expireTime       = limitExpire;
+
+            PrintFormat("⚡ [FlagPro Limit Placed] ۴ اردر لیمیت ثبت شد | الگو: %s [%s] | نوع: %s LIMIT @ %.5f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
+                        role, EnumToString(g_drawnBoxes[b].tf), (isBull ? "BUY" : "SELL"), entryPrice, sl, tp1, tp2, tp3, tp4);
+         }
+      }
+      else
+      {
+         // اگر قیمت به لبه باکس رسیده یا رد شده و انحراف ورود در محدوده مجاز است، ورود فوری مارکت
+         double curPrice = isBull ? ask : bid;
+         double dev = MathAbs(curPrice - entryPrice);
+
+         if(dev <= maxDev)
+         {
+            for(int p = 0; p < 4; p++)
+            {
+               if(stageLots[p] <= 0) continue;
+               string comment = StringFormat("FP [%s] TP%d", role, p + 1);
+               openedTickets[p] = SafeSendOrder(isBull, stageLots[p], curPrice, sl, tps[p], comment);
+               if(openedTickets[p] > 0) successfulOrders++;
+            }
+
+            if(successfulOrders > 0)
+            {
+               int gSize = ArraySize(m_activeGroups) + 1;
+               ArrayResize(m_activeGroups, gSize);
+               m_activeGroups[gSize - 1].tradeKey      = tradeKey;
+               m_activeGroups[gSize - 1].boxName       = g_drawnBoxes[b].boxName;
+               m_activeGroups[gSize - 1].role          = role;
+               m_activeGroups[gSize - 1].tf            = g_drawnBoxes[b].tf;
+               m_activeGroups[gSize - 1].entryTime     = TimeCurrent();
+               m_activeGroups[gSize - 1].isBuy         = isBull;
+               m_activeGroups[gSize - 1].entryPrice    = curPrice;
+               m_activeGroups[gSize - 1].boxEntryPrice = entryPrice;
+               m_activeGroups[gSize - 1].initialSL     = sl;
+               m_activeGroups[gSize - 1].boxSL         = slPrice;
+               m_activeGroups[gSize - 1].tp1           = tp1;
+               m_activeGroups[gSize - 1].tp2           = tp2;
+               m_activeGroups[gSize - 1].tp3           = tp3;
+               m_activeGroups[gSize - 1].tp4           = tp4;
+               for(int p = 0; p < 4; p++)
+               {
+                  m_activeGroups[gSize - 1].tickets[p]      = openedTickets[p];
+                  m_activeGroups[gSize - 1].orderTickets[p] = 0;
+               }
+               m_activeGroups[gSize - 1].isPending       = false;
+               m_activeGroups[gSize - 1].beApplied        = false;
+               m_activeGroups[gSize - 1].trailTP1Applied = false;
+               m_activeGroups[gSize - 1].trailTP2Applied = false;
+               m_activeGroups[gSize - 1].isFinished       = false;
+
+               PrintFormat("✅ [FlagPro Market Fill] ورود مستقیم مارکت به علت نزدیکی قیمت به باکس | الگو: %s [%s] | نوع: %s @ %.5f",
+                           role, EnumToString(g_drawnBoxes[b].tf), (isBull ? "BUY" : "SELL"), curPrice);
+            }
+         }
+      }
+   }
+}
+
 void OnTick()
 {
-   // ۱. مدیریت تریل و بریک‌ایون تمام معاملات باز روی هر تیک (فوق سریع و سبک)
+   // ۱. مدیریت تریل، بریک‌ایون و اردرهای لیمیت تمام گروه‌های معاملاتی روی هر تیک (فوق سریع و سبک)
    ManageActiveTradeGroups();
 
    // ۲. بررسی باز شدن کندل جدید (پردازش سنگین فقط و فقط یک‌بار در ابتدای هر کندل جدید انجام می‌شود)
@@ -925,160 +1528,174 @@ void OnTick()
    // ۵. بررسی و ارسال سفارشات ستاپ‌های تایید شده
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
 
-   for(int t = 0; t < g_tradeCount; t++)
+   // الف) اگر حالت اجرای اردر لیمیت فعال باشد (پیش‌فرض سیستم):
+   if(InpOrderExecMode == EXEC_MODE_LIMIT)
    {
-      // 👑 فیلتر سلاطین برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
-      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
-         continue;
-
-      // 🚫 فیلتر سناریوی داشبورد: بررسی سلاطین غیرمجاز انتخابی کاربر
-      if(!IsKingAllowedByScenario(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
-         continue;
-
-      // ⏰ فیلتر سناریوی داشبورد: ساعات مجاز معامله
-      if(!IsHourAllowedByScenario(g_tradeSetups[t].entryTime))
-         continue;
-
-      // 💰 فیلتر سناریوی داشبورد: کف سود دلاری معامله
-      if(!IsPotentialAllowedByScenario(g_tradeSetups[t].risk / _Point))
-         continue;
-
-      // 🚨 فیلتر سناریوی داشبورد: فیوز قطع معاملات پس از استاپ‌های متوالی
-      if(!IsConsecutiveLossAllowed())
-         continue;
-
-      // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها)
-      if(IsSetupFilteredOut(g_tradeSetups[t].boxRole, g_tradeSetups[t].entryTime, g_tradeSetups[t].risk / _Point))
-         continue;
-
-      // فقط ستاپ‌هایی که در کندل جاری یا کندل قبلی فعال شده‌اند مجاز به اجرا هستند (نه ستاپ‌های تاریخچه!)
-      if(g_tradeSetups[t].entryTime < chartTime[ratesTotal - 2])
-         continue;
-
-      string tradeKey = g_tradeSetups[t].boxName + "_" + IntegerToString((int)g_tradeSetups[t].entryTime);
-      if(IsTradeAlreadyExecuted(tradeKey))
-         continue;
-
-      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      bool isBuy = g_tradeSetups[t].isBuy;
-      double sendPrice = isBuy ? ask : bid;
-
-      // 🛡️ اعتبارسنجی انحراف ورود: اگر قیمت بیش از حد مجاز از لبه باکس فاصله گرفته یا قبلاً به تارگت/استاپ رسیده، ورود لغو می‌شود
-      double maxDev = (InpMaxEntryDeviationPips > 0) ? (InpMaxEntryDeviationPips * pipSize) : (3.0 * pipSize);
-      if(isBuy)
+      ScanAndPlaceLimitOrders(chartTime, chartHigh, chartLow, chartClose, ratesTotal, pipSize);
+   }
+   else // ب) حالت اجرای اردر مارکت پس از تایید کندل پولبک:
+   {
+      for(int t = 0; t < g_tradeCount; t++)
       {
-         if(sendPrice <= g_tradeSetups[t].slPrice || sendPrice >= g_tradeSetups[t].tp1)
-         {
-            int newSize = ArraySize(m_executedTradesKeys) + 1;
-            ArrayResize(m_executedTradesKeys, newSize);
-            m_executedTradesKeys[newSize - 1] = tradeKey;
+         // 👑 فیلتر سلاطین برگزیده بر مبنای تایم‌فریم (Kings Only Filter)
+         if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
             continue;
-         }
-         if(sendPrice > g_tradeSetups[t].entryPrice + maxDev)
-            continue; // قیمت خیلی بالا رفته، از تعقیب دیرهنگام در سقف خودداری شود
-      }
-      else
-      {
-         if(sendPrice >= g_tradeSetups[t].slPrice || sendPrice <= g_tradeSetups[t].tp1)
-         {
-            int newSize = ArraySize(m_executedTradesKeys) + 1;
-            ArrayResize(m_executedTradesKeys, newSize);
-            m_executedTradesKeys[newSize - 1] = tradeKey;
+
+         // 🚫 فیلتر سناریوی داشبورد: بررسی سلاطین غیرمجاز انتخابی کاربر
+         if(!IsKingAllowedByScenario(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
             continue;
+
+         // ⏰ فیلتر سناریوی داشبورد: ساعات مجاز معامله
+         if(!IsHourAllowedByScenario(g_tradeSetups[t].entryTime))
+            continue;
+
+         // 💰 فیلتر سناریوی داشبورد: کف سود دلاری معامله
+         if(!IsPotentialAllowedByScenario(g_tradeSetups[t].risk / _Point))
+            continue;
+
+         // 🚨 فیلتر سناریوی داشبورد: فیوز قطع معاملات پس از استاپ‌های متوالی
+         if(!IsConsecutiveLossAllowed())
+            continue;
+
+         // 🛡️ فیلترهای تکمیلی ضد استاپ (فیلتر شبانه، اصطکاک و نویزها)
+         if(IsSetupFilteredOut(g_tradeSetups[t].boxRole, g_tradeSetups[t].entryTime, g_tradeSetups[t].risk / _Point))
+            continue;
+
+         // فقط ستاپ‌هایی که در کندل جاری یا کندل قبلی فعال شده‌اند مجاز به اجرا هستند (نه ستاپ‌های تاریخچه!)
+         if(g_tradeSetups[t].entryTime < chartTime[ratesTotal - 2])
+            continue;
+
+         string tradeKey = g_tradeSetups[t].boxName + "_" + IntegerToString((int)g_tradeSetups[t].entryTime);
+         if(IsTradeAlreadyExecuted(tradeKey))
+            continue;
+
+         double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+         double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+         bool isBuy = g_tradeSetups[t].isBuy;
+         double sendPrice = isBuy ? ask : bid;
+
+         // 🛡️ اعتبارسنجی انحراف ورود: اگر قیمت بیش از حد مجاز از لبه باکس فاصله گرفته یا قبلاً به تارگت/استاپ رسیده، ورود لغو می‌شود
+         double maxDev = (InpMaxEntryDeviationPips > 0) ? (InpMaxEntryDeviationPips * pipSize) : (3.0 * pipSize);
+         if(isBuy)
+         {
+            if(sendPrice <= g_tradeSetups[t].slPrice || sendPrice >= g_tradeSetups[t].tp1)
+            {
+               int newSize = ArraySize(m_executedTradesKeys) + 1;
+               ArrayResize(m_executedTradesKeys, newSize);
+               m_executedTradesKeys[newSize - 1] = tradeKey;
+               continue;
+            }
+            if(sendPrice > g_tradeSetups[t].entryPrice + maxDev)
+               continue; // قیمت خیلی بالا رفته، از تعقیب دیرهنگام در سقف خودداری شود
          }
-         if(sendPrice < g_tradeSetups[t].entryPrice - maxDev)
-            continue; // قیمت خیلی پایین ریخته، از تعقیب دیرهنگام در کف خودداری شود
-      }
+         else
+         {
+            if(sendPrice >= g_tradeSetups[t].slPrice || sendPrice <= g_tradeSetups[t].tp1)
+            {
+               int newSize = ArraySize(m_executedTradesKeys) + 1;
+               ArrayResize(m_executedTradesKeys, newSize);
+               m_executedTradesKeys[newSize - 1] = tradeKey;
+               continue;
+            }
+            if(sendPrice < g_tradeSetups[t].entryPrice - maxDev)
+               continue; // قیمت خیلی پایین ریخته، از تعقیب دیرهنگام در کف خودداری شود
+         }
 
-      // ثبت کلید معامله در لیست پردازش‌شده‌ها تا در تیک‌های بعدی تکرار نشود
-      int newSize = ArraySize(m_executedTradesKeys) + 1;
-      ArrayResize(m_executedTradesKeys, newSize);
-      m_executedTradesKeys[newSize - 1] = tradeKey;
+         // ثبت کلید معامله در لیست پردازش‌شده‌ها تا در تیک‌های بعدی تکرار نشود
+         int newSize = ArraySize(m_executedTradesKeys) + 1;
+         ArrayResize(m_executedTradesKeys, newSize);
+         m_executedTradesKeys[newSize - 1] = tradeKey;
 
-      // حد ضرر دقیقاً مطابق با خط قرمز چارت (بدون هیچ مغایرت و تفاوتی)
-      double sl = NormalizeDouble(g_tradeSetups[t].slPrice, _Digits);
-      double riskDist = MathAbs(sendPrice - sl);
+         // حد ضرر دقیقاً مطابق با خط قرمز چارت (بدون هیچ مغایرت و تفاوتی)
+         double sl = NormalizeDouble(g_tradeSetups[t].slPrice, _Digits);
+         double riskDist = MathAbs(sendPrice - sl);
 
-      double minStops = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
-      if(minStops < 15.0 * _Point) minStops = 15.0 * _Point;
+         double minStops = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+         if(minStops < 15.0 * _Point) minStops = 15.0 * _Point;
 
-      if(InpMaxSLPips > 0 && riskDist > InpMaxSLPips * pipSize)
-      {
-         riskDist = InpMaxSLPips * pipSize;
-         sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
-      }
-      else if(riskDist < minStops)
-      {
-         riskDist = minStops + 5.0 * _Point;
-         sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
-      }
+         if(InpMaxSLPips > 0 && riskDist > InpMaxSLPips * pipSize)
+         {
+            riskDist = InpMaxSLPips * pipSize;
+            sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
+         }
+         else if(riskDist < minStops)
+         {
+            riskDist = minStops + 5.0 * _Point;
+            sl = NormalizeDouble(isBuy ? (sendPrice - riskDist) : (sendPrice + riskDist), _Digits);
+         }
 
-      // تارگت‌ها دقیقاً منطبق بر خطوط سبز چارت (بدون هیچ مغایرت و تفاوتی)
-      double tp1 = NormalizeDouble(g_tradeSetups[t].tp1, _Digits);
-      double tp2 = NormalizeDouble(g_tradeSetups[t].tp2, _Digits);
-      double tp3 = NormalizeDouble(g_tradeSetups[t].tp3, _Digits);
-      double tp4 = NormalizeDouble(g_tradeSetups[t].tp4, _Digits);
+         // تارگت‌ها دقیقاً منطبق بر خطوط سبز چارت (بدون هیچ مغایرت و تفاوتی)
+         double tp1 = NormalizeDouble(g_tradeSetups[t].tp1, _Digits);
+         double tp2 = NormalizeDouble(g_tradeSetups[t].tp2, _Digits);
+         double tp3 = NormalizeDouble(g_tradeSetups[t].tp3, _Digits);
+         double tp4 = NormalizeDouble(g_tradeSetups[t].tp4, _Digits);
 
-      // اعتبارسنجی حداقل فاصله قانونی با بروکر
-      if(isBuy)
-      {
-         if(tp1 <= sendPrice + minStops) tp1 = NormalizeDouble(sendPrice + minStops + 5.0 * _Point, _Digits);
-         if(tp2 <= tp1) tp2 = NormalizeDouble(tp1 + 10.0 * _Point, _Digits);
-         if(tp3 <= tp2) tp3 = NormalizeDouble(tp2 + 10.0 * _Point, _Digits);
-         if(tp4 <= tp3) tp4 = NormalizeDouble(tp3 + 10.0 * _Point, _Digits);
-      }
-      else
-      {
-         if(tp1 >= sendPrice - minStops) tp1 = NormalizeDouble(sendPrice - minStops - 5.0 * _Point, _Digits);
-         if(tp2 >= tp1) tp2 = NormalizeDouble(tp1 - 10.0 * _Point, _Digits);
-         if(tp3 >= tp2) tp3 = NormalizeDouble(tp2 - 10.0 * _Point, _Digits);
-         if(tp4 >= tp3) tp4 = NormalizeDouble(tp3 - 10.0 * _Point, _Digits);
-      }
+         // اعتبارسنجی حداقل فاصله قانونی با بروکر
+         if(isBuy)
+         {
+            if(tp1 <= sendPrice + minStops) tp1 = NormalizeDouble(sendPrice + minStops + 5.0 * _Point, _Digits);
+            if(tp2 <= tp1) tp2 = NormalizeDouble(tp1 + 10.0 * _Point, _Digits);
+            if(tp3 <= tp2) tp3 = NormalizeDouble(tp2 + 10.0 * _Point, _Digits);
+            if(tp4 <= tp3) tp4 = NormalizeDouble(tp3 + 10.0 * _Point, _Digits);
+         }
+         else
+         {
+            if(tp1 >= sendPrice - minStops) tp1 = NormalizeDouble(sendPrice - minStops - 5.0 * _Point, _Digits);
+            if(tp2 >= tp1) tp2 = NormalizeDouble(tp1 - 10.0 * _Point, _Digits);
+            if(tp3 >= tp2) tp3 = NormalizeDouble(tp2 - 10.0 * _Point, _Digits);
+            if(tp4 >= tp3) tp4 = NormalizeDouble(tp3 - 10.0 * _Point, _Digits);
+         }
 
-      double stageLots[4] = {InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4};
-      double tps[4] = {tp1, tp2, tp3, tp4};
-      ulong openedTickets[4] = {0, 0, 0, 0};
-      int successfulOrders = 0;
+         double stageLots[4] = {InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4};
+         double tps[4] = {tp1, tp2, tp3, tp4};
+         ulong openedTickets[4] = {0, 0, 0, 0};
+         int successfulOrders = 0;
 
-      // باز کردن ۴ پوزیشن همزمان (هر کدام با تارگت‌های TP1 تا TP4 و حجم‌های تفکیکی)
-      for(int p = 0; p < 4; p++)
-      {
-         if(stageLots[p] <= 0) continue;
-         string comment = StringFormat("FP [%s] TP%d", g_tradeSetups[t].boxRole, p + 1);
-         openedTickets[p] = SafeSendOrder(isBuy, stageLots[p], sendPrice, sl, tps[p], comment);
-         if(openedTickets[p] > 0)
-            successfulOrders++;
-      }
+         // باز کردن ۴ پوزیشن همزمان (هر کدام با تارگت‌های TP1 تا TP4 و حجم‌های تفکیکی)
+         for(int p = 0; p < 4; p++)
+         {
+            if(stageLots[p] <= 0) continue;
+            string comment = StringFormat("FP [%s] TP%d", g_tradeSetups[t].boxRole, p + 1);
+            openedTickets[p] = SafeSendOrder(isBuy, stageLots[p], sendPrice, sl, tps[p], comment);
+            if(openedTickets[p] > 0)
+               successfulOrders++;
+         }
 
-      if(successfulOrders > 0)
-      {
-         // ثبت گروه معاملاتی جهت مدیریت بریک‌ایون و تریلینگ
-         int gSize = ArraySize(m_activeGroups) + 1;
-         ArrayResize(m_activeGroups, gSize);
-         m_activeGroups[gSize - 1].tradeKey      = tradeKey;
-         m_activeGroups[gSize - 1].role          = g_tradeSetups[t].boxRole;
-         m_activeGroups[gSize - 1].tf            = g_tradeSetups[t].tf;
-         m_activeGroups[gSize - 1].entryTime     = g_tradeSetups[t].entryTime;
-         m_activeGroups[gSize - 1].isBuy         = isBuy;
-         m_activeGroups[gSize - 1].entryPrice    = sendPrice;
-         m_activeGroups[gSize - 1].boxEntryPrice = g_tradeSetups[t].entryPrice;
-         m_activeGroups[gSize - 1].initialSL     = sl;
-         m_activeGroups[gSize - 1].boxSL         = g_tradeSetups[t].slPrice;
-         m_activeGroups[gSize - 1].tp1           = tp1;
-         m_activeGroups[gSize - 1].tp2           = tp2;
-         m_activeGroups[gSize - 1].tp3           = tp3;
-         m_activeGroups[gSize - 1].tp4           = tp4;
-         for(int p = 0; p < 4; p++) m_activeGroups[gSize - 1].tickets[p] = openedTickets[p];
-         m_activeGroups[gSize - 1].beApplied      = false;
-         m_activeGroups[gSize - 1].trailTP1Applied = false;
-         m_activeGroups[gSize - 1].trailTP2Applied = false;
-         m_activeGroups[gSize - 1].isFinished     = false;
+         if(successfulOrders > 0)
+         {
+            // ثبت گروه معاملاتی جهت مدیریت بریک‌ایون و تریلینگ
+            int gSize = ArraySize(m_activeGroups) + 1;
+            ArrayResize(m_activeGroups, gSize);
+            m_activeGroups[gSize - 1].tradeKey      = tradeKey;
+            m_activeGroups[gSize - 1].boxName       = g_tradeSetups[t].boxName;
+            m_activeGroups[gSize - 1].role          = g_tradeSetups[t].boxRole;
+            m_activeGroups[gSize - 1].tf            = g_tradeSetups[t].tf;
+            m_activeGroups[gSize - 1].entryTime     = g_tradeSetups[t].entryTime;
+            m_activeGroups[gSize - 1].isBuy         = isBuy;
+            m_activeGroups[gSize - 1].entryPrice    = sendPrice;
+            m_activeGroups[gSize - 1].boxEntryPrice = g_tradeSetups[t].entryPrice;
+            m_activeGroups[gSize - 1].initialSL     = sl;
+            m_activeGroups[gSize - 1].boxSL         = g_tradeSetups[t].slPrice;
+            m_activeGroups[gSize - 1].tp1           = tp1;
+            m_activeGroups[gSize - 1].tp2           = tp2;
+            m_activeGroups[gSize - 1].tp3           = tp3;
+            m_activeGroups[gSize - 1].tp4           = tp4;
+            for(int p = 0; p < 4; p++)
+            {
+               m_activeGroups[gSize - 1].tickets[p]      = openedTickets[p];
+               m_activeGroups[gSize - 1].orderTickets[p] = 0;
+            }
+            m_activeGroups[gSize - 1].isPending       = false;
+            m_activeGroups[gSize - 1].beApplied        = false;
+            m_activeGroups[gSize - 1].trailTP1Applied = false;
+            m_activeGroups[gSize - 1].trailTP2Applied = false;
+            m_activeGroups[gSize - 1].isFinished       = false;
 
-         PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت ثبت شد | الگو: %s [%s] | جهت: %s | حجم‌ها: TP1=%.2f, TP2=%.2f, TP3=%.2f, TP4=%.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
-                     g_tradeSetups[t].boxRole, EnumToString(g_tradeSetups[t].tf),
-                     (isBuy ? "BUY" : "SELL"), InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4, sl, tp1, tp2, tp3, tp4);
-         break;
+            PrintFormat("✅ ۴ پوزیشن خروج چند مرحله‌ای با موفقیت ثبت شد | الگو: %s [%s] | جهت: %s | حجم‌ها: TP1=%.2f, TP2=%.2f, TP3=%.2f, TP4=%.2f | حد ضرر: %.5f | تارگت‌ها: TP1=%.5f, TP2=%.5f, TP3=%.5f, TP4=%.5f",
+                        g_tradeSetups[t].boxRole, EnumToString(g_tradeSetups[t].tf),
+                        (isBuy ? "BUY" : "SELL"), InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4, sl, tp1, tp2, tp3, tp4);
+            break;
+         }
       }
    }
 }
