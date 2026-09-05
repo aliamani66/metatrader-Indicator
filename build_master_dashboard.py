@@ -54,7 +54,83 @@ def is_low_reward_vs_friction(risk_pts, comm_per_lot=6.0, spread_pips=0.8, min_r
     min_pts = total_friction_pips * min_ratio * 10.0
     return (risk_pts <= min_pts)
 
+def get_box_wait_time_minutes(r):
+    bts = r.get('BoxTimeStart', '')
+    et = r.get('EntryTime', '')
+    if not bts or not et or bts == 'None' or et == 'None':
+        return None
+    try:
+        t_start = datetime.strptime(bts[:16], '%Y.%m.%d %H:%M')
+        t_entry = datetime.strptime(et[:16], '%Y.%m.%d %H:%M')
+        diff_sec = (t_entry - t_start).total_seconds()
+        if diff_sec >= 0:
+            return diff_sec / 60.0
+    except:
+        pass
+    return None
 
+def format_duration_short(minutes):
+    if minutes is None or minutes <= 0:
+        return "0m"
+    if minutes < 60:
+        return f"{minutes:.0f}m"
+    elif minutes < 1440:
+        hours = minutes / 60.0
+        return f"{hours:.1f}h"
+    else:
+        days = minutes / 1440.0
+        return f"{days:.1f}d"
+
+def format_duration_persian(minutes):
+    if minutes is None or minutes <= 0:
+        return "۰ دقیقه"
+    if minutes < 60:
+        return f"{minutes:.0f} دقیقه"
+    elif minutes < 1440:
+        hours = minutes / 60.0
+        return f"{hours:.1f} ساعت ({minutes:.0f} دقیقه)"
+    else:
+        days = minutes / 1440.0
+        hours = (minutes % 1440) / 60.0
+        return f"{days:.1f} روز ({hours:.0f} ساعت)"
+
+def compute_latency_stats(t_list):
+    delays = []
+    for r in t_list:
+        wm = get_box_wait_time_minutes(r)
+        if wm is not None:
+            delays.append(wm)
+    if not delays:
+        return {
+            'cnt': 0, 'min': 0.0, 'max': 0.0, 'avg': 0.0, 'med': 0.0, 'p90': 0.0,
+            'avg_fmt': '-', 'min_fmt': '-', 'max_fmt': '-', 'med_fmt': '-', 'p90_fmt': '-',
+            'avg_short': '-', 'min_short': '-', 'max_short': '-', 'med_short': '-', 'p90_short': '-'
+        }
+    delays.sort()
+    n = len(delays)
+    d_min = delays[0]
+    d_max = delays[-1]
+    d_avg = sum(delays) / n
+    d_med = delays[n // 2]
+    d_p90 = delays[int(n * 0.90)]
+    return {
+        'cnt': n,
+        'min': d_min,
+        'max': d_max,
+        'avg': d_avg,
+        'med': d_med,
+        'p90': d_p90,
+        'avg_fmt': format_duration_persian(d_avg),
+        'min_fmt': format_duration_persian(d_min),
+        'max_fmt': format_duration_persian(d_max),
+        'med_fmt': format_duration_persian(d_med),
+        'p90_fmt': format_duration_persian(d_p90),
+        'avg_short': format_duration_short(d_avg),
+        'min_short': format_duration_short(d_min),
+        'max_short': format_duration_short(d_max),
+        'med_short': format_duration_short(d_med),
+        'p90_short': format_duration_short(d_p90),
+    }
 
 def process_symbol_dataset(csv_file):
     print(f"📂 در حال پردازش داده‌های فایل: {csv_file}")
@@ -459,6 +535,7 @@ def process_symbol_dataset(csv_file):
                 if hr >= 4: gross += pts * 4.0 * 0.01
         net = gross - (cnt * friction_04_per_trade)
         fric = cnt * friction_04_per_trade
+        lat = compute_latency_stats(t_list)
         return {
             'cnt': cnt,
             'w1_p': w1 / cnt * 100,
@@ -468,8 +545,24 @@ def process_symbol_dataset(csv_file):
             'sl_p': sl / cnt * 100,
             'gross': gross,
             'fric': fric,
-            'net': net
+            'net': net,
+            'wait_avg_fmt': lat['avg_fmt'],
+            'wait_avg_short': lat['avg_short'],
+            'wait_range_fmt': f"{lat['min_short']} ~ {lat['max_short']}",
+            'wait_min_fmt': lat['min_fmt'],
+            'wait_max_fmt': lat['max_fmt'],
+            'wait_med_fmt': lat['med_fmt'],
+            'wait_p90_fmt': lat['p90_fmt'],
+            'wait_stats': lat
         }
+
+    # Calculate overall symbol latency profiles
+    symbol_latency_all = compute_latency_stats(entered)
+    symbol_latency_kings = compute_latency_stats(kings_trades)
+    symbol_latency_tfs = {tf: compute_latency_stats([r for r in entered if r.get('Timeframe') == tf]) for tf in available_tfs}
+    for tf_key in ['M1', 'M5', 'M15']:
+        if tf_key not in symbol_latency_tfs:
+            symbol_latency_tfs[tf_key] = compute_latency_stats([])
 
     # 1. Golden Kings Strategy per Timeframe (The actual system being traded)
     tf_kings_rows = []
@@ -490,11 +583,14 @@ def process_symbol_dataset(csv_file):
             <td style="text-align:center;color:#38bdf8;font-weight:bold;">${d['gross']:+.2f}</td>
             <td style="text-align:center;color:#f87171;font-weight:bold;">${d['fric']:.2f}-</td>
             <td style="text-align:center;color:{col};font-weight:bold;font-size:15px;background:#064e3b22;">${d['net']:+.2f} دلار</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;background:#0369a118;">⏱️ {d['wait_avg_fmt']}</td>
+            <td style="text-align:center;color:#94a3b8;font-size:11px;font-family:monospace;direction:ltr;">{d['wait_range_fmt']}</td>
         </tr>
         """)
 
     d_tot_kings = calc_tf_metrics(kings_trades) or {
-        'cnt': 0, 'w1_p': 0.0, 'w2_p': 0.0, 'w3_p': 0.0, 'w4_p': 0.0, 'sl_p': 0.0, 'gross': 0.0, 'fric': 0.0, 'net': 0.0
+        'cnt': 0, 'w1_p': 0.0, 'w2_p': 0.0, 'w3_p': 0.0, 'w4_p': 0.0, 'sl_p': 0.0, 'gross': 0.0, 'fric': 0.0, 'net': 0.0,
+        'wait_avg_fmt': '-', 'wait_range_fmt': '-', 'wait_avg_short': '-'
     }
     tot_kings_col = "#00e676" if d_tot_kings['net'] >= 0 else "#ef4444"
     tf_kings_rows.append(f"""
@@ -509,6 +605,8 @@ def process_symbol_dataset(csv_file):
         <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">${d_tot_kings['gross']:+.2f}</td>
         <td style="text-align:center;color:#f87171;font-weight:bold;font-size:15px;">${d_tot_kings['fric']:.2f}-</td>
         <td style="text-align:center;color:{tot_kings_col};font-weight:bold;font-size:16px;background:#064e3b;">${d_tot_kings['net']:+.2f} دلار نقد</td>
+        <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:14px;background:#0369a125;">⏱️ {d_tot_kings['wait_avg_fmt']}</td>
+        <td style="text-align:center;color:#facc15;font-size:12px;font-family:monospace;direction:ltr;">{d_tot_kings['wait_range_fmt']}</td>
     </tr>
     """)
 
@@ -529,11 +627,14 @@ def process_symbol_dataset(csv_file):
             <td style="text-align:center;">{d['w4_p']:.1f}%</td>
             <td style="text-align:center;color:#ef4444;">{d['sl_p']:.1f}%</td>
             <td style="text-align:center;color:{col};font-weight:bold;">${d['net']:+.2f} دلار</td>
+            <td style="text-align:center;color:#38bdf8;">{d['wait_avg_fmt']}</td>
+            <td style="text-align:center;color:#94a3b8;font-size:11px;font-family:monospace;direction:ltr;">{d['wait_range_fmt']}</td>
         </tr>
         """)
 
     d_tot_raw = calc_tf_metrics(closed) or {
-        'cnt': 0, 'w1_p': 0.0, 'w2_p': 0.0, 'w3_p': 0.0, 'w4_p': 0.0, 'sl_p': 0.0, 'gross': 0.0, 'fric': 0.0, 'net': 0.0
+        'cnt': 0, 'w1_p': 0.0, 'w2_p': 0.0, 'w3_p': 0.0, 'w4_p': 0.0, 'sl_p': 0.0, 'gross': 0.0, 'fric': 0.0, 'net': 0.0,
+        'wait_avg_fmt': '-', 'wait_range_fmt': '-', 'wait_avg_short': '-'
     }
     tot_raw_col = "#00e676" if d_tot_raw['net'] >= 0 else "#ef4444"
     tf_raw_rows.append(f"""
@@ -546,6 +647,8 @@ def process_symbol_dataset(csv_file):
         <td style="text-align:center;">{d_tot_raw['w4_p']:.1f}%</td>
         <td style="text-align:center;color:#ef4444;font-weight:bold;">{d_tot_raw['sl_p']:.1f}%</td>
         <td style="text-align:center;color:{tot_raw_col};font-weight:bold;font-size:15px;">${d_tot_raw['net']:+.2f} دلار</td>
+        <td style="text-align:center;color:#38bdf8;font-weight:bold;">{d_tot_raw['wait_avg_fmt']}</td>
+        <td style="text-align:center;color:#94a3b8;font-size:11px;font-family:monospace;direction:ltr;">{d_tot_raw['wait_range_fmt']}</td>
     </tr>
     """)
 
@@ -2131,10 +2234,15 @@ def process_symbol_dataset(csv_file):
             if hr >= 3: pnl += pts * 3.0 * 0.01
             if hr >= 4: pnl += pts * 4.0 * 0.01
 
+        wm = get_box_wait_time_minutes(r)
         trades_json_list.append({
             'id': idx,
+            'box_t': r.get('BoxTimeStart', ''),
             'en_t': r.get('EntryTime', ''),
             'ex_t': r.get('ExitTime', ''),
+            'wait_m': round(wm, 1) if wm is not None else 0.0,
+            'wait_fmt': format_duration_persian(wm) if wm is not None else '-',
+            'wait_short': format_duration_short(wm) if wm is not None else '-',
             'tf': tf,
             'role': role,
             'bname': r.get('BoxName', ''),
@@ -2792,7 +2900,7 @@ def process_symbol_dataset(csv_file):
 </div>
 </div>"""
     tab_kings_html = f"""<!-- Global Performance KPI Cards (Placed inside Tab 1) -->
-            <div class="kpi-grid" style="margin-bottom:20px;">
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:10px;margin-bottom:20px;">
                 <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
                     <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
                     <div class="kpi-value" style="color:#38bdf8;">{total_setups:,}</div>
@@ -2817,6 +2925,11 @@ def process_symbol_dataset(csv_file):
                     <div class="kpi-title">💵 سود خالص دلاری سلاطین (0.04)</div>
                     <div class="kpi-value" style="color:#facc15;">${s3_net:+.2f}</div>
                     <div class="kpi-sub">از {tot_k_cnt} معامله سلاطین برتر</div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid #a855f7;">
+                    <div class="kpi-title">⏱️ میانگین انتظار تا ورود (پولبک)</div>
+                    <div class="kpi-value" style="color:#c084fc;">{symbol_latency_all['avg_short']}</div>
+                    <div class="kpi-sub">سریع‌ترین: {symbol_latency_all['min_short']} | ۹۰٪ زیر {symbol_latency_all['p90_short']}</div>
                 </div>
             </div>
 
@@ -3009,7 +3122,56 @@ def process_symbol_dataset(csv_file):
                     </div>
                 </div>
             </div>"""
-    tab_timeframes_html = f"""<div class="section-box">
+    tab_timeframes_html = f"""<!-- ⏳ BOX-TO-ENTRY LATENCY & PULLBACK SPEED INTELLIGENCE -->
+            <div class="section-box" style="border: 1px solid #0284c7; background: #081a2e; margin-bottom: 24px; padding: 18px 20px; border-radius: 10px;">
+                <div style="border-bottom: 1px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0; color:#38bdf8; font-size:18px; display:flex; align-items:center; gap:8px;">
+                            ⏱️ تحلیل سرعت پولبک و زمان انتظار ورود (Box-to-Entry Latency)
+                        </h3>
+                        <p style="margin:4px 0 0 0; color:#93c5fd; font-size:12px;">
+                            مدت زمان سپری‌شده از لحظه تشکیل باکس الگو تا لمس سطح اردر لیمیت و فعال‌سازی معامله (مبنای تعیین انقضای اردرهای لیمیت)
+                        </p>
+                    </div>
+                    <span style="background:#0369a1; color:#e0f2fe; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold;">
+                        جامعه آماری: {len(entered):,} ستاپ فعال‌شده
+                    </span>
+                </div>
+
+                <!-- 4 Latency KPI Cards -->
+                <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px;">
+                    <div class="kpi-card" style="border-color:#38bdf8; background:#0e2a47; padding:12px 14px;">
+                        <div class="kpi-title" style="font-size:11.5px; color:#93c5fd;">⚡ حداقل زمان انتظار (سریع‌ترین پولبک)</div>
+                        <div class="kpi-value" style="color:#38bdf8; font-size:22px;">{symbol_latency_all['min_short']}</div>
+                        <div class="kpi-sub" style="color:#94a3b8;">{symbol_latency_all['min_fmt']}</div>
+                    </div>
+                    <div class="kpi-card" style="border-color:#00e676; background:#0a2c20; padding:12px 14px;">
+                        <div class="kpi-title" style="font-size:11.5px; color:#86efac;">⏱️ میانگین زمان انتظار (Average Latency)</div>
+                        <div class="kpi-value" style="color:#00e676; font-size:22px;">{symbol_latency_all['avg_short']}</div>
+                        <div class="kpi-sub" style="color:#94a3b8;">{symbol_latency_all['avg_fmt']}</div>
+                    </div>
+                    <div class="kpi-card" style="border-color:#facc15; background:#292208; padding:12px 14px;">
+                        <div class="kpi-title" style="font-size:11.5px; color:#fde047;">🎯 میانه انتظار (Median - نصف معاملات)</div>
+                        <div class="kpi-value" style="color:#facc15; font-size:22px;">{symbol_latency_all['med_short']}</div>
+                        <div class="kpi-sub" style="color:#94a3b8;">۵۰٪ معاملات زیر {symbol_latency_all['med_fmt']} وارد شدند</div>
+                    </div>
+                    <div class="kpi-card" style="border-color:#c084fc; background:#231138; padding:12px 14px;">
+                        <div class="kpi-title" style="font-size:11.5px; color:#d8b4fe;">🛡️ چارک ۹۰٪ (فعال‌سازی ۹۰٪ اردرها)</div>
+                        <div class="kpi-value" style="color:#c084fc; font-size:22px;">{symbol_latency_all['p90_short']}</div>
+                        <div class="kpi-sub" style="color:#94a3b8;">۹۰٪ اردرها زیر {symbol_latency_all['p90_fmt']} فعال شدند</div>
+                    </div>
+                </div>
+
+                <!-- Practical Strategy Guidance Box -->
+                <div style="background:#0f2238; border-right:4px solid #38bdf8; padding:12px 16px; border-radius:6px; font-size:12px; color:#cbd5e1; line-height:1.8;">
+                    <b style="color:#38bdf8;">💡 راهنمای عملی معاملاتی برای اردرهای لیمیت (Limit Order Life Expectancy):</b><br/>
+                    • <b>در تایم M1:</b> میانگین زمان تاچ ورود <b>{symbol_latency_tfs['M1']['avg_fmt']}</b> (میانه: {symbol_latency_tfs['M1']['med_fmt']}) است و ۹۰٪ معاملات در کمتر از <b>{symbol_latency_tfs['M1']['p90_fmt']}</b> وارد می‌شوند. اگر اردری بیش از ۱ ساعت فعال نشد، لغو آن کاملاً امن و منطقی است.<br/>
+                    • <b>در تایم M5:</b> میانگین انتظار ورود <b>{symbol_latency_tfs['M5']['avg_fmt']}</b> (میانه: {symbol_latency_tfs['M5']['med_fmt']}) است و تا ۳ ساعت ساختار معتبر باقی می‌ماند.<br/>
+                    • <b>در تایم M15:</b> ستاپ‌ها سوئینگی هستند و میانگین انتظار تاچ اردر <b>{symbol_latency_tfs['M15']['avg_fmt']}</b> است.
+                </div>
+            </div>
+
+            <div class="section-box">
                 <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
                     <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین {len(qualified_kings)} گانه FlagPro</h3>
                     <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
@@ -3030,6 +3192,8 @@ def process_symbol_dataset(csv_file):
                                 <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
                                 <th style="text-align:center;color:#f87171;">کل اصطکاک (اسپرد)</th>
                                 <th style="text-align:center;color:#00e676;">💵 سود خالص واقعی</th>
+                                <th style="text-align:center;color:#38bdf8;">⏱️ میانگین انتظار ورود</th>
+                                <th style="text-align:center;color:#94a3b8;">⚡ کمترین ~ بیشترین انتظار</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3061,6 +3225,8 @@ def process_symbol_dataset(csv_file):
                                 <th style="text-align:center;">وین‌ریت 1:4</th>
                                 <th style="text-align:center;">نرخ باخت</th>
                                 <th style="text-align:center;">سود/زیان کل خام</th>
+                                <th style="text-align:center;color:#38bdf8;">میانگین انتظار ورود</th>
+                                <th style="text-align:center;color:#94a3b8;">کمترین ~ بیشترین انتظار</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3450,7 +3616,10 @@ def process_symbol_dataset(csv_file):
         'trades_sim_list': trades_sim_list,
         'smart_presets': smart_presets_json_data,
         'weekly_bar_data': weekly_bar_data,
-        'trades_json_list': trades_json_list
+        'trades_json_list': trades_json_list,
+        'latency_all': symbol_latency_all,
+        'latency_kings': symbol_latency_kings,
+        'latency_tfs': symbol_latency_tfs
     }
 
 
@@ -3751,6 +3920,9 @@ def build_dashboard(custom_csv=None):
             'tab_loss_intel_html': s_data['tab_loss_intel_html'],
             'tab_weekly_html': s_data['tab_weekly_html'],
             'smart_presets_rows_html': s_data.get('smart_presets_rows_html', ''),
+            'latency_all': s_data.get('latency_all', {}),
+            'latency_kings': s_data.get('latency_kings', {}),
+            'latency_tfs': s_data.get('latency_tfs', {}),
         }
 
     # 1. Update FlagPro_Modular_App initial data (merging existing symbols so none are lost)

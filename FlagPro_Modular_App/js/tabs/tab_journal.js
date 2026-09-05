@@ -86,12 +86,22 @@ function setTrFilter(key, val, btnElem) {
             let cntWin1 = 0;
             let cntWin4 = 0;
             let cntLoss = 0;
+            let sumWait = 0;
+            let cntWait = 0;
+            let minWait = 999999;
+            let maxWait = 0;
             for (let i = 0; i < total; i++) {
                 let tr = list[i];
                 sumNet += tr.net;
                 if (tr.t1 === 1) cntWin1++;
                 else cntLoss++;
                 if (tr.t4 === 1) cntWin4++;
+                if (tr.wait_m !== undefined && tr.wait_m > 0) {
+                    sumWait += tr.wait_m;
+                    cntWait++;
+                    if (tr.wait_m < minWait) minWait = tr.wait_m;
+                    if (tr.wait_m > maxWait) maxWait = tr.wait_m;
+                }
             }
 
             let kpiCount = document.getElementById('trKpiCount');
@@ -99,6 +109,8 @@ function setTrFilter(key, val, btnElem) {
             let kpiWin1 = document.getElementById('trKpiWin1');
             let kpiWin4 = document.getElementById('trKpiWin4');
             let kpiLoss = document.getElementById('trKpiLoss');
+            let kpiAvgWait = document.getElementById('trKpiAvgWait');
+            let kpiAvgWaitSub = document.getElementById('trKpiAvgWaitSub');
 
             if (kpiCount) kpiCount.textContent = total.toLocaleString() + ' معامله';
             if (kpiNet) {
@@ -117,6 +129,21 @@ function setTrFilter(key, val, btnElem) {
             if (kpiLoss) {
                 let pL = total > 0 ? ((cntLoss / total) * 100).toFixed(1) : '0.0';
                 kpiLoss.textContent = pL + '٪ (' + cntLoss + ')';
+            }
+            if (kpiAvgWait) {
+                if (cntWait > 0) {
+                    let avgM = sumWait / cntWait;
+                    let fmt = avgM < 60 ? avgM.toFixed(0) + ' دقیقه' : (avgM / 60).toFixed(1) + ' ساعت';
+                    kpiAvgWait.textContent = fmt;
+                    if (kpiAvgWaitSub) {
+                        let minFmt = minWait < 60 ? minWait.toFixed(0) + 'm' : (minWait / 60).toFixed(1) + 'h';
+                        let maxFmt = maxWait < 60 ? maxWait.toFixed(0) + 'm' : (maxWait / 60).toFixed(1) + 'h';
+                        kpiAvgWaitSub.textContent = 'بازه: ' + minFmt + ' تا ' + maxFmt;
+                    }
+                } else {
+                    kpiAvgWait.textContent = '-';
+                    if (kpiAvgWaitSub) kpiAvgWaitSub.textContent = 'از تشکیل باکس تا ورود';
+                }
             }
 
             let tbody = document.getElementById('tradesTableBody');
@@ -175,6 +202,7 @@ function setTrFilter(key, val, btnElem) {
                     '<td style="padding:8px 6px;font-size:11px;direction:ltr;font-family:monospace;color:#94a3b8;">' +
                         '<div>🟢 ' + t.en_t + '</div>' +
                         '<div style="color:#64748b;font-size:10px;">🔴 ' + t.ex_t + '</div>' +
+                        (t.wait_fmt && t.wait_fmt !== '-' ? '<div style="color:#38bdf8;font-size:10px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ' + t.wait_fmt + '</div>' : '') +
                     '</td>' +
                     '<td style="padding:8px 6px;">' + tfBadge + '</td>' +
                     '<td style="padding:8px 10px;text-align:right;">' +
