@@ -3734,6 +3734,7 @@ def build_dashboard(custom_csv=None):
         "__DEFAULT_SYM__": default_sym,
         "__DEFAULT_SYMBOL__": default_data['symbol'],
         "__DEFAULT_TFS_STR__": default_data['tfs_str'],
+        "__DEFAULT_KINGS_COUNT__": str(len(default_data.get('kings_sim_list', []))),
         "__DEFAULT_MIN_DATE__": default_data['min_date'],
         "__DEFAULT_MAX_DATE__": default_data['max_date'],
         "__SYMBOL_OPTIONS_HTML__": symbol_options_html,
