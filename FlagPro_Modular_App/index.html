@@ -1203,74 +1203,96 @@
                             </div>
                         </div>
 
-                        <!-- 📊 4 SIDE-BY-SIDE KPI CARDS -->
-                        <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;margin-bottom:12px;">
-                            <!-- Win Rate -->
-                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
-                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">وین‌ریت ستاپ‌ها (Win Rate)</div>
+                        <!-- 📊 6 COMPREHENSIVE FORENSIC KPI CARDS -->
+                        <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;margin-bottom:12px;">
+                            <!-- Card 1: Total Profit / PnL & Gap (مجموع سود اندیکاتور vs تستر و اختلاف کل) -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e3a5f;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#38bdf8;font-size:11px;font-weight:600;margin-bottom:4px;">💰 مجموع سود کل (تستر vs اندیکاتور)</div>
                                 <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
                                     <div>
-                                        <div style="font-size:9.5px;color:#ef4444;font-weight:600;">تستر MT5 (واقعی)</div>
-                                        <div id="tcValWinRateActual" style="font-size:19px;font-weight:bold;color:#f87171;">45.2%</div>
+                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">تستر MT5 (واقعی)</div>
+                                        <div id="tcValNetActual" style="font-size:17px;font-weight:bold;color:#f87171;">-$28.96</div>
                                     </div>
-                                    <div style="color:#64748b;font-size:14px;">vs</div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
                                     <div>
-                                        <div style="font-size:9.5px;color:#10b981;font-weight:600;">شبیه‌ساز (تئوریک)</div>
-                                        <div id="tcValWinRateSim" style="font-size:19px;font-weight:bold;color:#34d399;">66.7%</div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">اندیکاتور (تئوریک)</div>
+                                        <div id="tcValNetInd" style="font-size:17px;font-weight:bold;color:#34d399;">-$49.90</div>
                                     </div>
                                 </div>
-                                <div id="tcDiffWinRate" class="kpi-sub" style="color:#f87171;font-weight:bold;font-size:10px;">اختلاف: -21.5% (به دلیل معاملات M1)</div>
+                                <div id="tcDiffTotalPnL" class="kpi-sub" style="color:#facc15;font-weight:bold;font-size:10px;direction:rtl;">اختلاف کل: +$20.94 (-327.9p) به نفع تستر</div>
                             </div>
 
-                            <!-- Net Profit / Pips -->
+                            <!-- Card 2: Win Rate (Win Rate تستر vs اندیکاتور) -->
                             <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
-                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">سود خالص (Net Pips / USD)</div>
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">🎯 نرخ برد ستاپ‌ها (Win Rate)</div>
                                 <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
                                     <div>
-                                        <div style="font-size:9.5px;color:#ef4444;font-weight:600;">تستر MT5 (واقعی)</div>
-                                        <div id="tcValNetActual" style="font-size:18px;font-weight:bold;color:#f87171;">-289.6p (-$28.96)</div>
+                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">تستر MT5 (واقعی)</div>
+                                        <div id="tcValWinRateActual" style="font-size:18px;font-weight:bold;color:#f87171;">45.2%</div>
                                     </div>
-                                    <div style="color:#64748b;font-size:14px;">vs</div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
                                     <div>
-                                        <div style="font-size:9.5px;color:#10b981;font-weight:600;">شبیه‌ساز (تئوریک)</div>
-                                        <div id="tcValNetSim" style="font-size:18px;font-weight:bold;color:#34d399;">+$26.50</div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">اندیکاتور (تئوریک)</div>
+                                        <div id="tcValWinRateSim" style="font-size:18px;font-weight:bold;color:#34d399;">42.9%</div>
                                     </div>
                                 </div>
-                                <div id="tcDiffNet" class="kpi-sub" style="color:#f87171;font-weight:bold;font-size:10px;">افت ناشی از تایم ۱ دقیقه</div>
+                                <div id="tcDiffWinRate" class="kpi-sub" style="color:#34d399;font-weight:bold;font-size:10px;direction:rtl;">اختلاف: +2.3% به نفع تستر</div>
                             </div>
 
-                            <!-- Profit Factor -->
+                            <!-- Card 3: Profit Factor -->
                             <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
-                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">پروفیت فکتور (Profit Factor)</div>
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">⚖️ پروفیت فکتور (Profit Factor)</div>
                                 <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
                                     <div>
-                                        <div style="font-size:9.5px;color:#ef4444;font-weight:600;">تستر MT5 (واقعی)</div>
-                                        <div id="tcValPfActual" style="font-size:19px;font-weight:bold;color:#f87171;">0.77</div>
+                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">تستر MT5 (واقعی)</div>
+                                        <div id="tcValPfActual" style="font-size:18px;font-weight:bold;color:#f87171;">0.77</div>
                                     </div>
-                                    <div style="color:#64748b;font-size:14px;">vs</div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
                                     <div>
-                                        <div style="font-size:9.5px;color:#10b981;font-weight:600;">شبیه‌ساز (تئوریک)</div>
-                                        <div id="tcValPfSim" style="font-size:19px;font-weight:bold;color:#34d399;">3.94</div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">اندیکاتور (تئوریک)</div>
+                                        <div id="tcValPfSim" style="font-size:18px;font-weight:bold;color:#34d399;">0.65</div>
                                     </div>
                                 </div>
-                                <div id="tcDiffPf" class="kpi-sub" style="color:#f87171;font-weight:bold;font-size:10px;">ضریب سود واقعی تستر vs سناریو</div>
+                                <div id="tcDiffPf" class="kpi-sub" style="color:#34d399;font-weight:bold;font-size:10px;direction:rtl;">ضریب سود واقعی تستر vs اندیکاتور</div>
                             </div>
 
-                            <!-- Total Setups / Execution -->
+                            <!-- Card 4: Outcome Discrepancies (چند تا پوزیشن تو هر دو هستند ولی در یکی برده و در یکی باخته) -->
                             <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
-                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">تعداد ستاپ‌ها و حجم معامله</div>
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">⚡ مغایرت نتیجه (برد در یکی / باخت در دیگری)</div>
                                 <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
                                     <div>
-                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">کل ستاپ‌ها</div>
-                                        <div id="tcValTotalSetups" style="font-size:19px;font-weight:bold;color:#38bdf8;">42</div>
+                                        <div style="font-size:9.5px;color:#f87171;font-weight:600;">مغایرت نتیجه</div>
+                                        <div id="tcValOutcomeDiff" style="font-size:18px;font-weight:bold;color:#f87171;">۱ ستاپ</div>
                                     </div>
-                                    <div style="color:#64748b;font-size:14px;">/</div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
                                     <div>
-                                        <div style="font-size:9.5px;color:#a855f7;font-weight:600;">پوزیشن‌های ۴ مرحله‌ای</div>
-                                        <div id="tcValTotalPositions" style="font-size:19px;font-weight:bold;color:#c084fc;">168</div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">همگام و منطبق</div>
+                                        <div id="tcValOutcomeAgreed" style="font-size:18px;font-weight:bold;color:#34d399;">۱۴ ستاپ</div>
                                     </div>
                                 </div>
-                                <div id="tcWinLossSplit" class="kpi-sub" style="color:#94a3b8;font-size:10px;">۱۹ برد (45.2%) | ۲۳ باخت (54.8%)</div>
+                                <div id="tcOutcomeDiffSub" class="kpi-sub" style="color:#cbd5e1;font-size:10px;direction:rtl;">تغییر برنده/بازنده به علت لغزش مارکت یا تریل</div>
+                            </div>
+
+                            <!-- Card 5: Platform Presence (چند تا تو یکی هست و تو اون یکی نیست) -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">🧩 حضور پوزیشن‌ها در پلتفرم‌ها</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9px;color:#34d399;font-weight:600;">مشترک در هر دو</div>
+                                        <div id="tcValBothPlatforms" style="font-size:16px;font-weight:bold;color:#34d399;">۱۵</div>
+                                    </div>
+                                    <div style="color:#334155;font-size:12px;">|</div>
+                                    <div>
+                                        <div style="font-size:9px;color:#38bdf8;font-weight:600;">فقط تستر</div>
+                                        <div id="tcValOnlyTester" style="font-size:16px;font-weight:bold;color:#38bdf8;">۲۷</div>
+                                    </div>
+                                    <div style="color:#334155;font-size:12px;">|</div>
+                                    <div>
+                                        <div style="font-size:9px;color:#f59e0b;font-weight:600;">فقط اندیکاتور</div>
+                                        <div id="tcValOnlyIndicator" style="font-size:16px;font-weight:bold;color:#f59e0b;">۳۵</div>
+                                    </div>
+                                </div>
+                                <div id="tcPlatformPresenceSub" class="kpi-sub" style="color:#94a3b8;font-size:10px;direction:rtl;">پوزیشن‌های خارج از لیمیت یا فیلترشده</div>
                             </div>
 
                             <!-- ⏱️ Box-to-Entry Latency & Pullback Speed Card -->
