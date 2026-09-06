@@ -188,7 +188,7 @@ def process_symbol_dataset(csv_file):
     tot_kings_col = "#00e676" if d_tot_kings['net'] >= 0 else "#ef4444"
     tf_kings_rows.append(f"""
     <tr style="background:#1e293b;border-top:2px solid #38bdf8;">
-        <td style="color:#facc15;font-weight:bold;font-size:15px;">👑 مجموع سلاطین (FlagPro)</td>
+        <td style="color:#facc15;font-weight:bold;font-size:15px;">👑 مجموع کل سلاطین برگزیده</td>
         <td style="text-align:center;font-weight:bold;color:#facc15;font-size:14px;">{d_tot_kings['cnt']} معامله</td>
         <td style="text-align:center;color:#00e676;font-weight:bold;">{d_tot_kings['w1_p']:.1f}%</td>
         <td style="text-align:center;color:#00e676;font-weight:bold;">{d_tot_kings['w2_p']:.1f}%</td>

@@ -626,8 +626,8 @@ def render_timeframes_tab(c):
 
             <div class="section-box">
                 <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
-                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین {len(qualified_kings)} گانه FlagPro</h3>
-                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
+                    <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین {len(qualified_kings)} گانه برگزیده</h3>
+                    <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات سلاطین برگزیده (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
                 </div>
 
                 <!-- Primary: Golden Kings per Timeframe -->
@@ -635,7 +635,7 @@ def render_timeframes_tab(c):
                     <table>
                         <thead>
                             <tr style="background:#0f172a;">
-                                <th>تایم‌فریم (سلاطین منتخب FlagPro)</th>
+                                <th>تایم‌فریم (سلاطین برگزیده)</th>
                                 <th style="text-align:center;">تعداد معامله</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:1</th>
                                 <th style="text-align:center;">وین‌ریت TP 1:2</th>

@@ -528,11 +528,17 @@ function switchDashboardSymbol(symName) {
                 let ddScore = maxDD > 0 ? Math.min(100, (bg.net / maxDD) * 10) : 100;
                 let score = purity + t2 + pnlTrade + pfScore + ddScore;
 
-                scoredBoxes.push({ role: bg.role, tf: bg.tf, kk: bg.kk, score, cnt, net: bg.net, w1_p, sl: bg.sl, sl_p, pf, maxDD, is_perfect: (cnt >= 2 && bg.sl === 0), is_runner: (bg.w3 / cnt >= 0.3 || bg.w4 / cnt >= 0.3) });
+                scoredBoxes.push({
+                    role: bg.role, tf: bg.tf, kk: bg.kk, score, cnt, net: bg.net,
+                    w1: bg.w1, w2: bg.w2, w3: bg.w3, w4: bg.w4, sl: bg.sl,
+                    w1_p, sl_p, pf, maxDD,
+                    is_perfect: (cnt >= 2 && bg.sl === 0),
+                    is_runner: (bg.w3 / cnt >= 0.3 || bg.w4 / cnt >= 0.3)
+                });
             });
 
             scoredBoxes.sort((a, b) => b.score - a.score);
-            let qualified = scoredBoxes.filter(b => b.score >= 100 && b.net > 0 && b.cnt >= 3);
+            let qualified = scoredBoxes.filter(b => b.score >= 100 && b.net > 0 && (b.cnt >= 3 || b.is_perfect));
             if (qualified.length === 0) qualified = scoredBoxes.slice(0, 10);
             let kingKeySet = new Set(qualified.map(k => k.kk));
 
@@ -540,7 +546,13 @@ function switchDashboardSymbol(symName) {
             clientAllTrades.forEach(t => { t.is_k = kingKeySet.has(t.role + '|' + t.tf) ? 1 : 0; });
 
             let clientKingsSimList = qualified.map((k, idx) => ({
-                id: idx + 1, role: k.role, tf: k.tf, kk: k.kk, score: Math.round(k.score * 10) / 10, cnt: k.cnt, net: Math.round(k.net * 100) / 100, w1_p: Math.round(k.w1_p * 10) / 10, sl_cnt: k.sl, sl_usd: Math.round(k.sl * (friction + 2.0) * 100) / 100, sl_p: Math.round(k.sl_p * 10) / 10, pf: Math.round(k.pf * 100) / 100, perf: k.is_perfect ? 1 : 0, run: k.is_runner ? 1 : 0
+                id: idx + 1, role: k.role, tf: k.tf, kk: k.kk, score: Math.round(k.score * 10) / 10,
+                cnt: k.cnt, net: Math.round(k.net * 100) / 100,
+                w1: k.w1, w2: k.w2, w3: k.w3, w4: k.w4, sl: k.sl,
+                w1_p: Math.round(k.w1_p * 10) / 10,
+                sl_cnt: k.sl, sl_usd: Math.round(k.sl * (friction + 2.0) * 100) / 100,
+                sl_p: Math.round(k.sl_p * 10) / 10, pf: Math.round(k.pf * 100) / 100,
+                perf: k.is_perfect ? 1 : 0, run: k.is_runner ? 1 : 0
             }));
 
             let sortedSLCnt = [...clientKingsSimList].sort((a, b) => b.sl_cnt - a.sl_cnt);
@@ -834,22 +846,34 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
         }
     });
 
+    let totKingsW1 = 0, totKingsW2 = 0, totKingsW3 = 0, totKingsW4 = 0, totKingsSL = 0;
     clientKingsSimList.forEach(k => {
         let tf = k.tf || 'M1';
         if (!tfMapKings[tf]) {
             tfMapKings[tf] = { count: 0, grossWin: 0, friction: 0, net: 0, w1: 0, w2: 0, w3: 0, w4: 0, sl: 0 };
         }
         let g = tfMapKings[tf];
+        let k_w1 = k.w1 !== undefined ? k.w1 : Math.round(k.cnt * (k.w1_p / 100));
+        let k_w2 = k.w2 !== undefined ? k.w2 : Math.round(k_w1 * 0.65);
+        let k_w3 = k.w3 !== undefined ? k.w3 : Math.round(k_w1 * 0.45);
+        let k_w4 = k.w4 !== undefined ? k.w4 : Math.round(k_w1 * 0.35);
+        let k_sl = k.sl !== undefined ? k.sl : (k.sl_cnt !== undefined ? k.sl_cnt : 0);
+
         g.count += k.cnt;
         g.net += k.net;
         g.friction += k.cnt * friction;
         g.grossWin += (k.net + k.cnt * friction);
-        g.sl += k.sl_cnt;
-        let w1Count = Math.round(k.cnt * (k.w1_p / 100));
-        g.w1 += w1Count;
-        g.w2 += Math.round(w1Count * 0.65);
-        g.w3 += Math.round(w1Count * 0.45);
-        g.w4 += Math.round(w1Count * 0.35);
+        g.sl += k_sl;
+        g.w1 += k_w1;
+        g.w2 += k_w2;
+        g.w3 += k_w3;
+        g.w4 += k_w4;
+
+        totKingsW1 += k_w1;
+        totKingsW2 += k_w2;
+        totKingsW3 += k_w3;
+        totKingsW4 += k_w4;
+        totKingsSL += k_sl;
     });
 
     let tfKeys = Object.keys(tfMapRaw).sort();
@@ -867,17 +891,25 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                 <td style="text-align:center;color:#00e676;font-weight:bold;">${w1_p}%</td>
                 <td style="text-align:center;color:#00e676;font-weight:bold;">${w2_p}%</td>
                 <td style="text-align:center;color:#38bdf8;">${w3_p}%</td>
-                <td style="text-align:center;color:#c084fc;">${w4_p}%</td>
+                <td style="text-align:color:#c084fc;">${w4_p}%</td>
                 <td style="text-align:center;color:#ef4444;font-weight:bold;">${sl_p}%</td>
-                <td style="text-align:center;color:#38bdf8;font-weight:bold;">+$${g.grossWin.toFixed(2)}</td>
+                <td style="text-align:center;color:#38bdf8;font-weight:bold;">${g.grossWin >= 0 ? '+' : ''}$${g.grossWin.toFixed(2)}</td>
                 <td style="text-align:center;color:#f87171;font-weight:bold;">-$${g.friction.toFixed(2)}</td>
-                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;background:#064e3b22;">+$${g.net.toFixed(2)} دلار</td>
+                <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;background:#064e3b22;">${g.net >= 0 ? '+' : ''}$${g.net.toFixed(2)} دلار</td>
             </tr>
         `;
     }).join('');
 
     let totKingsCount = clientKingsSimList.reduce((s, k) => s + k.cnt, 0);
     let totKingsNet = clientKingsSimList.reduce((s, k) => s + k.net, 0);
+    let totKingsFriction = totKingsCount * friction;
+    let totKingsGross = totKingsNet + totKingsFriction;
+
+    let totW1_p = totKingsCount > 0 ? (totKingsW1 / totKingsCount * 100).toFixed(1) : '0.0';
+    let totW2_p = totKingsCount > 0 ? (totKingsW2 / totKingsCount * 100).toFixed(1) : '0.0';
+    let totW3_p = totKingsCount > 0 ? (totKingsW3 / totKingsCount * 100).toFixed(1) : '0.0';
+    let totW4_p = totKingsCount > 0 ? (totKingsW4 / totKingsCount * 100).toFixed(1) : '0.0';
+    let totSL_p = totKingsCount > 0 ? (totKingsSL / totKingsCount * 100).toFixed(1) : '0.0';
     let totKingsFriction = totKingsCount * friction;
     let totKingsGross = totKingsNet + totKingsFriction;
 
@@ -1116,8 +1148,8 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     return `
         <div class="section-box">
             <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
-                <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین FlagPro (نماد ${detectedSym})</h3>
-                <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات استراتژی سلاطین FlagPro (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
+                <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین برگزیده (نماد ${detectedSym})</h3>
+                <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">بررسی سودآوری واقعی معاملات سلاطین برگزیده (حجم پلکانی 0.04 با کسر اسپرد و کمیسیون):</p>
             </div>
 
             <!-- Primary: Golden Kings per Timeframe -->
@@ -1125,7 +1157,7 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                 <table>
                     <thead>
                         <tr style="background:#0f172a;">
-                            <th>تایم‌فریم (سلاطین منتخب FlagPro)</th>
+                            <th>تایم‌فریم (سلاطین برگزیده)</th>
                             <th style="text-align:center;">تعداد معامله</th>
                             <th style="text-align:center;">وین‌ریت TP 1:1</th>
                             <th style="text-align:center;">وین‌ریت TP 1:2</th>
@@ -1140,16 +1172,16 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                     <tbody>
                         ${kingsRows}
                         <tr style="background:#1e293b;border-top:2px solid #38bdf8;">
-                            <td style="color:#facc15;font-weight:bold;font-size:15px;">👑 مجموع سلاطین (FlagPro)</td>
+                            <td style="color:#facc15;font-weight:bold;font-size:15px;">👑 مجموع کل سلاطین برگزیده</td>
                             <td style="text-align:center;font-weight:bold;color:#facc15;font-size:14px;">${totKingsCount.toLocaleString()} معامله</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">64.2%</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;">41.8%</td>
-                            <td style="text-align:center;color:#38bdf8;">31.2%</td>
-                            <td style="text-align:center;color:#c084fc;">25.0%</td>
-                            <td style="text-align:center;color:#ef4444;font-weight:bold;">35.8%</td>
-                            <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">+$${totKingsGross.toFixed(2)}</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">${totW1_p}%</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;">${totW2_p}%</td>
+                            <td style="text-align:center;color:#38bdf8;">${totW3_p}%</td>
+                            <td style="text-align:center;color:#c084fc;">${totW4_p}%</td>
+                            <td style="text-align:center;color:#ef4444;font-weight:bold;">${totSL_p}%</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">${totKingsGross >= 0 ? '+' : ''}$${totKingsGross.toFixed(2)}</td>
                             <td style="text-align:center;color:#f87171;font-weight:bold;font-size:15px;">-$${totKingsFriction.toFixed(2)}</td>
-                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:16px;background:#064e3b;">+$${totKingsNet.toFixed(2)} دلار نقد</td>
+                            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:16px;background:#064e3b;">${totKingsNet >= 0 ? '+' : ''}$${totKingsNet.toFixed(2)} دلار نقد</td>
                         </tr>
                     </tbody>
                 </table>
