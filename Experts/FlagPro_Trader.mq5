@@ -402,9 +402,15 @@ void ExportTesterRunSummary()
       double setupProfitUSD = 0.0;
       double setupProfitPips = 0.0;
       datetime closeTime = m_activeGroups[g].entryTime;
-      int tpsHit = 0;
-      bool fullSL = false;
-      bool hasDeals = false;
+      bool isBuy = m_activeGroups[g].isBuy;
+      double tp1 = m_activeGroups[g].tp1;
+      double tp2 = m_activeGroups[g].tp2;
+      double tp3 = m_activeGroups[g].tp3;
+      double tp4 = m_activeGroups[g].tp4;
+      bool tp1Hit = false;
+      bool tp2Hit = false;
+      bool tp3Hit = false;
+      bool tp4Hit = false;
 
       for(int p = 0; p < 4; p++)
       {
@@ -431,8 +437,13 @@ void ExportTesterRunSummary()
                   setupProfitUSD += pUSD;
                   setupProfitPips += pPips;
 
-                  if(pPips > 0.5) tpsHit++;
-                  else if(pPips < -1.0) fullSL = true;
+                  if(pPips < -1.0) fullSL = true;
+
+                  double tol = 3.0 * _Point;
+                  if(p == 0 && ((isBuy && exitPr >= tp1 - tol) || (!isBuy && exitPr <= tp1 + tol))) tp1Hit = true;
+                  if(p == 1 && ((isBuy && exitPr >= tp2 - tol) || (!isBuy && exitPr <= tp2 + tol))) tp2Hit = true;
+                  if(p == 2 && ((isBuy && exitPr >= tp3 - tol) || (!isBuy && exitPr <= tp3 + tol))) tp3Hit = true;
+                  if(p == 3 && ((isBuy && exitPr >= tp4 - tol) || (!isBuy && exitPr <= tp4 + tol))) tp4Hit = true;
                }
             }
          }
@@ -456,6 +467,13 @@ void ExportTesterRunSummary()
          lossSetups++;
          grossLossPips += MathAbs(setupProfitPips);
       }
+
+      if(tp4Hit) tpsHit = 4;
+      else if(tp3Hit) tpsHit = 3;
+      else if(tp2Hit) tpsHit = 2;
+      else if(tp1Hit) tpsHit = 1;
+      else if(setupProfitPips > 0.5) tpsHit = 1;
+      else tpsHit = 0;
 
       string exitClass = "Full SL ❌";
       if(tpsHit >= 4) exitClass = "Full Runner TP4 🚀";
