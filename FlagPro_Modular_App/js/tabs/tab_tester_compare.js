@@ -892,6 +892,24 @@ function renderParameterDriftTable(report, scenarioKey) {
                 : 'ورود بدون محدودیت انحراف قیمت بوده و اسلیپیج ورود مهار نشده است.'
         },
         {
+            name: 'افست حد ضرر (InpSLOffsetPips)',
+            actual: (p.InpSLOffsetPips !== undefined ? (Number(p.InpSLOffsetPips).toFixed(1) + ' pips') : '8.0 pips (پیش‌فرض اکسپرت)'),
+            expected: '8.0 pips (فاصله اطمینان فرار از شدو)',
+            status: (p.InpSLOffsetPips === undefined || Number(p.InpSLOffsetPips) === 8.0) ? 'match' : (Number(p.InpSLOffsetPips) >= 5.0 ? 'warn' : 'severe'),
+            impact: (p.InpSLOffsetPips === undefined || Number(p.InpSLOffsetPips) === 8.0)
+                ? 'فاصله اطمینان حد ضرر روی ۸ پیپ تنظیم شده و از استاپ هانت شدوها در نوسانات شدید جلوگیری می‌کند.'
+                : 'افست استاپ کمتر از ۸ پیپ است و احتمال استاپ خوردن توسط شدوها افزایش می‌یابد.'
+        },
+        {
+            name: 'روش اجرای سفارشات (InpOrderExecMode)',
+            actual: (p.InpOrderExecMode == 1 ? 'Market Order (ورود مارکت)' : 'Pending Limit (اردر لیمیت دقیق)'),
+            expected: 'Pending Limit (ورود دقیق در لبه باکس - اسلیپیج صفر)',
+            status: (p.InpOrderExecMode == 1 ? 'warn' : 'match'),
+            impact: (p.InpOrderExecMode == 1)
+                ? 'اجرای مارکت پس از بسته شدن کندل ممکن است به دلیل اسلیپیج نقطه ورود را جابجا کند.'
+                : 'سفارش لیمیت دقیقاً روی لبه باکس منتظر تاچ قیمت می‌ماند و اسلیپیج ورود به صفر می‌رسد.'
+        },
+        {
             name: 'اسپرد Ask در شبیه‌سازی (Simulated Ask Spread)',
             actual: 'لحاظ در تستر واقعی MT5',
             expected: 'اضافه شده به سورس اندیکاتور و اکسپرت',

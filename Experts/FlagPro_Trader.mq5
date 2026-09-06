@@ -41,7 +41,7 @@ input double             InpLot_TP2               = 0.01;        // 🎯 حجم 
 input double             InpLot_TP3               = 0.01;        // 🎯 حجم خروج مرحله ۳ در TP3 (25% کل حجم)
 input double             InpLot_TP4               = 0.01;        // 🎯 حجم خروج مرحله ۴ در TP4 (25% کل حجم - رانر)
 input bool               InpMoveToBreakEven       = true;        // 🛡️ مرحله ۱: انتقال به بریک‌ایون پس از تاچ TP1
-input double             InpBEBufferPips          = 1.0;         // 🛡️ بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ)
+input double             InpBEBufferPips          = 0.0;         // 🛡️ بافر سود بریک‌ایون جهت پوشش اسپرد و کمیسیون (پیپ - 0.0 برای حفظ رانرها)
 input bool               InpTrailToTP1            = true;        // 🔒 مرحله ۲: تریل و قفل حد ضرر به TP1 پس از لمس TP2
 input bool               InpTrailToTP2            = true;        // 🚀 مرحله ۳: تریل و قفل حد ضرر به TP2 پس از لمس TP3
 
@@ -63,7 +63,7 @@ input bool               InpAllowOverlappingTrades= true;        // 🔓 اجا�
 //+------------------------------------------------------------------+
 input group "=== ⚡ ۳. مدیریت ریسک، حد ضرر، لغزش و مجیک نامبر ==="
 input ulong              InpMagicNumber           = 777123;      // شناسه جادویی اکسپرت (Magic Number)
-input double             InpSLOffsetPips          = 3.0;         // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
+input double             InpSLOffsetPips          = 8.0;         // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
 #define InpRSPipBuffer InpSLOffsetPips
 input double             InpMaxSLPips             = 0.0;         // حداکثر حد ضرر مجاز به پیپ (0 = منطبق بر خط استاپ چارت)
 input int                InpSlippagePoints        = 20;          // ⚡ حداکثر اسلیپیج مجاز (لغزش قیمت به پوینت - 20 = 2 پیپ)

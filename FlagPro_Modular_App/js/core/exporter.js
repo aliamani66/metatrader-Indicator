@@ -72,10 +72,18 @@ function generateIniFileText(cfg) {
     let consecActVal = parseInt(cfg.consec_action || 1);
     let disabledStr = cfg.disabled_kings_str || '';
 
-    let now = new Date();
-    let toDate = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0');
-    let tenDaysAgo = new Date(now.getTime() - 10 * 24 * 3600 * 1000);
-    let fromDate = tenDaysAgo.getFullYear() + '.' + String(tenDaysAgo.getMonth() + 1).padStart(2, '0') + '.' + String(tenDaysAgo.getDate()).padStart(2, '0');
+    let sData = (typeof ALL_SYMBOLS_DATA !== 'undefined' && ALL_SYMBOLS_DATA) ? (ALL_SYMBOLS_DATA[rawSym] || ALL_SYMBOLS_DATA[sym] || ALL_SYMBOLS_DATA[currentActiveSymbol]) : null;
+    let fromDate = '';
+    let toDate = '';
+    if (sData && sData.min_date && sData.max_date) {
+        fromDate = sData.min_date;
+        toDate = sData.max_date;
+    } else {
+        let now = new Date();
+        toDate = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0');
+        let tenDaysAgo = new Date(now.getTime() - 10 * 24 * 3600 * 1000);
+        fromDate = tenDaysAgo.getFullYear() + '.' + String(tenDaysAgo.getMonth() + 1).padStart(2, '0') + '.' + String(tenDaysAgo.getDate()).padStart(2, '0');
+    }
 
     let cleanTitle = buildCleanScenarioTitle(cfg.title, sym);
     let isBaseScenario = (cleanTitle === 'AllKings24H');
@@ -105,23 +113,9 @@ function generateIniFileText(cfg) {
         'OptimizationCriterion=0',
         'Visual=1',
         '[TesterInputs]',
-        '; === 👑 ۱. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
-        'InpScenarioName=' + safeTitle,
-        'InpOnlyTradeKings=true',
-        'InpDisabledKingsList=' + disabledStr,
-        'InpEnableKingsM15=true',
-        'InpEnableKingsM5=true',
-        'InpEnableKingsM1=' + enableKingsM1Val,
-        'InpTradeOnlyGoldenKings=true',
-        'InpAllowOverlappingTrades=true',
-        '; === ⚡ ۲. اسلیپیج، دقت ورود و مدیریت ریسک معامله ===',
-        'InpSlippagePoints=20',
-        'InpMaxEntryDeviationPips=' + maxDevVal,
-        'InpSLOffsetPips=3.0',
-        'InpMaxSLPips=0.0',
-        'InpMaxOpenGroups=5',
-        'InpMagicNumber=777123',
-        '; === 🎯 ۳. سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing) ===',
+        '; === 🎯 ۱. حجم معاملات، اجرای سفارشات و خروج ۴ مرحله‌ای ===',
+        'InpOrderExecMode=0',
+        'InpLimitExpirationBars=40',
         'InpEnableScaleOut=true',
         'InpLot_TP1=0.01',
         'InpLot_TP2=0.01',
@@ -131,12 +125,28 @@ function generateIniFileText(cfg) {
         'InpBEBufferPips=' + beBufferVal,
         'InpTrailToTP1=true',
         'InpTrailToTP2=true',
+        '; === 👑 ۲. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
+        'InpScenarioName=' + safeTitle,
+        'InpOnlyTradeKings=true',
+        'InpTradeOnlyGoldenKings=true',
+        'InpDisabledKingsList=' + disabledStr,
+        'InpEnableKingsM15=true',
+        'InpEnableKingsM5=true',
+        'InpEnableKingsM1=' + enableKingsM1Val,
+        'InpAllowOverlappingTrades=true',
+        '; === ⚡ ۳. مدیریت ریسک، حد ضرر، لغزش و مجیک نامبر ===',
+        'InpMagicNumber=777123',
+        'InpSLOffsetPips=8.0',
+        'InpMaxSLPips=0.0',
+        'InpSlippagePoints=20',
+        'InpMaxEntryDeviationPips=' + maxDevVal,
+        'InpMaxOpenGroups=5',
         '; === ⏰ ۴. ساعات معاملاتی، کف سود و فیوز ایمنی ===',
         'InpAllowedTradingHours=' + hoursStr,
         'InpMinTradePotential=' + minPotVal,
         'InpConsecLossTrigger=' + consecTrigVal,
         'InpConsecLossAction=' + consecActVal,
-        '; === 🛡️ ۵. فیلترهای ضد استاپ و هزینه کمیسیون ===',
+        '; === 🛡️ ۵. فیلترهای هوشمند ضد استاپ و هزینه بروکر ===',
         'InpFilterNightHours=true',
         'InpFilterPreLondonHunt=true',
         'InpFilterToxicPatterns=true',
@@ -154,7 +164,11 @@ function generateIniFileText(cfg) {
         'InpLookbackBars=15000',
         'InpHistoryMode=1',
         'InpHistoryStartDate=2025.01.01 00:00:00',
-        'InpHistoryDays=10'
+        'InpHistoryDays=10',
+        '; === 🎯 ۷. خطوط گرافیک و استخراج ===',
+        'InpAutoDrawTrades=true',
+        'InpUniqueTradeColors=true',
+        'InpExportCSV=true'
     ];
 
     return lines.join(String.fromCharCode(13, 10));
@@ -215,25 +229,9 @@ function generateSetFileText(cfg) {
         ';| Avg Profit: $' + cfg.avg + ' | Active Kings: ' + cfg.kings_count,
         ';+------------------------------------------------------------------+',
         '',
-        ';=== ۱. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
-        'InpScenarioName=' + safeTitle,
-        'InpOnlyTradeKings=true',
-        'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
-        'InpEnableKingsM15=true',
-        'InpEnableKingsM5=true',
-        'InpEnableKingsM1=' + enableKingsM1Val,
-        'InpTradeOnlyGoldenKings=true',
-        'InpAllowOverlappingTrades=true',
-        '',
-        ';=== ۲. اسلیپیج، انحراف مجاز ورود و مدیریت ریسک معامله ===',
-        'InpSlippagePoints=20',
-        'InpMaxEntryDeviationPips=' + maxDevVal,
-        'InpSLOffsetPips=3.0',
-        'InpMaxSLPips=0.0',
-        'InpMaxOpenGroups=5',
-        'InpMagicNumber=777123',
-        '',
-        ';=== ۳. سیستم خروج ۴ مرحله‌ای (Scale-Out & Trailing) ===',
+        ';=== ۱. حجم معاملات، اجرای سفارشات و خروج ۴ مرحله‌ای ===',
+        'InpOrderExecMode=0',
+        'InpLimitExpirationBars=40',
         'InpEnableScaleOut=true',
         'InpLot_TP1=0.01',
         'InpLot_TP2=0.01',
@@ -244,13 +242,31 @@ function generateSetFileText(cfg) {
         'InpTrailToTP1=true',
         'InpTrailToTP2=true',
         '',
+        ';=== ۲. سلاطین طلایی، سناریوی داشبورد و ستاپ‌ها ===',
+        'InpScenarioName=' + safeTitle,
+        'InpOnlyTradeKings=true',
+        'InpTradeOnlyGoldenKings=true',
+        'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+        'InpEnableKingsM15=true',
+        'InpEnableKingsM5=true',
+        'InpEnableKingsM1=' + enableKingsM1Val,
+        'InpAllowOverlappingTrades=true',
+        '',
+        ';=== ۳. مدیریت ریسک، حد ضرر، لغزش و مجیک نامبر ===',
+        'InpMagicNumber=777123',
+        'InpSLOffsetPips=8.0',
+        'InpMaxSLPips=0.0',
+        'InpSlippagePoints=20',
+        'InpMaxEntryDeviationPips=' + maxDevVal,
+        'InpMaxOpenGroups=5',
+        '',
         ';=== ۴. ساعات معاملاتی، کف سود و فیوز ایمنی ===',
         'InpAllowedTradingHours=' + (cfg.hours_str || ''),
         'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
         'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
         'InpConsecLossAction=' + parseInt(cfg.consec_action || 1),
         '',
-        ';=== ۵. فیلترهای ضد استاپ و هزینه کمیسیون ===',
+        ';=== ۵. فیلترهای هوشمند ضد استاپ و هزینه کمیسیون ===',
         'InpFilterNightHours=true',
         'InpFilterPreLondonHunt=true',
         'InpFilterToxicPatterns=true',
@@ -261,7 +277,7 @@ function generateSetFileText(cfg) {
         'InpEstimatedSpreadPips=0.8',
         'InpMinNetProfitRatioTP1=1.0',
         '',
-        ';=== ۶. تایم‌فریم‌های فعال معامله ===',
+        ';=== ۶. تایم‌فریم‌های فعال معامله و سرعت پردازش ===',
         'InpUseTF7=' + useTF7Val,
         'InpUseTF6=true',
         'InpUseTF5=true',
@@ -269,7 +285,12 @@ function generateSetFileText(cfg) {
         'InpLookbackBars=15000',
         'InpHistoryMode=1',
         'InpHistoryStartDate=2025.01.01 00:00:00',
-        'InpHistoryDays=10'
+        'InpHistoryDays=10',
+        '',
+        ';=== ۷. گرافیک و رسم روی چارت ===',
+        'InpAutoDrawTrades=true',
+        'InpUniqueTradeColors=true',
+        'InpExportCSV=true'
     ];
     return lines.join(String.fromCharCode(13, 10));
 }

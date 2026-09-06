@@ -50,7 +50,7 @@ input bool              InpAllowOverlappingTrades = true;               // 🔓 
 //+------------------------------------------------------------------+
 input group "=== 🛡️ ۳. فیلترهای ضد استاپ، اصطکاک و حد ضرر ==="
 input bool              InpEnableTradeSetup   = true;                   // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
-input double            InpSLOffsetPips       = 3.0;                    // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
+input double            InpSLOffsetPips       = 8.0;                    // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
 #define InpRSPipBuffer InpSLOffsetPips
 input bool              InpFilterNightHours   = true;                   // 🛡️ فیلتر ۱: مسدودسازی بازه شب ۲۱ تا ۰۱
 input bool              InpFilterPreLondonHunt= true;                   // 🛡️ فیلتر ۲: مسدودسازی ساعت ۰۷:۰۰ قبل لندن
