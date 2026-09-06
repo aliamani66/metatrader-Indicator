@@ -4007,10 +4007,39 @@ def build_dashboard(custom_csv=None):
         import subprocess
         subprocess.run([sys.executable, bundler_script], check=True)
 
-    # 3. Read generated bundled distribution and deploy to targets
+    # 3. Read generated bundled distribution, pre-render default views (SSR), and deploy to targets
     dist_html_file = os.path.join(modular_dir, "dist", "FlagPro_Modular_App.html")
     with open(dist_html_file, 'r', encoding='utf-8') as f:
         html = f.read()
+
+    # Pre-render default symbol content directly into HTML containers (SSR for instant first paint)
+    if default_data.get('tab_equity_html'):
+        html = re.sub(
+            r'<div id="tab-equity-container">\s*<div[^>]*>در حال بارگذاری داده‌های رشد و شبیه‌ساز\.\.\.</div>\s*</div>',
+            lambda m: f'<div id="tab-equity-container">\n{default_data["tab_equity_html"]}\n</div>',
+            html
+        )
+    if default_data.get('tab_kings_html'):
+        html = re.sub(
+            r'<div id="tab-kings-container">\s*<div[^>]*>در حال بارگذاری سلاطین برگزیده\.\.\.</div>\s*</div>',
+            lambda m: f'<div id="tab-kings-container">\n{default_data["tab_kings_html"]}\n</div>',
+            html
+        )
+    if default_data.get('min_date'):
+        html = html.replace('<b id="headerMinDate">-</b>', f'<b id="headerMinDate">{default_data["min_date"]}</b>')
+    if default_data.get('max_date'):
+        html = html.replace('<b id="headerMaxDate">-</b>', f'<b id="headerMaxDate">{default_data["max_date"]}</b>')
+
+    # Update symbolSelector with dynamic options generated from symbols_data
+    html = re.sub(
+        r'<select id="symbolSelector"[^>]*>[\s\S]*?</select>',
+        lambda m: f'<select id="symbolSelector" onchange="switchDashboardSymbol(this.value)" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;font-weight:bold;padding:4px 8px;border-radius:6px;font-size:12px;outline:none;cursor:pointer;">\n{symbol_options_html}\n</select>',
+        html,
+        count=1
+    )
+
+    with open(dist_html_file, 'w', encoding='utf-8') as f:
+        f.write(html)
 
     clean_sym_name = default_data.get('clean_symbol', default_sym)
     out_paths = [

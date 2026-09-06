@@ -96,7 +96,19 @@ function setTrFilter(key, val, btnElem) {
                 if (tr.t1 === 1) cntWin1++;
                 else cntLoss++;
                 if (tr.t4 === 1) cntWin4++;
-                let wVal = (tr.wait_m !== undefined && tr.wait_m !== null) ? Number(tr.wait_m) : NaN;
+                let wVal = (tr.wait_m !== undefined && tr.wait_m !== null && !isNaN(Number(tr.wait_m))) ? Number(tr.wait_m) : NaN;
+                if (isNaN(wVal) && tr.box_t && tr.en_t) {
+                    try {
+                        let d1 = new Date(tr.box_t.substring(0, 16).replace(/[.]/g, '-').replace(' ', 'T') + ':00Z');
+                        let d2 = new Date(tr.en_t.substring(0, 16).replace(/[.]/g, '-').replace(' ', 'T') + ':00Z');
+                        let diffSec = (d2.getTime() - d1.getTime()) / 1000;
+                        if (!isNaN(diffSec) && diffSec >= 0) {
+                            wVal = Math.round((diffSec / 60) * 10) / 10;
+                            tr.wait_m = wVal;
+                            tr.wait_fmt = wVal < 60 ? Math.round(wVal) + ' دقیقه' : (wVal / 60).toFixed(1) + ' ساعت';
+                        }
+                    } catch(e) {}
+                }
                 if (!isNaN(wVal) && wVal >= 0) {
                     sumWait += wVal;
                     cntWait++;
@@ -203,7 +215,10 @@ function setTrFilter(key, val, btnElem) {
                     '<td style="padding:8px 6px;font-size:11px;direction:ltr;font-family:monospace;color:#94a3b8;">' +
                         '<div>🟢 ' + t.en_t + '</div>' +
                         '<div style="color:#64748b;font-size:10px;">🔴 ' + t.ex_t + '</div>' +
-                        (t.wait_fmt && t.wait_fmt !== '-' ? '<div style="color:#38bdf8;font-size:10px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ' + t.wait_fmt + '</div>' : '') +
+                        (() => {
+                            let wTxt = (t.wait_fmt && t.wait_fmt !== '-') ? t.wait_fmt : (t.wait_m > 0 ? (t.wait_m < 60 ? Math.round(t.wait_m) + ' دقیقه' : (t.wait_m / 60).toFixed(1) + ' ساعت') : '');
+                            return wTxt ? '<div style="color:#38bdf8;font-size:10px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ' + wTxt + '</div>' : '';
+                        })() +
                     '</td>' +
                     '<td style="padding:8px 6px;">' + tfBadge + '</td>' +
                     '<td style="padding:8px 10px;text-align:right;">' +

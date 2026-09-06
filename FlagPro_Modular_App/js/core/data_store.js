@@ -60,8 +60,17 @@ function switchDashboardSymbol(symName) {
             
             // 2. Update Pre-rendered Tab HTML Containers
             let cEq = document.getElementById('tab-equity-container');
-            if (cEq && sData.tab_equity_html && sData.tab_equity_html.includes('equityCanvas')) {
-                cEq.innerHTML = sData.tab_equity_html;
+            if (cEq) {
+                if (sData.tab_equity_html && sData.tab_equity_html.includes('equityCanvas')) {
+                    cEq.innerHTML = sData.tab_equity_html;
+                } else if (!cEq.querySelector('#equityCanvas') || cEq.innerHTML.includes('در حال بارگذاری')) {
+                    for (let s in window.ALL_SYMBOLS_DATA) {
+                        if (window.ALL_SYMBOLS_DATA[s] && window.ALL_SYMBOLS_DATA[s].tab_equity_html && window.ALL_SYMBOLS_DATA[s].tab_equity_html.includes('equityCanvas')) {
+                            cEq.innerHTML = window.ALL_SYMBOLS_DATA[s].tab_equity_html;
+                            break;
+                        }
+                    }
+                }
             }
 
             let cKings = document.getElementById('tab-kings-container');
@@ -263,7 +272,14 @@ function switchDashboardSymbol(symName) {
                 // Determine active symbol: prefer last valid symbol with kings, else GBPUSD, else symbol with most kings
                 let targetSym = null;
                 let lastSym = localStorage.getItem('FLAGPRO_LAST_ACTIVE_SYMBOL');
-                if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {
+                let cleanLastSym = lastSym ? lastSym.replace(/[!#]/g, '').trim() : '';
+
+                if (cleanLastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[cleanLastSym]) {
+                    let kCnt = (window.ALL_SYMBOLS_DATA[cleanLastSym].kings_sim_list || []).length;
+                    if (kCnt > 0) {
+                        targetSym = cleanLastSym;
+                    }
+                } else if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {
                     let kCnt = (window.ALL_SYMBOLS_DATA[lastSym].kings_sim_list || []).length;
                     if (kCnt > 0) {
                         targetSym = lastSym;
@@ -347,6 +363,33 @@ function switchDashboardSymbol(symName) {
             let colIdx = {};
             headers.forEach((h, idx) => colIdx[h] = idx);
 
+            function calcWaitMinutes(bts, et) {
+                if (!bts || !et || bts === 'None' || et === 'None') return null;
+                try {
+                    let p1 = bts.substring(0, 16).replace(/[.]/g, '-');
+                    let p2 = et.substring(0, 16).replace(/[.]/g, '-');
+                    let d1 = new Date(p1.replace(' ', 'T') + ':00Z');
+                    let d2 = new Date(p2.replace(' ', 'T') + ':00Z');
+                    let diffSec = (d2.getTime() - d1.getTime()) / 1000;
+                    if (!isNaN(diffSec) && diffSec >= 0) return Math.round((diffSec / 60) * 10) / 10;
+                } catch(e) {}
+                return null;
+            }
+
+            function formatDurationPersian(minutes) {
+                if (minutes === null || minutes === undefined || isNaN(minutes) || minutes <= 0) return '۰ دقیقه';
+                if (minutes < 60) return Math.round(minutes) + ' دقیقه';
+                if (minutes < 1440) return (minutes / 60).toFixed(1) + ' ساعت';
+                return (minutes / 1440).toFixed(1) + ' روز';
+            }
+
+            function formatDurationShort(minutes) {
+                if (minutes === null || minutes === undefined || isNaN(minutes) || minutes <= 0) return '0m';
+                if (minutes < 60) return Math.round(minutes) + 'm';
+                if (minutes < 1440) return (minutes / 60).toFixed(1) + 'h';
+                return (minutes / 1440).toFixed(1) + 'd';
+            }
+
             let rawTrades = [];
             let detectedSym = '';
             let totalBoxesCount = 0;
@@ -385,7 +428,11 @@ function switchDashboardSymbol(symName) {
                 let tp3 = colIdx['TP3'] !== undefined ? parseFloat(parts[colIdx['TP3']]) || 0 : 0;
                 let tp4 = colIdx['TP4'] !== undefined ? parseFloat(parts[colIdx['TP4']]) || 0 : 0;
 
-                rawTrades.push({ sym, role, tf, bname, dir, et, ex, enPrice, slPrice, pts, hr, tp1, tp2, tp3, tp4 });
+                let bts = colIdx['BoxTimeStart'] !== undefined ? parts[colIdx['BoxTimeStart']] : '';
+                let bte = colIdx['BoxTimeEnd'] !== undefined ? parts[colIdx['BoxTimeEnd']] : '';
+                let wm = calcWaitMinutes(bts, et);
+
+                rawTrades.push({ sym, role, tf, bname, dir, bts, bte, et, ex, enPrice, slPrice, pts, hr, tp1, tp2, tp3, tp4, wm });
             }
 
             if (rawTrades.length === 0) throw new Error('هیچ معامله بسته‌شده‌ای در این فایل یافت نشد.');
@@ -437,7 +484,31 @@ function switchDashboardSymbol(symName) {
                 });
 
                 clientAllTrades.push({
-                    id: idx + 1, tf: t.tf, bname: t.bname || ('#' + (idx+1)), role: t.role, dir: t.dir, en_t: t.et, ex_t: t.ex, en_p: t.enPrice, sl: t.slPrice, pts: t.pts, net: Math.round(pnl * 100) / 100, pot: Math.round(t.pts * 0.04 * 100) / 100, t1: t.hr >= 1 ? 1 : 0, t2: t.hr >= 2 ? 1 : 0, t3: t.hr >= 3 ? 1 : 0, t4: t.hr >= 4 ? 1 : 0, tp1: t.tp1, tp2: t.tp2, tp3: t.tp3, tp4: t.tp4, is_k: 1
+                    id: idx + 1,
+                    box_t: t.bts || '',
+                    en_t: t.et,
+                    ex_t: t.ex,
+                    wait_m: t.wm !== null && t.wm !== undefined ? t.wm : 0.0,
+                    wait_fmt: formatDurationPersian(t.wm),
+                    wait_short: formatDurationShort(t.wm),
+                    tf: t.tf,
+                    bname: t.bname || ('#' + (idx+1)),
+                    role: t.role,
+                    dir: t.dir,
+                    en_p: t.enPrice,
+                    sl: t.slPrice,
+                    pts: t.pts,
+                    net: Math.round(pnl * 100) / 100,
+                    pot: Math.round(t.pts * 0.04 * 100) / 100,
+                    t1: t.hr >= 1 ? 1 : 0,
+                    t2: t.hr >= 2 ? 1 : 0,
+                    t3: t.hr >= 3 ? 1 : 0,
+                    t4: t.hr >= 4 ? 1 : 0,
+                    tp1: t.tp1,
+                    tp2: t.tp2,
+                    tp3: t.tp3,
+                    tp4: t.tp4,
+                    is_k: 1
                 });
             });
 
@@ -587,6 +658,14 @@ function switchDashboardSymbol(symName) {
                 </div>
             `;
 
+            let baseEqHtml = '';
+            for (let s in window.ALL_SYMBOLS_DATA) {
+                if (window.ALL_SYMBOLS_DATA[s] && window.ALL_SYMBOLS_DATA[s].tab_equity_html && window.ALL_SYMBOLS_DATA[s].tab_equity_html.includes('equityCanvas')) {
+                    baseEqHtml = window.ALL_SYMBOLS_DATA[s].tab_equity_html;
+                    break;
+                }
+            }
+
             window.ALL_SYMBOLS_DATA[detectedSym] = {
                 symbol: detectedSym,
                 min_date: minDate,
@@ -604,7 +683,7 @@ function switchDashboardSymbol(symName) {
                 smart_presets: clientSmartPresets,
                 weekly_bar_data: clientWeeklyBars,
                 trades_json_list: clientAllTrades,
-                tab_equity_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">شبیه‌ساز و چارت رشد سرمایه در تب اول آماده تحلیل است.</div>',
+                tab_equity_html: baseEqHtml,
                 tab_kings_html: generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, friction, totalBoxesCount, pendingBoxesCount, openTradesCount),
                 tab_scaleout_html: generateClientScaleoutHTML(detectedSym, rawTrades, clientKingsSimList, friction),
                 tab_timeframes_html: generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList, friction),
@@ -615,7 +694,7 @@ function switchDashboardSymbol(symName) {
             };
 
             let cleanSym = detectedSym.replace(/[!#]/g, '').trim();
-            if (cleanSym && cleanSym !== detectedSym) {
+            if (cleanSym && cleanSym !== detectedSym && !window.ALL_SYMBOLS_DATA[cleanSym]) {
                 window.ALL_SYMBOLS_DATA[cleanSym] = window.ALL_SYMBOLS_DATA[detectedSym];
             }
 

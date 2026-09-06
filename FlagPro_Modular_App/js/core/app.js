@@ -156,11 +156,21 @@ function initApp() {
         if (typeof drawEquityChart === 'function') drawEquityChart();
         setTimeout(() => {
             if (typeof drawEquityChart === 'function') drawEquityChart();
-        }, 80);
+        }, 60);
         setTimeout(() => {
             if (typeof drawEquityChart === 'function') drawEquityChart();
-        }, 250);
+        }, 200);
+        setTimeout(() => {
+            if (typeof drawEquityChart === 'function') drawEquityChart();
+        }, 500);
     });
+}
+
+// Immediate execution (since DOM is already parsed by the time script executes)
+try {
+    initApp();
+} catch(e) {
+    console.warn('Initial sync initApp error:', e);
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
