@@ -21,11 +21,6 @@ from dashboard_builder.consistency import (
 from dashboard_builder.presets import (
     optimize_smart_presets
 )
-from dashboard_builder.renderers import (
-    render_smart_presets_rows, render_scaleout_tab, render_loss_intel_tab,
-    render_weekly_tab, render_filters_tab, render_timeframes_tab,
-    render_equity_tab, render_kings_tab
-)
 
 def process_symbol_dataset(csv_file):
     print(f"📂 در حال پردازش داده‌های فایل: {csv_file}")
@@ -576,11 +571,18 @@ def process_symbol_dataset(csv_file):
             'score': round(k['score'], 1),
             'cnt': k['cnt'],
             'net': round(k['net'], 2),
+            'gross': round(k.get('gross', 0.0), 2),
+            'fric': round(k.get('fric', 0.0), 2),
             'w1_p': round(k['w1_p'], 1),
+            'w2_p': round(k.get('w2_p', 0.0), 1),
+            'w3_p': round(k.get('w3_p', 0.0), 1),
+            'w4_p': round(k.get('w4_p', 0.0), 1),
             'sl_cnt': sl_count,
             'sl_usd': sl_dollar,
             'sl_p': round(k['sl_p'], 1),
             'pf': round(k['pf'], 2) if k['pf'] < 900 else 999.0,
+            'max_dd': round(k.get('max_dd', 0.0), 2),
+            'ret_dd': round(k.get('ret_dd', 0.0), 1),
             'perf': 1 if k['is_perfect'] else 0,
             'run': 1 if k['is_runner'] else 0
         })
@@ -652,8 +654,6 @@ def process_symbol_dataset(csv_file):
 
     # Optimize smart presets
     smart_presets_defs, smart_presets_json_data = optimize_smart_presets(trades_sim_list, kings_sim_list, len(closed))
-    smart_presets_table_rows_str = render_smart_presets_rows(smart_presets_json_data)
-    smart_presets_rows_html = smart_presets_table_rows_str
 
     # Trades Journal JSON Data
     trades_sorted = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''), reverse=True)
@@ -694,133 +694,16 @@ def process_symbol_dataset(csv_file):
             'tp2': round(float(r.get('TP2', 0.0)), 5),
             'tp3': round(float(r.get('TP3', 0.0)), 5),
             'tp4': round(float(r.get('TP4', 0.0)), 5),
+            't1': 1 if hr >= 1 else 0,
+            't2': 1 if hr >= 2 else 0,
+            't3': 1 if hr >= 3 else 0,
+            't4': 1 if hr >= 4 else 0,
             'mfe_r': round(float(r.get('MFE_R', 0.0)), 2),
             'mae_r': round(float(r.get('MAE_R', 0.0)), 2),
             'hr': hr,
             'pnl': round(pnl, 2),
             'net': round(pnl, 2)
         })
-
-    # Prepare rendering context
-    render_ctx = {
-        'be_diff': be_diff,
-        'm1_gross': sc_res['m1_gross'],
-        'm1_net': m1_net,
-        'm2_gross': sc_res['m2_gross'],
-        'm2_net': m2_net,
-        'qualified_kings': qualified_kings,
-        's1_gross': sc_res['s1_gross'],
-        's1_net': s1_net,
-        's1_pf': s1_pf,
-        's2_diff_dollar': s2_diff_dollar,
-        's2_diff_pct': s2_diff_pct,
-        's2_gross': sc_res['s2_gross'],
-        's2_net': s2_net,
-        's2_pf': s2_pf,
-        's3_diff_dollar': s3_diff_dollar,
-        's3_diff_pct': s3_diff_pct,
-        's3_gross': sc_res['s3_gross'],
-        's3_net': s3_net,
-        's3_pf': s3_pf,
-        'sl_direct': sl_direct,
-        'sl_direct_pct': sl_direct_pct,
-        'tot_k_cnt': tot_k_cnt,
-        'tot_k_fric': tot_k_fric,
-        'tot_k_gross': tot_k_gross,
-        'tot_k_net': tot_k_net,
-        'tp1_only': tp1_only,
-        'tp1_only_pct': tp1_only_pct,
-        'tp2_only': tp2_only,
-        'tp2_only_pct': tp2_only_pct,
-        'tp3_4': tp3_4,
-        'tp3_4_pct': tp3_4_pct,
-        'night_losses': night_losses,
-        'pure_flag_losses': pure_flag_losses,
-        'single_ls_losses': single_ls_losses,
-        'total_losses': total_losses,
-        'toxic_losses': toxic_losses,
-        'sorted_wk_keys': sorted_wk_keys,
-        'top_consistent_box': top_consistent_box,
-        'top_consistent_pct': top_consistent_pct,
-        'tot_kings_green_wks': tot_kings_green_wks,
-        'tot_kings_red_wks': tot_kings_red_wks,
-        'total_weeks': total_weeks,
-        'weekly_consistency_rows_html': weekly_consistency_rows_html,
-        'weekly_details_cards_html': weekly_details_cards_html,
-        'weekly_dropdown_options': weekly_dropdown_options,
-        'weekly_timeline_rows_html': weekly_timeline_rows_html,
-        'accepted_trades': accepted_trades,
-        'closed': closed,
-        'ev_a': ev_a,
-        'ev_b': ev_b,
-        'f1_rej': f1_rej, 'f1_sl': f1_sl,
-        'f2_rej': f2_rej, 'f2_sl': f2_sl,
-        'f3_rej': f3_rej, 'f3_sl': f3_sl,
-        'f4_rej': f4_rej, 'f4_sl': f4_sl,
-        'f5_rej': f5_rej, 'f5_sl': f5_sl,
-        'f7_rej': f7_rej, 'f7_sl': f7_sl,
-        'rej_accuracy': rej_accuracy,
-        'rejected_trades': rejected_trades,
-        'sl_cnt_b': sl_cnt_b,
-        'sl_in_rej': sl_in_rej,
-        'sl_rate_a': sl_rate_a,
-        'sl_rate_b': sl_rate_b,
-        'w1_rate_a': w1_rate_a,
-        'w1_rate_b': w1_rate_b,
-        'w2_rate_a': w2_rate_a,
-        'w2_rate_b': w2_rate_b,
-        'symbol_latency_tfs': symbol_latency_tfs,
-        'symbol_latency_all': symbol_latency_all,
-        'tf_kings_rows': tf_kings_rows,
-        'tf_raw_rows': tf_raw_rows,
-        'tf_role_rows': tf_role_rows,
-        'd_tot_kings': d_tot_kings,
-        'd_tot_raw': d_tot_raw,
-        'entered': entered,
-        'tf_map': tf_map,
-        'avg_trade_k': avg_trade_k,
-        'bal_a': bal_a,
-        'bal_initial': bal_initial,
-        'bal_k': bal_k,
-        'date_end_str': date_end_str,
-        'date_start_str': date_start_str,
-        'init_avg_concurrent': init_avg_concurrent,
-        'init_max_concurrent': init_max_concurrent,
-        'max_dd_a': max_dd_a,
-        'max_dd_a_pct': max_dd_a_pct,
-        'max_dd_k': max_dd_k,
-        'max_dd_k_pct': max_dd_k_pct,
-        'net_a': net_a,
-        'net_a_pct': net_a_pct,
-        'net_k': net_k,
-        'net_k_pct': net_k_pct,
-        'peak_k': peak_k,
-        'pts_all': pts_all,
-        'pts_kings': pts_kings,
-        's3_pf': s3_pf,
-        'smart_presets_table_rows_str': smart_presets_table_rows_str,
-        'w1_p': d_tot_kings['w1_p'],
-        'inter_map': inter_map,
-        'master_map': master_map,
-        'mp_intersection_list': mp_intersection_list,
-        'mp_period_data': mp_period_data,
-        'period_configs': period_configs,
-        'overlap_count': mp_res.get('overlap_count', 0),
-        'master_only_count': mp_res.get('master_only_count', 0),
-        'overlap_ratio': mp_res.get('overlap_ratio', 0.0),
-        'history_span_title': history_span_title,
-        'total_setups': total_setups,
-        'pending': pending,
-        'in_trade': in_trade
-    }
-
-    tab_scaleout_html = render_scaleout_tab(render_ctx)
-    tab_loss_intel_html = render_loss_intel_tab(render_ctx)
-    tab_weekly_html = render_weekly_tab(render_ctx)
-    tab_filters_html = render_filters_tab(render_ctx)
-    tab_timeframes_html = render_timeframes_tab(render_ctx)
-    tab_equity_html = render_equity_tab(render_ctx)
-    tab_kings_html = render_kings_tab(render_ctx)
 
     return {
         'symbol': symbol,
@@ -843,20 +726,13 @@ def process_symbol_dataset(csv_file):
         'tot_k_cnt': tot_k_cnt,
         'total_setups': total_setups,
         'closed_count': len(closed),
+        'pending': len(pending),
         'in_trade_count': len(in_trade),
         'sl_in_rej': sl_in_rej,
         'rej_accuracy': rej_accuracy,
         'ev_a': ev_a,
         'ev_b': ev_b,
         'w1_p': d_tot_kings['w1_p'],
-        'tab_equity_html': tab_equity_html,
-        'tab_kings_html': tab_kings_html,
-        'tab_scaleout_html': tab_scaleout_html,
-        'tab_timeframes_html': tab_timeframes_html,
-        'tab_filters_html': tab_filters_html,
-        'tab_loss_intel_html': tab_loss_intel_html,
-        'tab_weekly_html': tab_weekly_html,
-        'smart_presets_rows_html': smart_presets_rows_html,
         'kings_sim_list': kings_sim_list,
         'top3_sl_cnt_keys': top3_sl_cnt_keys,
         'top3_sl_usd_keys': top3_sl_usd_keys,
@@ -868,5 +744,6 @@ def process_symbol_dataset(csv_file):
         'trades_json_list': trades_json_list,
         'latency_all': symbol_latency_all,
         'latency_kings': symbol_latency_kings,
-        'latency_tfs': symbol_latency_tfs
+        'latency_tfs': symbol_latency_tfs,
+        'mp_intersection_list': mp_intersection_list
     }

@@ -57,10 +57,13 @@ function setTrFilter(key, val, btnElem) {
                 if (trFilters.basket === 'kings' && !t.is_k) return false;
                 if (trFilters.tf !== 'ALL' && t.tf !== trFilters.tf) return false;
                 if (trFilters.dir !== 'ALL' && t.dir !== trFilters.dir) return false;
-                if (trFilters.outcome === 'TP4' && t.t4 !== 1) return false;
-                if (trFilters.outcome === 'TP2_PLUS' && t.t2 !== 1) return false;
-                if (trFilters.outcome === 'TP1_PLUS' && t.t1 !== 1) return false;
-                if (trFilters.outcome === 'LOSS' && t.t1 === 1) return false;
+                let isT1 = t.t1 === 1 || t.hr >= 1;
+                let isT2 = t.t2 === 1 || t.hr >= 2;
+                let isT4 = t.t4 === 1 || t.hr >= 4;
+                if (trFilters.outcome === 'TP4' && !isT4) return false;
+                if (trFilters.outcome === 'TP2_PLUS' && !isT2) return false;
+                if (trFilters.outcome === 'TP1_PLUS' && !isT1) return false;
+                if (trFilters.outcome === 'LOSS' && isT1) return false;
                 if (trFilters.search) {
                     let s = trFilters.search;
                     let hay = (t.role + ' ' + t.bname + ' ' + t.en_t + ' ' + t.ex_t).toLowerCase();
@@ -185,19 +188,24 @@ function setTrFilter(key, val, btnElem) {
                            val.toFixed(5) + check + '</div>';
                 }
 
-                let tp1Html = tpPill(t.tp1, t.t1 === 1, 'TP1 (1:1)', '#fbbf24');
-                let tp2Html = tpPill(t.tp2, t.t2 === 1, 'TP2 (1:2)', '#60a5fa');
-                let tp3Html = tpPill(t.tp3, t.t3 === 1, 'TP3 (1:3)', '#38bdf8');
-                let tp4Html = tpPill(t.tp4, t.t4 === 1, 'TP4 (1:4)', '#c084fc');
+                let isT1 = t.t1 === 1 || t.hr >= 1;
+                let isT2 = t.t2 === 1 || t.hr >= 2;
+                let isT3 = t.t3 === 1 || t.hr >= 3;
+                let isT4 = t.t4 === 1 || t.hr >= 4;
+
+                let tp1Html = tpPill(t.tp1, isT1, 'TP1 (1:1)', '#fbbf24');
+                let tp2Html = tpPill(t.tp2, isT2, 'TP2 (1:2)', '#60a5fa');
+                let tp3Html = tpPill(t.tp3, isT3, 'TP3 (1:3)', '#38bdf8');
+                let tp4Html = tpPill(t.tp4, isT4, 'TP4 (1:4)', '#c084fc');
 
                 let exitDesc = '';
-                if (t.t4 === 1) {
+                if (isT4) {
                     exitDesc = '<span style="background:#3b0764;color:#e9d5ff;padding:3px 8px;border-radius:4px;border:1px solid #a855f7;font-weight:bold;">💎 تارگت ۴ (فول تارگت)</span>';
-                } else if (t.t3 === 1) {
+                } else if (isT3) {
                     exitDesc = '<span style="background:#075985;color:#bae6fd;padding:3px 8px;border-radius:4px;border:1px solid #0284c7;">🎯 خروج تا پله ۳ (SL+2)</span>';
-                } else if (t.t2 === 1) {
+                } else if (isT2) {
                     exitDesc = '<span style="background:#1e3a8a;color:#bfdbfe;padding:3px 8px;border-radius:4px;border:1px solid #3b82f6;">🎯 خروج تا پله ۲ (SL+1)</span>';
-                } else if (t.t1 === 1) {
+                } else if (isT1) {
                     exitDesc = '<span style="background:#854d0e;color:#fef08a;padding:3px 8px;border-radius:4px;border:1px solid #eab308;">🛡️ خروج پله ۱ + BE</span>';
                 } else {
                     exitDesc = '<span style="background:#450a0a;color:#fca5a5;padding:3px 8px;border-radius:4px;border:1px solid #dc2626;">🛑 حد زیان اولیه (SL)</span>';

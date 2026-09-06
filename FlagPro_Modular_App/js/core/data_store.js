@@ -57,76 +57,67 @@ function switchDashboardSymbol(symName) {
                 sidebarKings.textContent = 'سلاطین برگزیده (' + kCount + ')';
             }
 
-            
-            // 2. Update Pre-rendered Tab HTML Containers
-            let cEq = document.getElementById('tab-equity-container');
-            if (cEq) {
-                if (sData.tab_equity_html && sData.tab_equity_html.includes('equityCanvas')) {
-                    cEq.innerHTML = sData.tab_equity_html;
-                } else if (!cEq.querySelector('#equityCanvas') || cEq.innerHTML.includes('در حال بارگذاری')) {
-                    for (let s in window.ALL_SYMBOLS_DATA) {
-                        if (window.ALL_SYMBOLS_DATA[s] && window.ALL_SYMBOLS_DATA[s].tab_equity_html && window.ALL_SYMBOLS_DATA[s].tab_equity_html.includes('equityCanvas')) {
-                            cEq.innerHTML = window.ALL_SYMBOLS_DATA[s].tab_equity_html;
-                            break;
-                        }
-                    }
-                }
-            }
+            // 2. Update JS Global Datasets
+            dataWeeklyBars = sData.weekly_bar_data || [];
+            kingsSimList = sData.kings_sim_list || [];
+            top3SLCntKeys = sData.top3_sl_cnt_keys || [];
+            top3SLUsdKeys = sData.top3_sl_usd_keys || [];
+            top5SLUsdKeys = sData.top5_sl_usd_keys || [];
+            top3SLPctKeys = sData.top3_sl_pct_keys || [];
+            simTrades = sData.trades_sim_list || [];
+            smartPresets = sData.smart_presets || [];
+            allTrades = sData.trades_json_list || [];
 
+            let friction = 0.48;
+            let rawTrades = allTrades;
+            let totBoxes = sData.total_setups || sData.closed_count || rawTrades.length;
+            let pendBoxes = sData.pending || 0;
+            let openCnt = sData.in_trade_count || 0;
+
+            // 3. Dynamically Render Tab HTML Containers from Data (Single Source of Truth)
             let cKings = document.getElementById('tab-kings-container');
-            if (cKings && sData.tab_kings_html && !sData.tab_kings_html.includes('آماده تحلیل است')) {
-                cKings.innerHTML = sData.tab_kings_html;
+            if (cKings && typeof generateClientKingsHTML === 'function') {
+                cKings.innerHTML = generateClientKingsHTML(symName, rawTrades, kingsSimList, friction, totBoxes, pendBoxes, openCnt);
             }
 
             let cScale = document.getElementById('tab-scaleout-container');
-            if (cScale && sData.tab_scaleout_html && !sData.tab_scaleout_html.includes('در دسترس است')) {
-                cScale.innerHTML = sData.tab_scaleout_html;
+            if (cScale && typeof generateClientScaleoutHTML === 'function') {
+                cScale.innerHTML = generateClientScaleoutHTML(symName, rawTrades, kingsSimList, friction);
             }
 
             let cTf = document.getElementById('tab-timeframes-container');
-            if (cTf && sData.tab_timeframes_html && !sData.tab_timeframes_html.includes('در دسترس است')) {
-                cTf.innerHTML = sData.tab_timeframes_html;
+            if (cTf && typeof generateClientTimeframesHTML === 'function') {
+                cTf.innerHTML = generateClientTimeframesHTML(symName, rawTrades, kingsSimList, friction);
             }
 
             let cFilt = document.getElementById('tab-filters-container');
-            if (cFilt && sData.tab_filters_html && !sData.tab_filters_html.includes('فعال هستند')) {
-                cFilt.innerHTML = sData.tab_filters_html;
+            if (cFilt && typeof generateClientFiltersHTML === 'function') {
+                cFilt.innerHTML = generateClientFiltersHTML(symName, rawTrades, friction);
             }
 
             let cLoss = document.getElementById('tab-loss-intel-container');
-            if (cLoss && sData.tab_loss_intel_html && !sData.tab_loss_intel_html.includes('قابل بررسی است')) {
-                cLoss.innerHTML = sData.tab_loss_intel_html;
+            if (cLoss && typeof generateClientLossIntelHTML === 'function') {
+                cLoss.innerHTML = generateClientLossIntelHTML(symName, rawTrades, kingsSimList, friction);
             }
 
             let cWk = document.getElementById('tab-weekly-container');
-            if (cWk && sData.tab_weekly_html && !sData.tab_weekly_html.includes('فعال است')) {
-                cWk.innerHTML = sData.tab_weekly_html;
+            if (cWk && typeof generateClientWeeklyHTML === 'function') {
+                cWk.innerHTML = generateClientWeeklyHTML(symName, rawTrades, kingsSimList, dataWeeklyBars, friction);
             }
 
-            // 2.1 Update Strategic Presets Table Rows
+            // 3.1 Update Strategic Presets Table Rows
             let tbodyPresets = document.getElementById('systemPresetsTbody');
-            if (tbodyPresets && sData.smart_presets_rows_html) {
-                tbodyPresets.innerHTML = sData.smart_presets_rows_html;
+            if (tbodyPresets && typeof generateClientSmartPresetsRowsHTML === 'function') {
+                tbodyPresets.innerHTML = generateClientSmartPresetsRowsHTML(symName, smartPresets);
             }
             if (typeof loadCustomPresets === 'function') {
                 try { loadCustomPresets(); } catch(e) {}
             }
 
-            // 2.2 Update Validation Status Badge
+            // 3.2 Update Validation Status Badge
             if (typeof updateValidationStatus === 'function') {
                 updateValidationStatus();
             }
-
-            // 3. Update JS Global Datasets
-            dataWeeklyBars = sData.weekly_bar_data;
-            kingsSimList = sData.kings_sim_list;
-            top3SLCntKeys = sData.top3_sl_cnt_keys;
-            top3SLUsdKeys = sData.top3_sl_usd_keys;
-            top5SLUsdKeys = sData.top5_sl_usd_keys;
-            top3SLPctKeys = sData.top3_sl_pct_keys;
-            simTrades = sData.trades_sim_list;
-            smartPresets = sData.smart_presets;
-            allTrades = sData.trades_json_list;
 
             // 4. Reset Simulator State
             simState.mode = 'kings';
@@ -167,6 +158,7 @@ function switchDashboardSymbol(symName) {
             try { if (typeof renderSLRiskPanel === 'function') renderSLRiskPanel(); } catch(e) { console.error('renderSLRiskPanel error:', e); }
             try { if (typeof renderSimHoursBar === 'function') renderSimHoursBar(); } catch(e) { console.error('renderSimHoursBar error:', e); }
             try { if (typeof trFilters !== 'undefined') trFilters.page = 1; } catch(e) {}
+            try { if (typeof renderTrades === 'function') renderTrades(); } catch(e) {}
             try { if (typeof runEquitySimulation === 'function') runEquitySimulation(); } catch(e) { console.error('runEquitySimulation error:', e); }
             requestAnimationFrame(() => {
                 try { if (typeof drawEquityChart === 'function') drawEquityChart(); } catch(e) {}
@@ -396,7 +388,11 @@ function switchDashboardSymbol(symName) {
 
             let cum_pnl = 0.0, peak = 0.0, max_dd = 0.0;
             let gross_win = 0.0, gross_loss = 0.0;
-            let sorted_trades = trades.slice().sort((a, b) => ((a.et || '') > (b.et || '') ? 1 : ((a.et || '') < (b.et || '') ? -1 : 0)));
+            let sorted_trades = trades.slice().sort((a, b) => {
+                let tA = a.en_t || a.et || a.t || '';
+                let tB = b.en_t || b.et || b.t || '';
+                return tA > tB ? 1 : (tA < tB ? -1 : 0);
+            });
             sorted_trades.forEach(t => {
                 let pts = t.pts || 0;
                 let hr = t.hr !== undefined ? t.hr : 0;
@@ -841,26 +837,47 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
     let savedSL = Math.max(0, totalSL - kingsSL);
     let filterAccuracy = totalSL > 0 ? ((savedSL / totalSL) * 100).toFixed(1) : '50.0';
 
-    let kingsRowsHtml = clientKingsSimList.map((k, i) => `
+    let medals = ['🥇', '🥈', '🥉', '👑', '👑', '⭐', '⭐', '⭐', '⭐', '⭐'];
+    let kingsRowsHtml = clientKingsSimList.map((k, i) => {
+        let rankIcon = medals[i] || ('#' + (i + 1));
+        let max_dd = k.max_dd !== undefined ? k.max_dd : (k.sl_usd || 0);
+        let ddCol = max_dd === 0 ? "#00e676" : (max_dd <= 25 ? "#fbbf24" : "#f87171");
+        let ret_dd = k.ret_dd !== undefined ? k.ret_dd : (max_dd > 0 ? (k.net / max_dd) : (k.net > 0 ? k.net : 0));
+        let gross = k.gross !== undefined ? k.gross : (k.net + k.cnt * friction);
+        let fric = k.fric !== undefined ? k.fric : (k.cnt * friction);
+        let w2_p = k.w2_p !== undefined ? k.w2_p : (k.w1_p > 15 ? (k.w1_p * 0.7).toFixed(1) : '0.0');
+        let w3_p = k.w3_p !== undefined ? k.w3_p : (k.w1_p > 25 ? (k.w1_p * 0.5).toFixed(1) : '0.0');
+        let w4_p = k.w4_p !== undefined ? k.w4_p : (k.w1_p > 35 ? (k.w1_p * 0.35).toFixed(1) : '0.0');
+        let netCol = k.net >= 0 ? "#00e676" : "#ef4444";
+        let pfStr = (k.pf >= 900 || k.pf >= 90) ? 'MAX' : k.pf.toFixed(2);
+
+        let badgeHtml = "";
+        if (k.perf) {
+            badgeHtml += " <span style='background:#064e3b;color:#34d399;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #059669;'>💎 ۱۰۰٪ قطعی</span>";
+        } else if (k.run) {
+            badgeHtml += " <span style='background:#312e81;color:#a5b4fc;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #4338ca;'>🚀 دونده</span>";
+        }
+
+        return `
         <tr style="border-bottom: 1px solid #1e293b;">
-            <td style="text-align:center;font-weight:bold;color:#facc15;">#${i + 1}</td>
+            <td style="text-align:center;font-weight:bold;color:#facc15;font-size:15px;">${rankIcon}</td>
             <td style="text-align:center;"><span style="background:#0284c7;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">${k.tf}</span></td>
-            <td style="font-weight:bold;color:#f1f5f9;">${k.role}</td>
-            <td style="text-align:center;color:#facc15;font-weight:bold;font-size:14px;">${k.score} 👑</td>
+            <td style="font-weight:bold;color:#f1f5f9;">${k.role}${badgeHtml}</td>
+            <td style="text-align:center;color:#facc15;font-weight:bold;font-size:14px;background:#1e293b;">${k.score}</td>
             <td style="text-align:center;font-weight:bold;">${k.cnt}</td>
-            <td style="text-align:center;color:#34d399;font-weight:bold;">${k.w1_p}%</td>
-            <td style="text-align:center;color:#60a5fa;">${k.w1_p > 15 ? (k.w1_p * 0.7).toFixed(1) : '0.0'}%</td>
-            <td style="text-align:center;color:#38bdf8;">${k.w1_p > 25 ? (k.w1_p * 0.5).toFixed(1) : '0.0'}%</td>
-            <td style="text-align:center;color:#c084fc;">${k.w1_p > 35 ? (k.w1_p * 0.35).toFixed(1) : '0.0'}%</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">${k.w1_p}%</td>
+            <td style="text-align:center;color:#00e676;font-weight:bold;">${w2_p}%</td>
+            <td style="text-align:center;color:#38bdf8;">${w3_p}%</td>
+            <td style="text-align:center;color:#c084fc;">${w4_p}%</td>
             <td style="text-align:center;color:#ef4444;font-weight:bold;">${k.sl_p}%</td>
-            <td style="text-align:center;color:#38bdf8;font-weight:bold;">${k.pf >= 900 ? '999+' : k.pf.toFixed(2)}</td>
-            <td style="text-align:center;color:#f87171;">$${k.sl_usd}</td>
-            <td style="text-align:center;color:#facc15;">${(k.net / Math.max(1, k.sl_usd)).toFixed(1)}x</td>
-            <td style="text-align:center;color:#38bdf8;">$${(k.net + k.cnt * friction).toFixed(2)}</td>
-            <td style="text-align:center;color:#f87171;">-$${(k.cnt * friction).toFixed(2)}</td>
-            <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;background:#064e3b44;">+$${k.net.toFixed(2)}</td>
+            <td style="text-align:center;color:#38bdf8;font-weight:bold;">${pfStr}</td>
+            <td style="text-align:center;color:${ddCol};font-weight:bold;">$${max_dd.toFixed(2)}</td>
+            <td style="text-align:center;color:#facc15;font-weight:bold;">${ret_dd.toFixed(1)}x</td>
+            <td style="text-align:center;color:#38bdf8;">$${gross.toFixed(2)}</td>
+            <td style="text-align:center;color:#f87171;">-$${fric.toFixed(2)}</td>
+            <td style="text-align:center;color:${netCol};font-weight:bold;font-size:14px;background:#064e3b44;">${k.net >= 0 ? '+' : ''}$${k.net.toFixed(2)}</td>
         </tr>
-    `).join('');
+    `}).join('');
 
     let closedSubText = 'شامل تمام پوزیشن‌های قطعی';
     if (pendingBoxes > 0) {
@@ -920,7 +937,7 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
                             <th style="text-align:center;">وین‌ریت TP 1:4</th>
                             <th style="text-align:center;">نرخ باخت (SL)</th>
                             <th style="text-align:center;color:#38bdf8;">پرافیت فاکتور</th>
-                            <th style="text-align:center;color:#f87171;">زیان دلاری استاپ</th>
+                            <th style="text-align:center;color:#f87171;">حداکثر افت (DD)</th>
                             <th style="text-align:center;color:#facc15;">بازدهی/افت</th>
                             <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
                             <th style="text-align:center;color:#f87171;">اصطکاک</th>
@@ -947,13 +964,15 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
         }
         let r = tfMapRaw[tf];
         r.count++;
-        if (t.hr === 0) { r.sl++; r.net += (-t.pts * 0.04 - friction); }
+        let hr = t.hr !== undefined ? t.hr : (t.HitTargetRatio !== undefined ? parseInt(t.HitTargetRatio) : 0);
+        let pts = t.pts || (t.RiskPoints !== undefined ? parseFloat(t.RiskPoints) : 0);
+        if (hr === 0) { r.sl++; r.net += (-pts * 0.04 - friction); }
         else {
             let pnl = -friction;
-            if (t.hr >= 1) { r.w1++; pnl += t.pts * 0.01 * 1.0; }
-            if (t.hr >= 2) { r.w2++; pnl += t.pts * 0.01 * 2.0; }
-            if (t.hr >= 3) { r.w3++; pnl += t.pts * 0.01 * 3.0; }
-            if (t.hr >= 4) { r.w4++; pnl += t.pts * 0.01 * 4.0; }
+            if (hr >= 1) { r.w1++; pnl += pts * 0.01 * 1.0; }
+            if (hr >= 2) { r.w2++; pnl += pts * 0.01 * 2.0; }
+            if (hr >= 3) { r.w3++; pnl += pts * 0.01 * 3.0; }
+            if (hr >= 4) { r.w4++; pnl += pts * 0.01 * 4.0; }
             r.net += pnl;
         }
     });
@@ -1785,9 +1804,11 @@ function generateClientFiltersHTML(detectedSym, rawTrades, friction) {
     let f4_rej = 0, f4_sl = 0;
 
     rawTrades.forEach(t => {
-        let is_sl = (t.hr === 0);
-        let role = t.role || '';
-        let h = t.et && t.et.length >= 13 ? parseInt(t.et.substring(11, 13)) : 0;
+        let hr = t.hr !== undefined ? t.hr : (t.HitTargetRatio !== undefined ? parseInt(t.HitTargetRatio) : 0);
+        let is_sl = (hr === 0);
+        let role = t.role || t.r || '';
+        let et = t.en_t || t.et || t.t || '';
+        let h = (t.h !== undefined) ? t.h : (et && et.length >= 13 ? parseInt(et.substring(11, 13)) : 0);
 
         if (role === 'LS-BE' || role === 'LS-BU') { f1_rej++; if (is_sl) f1_sl++; }
         if (h >= 21 || h <= 1) { f2_rej++; if (is_sl) f2_sl++; }

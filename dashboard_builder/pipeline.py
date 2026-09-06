@@ -133,6 +133,7 @@ def build_dashboard(custom_csv=None):
             'bal_initial': s_data['bal_initial'],
             'tot_k_cnt': s_data.get('tot_k_cnt', 0),
             'closed_count': s_data.get('closed_count', 0),
+            'pending': s_data.get('pending', 0),
             'total_setups': s_data.get('total_setups', 0),
             'kings_sim_list': s_data['kings_sim_list'],
             'top3_sl_cnt_keys': s_data['top3_sl_cnt_keys'],
@@ -143,17 +144,10 @@ def build_dashboard(custom_csv=None):
             'smart_presets': s_data['smart_presets'],
             'weekly_bar_data': s_data['weekly_bar_data'],
             'trades_json_list': s_data['trades_json_list'],
-            'tab_equity_html': s_data['tab_equity_html'],
-            'tab_kings_html': s_data['tab_kings_html'],
-            'tab_scaleout_html': s_data['tab_scaleout_html'],
-            'tab_timeframes_html': s_data['tab_timeframes_html'],
-            'tab_filters_html': s_data['tab_filters_html'],
-            'tab_loss_intel_html': s_data['tab_loss_intel_html'],
-            'tab_weekly_html': s_data['tab_weekly_html'],
-            'smart_presets_rows_html': s_data.get('smart_presets_rows_html', ''),
             'latency_all': s_data.get('latency_all', {}),
             'latency_kings': s_data.get('latency_kings', {}),
             'latency_tfs': s_data.get('latency_tfs', {}),
+            'mp_intersection_list': s_data.get('mp_intersection_list', []),
         }
 
     # 1. Update FlagPro_Modular_App initial data (merging existing symbols so none are lost)
@@ -170,6 +164,8 @@ def build_dashboard(custom_csv=None):
                 existing_symbols = json.loads(old_json_str)
                 for sym_k, sym_v in existing_symbols.items():
                     if sym_k not in client_symbols_payload:
+                        for bad_k in ['tab_equity_html', 'tab_kings_html', 'tab_scaleout_html', 'tab_timeframes_html', 'tab_filters_html', 'tab_loss_intel_html', 'tab_weekly_html', 'smart_presets_rows_html']:
+                            sym_v.pop(bad_k, None)
                         client_symbols_payload[sym_k] = sym_v
         except Exception as ex:
             print(f"Notice: Could not merge existing symbols: {ex}")
@@ -196,20 +192,6 @@ def build_dashboard(custom_csv=None):
     dist_html_file = os.path.join(modular_dir, "dist", "FlagPro_Modular_App.html")
     with open(dist_html_file, 'r', encoding='utf-8') as f:
         html = f.read()
-
-    # Pre-render default symbol content directly into HTML containers (SSR for instant first paint)
-    if default_data.get('tab_equity_html'):
-        html = re.sub(
-            r'<div id="tab-equity-container">\s*<div[^>]*>در حال بارگذاری داده‌های رشد و شبیه‌ساز\.\.\.</div>\s*</div>',
-            lambda m: f'<div id="tab-equity-container">\n{default_data["tab_equity_html"]}\n</div>',
-            html
-        )
-    if default_data.get('tab_kings_html'):
-        html = re.sub(
-            r'<div id="tab-kings-container">\s*<div[^>]*>در حال بارگذاری سلاطین برگزیده\.\.\.</div>\s*</div>',
-            lambda m: f'<div id="tab-kings-container">\n{default_data["tab_kings_html"]}\n</div>',
-            html
-        )
     if default_data.get('min_date'):
         html = html.replace('<b id="headerMinDate">-</b>', f'<b id="headerMinDate">{default_data["min_date"]}</b>')
     if default_data.get('max_date'):
