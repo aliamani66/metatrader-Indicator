@@ -887,49 +887,42 @@ function extractHourSet(val, fallbackDisplay) {
         if (set.size > 0) return set;
     }
     
-    if (typeof val === 'string' && val.trim()) {
-        let str = val.trim();
-        if (str.toLowerCase() === 'all' || str.includes('۲۴ ساعته') || str.includes('24h') || str.includes('24 ساعته')) {
-            for (let i = 0; i < 24; i++) set.add(i);
-            return set;
+    let parseStr = function(raw) {
+        if (!raw || typeof raw !== 'string') return null;
+        let str = raw.trim().toLowerCase();
+        // 1. 24 Hours / All hours check in any language
+        if (str === 'all' || str.includes('24') || str.includes('۲۴') || str.includes('شبانه‌روز') || str.includes('تمام ساعات') || str.includes('تمام شبانه‌روز')) {
+            let s = new Set();
+            for (let i = 0; i < 24; i++) s.add(i);
+            return s;
         }
+        // 2. Hour range (e.g. 04 الی 22, 08-20, 07:00 to 20:00)
+        let rm = str.match(/(\d{1,2}):?00?\s*(?:الی|-|to|تا)\s*(\d{1,2}):?00?/);
+        if (rm) {
+            let s = parseInt(rm[1]), e = parseInt(rm[2]);
+            let res = new Set();
+            if (s <= e) {
+                for (let i = s; i <= e; i++) res.add(i);
+            } else {
+                for (let i = s; i < 24; i++) res.add(i);
+                for (let i = 0; i <= e; i++) res.add(i);
+            }
+            return res;
+        }
+        // 3. Comma / space separated list of hour numbers
         let parts = str.split(/[,;\s]+/).map(x => parseInt(x)).filter(n => !isNaN(n) && n >= 0 && n < 24);
         if (parts.length > 0) {
-            parts.forEach(n => set.add(n));
-            return set;
+            return new Set(parts);
         }
-        let rm = str.match(/(\d{1,2}):?00?\s*(?:الی|-|تا)\s*(\d{1,2}):?00?/);
-        if (rm) {
-            let s = parseInt(rm[1]), e = parseInt(rm[2]);
-            if (s <= e) {
-                for (let i = s; i <= e; i++) set.add(i);
-            } else {
-                for (let i = s; i < 24; i++) set.add(i);
-                for (let i = 0; i <= e; i++) set.add(i);
-            }
-            return set;
-        }
-    }
-    
-    if (typeof fallbackDisplay === 'string' && fallbackDisplay.trim()) {
-        let fstr = fallbackDisplay.trim();
-        if (fstr.includes('۲۴ ساعته') || fstr.includes('24h')) {
-            for (let i = 0; i < 24; i++) set.add(i);
-            return set;
-        }
-        let rm = fstr.match(/(\d{1,2}):?00?\s*(?:الی|-|تا)\s*(\d{1,2}):?00?/);
-        if (rm) {
-            let s = parseInt(rm[1]), e = parseInt(rm[2]);
-            if (s <= e) {
-                for (let i = s; i <= e; i++) set.add(i);
-            } else {
-                for (let i = s; i < 24; i++) set.add(i);
-                for (let i = 0; i <= e; i++) set.add(i);
-            }
-            return set;
-        }
-    }
-    
+        return null;
+    };
+
+    let fromVal = parseStr(val);
+    if (fromVal && fromVal.size > 0) return fromVal;
+
+    let fromFb = parseStr(fallbackDisplay);
+    if (fromFb && fromFb.size > 0) return fromFb;
+
     return set;
 }
 
@@ -953,26 +946,45 @@ function renderParameterDriftTable(report, scenarioKey) {
 
     // 1. Evaluate Scenario Name Status & Impact
     let actScName = (p.InpScenarioName || '').trim();
-    let actScNameClean = actScName.toLowerCase().replace(/[^a-zA-Z0-9_\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
-    let expScName = (scenario.title || scenario.rawTitle || scenario.name || '').replace(/⭐\s*سناریوی شخصی:\s*/g, '').trim();
-    let expScNameClean = expScName.toLowerCase().replace(/[^a-zA-Z0-9_\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
+    let actScLower = actScName.toLowerCase();
+    let expScName = (scenario.title || scenario.rawTitle || scenario.name || '').trim();
+    let expScLower = expScName.toLowerCase();
+
+    let isActDefaultOrBase = !actScName || actScLower === 'default' || actScLower.includes('default') || actScLower.includes('base') || actScName.includes('پایه') || actScName.includes('پیش‌فرض') || actScName.includes('سبد جامع');
+    let isExpDefaultOrBase = scenario.id === 'base' || scenario.id === 'default' || expScLower.includes('base') || expScName.includes('پایه') || expScName.includes('سبد جامع') || expScName.includes('پیش‌فرض');
 
     let nameMatched = false;
-    if (actScNameClean && expScNameClean) {
-        if (actScNameClean === expScNameClean || actScNameClean.includes(expScNameClean) || expScNameClean.includes(actScNameClean)) {
+    if (isActDefaultOrBase && isExpDefaultOrBase) {
+        nameMatched = true;
+    } else if (actScName && expScName) {
+        if (actScLower === expScLower || actScLower.includes(expScLower) || expScLower.includes(actScLower)) {
+            nameMatched = true;
+        } else if (scenario.id && actScLower.includes(scenario.id.toLowerCase())) {
             nameMatched = true;
         } else {
-            let actTokens = actScNameClean.split(/\s+/).filter(w => w.length >= 2);
-            let expTokens = expScNameClean.split(/\s+/).filter(w => w.length >= 2);
-            let commonTokens = actTokens.filter(t => expTokens.includes(t));
-            if (commonTokens.length >= 2 || (actTokens.length === 1 && commonTokens.length === 1)) {
+            let cleanWords = str => str.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').toLowerCase().split(/\s+/).filter(w => w.length >= 2);
+            let actTokens = cleanWords(actScName);
+            let expTokens = cleanWords(expScName);
+            let common = actTokens.filter(t => expTokens.includes(t));
+            if (common.length >= 1) {
                 nameMatched = true;
             }
         }
     }
     if (!nameMatched && actScName) {
-        if (scenario.id && actScName.toLowerCase().includes(scenario.id.toLowerCase())) nameMatched = true;
-        if (scenario.id.startsWith('custom_') && (actScName.includes('سفارشی') || actScName.toLowerCase().includes('custom') || actScName.toLowerCase().includes('ai'))) nameMatched = true;
+        if (scenario.id.startsWith('custom_') && (actScName.includes('سفارشی') || actScLower.includes('custom') || actScLower.includes('ai'))) nameMatched = true;
+    }
+
+    let nameStatus = nameMatched ? 'match' : ((!p.InpScenarioName || p.InpScenarioName.includes('Default')) ? 'severe' : 'warn');
+    let nameImpact = '';
+    if (nameMatched) {
+        if (isActDefaultOrBase && isExpDefaultOrBase) {
+            nameImpact = 'تنظیمات Default در تستر MT5 کاملاً منطبق بر سبد جامع پایه (تمام سلاطین ۲۴ ساعته) است.';
+        } else {
+            nameImpact = 'نام سناریو در متاتریدر ۵ («' + (p.InpScenarioName || '') + '») کاملاً منطبق بر این سناریو است.';
+        }
+    } else {
+        nameImpact = 'در تستر MT5 مقدار «' + (p.InpScenarioName || 'Default') + '» تنظیم شده که با این سناریو متفاوت است.';
     }
 
     // 2. Evaluate Hours Status & Impact
@@ -1014,14 +1026,14 @@ function renderParameterDriftTable(report, scenarioKey) {
 
     // 3. Evaluate Disabled Kings Status & Impact
     let actDis = (p.InpDisabledKingsList || '').trim();
-    let isActNoDis = !actDis || actDis.toLowerCase() === 'none' || actDis.length <= 3;
-    let isExpNoDis = !scenario.disabledKings || scenario.disabledKings.includes('بدون مسدودی');
+    let isActNoDis = !actDis || actDis.toLowerCase().includes('none') || actDis.includes('هیچ') || actDis.includes('بدون') || actDis.length <= 3;
+    let isExpNoDis = !scenario.disabledKings || scenario.disabledKings.includes('بدون مسدودی') || scenario.disabledKings.toLowerCase().includes('none') || scenario.disabledKings.includes('هیچ');
 
     let kingsStatus = 'warn';
     let kingsImpact = '';
     if (isActNoDis && isExpNoDis) {
         kingsStatus = 'match';
-        kingsImpact = 'تمامی سلاطین طبق انتظار سناریو در تستر مجاز و فعال بوده‌اند.';
+        kingsImpact = 'تمامی سلاطین طبق انتظار سناریو در تستر مجاز و فعال بوده‌اند (بدون مسدودی).';
     } else if (!isActNoDis && !isExpNoDis) {
         let actDisClean = actDis.replace(/\s+|\[|\]/g, '');
         let expDisClean = scenario.disabledKings.replace(/\s+|\[|\]/g, '');
@@ -1045,10 +1057,8 @@ function renderParameterDriftTable(report, scenarioKey) {
             name: 'سناریوی معاملاتی (InpScenarioName)',
             actual: p.InpScenarioName || 'Default (تنظیمات پیش‌فرض)',
             expected: scenario.name,
-            status: nameMatched ? 'match' : ((!p.InpScenarioName || p.InpScenarioName.includes('Default')) ? 'severe' : 'warn'),
-            impact: nameMatched
-                ? 'نام سناریو در متاتریدر ۵ («' + (p.InpScenarioName || '') + '») کاملاً منطبق بر این سناریو است.'
-                : 'در تستر MT5 مقدار «' + (p.InpScenarioName || 'Default') + '» تنظیم شده بود.'
+            status: nameStatus,
+            impact: nameImpact
         },
         {
             name: 'کف پتانسیل سود ستاپ (InpMinTradePotential)',
