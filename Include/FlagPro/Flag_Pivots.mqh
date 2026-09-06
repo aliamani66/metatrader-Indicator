@@ -93,7 +93,7 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
    SPivot p1 = pivots[idx];     // شروع یال جاری
    SPivot p2 = pivots[idx + 1]; // پایان یال جاری
 
-   // Extract previous High and previous Low before idx
+   // استخراج سقف و کف قبلی منحصراً از امواج گذشته (بدون نگاه به آینده)
    double prevH = -1, prevL = -1;
    for(int j = idx - 1; j >= 0; j--)
    {
@@ -102,76 +102,19 @@ bool IsValidFlagLeg(int idx, const SPivot &pivots[], int totalCount)
       if(prevH > 0 && prevL > 0) break;
    }
 
-   // Extract next High and next Low after idx+1
-   double nextH = -1, nextL = -1;
-   for(int j = idx + 2; j < totalCount; j++)
-   {
-      if(pivots[j].isHigh && nextH < 0) nextH = pivots[j].price;
-      if(!pivots[j].isHigh && nextL < 0) nextL = pivots[j].price;
-      if(nextH > 0 && nextL > 0) break;
-   }
-
-   // 1. اصلاح نزولی در روند صعودی: Drop (High -> Low)
+   // ۱. اصلاح نزولی در روند صعودی: Drop (High -> Low)
+   // شرط بقای ساختار صعودی: کف اصلاح (p2) باید بالاتر از کف قبلی (prevL) باشد
    if(p1.isHigh && !p2.isHigh)
    {
       if(prevL > 0 && p2.price > prevL)
-      {
-         // شرط ۱: اگر سقف بعد و کف بعد هر دو پایین‌تر بیایند -> چرخش روند
-         if(nextH > 0 && nextH < p1.price && nextL > 0 && nextL < p2.price)
-            return false;
-
-         // شرط ۲: تأیید ادامه روند صعودی (شکست سقف P1 در سوینگ‌های بعد)
-         bool brokeAboveP1 = false;
-         bool hasFutureHighs = false;
-         for(int j = idx + 2; j < totalCount && j <= idx + 8; j++)
-         {
-            if(pivots[j].isHigh)
-            {
-               hasFutureHighs = true;
-               if(pivots[j].price > p1.price)
-               {
-                  brokeAboveP1 = true;
-                  break;
-               }
-            }
-         }
-         // اگر سوینگ‌های بعدی شکل گرفته‌اند ولی هیچ‌کدام نتوانسته‌اند بالای P1 بروند -> سقف مستقل
-         if(hasFutureHighs && !brokeAboveP1)
-            return false;
-
          return true;
-      }
    }
-   // 2. اصلاح صعودی در روند نزولی: Rally (Low -> High)
+   // ۲. اصلاح صعودی در روند نزولی: Rally (Low -> High)
+   // شرط بقای ساختار نزولی: سقف اصلاح (p2) باید پایین‌تر از سقف قبلی (prevH) باشد
    else if(!p1.isHigh && p2.isHigh)
    {
       if(prevH > 0 && p2.price < prevH)
-      {
-         // شرط ۱: اگر کف بعد و سقف بعد هر دو بالاتر بیایند -> چرخش روند
-         if(nextL > 0 && nextL > p1.price && nextH > 0 && nextH > p2.price)
-            return false;
-
-         // شرط ۲: تأیید ادامه روند نزولی (شکست کف P1 در سوینگ‌های بعد)
-         bool brokeBelowP1 = false;
-         bool hasFutureLows = false;
-         for(int j = idx + 2; j < totalCount && j <= idx + 8; j++)
-         {
-            if(!pivots[j].isHigh)
-            {
-               hasFutureLows = true;
-               if(pivots[j].price < p1.price)
-               {
-                  brokeBelowP1 = true;
-                  break;
-               }
-            }
-         }
-         // اگر سوینگ‌های بعدی شکل گرفته‌اند ولی هیچ‌کدام نتوانسته‌اند زیر P1 بروند -> کف مستقل
-         if(hasFutureLows && !brokeBelowP1)
-            return false;
-
          return true;
-      }
    }
 
    return false;

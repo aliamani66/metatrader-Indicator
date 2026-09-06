@@ -53,6 +53,7 @@ input group "=== 🛡️ ۳. فیلترهای ضد استاپ، اصطکاک و 
 input bool              InpEnableTradeSetup   = true;                   // فعال‌سازی ستاپ معاملاتی روی باکس‌ها
 input double            InpSLOffsetPips       = 8.0;                    // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
 #define InpRSPipBuffer InpSLOffsetPips
+input double            InpMaxEntryDeviationPips = 2.5;                 // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
 input bool              InpFilterNightHours   = true;                   // 🛡️ فیلتر ۱: مسدودسازی بازه شب ۲۱ تا ۰۱
 input bool              InpFilterPreLondonHunt= true;                   // 🛡️ فیلتر ۲: مسدودسازی ساعت ۰۷:۰۰ قبل لندن
 input bool              InpFilterToxicPatterns= true;                   // 🛡️ فیلتر ۳: حذف زنجیره‌های سمی

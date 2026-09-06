@@ -1526,11 +1526,7 @@ void OnTick()
 
    lastCandleTime = currentCandleTime;
 
-   // ۳. بررسی محدودیت تعداد گروه‌های پوزیشن باز
-   if(CountOpenPositionGroups() >= InpMaxOpenGroups)
-      return;
-
-   // ۴. تعیین تعداد کندل‌های اسکن بهینه (پنجره شناور) جهت حداکثر سرعت در تستر و لایو
+   // ۳. تعیین تعداد کندل‌های اسکن بهینه (پنجره شناور) جهت حداکثر سرعت در تستر و لایو
    int targetBars = InpLookbackBars;
    if(targetBars < 1000) targetBars = 1000;
    if(targetBars > 30000) targetBars = 30000;
@@ -1598,7 +1594,32 @@ void OnTick()
       DeleteAllTradeShadings();
    }
 
-   // ۵. بررسی و ارسال سفارشات ستاپ‌های تایید شده
+   // لغو اردرهای لیمیت معلق در صورت ورود به بازه شبانه یا استاپ‌هانت قبل لندن
+   datetime nowTime = TimeCurrent();
+   if((InpFilterNightHours && IsNightSessionHour(nowTime)) || (InpFilterPreLondonHunt && IsPreLondonHour(nowTime)))
+   {
+      for(int g = 0; g < ArraySize(m_activeGroups); g++)
+      {
+         if(!m_activeGroups[g].isFinished && m_activeGroups[g].isPending)
+         {
+            for(int p = 0; p < 4; p++)
+            {
+               if(m_activeGroups[g].orderTickets[p] > 0)
+               {
+                  m_trade.OrderDelete(m_activeGroups[g].orderTickets[p]);
+                  m_activeGroups[g].orderTickets[p] = 0;
+               }
+            }
+            m_activeGroups[g].isFinished = true;
+         }
+      }
+   }
+
+   // ۵. بررسی محدودیت تعداد گروه‌های پوزیشن باز
+   if(CountOpenPositionGroups() >= InpMaxOpenGroups)
+      return;
+
+   // ۶. بررسی و ارسال سفارشات ستاپ‌های تایید شده
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
 
    // الف) اگر حالت اجرای اردر لیمیت فعال باشد (پیش‌فرض سیستم):

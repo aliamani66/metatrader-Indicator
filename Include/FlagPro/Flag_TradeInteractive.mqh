@@ -262,9 +262,13 @@ void ShowTradeSetupForBox(int boxIdx)
       else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
       {
          double barSpread = GetBarSpread(k, chartSpread, simSpread);
+         double maxDevDist = InpMaxEntryDeviationPips * pipSize;
+         double buyThresh  = entryPrice + maxDevDist;
+         double sellThresh = entryPrice - maxDevDist;
+
          if(isBull)
          {
-            if((chartLow[k] + barSpread) <= entryPrice)
+            if((chartLow[k] + barSpread) <= buyThresh)
             {
                isEntered = true;
                entryBarIdx = k;
@@ -274,7 +278,7 @@ void ShowTradeSetupForBox(int boxIdx)
          }
          else
          {
-            if(chartHigh[k] >= entryPrice)
+            if(chartHigh[k] >= sellThresh)
             {
                isEntered = true;
                entryBarIdx = k;

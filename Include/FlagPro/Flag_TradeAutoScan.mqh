@@ -30,6 +30,9 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
    if(!InpAutoDrawTrades || ratesTotal < 10) return;
 
+   ArrayResize(g_tradeSetups, 0);
+   g_tradeCount = 0;
+
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = InpRSPipBuffer * pipSize;
    double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
@@ -213,14 +216,18 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else
          {
             double barSpread = GetBarSpread(k, chartSpread, simSpread);
-            if(isBull && (chartLow[k] + barSpread) <= entryPrice)
+            double maxDevDist = InpMaxEntryDeviationPips * pipSize;
+            double buyThresh  = entryPrice + maxDevDist;
+            double sellThresh = entryPrice - maxDevDist;
+
+            if(isBull && (chartLow[k] + barSpread) <= buyThresh)
             {
                isEntered = true;
                entryBarIdx = k;
                entryTime = chartTime[k];
                break;
             }
-            else if(!isBull && chartHigh[k] >= entryPrice)
+            else if(!isBull && chartHigh[k] >= sellThresh)
             {
                isEntered = true;
                entryBarIdx = k;
