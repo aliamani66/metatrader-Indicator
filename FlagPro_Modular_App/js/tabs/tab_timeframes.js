@@ -3,7 +3,7 @@ function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
             if (!table) return;
             let tbody = table.querySelector('tbody');
             if (!tbody) return;
-            let rows = Array.from(tbody.querySelectorAll('tr.tf-row'));
+            let rows = Array.from(tbody.querySelectorAll('tr.tf-row, tr.tf-role-row'));
 
             let isCurrentDesc = sortDirections[attrName];
             let newDesc = (isCurrentDesc === undefined) ? defaultDesc : !isCurrentDesc;
@@ -53,7 +53,13 @@ function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
                 }
             });
 
-            rows.forEach(r => tbody.appendChild(r));
+            rows.forEach((r, i) => {
+                let firstTd = r.querySelector('td:first-child');
+                if (firstTd && firstTd.textContent.trim().startsWith('#')) {
+                    firstTd.textContent = '#' + (i + 1);
+                }
+                tbody.appendChild(r);
+            });
         }
 
         function filterTF(tf, btnElem) {
@@ -65,7 +71,7 @@ function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
                 (event.currentTarget || event.target).classList.add('active');
             }
 
-            let rows = document.querySelectorAll('.tf-row');
+            let rows = document.querySelectorAll('.tf-row, .tf-role-row');
             rows.forEach(r => {
                 if(tf === 'ALL' || r.getAttribute('data-tf') === tf) {
                     r.style.display = '';

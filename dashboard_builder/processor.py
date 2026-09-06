@@ -290,7 +290,7 @@ def process_symbol_dataset(csv_file):
         else: score_html = f"<span style='color:#ef4444;font-size:13px;'>{score:.1f}</span>"
 
         tf_role_rows.append(f"""
-        <tr class="tf-role-row" data-tf="{c['tf']}" data-king="{'1' if c['is_king'] else '0'}">
+        <tr class="tf-row tf-role-row" data-tf="{c['tf']}" data-role="{c['role']}" data-king="{'1' if c['is_king'] else '0'}" data-cnt="{c['cnt']}" data-w1="{c['w1_p']:.2f}" data-w2="{c['w2_p']:.2f}" data-w3="{c['w3_p']:.2f}" data-w4="{c['w4_p']:.2f}" data-sl="{c['sl_p']:.2f}" data-net="{c['net']:.2f}" data-pf="{c['pf']:.2f}" data-dd="{c['max_dd']:.2f}" data-retdd="{c['ret_dd']:.2f}" data-score="{c['score']:.2f}">
             <td style="text-align:center;font-weight:bold;color:#94a3b8;">#{idx}</td>
             <td style="color:#38bdf8;font-weight:bold;text-align:center;">{c['tf']}</td>
             <td style="font-weight:bold;color:{k_color};">{c['role']}{badge_html}</td>

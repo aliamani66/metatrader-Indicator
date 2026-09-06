@@ -1070,7 +1070,7 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     // Sort by King Score descending
     computedTfRoles.sort((a, b) => (b.score !== a.score ? b.score - a.score : b.cnt - a.cnt));
 
-    let tfRoleRows = computedTfRoles.map(item => {
+    let tfRoleRows = computedTfRoles.map((item, idx) => {
         let tf = item.tf;
         let role = item.role;
         let cnt = item.cnt;
@@ -1081,6 +1081,9 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
         let sl_p = item.sl_p;
         let score = item.score;
         let net = item.net;
+        let is_king = clientKingsSimList.some(k => k.role === role && k.tf === tf);
+        let k_tag = is_king ? "👑 سلطان" : "سایر";
+        let k_color = is_king ? "#facc15" : "#94a3b8";
         let net_col = net >= 0 ? "#00e676" : "#ef4444";
 
         let pf = item.pf;
@@ -1109,9 +1112,11 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
         }
 
         return `
-        <tr class="tf-row" data-tf="${tf}" data-role="${role}" data-cnt="${cnt}" data-w1="${w1_p.toFixed(2)}" data-w2="${w2_p.toFixed(2)}" data-w3="${w3_p.toFixed(2)}" data-w4="${w4_p.toFixed(2)}" data-sl="${sl_p.toFixed(2)}" data-net="${net.toFixed(2)}" data-pf="${pf.toFixed(2)}" data-dd="${max_dd.toFixed(2)}" data-retdd="${ret_dd.toFixed(2)}" data-score="${score.toFixed(2)}">
-            <td style="color:#38bdf8;font-weight:bold;">${tf}</td>
-            <td style="color:#facc15;font-weight:bold;">${role}${badge_html}</td>
+        <tr class="tf-row tf-role-row" data-tf="${tf}" data-role="${role}" data-king="${is_king ? 1 : 0}" data-cnt="${cnt}" data-w1="${w1_p.toFixed(2)}" data-w2="${w2_p.toFixed(2)}" data-w3="${w3_p.toFixed(2)}" data-w4="${w4_p.toFixed(2)}" data-sl="${sl_p.toFixed(2)}" data-net="${net.toFixed(2)}" data-pf="${pf.toFixed(2)}" data-dd="${max_dd.toFixed(2)}" data-retdd="${ret_dd.toFixed(2)}" data-score="${score.toFixed(2)}">
+            <td style="text-align:center;font-weight:bold;color:#94a3b8;">#${idx + 1}</td>
+            <td style="color:#38bdf8;font-weight:bold;text-align:center;">${tf}</td>
+            <td style="color:${k_color};font-weight:bold;">${role}${badge_html}</td>
+            <td style="text-align:center;"><span style="background:${is_king ? '#854d0e' : '#1e293b'};color:${k_color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">${k_tag}</span></td>
             <td style="text-align:center;font-weight:bold;">${cnt}</td>
             <td style="text-align:center;color:#00e676;font-weight:bold;">${w1_p.toFixed(1)}%</td>
             <td style="text-align:center;color:#00e676;font-weight:bold;">${w2_p.toFixed(1)}%</td>
@@ -1257,8 +1262,10 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                 <table id="tfTable">
                     <thead>
                         <tr>
-                            <th onclick="sortTableByAttr('tfTable', 'data-tf', false, false)" data-sort="data-tf" style="cursor:pointer;" title="کلیک برای مرتب‌سازی صعودی/نزولی">تایم‌فریم <span class="sort-icon">⬍</span></th>
+                            <th style="text-align:center;width:40px;">#</th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-tf', false, false)" data-sort="data-tf" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی صعودی/نزولی">تایم‌فریم <span class="sort-icon">⬍</span></th>
                             <th onclick="sortTableByAttr('tfTable', 'data-role', false, false)" data-sort="data-role" style="cursor:pointer;" title="کلیک برای مرتب‌سازی">موجودیت باکس / سواپ <span class="sort-icon">⬍</span></th>
+                            <th onclick="sortTableByAttr('tfTable', 'data-king', true, true)" data-sort="data-king" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی سلاطین">وضعیت <span class="sort-icon">⬍</span></th>
                             <th onclick="sortTableByAttr('tfTable', 'data-cnt', true, true)" data-sort="data-cnt" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">تعداد معامله <span class="sort-icon">⬍</span></th>
                             <th onclick="sortTableByAttr('tfTable', 'data-w1', true, true)" data-sort="data-w1" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:1 <span class="sort-icon">⬍</span></th>
                             <th onclick="sortTableByAttr('tfTable', 'data-w2', true, true)" data-sort="data-w2" style="cursor:pointer;text-align:center;" title="کلیک برای مرتب‌سازی">TP 1:2 <span class="sort-icon">⬍</span></th>
