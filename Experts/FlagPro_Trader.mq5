@@ -52,6 +52,7 @@ input group "=== 👑 ۲. سلاطین طلایی، سناریوی داشبور�
 input string             InpScenarioName          = "Default";   // 🏷️ نام سناریوی معاملاتی (Dashboard Scenario Name)
 input bool               InpOnlyTradeKings        = true;        // 👑 فقط معامله سلاطین برگزیده (Kings Only)
 input bool               InpTradeOnlyGoldenKings  = true;        // 👑 قفل انحصاری سلاطین طلایی
+input string             InpAllowedKingsList      = "";          // 👑 لیست انحصاری سلاطین مجاز (جدا شده با کاما، مثلاً "S-RS|M1, Flag-BE|M1" - خالی = استفاده از پیش‌فرض)
 input string             InpDisabledKingsList     = "";          // 🚫 لیست سلاطین غیرمجاز (جدا شده با کاما، مثلاً "OInner-BE [M1]")
 input bool               InpEnableKingsM15        = true;        // 👑 فعال‌سازی سلاطین تایم M15 (۲ ساختار برتر)
 input bool               InpEnableKingsM5         = true;        // 👑 فعال‌سازی سلاطین تایم M5 (۷ ساختار برتر)
@@ -370,6 +371,7 @@ void ExportTesterRunSummary()
    jsonContent += "    \"InpMinTradePotential\": " + DoubleToString(InpMinTradePotential, 1) + ",\n";
    jsonContent += "    \"InpAllowedTradingHours\": \"" + (InpAllowedTradingHours == "" ? "24 Hours (تمام ساعات شبانه‌روز)" : InpAllowedTradingHours) + "\",\n";
    jsonContent += "    \"InpConsecLossTrigger\": " + IntegerToString(InpConsecLossTrigger) + ",\n";
+   jsonContent += "    \"InpAllowedKingsList\": \"" + (InpAllowedKingsList == "" ? "All Default Kings (سلاطین پیش‌فرض)" : InpAllowedKingsList) + "\",\n";
    jsonContent += "    \"InpDisabledKingsList\": \"" + (InpDisabledKingsList == "" ? "None (هیچ سلطانی غیرفعال نبود)" : InpDisabledKingsList) + "\",\n";
    jsonContent += "    \"InpMoveToBreakEven\": " + (InpMoveToBreakEven ? "true" : "false") + ",\n";
    jsonContent += "    \"InpBEBufferPips\": " + DoubleToString(InpBEBufferPips, 1) + ",\n";
@@ -969,7 +971,8 @@ bool IsKingAllowedByScenario(ENUM_TIMEFRAMES tf, string role)
    if(StringLen(InpDisabledKingsList) == 0) return true;
    string kKey1 = role + "|" + TFName(tf);
    string kKey2 = role + " [" + TFName(tf) + "]";
-   if(StringFind(InpDisabledKingsList, kKey1) >= 0 || StringFind(InpDisabledKingsList, kKey2) >= 0)
+   string kKey3 = role;
+   if(IsInTokenList(InpDisabledKingsList, kKey1, kKey2, kKey3))
       return false;
    return true;
 }

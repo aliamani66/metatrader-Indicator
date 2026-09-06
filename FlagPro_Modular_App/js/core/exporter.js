@@ -129,6 +129,7 @@ function generateIniFileText(cfg) {
         'InpScenarioName=' + safeTitle,
         'InpOnlyTradeKings=true',
         'InpTradeOnlyGoldenKings=true',
+        'InpAllowedKingsList=' + (cfg.allowed_kings_str || ''),
         'InpDisabledKingsList=' + disabledStr,
         'InpEnableKingsM15=true',
         'InpEnableKingsM5=true',
@@ -246,6 +247,7 @@ function generateSetFileText(cfg) {
         'InpScenarioName=' + safeTitle,
         'InpOnlyTradeKings=true',
         'InpTradeOnlyGoldenKings=true',
+        'InpAllowedKingsList=' + (cfg.allowed_kings_str || ''),
         'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
         'InpEnableKingsM15=true',
         'InpEnableKingsM5=true',
@@ -387,12 +389,15 @@ function exportPresetToMT5(idx) {
         let beBuffer = isBase ? 1.0 : 0.0;
         let maxDev = (p.title && (p.title.includes('الماس') || p.title.includes('سپر'))) ? 2.0 : 2.5;
 
+        let allowedKings = (p.kings && Array.isArray(p.kings)) ? p.kings.join(', ') : '';
+
         let config = {
             title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-\u0600-\u06FF]/gi, '').trim(),
             min_pot: (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0,
             hours_str: hoursStr,
             consec_trig: p.consec_trig || 0,
             consec_action: actionInt,
+            allowed_kings_str: allowedKings,
             disabled_kings_str: disabledStr,
             use_tf7: useTF7,
             enable_kings_m1: useTF7,
@@ -421,6 +426,14 @@ function exportCurrentStateToMT5() {
             if (simState.allowedHours && simState.allowedHours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
         }
         let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+        let allowedKings = [];
+        if (simState.enabledKings) {
+            for (let kk of simState.enabledKings) {
+                allowedKings.push(kk);
+            }
+        }
+        let allowedStr = allowedKings.join(', ');
 
         let disabledKings = [];
         for (let k of (kingsSimList || [])) {
@@ -462,6 +475,7 @@ function exportCurrentStateToMT5() {
             hours_str: hoursStr,
             consec_trig: simState.consecLossTrigger || 0,
             consec_action: actionInt,
+            allowed_kings_str: allowedStr,
             disabled_kings_str: disabledStr,
             use_tf7: hasM1Kings,
             enable_kings_m1: hasM1Kings,
@@ -535,12 +549,15 @@ function exportCustomPresetToMT5(id) {
         let gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
         let pf = gl > 0 ? (gp / gl) : (p.pf || 999);
 
+        let allowedKings = (p.kings && Array.isArray(p.kings)) ? p.kings.join(', ') : '';
+
         let config = {
             title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-\u0600-\u06FF]/gi, '').trim(),
             min_pot: (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0,
             hours_str: hoursStr,
             consec_trig: p.consec_trig || 0,
             consec_action: actionInt,
+            allowed_kings_str: allowedKings,
             disabled_kings_str: disabledStr,
             cnt: c || p.cnt || '-',
             wr: wr,
@@ -603,6 +620,9 @@ function openMT5ExportModal(cfg) {
         else if (cfg.consec_action === 3) actName = 'توقف تا پایان روز جاری';
         let elConsecAct = document.getElementById('mt5ParamConsecAct');
         if (elConsecAct) elConsecAct.textContent = actName;
+
+        let elAllowed = document.getElementById('mt5ParamAllowed');
+        if (elAllowed) elAllowed.textContent = cfg.allowed_kings_str ? cfg.allowed_kings_str : 'تمام سلاطین پیش‌فرض';
 
         let elDisabled = document.getElementById('mt5ParamDisabled');
         if (elDisabled) elDisabled.textContent = cfg.disabled_kings_str ? cfg.disabled_kings_str : 'هیچ‌کدام (تمام سلاطین فعال)';

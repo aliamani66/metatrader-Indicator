@@ -129,10 +129,39 @@ bool IsSetupFilteredOut(const string roleTag, const datetime entryTime, double r
 }
 
 //+------------------------------------------------------------------+
-//| تشخیص آیا باکس متعلق به ۱۸ سلطان برگزیده بر مبنای تایم‌فریم است؟   |
+//| تابع کمکی بررسی حضور یک الگو در لیست متنی جدا شده با کاما        |
+//+------------------------------------------------------------------+
+bool IsInTokenList(const string tokenList, const string targetKey1, const string targetKey2, const string targetKey3)
+{
+   if(StringLen(tokenList) == 0) return false;
+   string items[];
+   int total = StringSplit(tokenList, ',', items);
+   for(int i = 0; i < total; i++)
+   {
+      string item = items[i];
+      StringTrimLeft(item);
+      StringTrimRight(item);
+      if(item == targetKey1 || item == targetKey2 || item == targetKey3)
+         return true;
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| تشخیص آیا باکس متعلق به سلاطین برگزیده بر مبنای تایم‌فریم است؟    |
 //+------------------------------------------------------------------+
 bool IsQualifiedKing(ENUM_TIMEFRAMES tf, const string role)
 {
+   // ۱. اگر لیست انحصاری سلاطین مجاز (InpAllowedKingsList) پر شده باشد، اولویت قطعی با این لیست است:
+   if(StringLen(InpAllowedKingsList) > 0)
+   {
+      string kKey1 = role + "|" + TFName(tf);
+      string kKey2 = role + " [" + TFName(tf) + "]";
+      string kKey3 = role;
+      return IsInTokenList(InpAllowedKingsList, kKey1, kKey2, kKey3);
+   }
+
+   // ۲. در غیر این صورت، از لیست پیش‌فرض ۱۸ سلطان طلایی استفاده می‌شود:
    if(tf == PERIOD_M15)
    {
       if(!InpEnableKingsM15) return false;

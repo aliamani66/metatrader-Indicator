@@ -128,6 +128,13 @@ function getAvailableTesterScenarios() {
         return 'بدون مسدودی (تمام سلاطین فعال)';
     }
 
+    function formatAllowedKings(activeList) {
+        if (activeList && activeList.length > 0) {
+            return activeList.map(k => (typeof k === 'string' ? k.replace(/\|(M\d+)/, ' [$1]') : '')).join(', ');
+        }
+        return 'تمام سلاطین مجاز';
+    }
+
     let pChamp = spList.find(p => p.idx === 0 || (p.title && (p.title.includes('الماس') || p.title.includes('Champion'))));
     let pGolden = spList.find(p => p.idx === 1 || (p.title && (p.title.includes('طلا') || p.title.includes('Golden'))));
     let pDay = spList.find(p => p.idx === 2 || (p.title && (p.title.includes('روز') || p.title.includes('Day'))));
@@ -143,6 +150,7 @@ function getAvailableTesterScenarios() {
             minPotDisplay: pChamp ? ('$' + pChamp.min_pot.toFixed(2) + ' (خودکار)') : '$0.00 (خودکار)',
             tfM1: 'غیرفعال (False)',
             hoursDisplay: 'هوشمند / طبق تستر',
+            allowedKings: 'بررسی هوشمند',
             disabledKings: 'بررسی هوشمند',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
@@ -159,6 +167,7 @@ function getAvailableTesterScenarios() {
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pGolden ? formatHours(pGolden.hours, pGolden.hours_name) : '۲۴ ساعته (00 تا 23)',
             hours: (pGolden && pGolden.hours) ? pGolden.hours : new Array(24).fill(true),
+            allowedKings: pGolden ? formatAllowedKings(pGolden.kings) : 'تمام سلاطین',
             disabledKings: pGolden ? formatDisabledKings(pGolden.kings) : 'بدون مسدودی',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
@@ -175,6 +184,7 @@ function getAvailableTesterScenarios() {
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pChamp ? formatHours(pChamp.hours, pChamp.hours_name) : 'حذف شب (۰۴ الی ۲۲)',
             hours: (pChamp && pChamp.hours) ? pChamp.hours : Array.from({length:24}, (_, i) => (i >= 4 && i < 22)),
+            allowedKings: pChamp ? formatAllowedKings(pChamp.kings) : 'سلاطین منتخب',
             disabledKings: pChamp ? formatDisabledKings(pChamp.kings) : 'OInner-BE (M1), RS-BE (M1)',
             beBuffer: '0.0 pips',
             maxDev: '2.0 pips',
@@ -191,6 +201,7 @@ function getAvailableTesterScenarios() {
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pDay ? formatHours(pDay.hours, pDay.hours_name) : 'سشن لندن و نیویورک (۰۷ الی ۲۰)',
             hours: (pDay && pDay.hours) ? pDay.hours : Array.from({length:24}, (_, i) => (i >= 7 && i <= 20)),
+            allowedKings: pDay ? formatAllowedKings(pDay.kings) : 'سلاطین منتخب',
             disabledKings: pDay ? formatDisabledKings(pDay.kings) : 'بدون مسدودی',
             beBuffer: '0.0 pips',
             maxDev: '2.5 pips',
@@ -207,6 +218,7 @@ function getAvailableTesterScenarios() {
             tfM1: 'غیرفعال (False) - بدون معامله در M1',
             hoursDisplay: pShield ? formatHours(pShield.hours, pShield.hours_name) : '۲۴ ساعته (وقفه بعد ۲ استاپ)',
             hours: (pShield && pShield.hours) ? pShield.hours : new Array(24).fill(true),
+            allowedKings: pShield ? formatAllowedKings(pShield.kings) : 'سلاطین کم‌ریسک',
             disabledKings: pShield ? formatDisabledKings(pShield.kings) : 'حذف ۳ سلطان پرریسک',
             beBuffer: '0.0 pips',
             maxDev: '2.0 pips',
@@ -223,6 +235,7 @@ function getAvailableTesterScenarios() {
             tfM1: 'فعال (True) - تمام تایم‌ها',
             hoursDisplay: '۲۴ ساعته کامل',
             hours: new Array(24).fill(true),
+            allowedKings: 'تمام سلاطین مجاز',
             disabledKings: 'بدون مسدودی',
             beBuffer: '1.0 pips',
             maxDev: '0.0 (نامحدود)',
@@ -865,6 +878,15 @@ function renderParameterDriftTable(report, scenarioKey) {
             expected: scenario.hoursDisplay,
             status: hoursStatus,
             impact: hoursImpact
+        },
+        {
+            name: 'لیست سفید سلاطین مجاز (InpAllowedKingsList)',
+            actual: (p.InpAllowedKingsList && p.InpAllowedKingsList.trim().length > 0) ? p.InpAllowedKingsList : 'تعریف‌نشده (پیش‌فرض ۱۸ سلطان)',
+            expected: scenario.allowedKings || 'طبق سناریو',
+            status: (p.InpAllowedKingsList && p.InpAllowedKingsList.trim().length > 0) ? 'match' : 'neutral',
+            impact: (p.InpAllowedKingsList && p.InpAllowedKingsList.trim().length > 0)
+                ? 'فهرست سفید در متاتریدر ۵ فعال است و فقط سلاطین مشخص‌شده معامله می‌شوند.'
+                : 'فهرست سفید خالی است؛ اکسپرت از ۱۸ الگوی کینگ استاندارد استفاده می‌کند.'
         },
         {
             name: 'لیست سلاطین غیرمجاز (InpDisabledKingsList)',

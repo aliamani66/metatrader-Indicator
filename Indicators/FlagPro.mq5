@@ -43,6 +43,7 @@ input bool              InpEnableKingsM15     = true;                   // 👑 
 input bool              InpEnableKingsM5      = true;                   // 👑 فعال‌سازی سلاطین تایم M5 (۷ ساختار برتر)
 input bool              InpEnableKingsM1      = true;                   // 👑 فعال‌سازی سلاطین تایم M1 (۹ ساختار برتر)
 input bool              InpTradeOnlyGoldenKings = true;                 // 👑 قفل انحصاری سلاطین طلایی
+input string            InpAllowedKingsList   = "";                     // 👑 لیست انحصاری سلاطین مجاز (جدا شده با کاما، مثلاً "S-RS|M1, Flag-BE|M1" - خالی = پیش‌فرض)
 input bool              InpAllowOverlappingTrades = true;               // 🔓 اجازه معاملات همزمان (ستاپ‌های هم‌پوشان)
 
 //+------------------------------------------------------------------+

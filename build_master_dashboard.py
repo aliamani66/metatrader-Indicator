@@ -3675,6 +3675,7 @@ def export_preset_set_files(symbols_data):
                 hours_str = ",".join(f"{h:02d}" for h in range(24) if hours[h])
 
             p_kings = set(p.get('kings', []))
+            allowed_str = ", ".join(sorted(p_kings))
             disabled_kings = [k for k in all_kings_set if k not in p_kings]
             disabled_str = ", ".join(disabled_kings)
 
@@ -3706,6 +3707,7 @@ def export_preset_set_files(symbols_data):
                 f"InpAllowedTradingHours={hours_str}",
                 f"InpConsecLossTrigger={trig_int}",
                 f"InpConsecLossAction={action_int}",
+                f"InpAllowedKingsList={allowed_str}",
                 f"InpDisabledKingsList={disabled_str}",
                 "InpOnlyTradeKings=true",
                 "InpTradeOnlyGoldenKings=true",
@@ -3790,6 +3792,7 @@ def export_preset_set_files(symbols_data):
                 "InpLimitExpirationBars=40",
                 f"InpScenarioName={raw_title}",
                 "InpOnlyTradeKings=true",
+                f"InpAllowedKingsList={allowed_str}",
                 f"InpDisabledKingsList={disabled_str}",
                 "InpEnableKingsM15=true",
                 "InpEnableKingsM5=true",
