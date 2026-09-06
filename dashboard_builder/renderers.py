@@ -1339,7 +1339,7 @@ def render_equity_tab(c):
                                 <th style="text-align:center;">قضاوت عملکرد</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="eqCompareTableBody">
                             <tr style="border-bottom:1px solid #334155;">
                                 <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین {len(qualified_kings)} گانه (گزینش هوشمند)</td>
                                 <td style="text-align:center;font-weight:bold;">{len(pts_kings)-1}</td>

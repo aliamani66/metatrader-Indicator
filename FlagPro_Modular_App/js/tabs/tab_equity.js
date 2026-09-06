@@ -1131,6 +1131,7 @@ function openSavePresetModal() {
             updateConsecutiveLossUI(maxConsecLoss, maxConsecWin, totalLossStreaks, avgLossStreak, streakDist, consecSkippedCount, consecSavedLosses, consecMissedWins, maxDD);
 
             currentSimPts = pts;
+            updateEqCompareTable();
             drawEquityChart();
             requestAnimationFrame(() => { drawEquityChart(); });
         }
@@ -1782,6 +1783,99 @@ function openSavePresetModal() {
                     drawWeeklyBarChart(currentWeeklyBarMode);
                 }, 40);
             }
+            if (subtabId === 'eq-sub-compare') {
+                updateEqCompareTable();
+            }
+        }
+
+        function updateEqCompareTable() {
+            let tbody = document.getElementById('eqCompareTableBody');
+            if (!tbody) return;
+
+            // 1. Raw Baseline (All chart trades without any filter)
+            let rawTrades = (typeof simTrades !== 'undefined' && simTrades) ? simTrades : [];
+            let balRaw = 100.0;
+            let peakRaw = 100.0;
+            let maxDDRaw = 0.0;
+
+            for (let i = 0; i < rawTrades.length; i++) {
+                let p = rawTrades[i].p || 0.0;
+                balRaw += p;
+                if (balRaw > peakRaw) peakRaw = balRaw;
+                let dd = peakRaw - balRaw;
+                if (dd > maxDDRaw) maxDDRaw = dd;
+            }
+            let netRaw = balRaw - 100.0;
+            let netRawPct = (netRaw / 100.0) * 100.0;
+            let maxDDRawPct = peakRaw > 0 ? (maxDDRaw / peakRaw) * 100.0 : 0.0;
+
+            // 2. Filtered / Kings Strategy (Current active simulation)
+            let curTrades = (typeof currentSimPts !== 'undefined' && currentSimPts && currentSimPts.length > 1) ? (currentSimPts.length - 1) : 0;
+            let curBal = (typeof currentSimPts !== 'undefined' && currentSimPts && currentSimPts.length > 0) ? currentSimPts[currentSimPts.length - 1].b : 100.0;
+            let curNet = curBal - 100.0;
+            let curNetPct = (curNet / 100.0) * 100.0;
+
+            let curPeak = 100.0;
+            let curMaxDD = 0.0;
+            if (typeof currentSimPts !== 'undefined' && currentSimPts) {
+                for (let i = 0; i < currentSimPts.length; i++) {
+                    let b = currentSimPts[i].b;
+                    if (b > curPeak) curPeak = b;
+                    let dd = curPeak - b;
+                    if (dd > curMaxDD) curMaxDD = dd;
+                }
+            }
+            let curMaxDDPct = curPeak > 0 ? (curMaxDD / curPeak) * 100.0 : 0.0;
+
+            // Strategy Title
+            let stratName = "👑 سبد سلاطین منتخب (گزینش هوشمند)";
+            if (typeof simState !== 'undefined' && simState) {
+                if (simState.mode === 'kings') {
+                    let kCount = simState.enabledKings ? simState.enabledKings.size : 0;
+                    stratName = `👑 سبد سلاطین ${kCount} گانه (گزینش هوشمند)`;
+                } else if (simState.mode === 'all') {
+                    stratName = "📊 تست خام چارت (معاملات فیلترشده جاری)";
+                } else {
+                    stratName = "📊 استراتژی فیلترشده جاری";
+                }
+            }
+
+            let curNetColor = curNet >= 0 ? '#00e676' : '#ef4444';
+            let curNetSign = curNet >= 0 ? '+$' : '-$';
+            let curPctSign = curNetPct >= 0 ? '+' : '';
+            let curBadge = curNet >= 0 
+                ? '<span style="background:#064e3b;color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">💎 رشد مستمر و اکوئیتی صعودی</span>'
+                : '<span style="background:#451a03;color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">⚠️ نیاز به بهینه‌سازی فیلترها</span>';
+
+            let rawNetColor = netRaw >= 0 ? '#00e676' : '#ef4444';
+            let rawNetSign = netRaw >= 0 ? '+$' : '-$';
+            let rawPctSign = netRawPct >= 0 ? '+' : '';
+            let rawBadge = netRaw >= 0
+                ? '<span style="background:#064e3b;color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">✅ سودآور در کل چارت</span>'
+                : '<span style="background:#451a03;color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">⚠️ فرسایش ناشی از نویزها</span>';
+
+            tbody.innerHTML = `
+                <tr style="border-bottom:1px solid #334155;">
+                    <td style="font-weight:bold;color:#facc15;">${stratName}</td>
+                    <td style="text-align:center;font-weight:bold;color:#38bdf8;">${curTrades}</td>
+                    <td style="text-align:center;">$100</td>
+                    <td style="text-align:center;font-weight:bold;color:${curNetColor};">$${Math.round(curBal).toLocaleString()}</td>
+                    <td style="text-align:center;font-weight:bold;color:${curNetColor};">${curNetSign}${Math.abs(Math.round(curNet)).toLocaleString()}</td>
+                    <td style="text-align:center;font-weight:bold;color:${curNetColor};">${curPctSign}${curNetPct.toFixed(1)}٪</td>
+                    <td style="text-align:center;color:#34d399;font-weight:bold;">$${Math.round(curMaxDD)} (${curMaxDDPct.toFixed(1)}٪)</td>
+                    <td style="text-align:center;">${curBadge}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight:bold;color:#94a3b8;">🌐 کل ساختارهای خام چارت (بدون فیلتر)</td>
+                    <td style="text-align:center;font-weight:bold;color:#94a3b8;">${rawTrades.length}</td>
+                    <td style="text-align:center;">$100</td>
+                    <td style="text-align:center;font-weight:bold;color:${rawNetColor};">$${Math.round(balRaw).toLocaleString()}</td>
+                    <td style="text-align:center;font-weight:bold;color:${rawNetColor};">${rawNetSign}${Math.abs(Math.round(netRaw)).toLocaleString()}</td>
+                    <td style="text-align:center;font-weight:bold;color:${rawNetColor};">${rawPctSign}${netRawPct.toFixed(1)}٪</td>
+                    <td style="text-align:center;color:#ef4444;font-weight:bold;">$${Math.round(maxDDRaw)} (${maxDDRawPct.toFixed(1)}٪)</td>
+                    <td style="text-align:center;">${rawBadge}</td>
+                </tr>
+            `;
         }
 
         
