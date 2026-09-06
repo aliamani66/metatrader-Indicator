@@ -459,6 +459,16 @@ function getSortedTesterReportKeys() {
     if (!window.TESTER_REPORTS) return [];
     let keys = Object.keys(window.TESTER_REPORTS);
     keys.sort((a, b) => {
+        let rA = window.TESTER_REPORTS[a] || {};
+        let rB = window.TESTER_REPORTS[b] || {};
+        let cntA = (rA.trades && rA.trades.length) || 0;
+        let cntB = (rB.trades && rB.trades.length) || 0;
+
+        // TOP PRIORITY: Comprehensive full trades test (e.g. 42 trades) first!
+        let isFullA = (cntA >= 30 || a.includes('64Trades')) ? 1 : 0;
+        let isFullB = (cntB >= 30 || b.includes('64Trades')) ? 1 : 0;
+        if (isFullA !== isFullB) return isFullB - isFullA;
+
         let sA = parseReportSortKey(a);
         let sB = parseReportSortKey(b);
         
@@ -490,9 +500,17 @@ function getSortedTesterReportKeys() {
 }
 
 function formatTesterOptionLabel(k, r) {
-    let title = r.reportTitle || k;
-    let dr = r.dateRange || '';
     let cnt = (r.trades && r.trades.length) || 0;
+    let isFull = (cnt >= 30) || k.includes('64Trades');
+    let isKingsOnly = (cnt <= 10 && k.includes('6Trades'));
+
+    let title = isFull 
+        ? '🌟 تست ۱۰ روزه جامع کل معاملات (۴۲ ستاپ - بدون فیلتر سلاطین)' 
+        : (isKingsOnly 
+            ? '🎯 تست سلاطین منتخب (فقط ۶ معامله ۵ پترن برتر)' 
+            : (r.reportTitle || k));
+
+    let dr = r.dateRange || '';
     let datePart = '';
     
     let m = dr.match(/(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/i);
@@ -608,9 +626,10 @@ function initTesterCompareTab() {
     }
 
     let keys = getSortedTesterReportKeys();
-    // Default to the newest test run (#1 in list)
+    // Default to the comprehensive 10-day test (42 trades / 64Trades)
+    let fullKey = keys.find(k => k.includes('64Trades') || (window.TESTER_REPORTS[k] && window.TESTER_REPORTS[k].trades && window.TESTER_REPORTS[k].trades.length >= 30));
     if (!window.userHasManuallySelectedReport || !currentTesterReportKey || !window.TESTER_REPORTS[currentTesterReportKey]) {
-        currentTesterReportKey = keys[0];
+        currentTesterReportKey = fullKey || keys[0];
         window.currentTesterReportKey = currentTesterReportKey;
     }
 
@@ -645,6 +664,8 @@ function initTesterCompareTab() {
         scSel.value = currentTesterScenarioKey || 'auto';
     }
 
+    updateQuickSelectButtons(currentTesterReportKey);
+
     let report = window.TESTER_REPORTS[currentTesterReportKey];
     if (!report) return;
 
@@ -654,6 +675,50 @@ function initTesterCompareTab() {
     renderParameterDriftTable(report, currentTesterScenarioKey);
     drawTesterCompareChart(report, currentTesterScenarioKey);
     renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
+}
+
+function quickSelectTesterReport(type, event) {
+    let keys = Object.keys(window.TESTER_REPORTS || {});
+    let targetKey = '';
+    if (type === 'full') {
+        targetKey = keys.find(k => k.includes('64Trades') || (window.TESTER_REPORTS[k] && window.TESTER_REPORTS[k].trades && window.TESTER_REPORTS[k].trades.length >= 30));
+    } else if (type === 'kings') {
+        targetKey = keys.find(k => k.includes('6Trades') || (window.TESTER_REPORTS[k] && window.TESTER_REPORTS[k].trades && window.TESTER_REPORTS[k].trades.length <= 10));
+    }
+    if (!targetKey && keys.length > 0) targetKey = keys[0];
+
+    if (targetKey) {
+        let sel = document.getElementById('testerRunSelector');
+        if (sel) sel.value = targetKey;
+        switchTesterReport(targetKey);
+    }
+}
+
+function updateQuickSelectButtons(reportKey) {
+    let btnFull = document.getElementById('btnSelectAllTrades');
+    let btnKings = document.getElementById('btnSelectKingsTrades');
+    let r = window.TESTER_REPORTS && window.TESTER_REPORTS[reportKey];
+    let cnt = r && r.trades ? r.trades.length : 0;
+    if (btnFull && btnKings) {
+        if (cnt >= 30 || (reportKey && reportKey.includes('64Trades'))) {
+            btnFull.classList.add('active');
+            btnFull.style.color = '#38bdf8';
+            btnFull.style.fontWeight = 'bold';
+            btnKings.classList.remove('active');
+            btnKings.style.color = '#cbd5e1';
+            btnKings.style.fontWeight = 'normal';
+        } else if (cnt <= 10 || (reportKey && reportKey.includes('6Trades'))) {
+            btnKings.classList.add('active');
+            btnKings.style.color = '#38bdf8';
+            btnKings.style.fontWeight = 'bold';
+            btnFull.classList.remove('active');
+            btnFull.style.color = '#cbd5e1';
+            btnFull.style.fontWeight = 'normal';
+        } else {
+            btnFull.classList.remove('active');
+            btnKings.classList.remove('active');
+        }
+    }
 }
 
 function switchTesterScenario(scenarioKey) {
@@ -680,6 +745,7 @@ function switchTesterReport(reportKey) {
     window.userHasManuallySelectedReport = true;
     currentTesterReportKey = reportKey;
     window.currentTesterReportKey = reportKey;
+    updateQuickSelectButtons(reportKey);
     let report = window.TESTER_REPORTS[reportKey];
     renderTesterHeaderBadges(report);
     renderForensicCallout(report, currentTesterScenarioKey);
@@ -692,12 +758,12 @@ function switchTesterReport(reportKey) {
 function resetToInitialTesterReport() {
     let keys = getSortedTesterReportKeys();
     if (keys.length > 0) {
-        let latestKey = keys[0];
+        let fullKey = keys.find(k => k.includes('64Trades') || (window.TESTER_REPORTS[k] && window.TESTER_REPORTS[k].trades && window.TESTER_REPORTS[k].trades.length >= 30)) || keys[0];
         let sel = document.getElementById('testerRunSelector');
-        if (sel) sel.value = latestKey;
-        switchTesterReport(latestKey);
-        let nTrades = (window.TESTER_REPORTS[latestKey] && window.TESTER_REPORTS[latestKey].trades) ? window.TESTER_REPORTS[latestKey].trades.length : 0;
-        alert('🔄 به آخرین تست استراتژی تستر متاتریدر ۵ بازنشانی شد:\n\n' + latestKey + ' (' + nTrades + ' معامله)');
+        if (sel) sel.value = fullKey;
+        switchTesterReport(fullKey);
+        let nTrades = (window.TESTER_REPORTS[fullKey] && window.TESTER_REPORTS[fullKey].trades) ? window.TESTER_REPORTS[fullKey].trades.length : 0;
+        alert('🔄 به تست ۱۰ روزه جامع متاتریدر ۵ بازنشانی شد:\n\n' + fullKey + ' (' + nTrades + ' معامله)');
     }
 }
 
