@@ -402,7 +402,7 @@ function resolveActiveScenario(scenarioKey, report) {
         if (scName.includes('shield') || scName.includes('stop')) {
             return scenarios.find(s => s.id === 'shield') || scenarios[1];
         }
-        if (scName.includes('base') || scName.includes('all')) {
+        if (scName.includes('base') || scName.includes('all') || scName.includes('default') || p.InpEnableKingsM1 === true) {
             return scenarios.find(s => s.id === 'base') || scenarios[1];
         }
         return scenarios.find(s => s.id === 'golden') || scenarios[1];
@@ -1127,14 +1127,32 @@ function drawTesterCompareChart(report, scenarioKey) {
 
     let dpr = window.devicePixelRatio || 1;
     let rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
+    let w = rect.width || canvas.offsetWidth || canvas.clientWidth || (canvas.parentElement ? canvas.parentElement.clientWidth : 0);
+    let h = rect.height || canvas.offsetHeight || canvas.clientHeight || (canvas.parentElement ? canvas.parentElement.clientHeight : 0) || 320;
 
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    if (w <= 0 || h <= 0) {
+        if (!canvas._retryCount) canvas._retryCount = 0;
+        if (canvas._retryCount < 40) {
+            canvas._retryCount++;
+            requestAnimationFrame(() => setTimeout(() => drawTesterCompareChart(report, scenarioKey), 50));
+        }
+        return;
+    }
+    canvas._retryCount = 0;
+
+    if (window.ResizeObserver && canvas.parentElement && !canvas._roAttached) {
+        canvas._roAttached = true;
+        let ro = new ResizeObserver(() => {
+            let curRep = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey]) || report;
+            drawTesterCompareChart(curRep, window.currentTesterScenarioKey);
+        });
+        ro.observe(canvas.parentElement);
+    }
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
     ctx.scale(dpr, dpr);
 
-    let w = rect.width;
-    let h = rect.height;
     let padLeft = 45;
     let padRight = 65;
     let padTop = 25;
@@ -1511,6 +1529,8 @@ function drawTesterCompareChart(report, scenarioKey) {
                     } else {
                         indResultHtml = '<span style="color:#f87171;font-weight:bold;direction:ltr;">-$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:10px;color:#fca5a5;">(استاپ)</span>';
                     }
+                } else if (pt.tEntryTime && pt.tEntryTime < '2026.08.28') {
+                    indResultHtml = '<span style="color:#94a3b8;font-size:10px;">📅 قبل از بازه چارت زنده (۲۶ و ۲۷ اوت)</span>';
                 } else if (pt.tTF === 'M5' || pt.tTF === 'M15') {
                     indResultHtml = '<span style="color:#38bdf8;font-size:10px;">معامله در تایم ' + pt.tTF + ' (فیلتر نویز M1 فعال بود)</span>';
                 } else {
