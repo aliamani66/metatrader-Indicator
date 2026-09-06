@@ -101,8 +101,9 @@ def load_tester_reports(reports_dir):
             exec_time_str = datetime.datetime.fromtimestamp(mtime).strftime('%Y.%m.%d %H:%M')
             data['mtime'] = mtime
             data['fileTime'] = exec_time_str
-            if 'executionTime' not in data or not data['executionTime']:
-                data['executionTime'] = exec_time_str
+            data['realExecutionTime'] = exec_time_str
+            data['executionTime'] = exec_time_str
+            data['exportedAt'] = exec_time_str
             reports[fname] = data
         except Exception as e:
             print(f"⚠️ خطا در پردازش ساختار گزارش تستر {fname}: {e}")
@@ -129,7 +130,7 @@ def get_tester_compare_html(reports_dict, default_key):
         elif date_range:
             date_part = date_range
         
-        exec_time = v.get('executionTime') or v.get('fileTime') or ''
+        exec_time = v.get('fileTime') or v.get('realExecutionTime') or v.get('executionTime') or ''
         if not exec_time and v.get('mtime'):
             exec_time = datetime.datetime.fromtimestamp(v['mtime']).strftime('%Y.%m.%d %H:%M')
         time_part = f' | ⏱️ انجام تست: {exec_time}' if exec_time else ''

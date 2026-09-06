@@ -150,6 +150,9 @@ function getAvailableTesterScenarios() {
     let curPf = (window.currentActiveSimStats && window.currentActiveSimStats.pf) ? window.currentActiveSimStats.pf : ((curActivePreset && curActivePreset.pf) ? curActivePreset.pf : 3.94);
     let curNet = (window.currentActiveSimStats && window.currentActiveSimStats.net !== undefined) ? ((window.currentActiveSimStats.net >= 0 ? '+$' : '-$') + Math.abs(window.currentActiveSimStats.net).toFixed(2)) : ((curActivePreset && curActivePreset.net) ? ((curActivePreset.net >= 0 ? '+$' : '-$') + Math.abs(curActivePreset.net).toFixed(2)) : '+180.9 pips');
 
+    let isRawEquity = curActiveTitle.includes('خام') || curActiveTitle.includes('کل معاملات');
+    let curTfM1 = isRawEquity ? 'فعال (True) - شامل تمام معاملات M1' : ((curActivePreset && curActivePreset.tfM1 !== undefined) ? (curActivePreset.tfM1 ? 'فعال (True)' : 'غیرفعال (False)') : 'غیرفعال (False) - بدون معامله در M1');
+
     let list = [
         {
             id: 'equity_active',
@@ -159,7 +162,7 @@ function getAvailableTesterScenarios() {
             badge: 'نمودار رشد',
             minPot: curMinPot,
             minPotDisplay: '$' + curMinPot.toFixed(2) + (curMinPot > 0 ? '+' : ' (بدون محدودیت)'),
-            tfM1: 'غیرفعال (False) - بدون معامله در M1',
+            tfM1: curTfM1,
             hoursDisplay: formatHours(curHours, (curActivePreset ? curActivePreset.hours_name : '')),
             hours: curHours,
             allowedKings: formatAllowedKings(curKings),
@@ -177,7 +180,7 @@ function getAvailableTesterScenarios() {
             badge: 'هوشمند',
             minPot: pChamp ? pChamp.min_pot : 0.0,
             minPotDisplay: pChamp ? ('$' + pChamp.min_pot.toFixed(2) + ' (خودکار)') : '$0.00 (خودکار)',
-            tfM1: 'غیرفعال (False)',
+            tfM1: 'هوشمند (طبق تستر)',
             hoursDisplay: 'هوشمند / طبق تستر',
             allowedKings: 'بررسی هوشمند',
             disabledKings: 'بررسی هوشمند',
@@ -437,7 +440,7 @@ function parseReportSortKey(k) {
     }
     
     let mt = r.mtime || 0;
-    let exp = r.exportedAt || r.executionTime || r.fileTime || '';
+    let exp = r.fileTime || r.realExecutionTime || r.executionTime || r.exportedAt || '';
     if (!mt && exp) {
         let parsed = Date.parse(exp.replace(/\./g, '-'));
         if (!isNaN(parsed)) mt = parsed / 1000;
@@ -501,7 +504,7 @@ function formatTesterOptionLabel(k, r) {
         datePart = `بازه: ${dr}`;
     }
     
-    let execTime = r.executionTime || r.fileTime || '';
+    let execTime = r.fileTime || r.realExecutionTime || '';
     if (!execTime && r.mtime) {
         let dt = new Date(r.mtime * 1000);
         let y = dt.getFullYear();
@@ -510,6 +513,9 @@ function formatTesterOptionLabel(k, r) {
         let h = String(dt.getHours()).padStart(2, '0');
         let min = String(dt.getMinutes()).padStart(2, '0');
         execTime = `${y}.${mon}.${d} ${h}:${min}`;
+    }
+    if (!execTime) {
+        execTime = r.executionTime || r.exportedAt || '';
     }
     let timeBadge = execTime ? ` | ⏱️ انجام تست: ${execTime}` : '';
 
@@ -710,7 +716,8 @@ function renderTesterHeaderBadges(report) {
     if (trBadge) trBadge.textContent = nTrades + ' ستاپ (' + (nTrades * 4) + ' پوزیشن)';
 
     let exBadge = document.getElementById('tcBadgeExportTime');
-    if (exBadge) exBadge.textContent = report.exportedAt || '-';
+    let exTime = report.fileTime || report.realExecutionTime || report.executionTime || report.exportedAt || '-';
+    if (exBadge) exBadge.textContent = exTime;
 }
 
 function renderTesterKPIs(report, scenarioKey) {
@@ -1322,9 +1329,12 @@ function drawTesterCompareChart(report, scenarioKey) {
                 // Check if trade is allowed by active scenario
                 let isAllowed = true;
                 let filterReason = '';
-                if (tTF === 'M1' && scenario.tfM1 && !scenario.tfM1.includes('فعال (True)')) {
-                    isAllowed = false;
-                    filterReason = 'فیلتر نویز M1';
+                if (tTF === 'M1') {
+                    let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند'));
+                    if (!allowsM1) {
+                        isAllowed = false;
+                        filterReason = 'فیلتر نویز M1';
+                    }
                 }
                 if (isAllowed) {
                     let h = tEntryTime.length >= 13 ? parseInt(tEntryTime.substring(11, 13)) : 0;
