@@ -402,6 +402,9 @@ void ExportTesterRunSummary()
       double setupProfitUSD = 0.0;
       double setupProfitPips = 0.0;
       datetime closeTime = m_activeGroups[g].entryTime;
+      int tpsHit = 0;
+      bool fullSL = false;
+      bool hasDeals = false;
       bool isBuy = m_activeGroups[g].isBuy;
       double tp1 = m_activeGroups[g].tp1;
       double tp2 = m_activeGroups[g].tp2;
