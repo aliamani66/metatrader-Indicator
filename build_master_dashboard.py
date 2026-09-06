@@ -2913,29 +2913,29 @@ def process_symbol_dataset(csv_file):
     tab_kings_html = f"""<!-- Global Performance KPI Cards (Placed inside Tab 1) -->
             <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:10px;margin-bottom:20px;">
                 <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
-                    <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
-                    <div class="kpi-value" style="color:#38bdf8;">{total_setups:,}</div>
-                    <div class="kpi-sub">تایم‌های {tfs_str}</div>
+                    <div class="kpi-title">📦 کل الگوهای شناسایی‌شده چارت</div>
+                    <div class="kpi-value" style="color:#38bdf8;">{total_setups:,} باکس</div>
+                    <div class="kpi-sub">{len(pending):,} منقضی بدون ورود{f" | {len(in_trade)} فعال باز" if len(in_trade) > 0 else ""}</div>
                 </div>
-                <div class="kpi-card" style="border-top: 4px solid #00e676;">
-                    <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
-                    <div class="kpi-value" style="color:#00e676;">{len(closed):,}</div>
-                    <div class="kpi-sub">{len(pending):,} باکس بدون ورود / منقضی{f" | {len(in_trade)} معامله فعال" if len(in_trade) > 0 else ""}</div>
+                <div class="kpi-card" style="border-top: 4px solid #94a3b8;">
+                    <div class="kpi-title">🌐 کل معاملات بسته‌شده چارت</div>
+                    <div class="kpi-value" style="color:#e2e8f0;">{len(closed):,} معامله</div>
+                    <div class="kpi-sub">مجموع تمام الگوهای فعال چارت</div>
                 </div>
-                <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
-                    <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
-                    <div class="kpi-value" style="color:#f59e0b;">{sl_in_rej} 🎯</div>
-                    <div class="kpi-sub">دقت فیلتر در باخت: {rej_accuracy:.1f}%</div>
+                <div class="kpi-card" style="border-top: 4px solid #facc15;background:linear-gradient(180deg, #1c1917, #281d04);">
+                    <div class="kpi-title" style="color:#fde047;font-weight:bold;">👑 معاملات ۵ سلطان برگزیده</div>
+                    <div class="kpi-value" style="color:#facc15;font-weight:900;">{tot_k_cnt:,} معامله</div>
+                    <div class="kpi-sub" style="color:#fef08a;">سود: ${s3_net:+.2f} | وین‌ریت: {d_tot_kings['w1_p']:.1f}٪</div>
+                </div>
+                <div class="kpi-card" style="border-top: 4px solid #ef4444;">
+                    <div class="kpi-title">🚫 الگوهای ردشده با فیلتر سلاطین</div>
+                    <div class="kpi-value" style="color:#f87171;">{len(closed) - tot_k_cnt:,} معامله</div>
+                    <div class="kpi-sub">حذف الگوهای ناموفق و زیان‌ده چارت</div>
                 </div>
                 <div class="kpi-card" style="border-top: 4px solid #10b981;">
                     <div class="kpi-title">🚀 جهش امید ریاضی (EV)</div>
                     <div class="kpi-value" style="color:#10b981;">{ev_a:+.2f} R</div>
                     <div class="kpi-sub">قبل از فیلتر: {ev_b:+.2f} R</div>
-                </div>
-                <div class="kpi-card" style="border-top: 4px solid #eab308;">
-                    <div class="kpi-title">💵 سود خالص دلاری سلاطین (0.04)</div>
-                    <div class="kpi-value" style="color:#facc15;">${s3_net:+.2f}</div>
-                    <div class="kpi-sub">از {tot_k_cnt} معامله سلاطین برتر</div>
                 </div>
                 <div class="kpi-card" style="border-top: 4px solid #a855f7;">
                     <div class="kpi-title">⏱️ میانگین انتظار تا ورود (پولبک)</div>
@@ -3928,7 +3928,8 @@ def build_dashboard(custom_csv=None):
     for s_name, s_info in sorted(symbols_data.items()):
         sel_attr = 'selected' if s_name == default_sym else ''
         c_count = s_info.get("closed_count", len(s_info.get("trades_json_list", [])))
-        symbol_options_list.append(f'<option value="{s_name}" {sel_attr}>{s_name} ({s_info["tfs_str"]}) - {c_count} معامله</option>')
+        k_count = s_info.get("tot_k_cnt", 0)
+        symbol_options_list.append(f'<option value="{s_name}" {sel_attr}>{s_name} ({s_info["tfs_str"]}) - کل: {c_count} | سلاطین: {k_count} معامله</option>')
     symbol_options_html = "\n".join(symbol_options_list)
 
     # Client payload for all symbols
@@ -3942,6 +3943,9 @@ def build_dashboard(custom_csv=None):
             'date_start_str': s_data['date_start_str'],
             'date_end_str': s_data['date_end_str'],
             'bal_initial': s_data['bal_initial'],
+            'tot_k_cnt': s_data.get('tot_k_cnt', 0),
+            'closed_count': s_data.get('closed_count', 0),
+            'total_setups': s_data.get('total_setups', 0),
             'kings_sim_list': s_data['kings_sim_list'],
             'top3_sl_cnt_keys': s_data['top3_sl_cnt_keys'],
             'top3_sl_usd_keys': s_data['top3_sl_usd_keys'],

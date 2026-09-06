@@ -133,14 +133,16 @@ function initApp() {
         }
     } catch(e) {}
 
-    if (typeof initPersistedSymbols === 'function') initPersistedSymbols();
-    if (typeof switchDashboardSymbol === 'function' && typeof currentActiveSymbol !== 'undefined') {
+    if (typeof initPersistedSymbols === 'function') {
+        initPersistedSymbols();
+    } else if (typeof switchDashboardSymbol === 'function' && typeof currentActiveSymbol !== 'undefined') {
         switchDashboardSymbol(currentActiveSymbol);
     }
     if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents();
     if (typeof initSimUI === 'function') initSimUI();
     if (typeof renderTrades === 'function') renderTrades();
     if (typeof initTesterCompareTab === 'function') initTesterCompareTab();
+    if (typeof runEquitySimulation === 'function') runEquitySimulation();
     if (typeof drawEquityChart === 'function') drawEquityChart();
     if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
         drawWeeklyBarChart(currentWeeklyBarMode);
@@ -154,14 +156,18 @@ function initApp() {
         if (typeof drawEquityChart === 'function') drawEquityChart();
         setTimeout(() => {
             if (typeof drawEquityChart === 'function') drawEquityChart();
-        }, 100);
+        }, 80);
         setTimeout(() => {
             if (typeof drawEquityChart === 'function') drawEquityChart();
-        }, 300);
+        }, 250);
     });
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
-window.addEventListener('load', initApp);
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(initApp, 10);
+} else {
+    window.addEventListener('DOMContentLoaded', initApp);
+    window.addEventListener('load', initApp);
+}
 
 

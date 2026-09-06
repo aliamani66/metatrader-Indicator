@@ -96,11 +96,12 @@ function setTrFilter(key, val, btnElem) {
                 if (tr.t1 === 1) cntWin1++;
                 else cntLoss++;
                 if (tr.t4 === 1) cntWin4++;
-                if (tr.wait_m !== undefined && tr.wait_m > 0) {
-                    sumWait += tr.wait_m;
+                let wVal = (tr.wait_m !== undefined && tr.wait_m !== null) ? Number(tr.wait_m) : NaN;
+                if (!isNaN(wVal) && wVal >= 0) {
+                    sumWait += wVal;
                     cntWait++;
-                    if (tr.wait_m < minWait) minWait = tr.wait_m;
-                    if (tr.wait_m > maxWait) maxWait = tr.wait_m;
+                    if (wVal < minWait) minWait = wVal;
+                    if (wVal > maxWait) maxWait = wVal;
                 }
             }
 
@@ -133,11 +134,11 @@ function setTrFilter(key, val, btnElem) {
             if (kpiAvgWait) {
                 if (cntWait > 0) {
                     let avgM = sumWait / cntWait;
-                    let fmt = avgM < 60 ? avgM.toFixed(0) + ' دقیقه' : (avgM / 60).toFixed(1) + ' ساعت';
+                    let fmt = avgM < 60 ? Math.round(avgM) + ' دقیقه' : (avgM / 60).toFixed(1) + ' ساعت';
                     kpiAvgWait.textContent = fmt;
                     if (kpiAvgWaitSub) {
-                        let minFmt = minWait < 60 ? minWait.toFixed(0) + 'm' : (minWait / 60).toFixed(1) + 'h';
-                        let maxFmt = maxWait < 60 ? maxWait.toFixed(0) + 'm' : (maxWait / 60).toFixed(1) + 'h';
+                        let minFmt = minWait < 60 ? Math.round(minWait) + 'm' : (minWait / 60).toFixed(1) + 'h';
+                        let maxFmt = maxWait < 60 ? Math.round(maxWait) + 'm' : (maxWait / 60).toFixed(1) + 'h';
                         kpiAvgWaitSub.textContent = 'بازه: ' + minFmt + ' تا ' + maxFmt;
                     }
                 } else {

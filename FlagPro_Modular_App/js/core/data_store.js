@@ -1,4 +1,4 @@
-var currentActiveSymbol = 'EURUSD';
+var currentActiveSymbol = 'GBPUSD';
 var dataWeeklyBars = [];
 var kingsSimList = [];
 var top3SLCntKeys = [];
@@ -233,10 +233,11 @@ function switchDashboardSymbol(symName) {
                     sel.innerHTML = '';
                     for (let sym in window.ALL_SYMBOLS_DATA) {
                         let sData = window.ALL_SYMBOLS_DATA[sym];
-                        let trCount = (sData.trades_json_list ? sData.trades_json_list.length : (sData.trades_sim_list ? sData.trades_sim_list.length : 0));
+                        let cCount = (sData.closed_count || (sData.trades_json_list ? sData.trades_json_list.length : (sData.trades_sim_list ? sData.trades_sim_list.length : 0)));
+                        let kCount = (sData.tot_k_cnt !== undefined ? sData.tot_k_cnt : (sData.trades_sim_list ? sData.trades_sim_list.filter(t => t.k === 1).length : (sData.kings_sim_list ? sData.kings_sim_list.length : 0)));
                         let opt = document.createElement('option');
                         opt.value = sym;
-                        opt.textContent = (sData.symbol || sym) + ' (' + (sData.tfs_str || 'M1, M15, M5') + ') - ' + trCount + ' معامله';
+                        opt.textContent = (sData.symbol || sym) + ' (' + (sData.tfs_str || 'M1, M5') + ') - کل: ' + cCount + ' | سلاطین: ' + kCount + ' معامله';
                         sel.appendChild(opt);
                     }
                 }
@@ -259,19 +260,41 @@ function switchDashboardSymbol(symName) {
                     }
                 }
 
+                // Determine active symbol: prefer last valid symbol with kings, else GBPUSD, else symbol with most kings
+                let targetSym = null;
                 let lastSym = localStorage.getItem('FLAGPRO_LAST_ACTIVE_SYMBOL');
                 if (lastSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[lastSym]) {
-                    if (sel) sel.value = lastSym;
-                    switchDashboardSymbol(lastSym);
-                } else if (typeof currentActiveSymbol !== 'undefined' && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[currentActiveSymbol]) {
-                    if (sel) sel.value = currentActiveSymbol;
-                    switchDashboardSymbol(currentActiveSymbol);
-                } else if (window.ALL_SYMBOLS_DATA && Object.keys(window.ALL_SYMBOLS_DATA).length > 0) {
-                    let firstSym = Object.keys(window.ALL_SYMBOLS_DATA)[0];
-                    if (sel) sel.value = firstSym;
-                    switchDashboardSymbol(firstSym);
+                    let kCnt = (window.ALL_SYMBOLS_DATA[lastSym].kings_sim_list || []).length;
+                    if (kCnt > 0) {
+                        targetSym = lastSym;
+                    }
                 }
-            } catch(e) {}
+
+                if (!targetSym && window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA['GBPUSD']) {
+                    targetSym = 'GBPUSD';
+                }
+
+                if (!targetSym && window.ALL_SYMBOLS_DATA && Object.keys(window.ALL_SYMBOLS_DATA).length > 0) {
+                    let symKeys = Object.keys(window.ALL_SYMBOLS_DATA);
+                    symKeys.sort((a, b) => {
+                        let kA = (window.ALL_SYMBOLS_DATA[a].kings_sim_list || []).length;
+                        let kB = (window.ALL_SYMBOLS_DATA[b].kings_sim_list || []).length;
+                        if (kB !== kA) return kB - kA;
+                        let tA = (window.ALL_SYMBOLS_DATA[a].trades_sim_list || []).length;
+                        let tB = (window.ALL_SYMBOLS_DATA[b].trades_sim_list || []).length;
+                        return tB - tA;
+                    });
+                    targetSym = symKeys[0];
+                }
+
+                if (targetSym) {
+                    currentActiveSymbol = targetSym;
+                    if (sel) sel.value = targetSym;
+                    switchDashboardSymbol(targetSym);
+                }
+            } catch(e) {
+                console.error('initPersistedSymbols error:', e);
+            }
         }
 
         function handleCSVFileUpload(input) {

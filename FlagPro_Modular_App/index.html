@@ -93,8 +93,8 @@
                     <div style="display:flex;align-items:center;gap:6px;background:#081420;border:1px solid #38bdf8;padding:4px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(56,189,248,0.15);">
                         <label for="symbolSelector" style="font-size:11.5px;color:#94a3b8;font-weight:bold;">🌍 نماد / جفت‌ارز:</label>
                         <select id="symbolSelector" onchange="switchDashboardSymbol(this.value)" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;font-weight:bold;padding:4px 8px;border-radius:6px;font-size:12px;outline:none;cursor:pointer;">
-                            <option value="GBPUSD" selected>GBPUSD (M1, M15, M5)</option>
-                            <option value="EURUSD">EURUSD (M1, M15, M5)</option>
+                            <option value="GBPUSD" selected>GBPUSD (M1, M5) - کل: ۲۲۷ | سلاطین: ۴۴ معامله</option>
+                            <option value="EURUSD">EURUSD (M1, M5)</option>
                         </select>
                     </div>
                     <button onclick="triggerCSVUploadClick()" style="background:linear-gradient(135deg, #064e3b, #059669);border:1px solid #34d399;color:#fff;padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.3);" title="انتخاب مستقیم فایل CSV یا Drag & Drop فایل به داخل مرورگر (مسیر پوشه Files خودکار در کلیپ‌بورد کپی می‌شود)" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='linear-gradient(135deg, #064e3b, #059669)'">
@@ -150,7 +150,7 @@
                     </div>
 
                     <!-- KPI Summary Cards for Filtered Trades -->
-                    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;margin-bottom:10px;">
+                    <div class="kpi-grid journal-kpi-grid" style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px;margin-bottom:10px;">
                         <div class="kpi-card" style="padding:10px 14px;border-color:#38bdf8;background:#0c2d48;">
                             <div class="kpi-title" style="font-size:11px;">تعداد کل معاملات فیلترشده</div>
                             <div class="kpi-value" id="trKpiCount" style="font-size:20px;color:#38bdf8;">-</div>
@@ -808,7 +808,6 @@
 
     <!-- Scripts (Modular Architecture) -->
     <script src="data/initial_data.js"></script>
-    <script src="js/core/app.js"></script>
     <script src="js/core/data_store.js"></script>
     <script src="js/core/exporter.js"></script>
     <script src="js/tabs/tab_tester_compare.js"></script>
@@ -817,5 +816,6 @@
     <script src="js/tabs/tab_timeframes.js"></script>
     <script src="js/tabs/tab_journal.js"></script>
     <script src="js/tabs/tab_equity.js"></script>
+    <script src="js/core/app.js"></script>
 </body>
 </html>
