@@ -1433,12 +1433,12 @@ function generateClientWeeklyHTML(detectedSym, rawTrades, clientKingsSimList, cl
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
                 <div style="display:flex;gap:8px;">
-                    <button class="sort-btn active" id="btnWkKings" onclick="switchWeeklyBarMode('kings')">👑 فقط معاملات سلاطین</button>
-                    <button class="sort-btn" id="btnWkAll" onclick="switchWeeklyBarMode('all')">🌐 کل معاملات خام چارت</button>
+                    <button class="sort-btn btn-wk-kings active" id="btnWkKings" onclick="switchWeeklyBarMode('kings')">👑 فقط معاملات سلاطین</button>
+                    <button class="sort-btn btn-wk-all" id="btnWkAll" onclick="switchWeeklyBarMode('all')">🌐 کل معاملات خام چارت</button>
                 </div>
             </div>
             <div style="position:relative;width:100%;height:320px;">
-                <canvas id="weeklyBarCanvas" style="width:100%;height:100%;display:block;"></canvas>
+                <canvas id="weeklyBarCanvas" class="weekly-bar-canvas" style="width:100%;height:100%;display:block;cursor:pointer;"></canvas>
                 <div id="weeklyBarTooltip" style="display:none;position:absolute;background:#0f172a;border:1px solid #38bdf8;border-radius:6px;padding:8px 12px;font-size:12px;color:#fff;pointer-events:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.5);"></div>
             </div>
         </div>

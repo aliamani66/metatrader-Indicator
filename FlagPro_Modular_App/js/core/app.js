@@ -27,6 +27,11 @@ function openTab(evt, tabId) {
                         drawWeeklyBarChart(currentWeeklyBarMode);
                     }
                 }, 50);
+                setTimeout(() => {
+                    if (typeof drawWeeklyBarChart === 'function' && typeof currentWeeklyBarMode !== 'undefined') {
+                        drawWeeklyBarChart(currentWeeklyBarMode);
+                    }
+                }, 150);
             }
 
             if (tabId === 'tab-trades') {

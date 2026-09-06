@@ -2,264 +2,379 @@ var currentWeeklyBarMode = (typeof currentWeeklyBarMode !== 'undefined') ? curre
 var dataWeeklyBars = (typeof dataWeeklyBars !== 'undefined') ? dataWeeklyBars : [];
 
 function switchWeeklyBarMode(mode) {
-            currentWeeklyBarMode = mode;
-            let btnK = document.getElementById('btnWkKings');
-            let btnA = document.getElementById('btnWkAll');
-            if(mode === 'kings') {
-                if(btnK) btnK.classList.add('active');
-                if(btnA) btnA.classList.remove('active');
-            } else {
-                if(btnK) btnK.classList.remove('active');
-                if(btnA) btnA.classList.add('active');
-            }
-            drawWeeklyBarChart(mode);
+    currentWeeklyBarMode = mode;
+    let kingsBtns = document.querySelectorAll('#btnWkKings, #btnEqWkKings, .btn-wk-kings');
+    let allBtns = document.querySelectorAll('#btnWkAll, #btnEqWkAll, .btn-wk-all');
+
+    if (mode === 'kings') {
+        kingsBtns.forEach(b => b.classList.add('active'));
+        allBtns.forEach(b => b.classList.remove('active'));
+    } else {
+        kingsBtns.forEach(b => b.classList.remove('active'));
+        allBtns.forEach(b => b.classList.add('active'));
+    }
+    drawWeeklyBarChart(mode);
+}
+
+function computeWeeklyBarsFromTrades(trades) {
+    if (!trades || trades.length === 0) return [];
+    let weekMap = {};
+    trades.forEach(t => {
+        let timeStr = t.en_t || t.t || t.entryTime || '';
+        if (!timeStr || timeStr.length < 10) return;
+        let dStr = timeStr.substring(0, 10).replace(/\./g, '-');
+        let dt = new Date(dStr);
+        if (isNaN(dt.getTime())) return;
+
+        // ISO Week
+        let target = new Date(dt.valueOf());
+        let dayNr = (dt.getDay() + 6) % 7;
+        target.setDate(target.getDate() - dayNr + 3);
+        let firstThursday = target.valueOf();
+        target.setMonth(0, 1);
+        if (target.getDay() !== 4) {
+            target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+        }
+        let wk = 1 + Math.ceil((firstThursday - target) / 604800000);
+        let yr = dt.getFullYear();
+        let key = yr + '-W' + (wk < 10 ? '0' + wk : wk);
+
+        if (!weekMap[key]) {
+            weekMap[key] = {
+                week: wk,
+                year: yr,
+                dates: '',
+                firstDate: dStr,
+                lastDate: dStr,
+                k_pnl: 0,
+                k_trades: 0,
+                k_wins: 0,
+                k_losses: 0,
+                all_pnl: 0,
+                all_trades: 0,
+                all_wins: 0,
+                all_losses: 0
+            };
         }
 
-        function drawWeeklyBarChart(mode) {
-            let canvas = document.getElementById('weeklyBarCanvas');
-            if (!canvas) return;
-            let ctx = canvas.getContext('2d');
-            if (!ctx) return;
+        let w = weekMap[key];
+        if (dStr < w.firstDate) w.firstDate = dStr;
+        if (dStr > w.lastDate) w.lastDate = dStr;
 
-            let dpr = window.devicePixelRatio || 1;
+        let pnl = (t.net !== undefined ? Number(t.net) : (t.pnl !== undefined ? Number(t.pnl) : (t.profitUSD !== undefined ? Number(t.profitUSD) : 0)));
+        let isWin = (t.t1 === 1 || t.HitTargetRatio >= 1 || pnl > 0);
+        let isKing = t.is_k === 1 || t.k === 1 || (t.role && (t.role.includes('Inner') || t.role.includes('RS')));
+
+        w.all_trades++;
+        w.all_pnl += pnl;
+        if (isWin) w.all_wins++; else w.all_losses++;
+
+        if (isKing) {
+            w.k_trades++;
+            w.k_pnl += pnl;
+            if (isWin) w.k_wins++; else w.k_losses++;
+        }
+    });
+
+    return Object.keys(weekMap).sort().map(k => {
+        let w = weekMap[k];
+        w.k_pnl = Math.round(w.k_pnl * 100) / 100;
+        w.all_pnl = Math.round(w.all_pnl * 100) / 100;
+        w.k_wr = w.k_trades > 0 ? Math.round((w.k_wins / w.k_trades) * 1000) / 10 : 0;
+        w.all_wr = w.all_trades > 0 ? Math.round((w.all_wins / w.all_trades) * 1000) / 10 : 0;
+        w.dates = w.firstDate.substring(5).replace('-', '.') + ' - ' + w.lastDate.substring(5).replace('-', '.');
+        return w;
+    });
+}
+
+function drawWeeklyBarChart(mode) {
+    mode = mode || currentWeeklyBarMode || 'kings';
+
+    let canvases = document.querySelectorAll('canvas.weekly-bar-canvas, #weeklyBarCanvas, #eqWeeklyBarCanvas');
+    if (!canvases || canvases.length === 0) return;
+
+    let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'GBPUSD';
+    let cleanSym = sym.replace(/[!#]/g, '').trim();
+    let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym])) || {};
+
+    let bars = (typeof dataWeeklyBars !== 'undefined' && Array.isArray(dataWeeklyBars) && dataWeeklyBars.length > 0)
+        ? dataWeeklyBars
+        : (sData.weekly_bar_data && sData.weekly_bar_data.length > 0)
+            ? sData.weekly_bar_data
+            : [];
+
+    if (!bars || bars.length === 0) {
+        let trList = sData.trades_json_list || sData.trades_sim_list || (typeof allTrades !== 'undefined' ? allTrades : []);
+        if (trList && trList.length > 0) {
+            bars = computeWeeklyBarsFromTrades(trList);
+        }
+    }
+
+    canvases.forEach(canvas => {
+        drawSingleWeeklyBarCanvas(canvas, mode, bars);
+    });
+}
+
+function drawSingleWeeklyBarCanvas(canvas, mode, bars) {
+    if (!canvas) return;
+    let dpr = window.devicePixelRatio || 1;
+    let rect = canvas.getBoundingClientRect();
+    let w = rect.width || canvas.offsetWidth || canvas.clientWidth || (canvas.parentElement ? canvas.parentElement.clientWidth : 0);
+    let h = rect.height || canvas.offsetHeight || canvas.clientHeight || (canvas.parentElement ? canvas.parentElement.clientHeight : 0) || 300;
+
+    // Skip if hidden/inactive tab
+    if (w <= 0 || h <= 0) return;
+
+    if (window.ResizeObserver && canvas.parentElement && !canvas._roAttached) {
+        canvas._roAttached = true;
+        const ro = new ResizeObserver(() => {
+            requestAnimationFrame(() => drawWeeklyBarChart(currentWeeklyBarMode));
+        });
+        ro.observe(canvas.parentElement);
+    }
+
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    let ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    w = rect.width || w;
+    h = rect.height || h;
+    let padLeft = 45;
+    let padRight = 25;
+    let padTop = 30;
+    let padBottom = 40;
+    let plotW = w - padLeft - padRight;
+    let plotH = h - padTop - padBottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Background
+    ctx.fillStyle = '#0b0f19';
+    ctx.fillRect(0, 0, w, h);
+
+    if (!bars || bars.length === 0) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '13px Segoe UI, Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('هیچ داده‌ای برای این بازه هفتگی یافت نشد.', w / 2, h / 2);
+        return;
+    }
+
+    // Plot area background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(padLeft, padTop, plotW, plotH);
+
+    let minVal = 0;
+    let maxVal = 0;
+    for (let i = 0; i < bars.length; i++) {
+        let val = (mode === 'kings') ? (bars[i].k_pnl || 0) : (bars[i].all_pnl || 0);
+        if (val < minVal) minVal = val;
+        if (val > maxVal) maxVal = val;
+    }
+
+    let absMax = Math.max(Math.abs(minVal), Math.abs(maxVal), 20);
+    absMax = Math.ceil(absMax / 10) * 10;
+    let valRange = absMax * 2;
+
+    // Zero line Y
+    let zeroY = padTop + plotH * (absMax / valRange);
+
+    // Horizontal Grid lines
+    let steps = 4;
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.font = '11px Segoe UI, Tahoma, sans-serif';
+    ctx.textAlign = 'right';
+
+    for (let s = -steps; s <= steps; s += 2) {
+        let val = (absMax / steps) * s;
+        let y = zeroY - (val / valRange) * plotH;
+
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(padLeft + plotW, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        let sign = val > 0 ? '+' : '';
+        ctx.fillText(sign + '$' + val.toFixed(0), padLeft - 6, y + 4);
+    }
+
+    ctx.setLineDash([]);
+
+    // Solid Baseline at $0
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, zeroY);
+    ctx.lineTo(padLeft + plotW, zeroY);
+    ctx.stroke();
+
+    // Draw Bars
+    let numBars = bars.length;
+    let barSlot = plotW / numBars;
+    let barW = Math.min(65, Math.max(12, barSlot * 0.65));
+    let barCoords = [];
+
+    for (let i = 0; i < numBars; i++) {
+        let val = (mode === 'kings') ? (bars[i].k_pnl || 0) : (bars[i].all_pnl || 0);
+        let barH = Math.max(3, (Math.abs(val) / valRange) * plotH);
+        let x = padLeft + i * barSlot + (barSlot - barW) / 2;
+        let y = (val >= 0) ? (zeroY - barH) : zeroY;
+
+        let isGreen = val >= 0;
+        let grad = ctx.createLinearGradient(0, y, 0, y + barH);
+        if (isGreen) {
+            grad.addColorStop(0, '#00e676');
+            grad.addColorStop(1, '#059669');
+        } else {
+            grad.addColorStop(0, '#dc2626');
+            grad.addColorStop(1, '#ef4444');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, barW, barH);
+
+        ctx.strokeStyle = isGreen ? '#34d399' : '#f87171';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barW, barH);
+
+        // Value text above / below bar
+        ctx.font = 'bold 11px Segoe UI, Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = isGreen ? '#34d399' : '#f87171';
+        let valStr = (val >= 0 ? '+$' : '-$') + Math.abs(val).toFixed(2);
+        let valY = isGreen ? (y - 5) : (y + barH + 13);
+        ctx.fillText(valStr, x + barW / 2, valY);
+
+        // Week label on X-axis
+        ctx.font = 'bold 11px Segoe UI, Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#cbd5e1';
+        let wkAxisLabel = bars[i].week !== undefined ? ('هفته ' + bars[i].week) : (bars[i].label || ('هفته ' + (bars[i].week_idx || (i + 1))));
+        ctx.fillText(wkAxisLabel, x + barW / 2, padTop + plotH + 16);
+
+        // Dates range label
+        let dateLabel = bars[i].dates || '';
+        if (dateLabel) {
+            ctx.font = '9.5px Segoe UI, Tahoma, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(dateLabel, x + barW / 2, padTop + plotH + 30);
+        }
+
+        barCoords.push({
+            x: x,
+            y: y,
+            w: barW,
+            h: barH,
+            val: val,
+            item: bars[i]
+        });
+    }
+
+    // Outer Border
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(padLeft, padTop, plotW, plotH);
+
+    canvas._barCoords = barCoords;
+    canvas._padLeft = padLeft;
+    canvas._padTop = padTop;
+    canvas._plotW = plotW;
+    canvas._plotH = plotH;
+}
+
+function initWeeklyBarCanvasEvents() {
+    let canvases = document.querySelectorAll('canvas.weekly-bar-canvas, #weeklyBarCanvas, #eqWeeklyBarCanvas');
+    if (!canvases || canvases.length === 0) return;
+
+    canvases.forEach(canvas => {
+        if (canvas._eventsBound) return;
+        canvas._eventsBound = true;
+
+        let parent = canvas.parentElement;
+        let tt = parent ? parent.querySelector('#weeklyBarTooltip, #eqWeeklyBarTooltip') : null;
+        if (!tt) tt = document.getElementById('weeklyBarTooltip') || document.getElementById('eqWeeklyBarTooltip');
+
+        canvas.addEventListener('mousemove', function(evt) {
+            if (!canvas._barCoords) return;
             let rect = canvas.getBoundingClientRect();
-            let w = rect.width || canvas.offsetWidth || canvas.clientWidth || (canvas.parentElement ? canvas.parentElement.clientWidth : 0);
-            let h = rect.height || canvas.offsetHeight || canvas.clientHeight || (canvas.parentElement ? canvas.parentElement.clientHeight : 0) || 300;
+            let mouseX = evt.clientX - rect.left;
+            let mouseY = evt.clientY - rect.top;
 
-            if (w <= 0 || h <= 0) {
-                if (!canvas._retryCount) canvas._retryCount = 0;
-                if (canvas._retryCount < 40) {
-                    canvas._retryCount++;
-                    requestAnimationFrame(() => setTimeout(() => drawWeeklyBarChart(mode), 50));
+            let found = null;
+            for (let i = 0; i < canvas._barCoords.length; i++) {
+                let b = canvas._barCoords[i];
+                if (mouseX >= b.x - 4 && mouseX <= b.x + b.w + 4) {
+                    found = b;
+                    break;
                 }
-                return;
-            }
-            canvas._retryCount = 0;
-
-            if (window.ResizeObserver && canvas.parentElement && !canvas._roAttached) {
-                canvas._roAttached = true;
-                const ro = new ResizeObserver(() => {
-                    requestAnimationFrame(() => drawWeeklyBarChart(currentWeeklyBarMode));
-                });
-                ro.observe(canvas.parentElement);
             }
 
-            canvas.width = Math.round(w * dpr);
-            canvas.height = Math.round(h * dpr);
-            ctx.scale(dpr, dpr);
-
-            w = rect.width || w;
-            h = rect.height || h;
-            let padLeft = 45;
-            let padRight = 20;
-            let padTop = 25;
-            let padBottom = 35;
-            let plotW = w - padLeft - padRight;
-            let plotH = h - padTop - padBottom;
-
-            let bars = (typeof dataWeeklyBars !== 'undefined' && Array.isArray(dataWeeklyBars) && dataWeeklyBars.length > 0)
-                ? dataWeeklyBars
-                : (window.ALL_SYMBOLS_DATA && typeof currentActiveSymbol !== 'undefined' && (window.ALL_SYMBOLS_DATA[currentActiveSymbol] || window.ALL_SYMBOLS_DATA[currentActiveSymbol.replace(/[!#]/g, '').trim()]))
-                    ? (window.ALL_SYMBOLS_DATA[currentActiveSymbol] || window.ALL_SYMBOLS_DATA[currentActiveSymbol.replace(/[!#]/g, '').trim()]).weekly_bar_data
-                    : [];
-            if (!bars || bars.length === 0) return;
-
-            let minVal = 0;
-            let maxVal = 0;
-            for (let i = 0; i < bars.length; i++) {
-                let val = (mode === 'kings') ? bars[i].k_pnl : bars[i].all_pnl;
-                if (val < minVal) minVal = val;
-                if (val > maxVal) maxVal = val;
-            }
-
-            let absMax = Math.max(Math.abs(minVal), Math.abs(maxVal), 50);
-            absMax = Math.ceil(absMax / 25) * 25;
-            let valRange = absMax * 2;
-
-            ctx.clearRect(0, 0, w, h);
-
-            // Background
-            ctx.fillStyle = '#0b0f19';
-            ctx.fillRect(0, 0, w, h);
-
-            // Plot area
-            ctx.fillStyle = '#0f172a';
-            ctx.fillRect(padLeft, padTop, plotW, plotH);
-
-            // Zero line Y
-            let zeroY = padTop + plotH * (absMax / valRange);
-
-            // Grid lines
-            let steps = 4;
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
-            ctx.font = '11px Segoe UI, Tahoma, sans-serif';
-            ctx.textAlign = 'right';
-
-            for (let s = -steps; s <= steps; s += 2) {
-                let val = (absMax / steps) * s;
-                let y = zeroY - (val / valRange) * plotH;
-
-                ctx.beginPath();
-                ctx.moveTo(padLeft, y);
-                ctx.lineTo(padLeft + plotW, y);
-                ctx.stroke();
-
-                ctx.fillStyle = '#64748b';
-                let sign = val > 0 ? '+' : '';
-                ctx.fillText(sign + '$' + val.toFixed(0), padLeft - 6, y + 4);
-            }
-
-            ctx.setLineDash([]);
-
-            // Solid Baseline at $0
-            ctx.strokeStyle = '#64748b';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(padLeft, zeroY);
-            ctx.lineTo(padLeft + plotW, zeroY);
-            ctx.stroke();
-
-            // Draw Bars
-            let numBars = bars.length;
-            let barSlot = plotW / numBars;
-            let barW = Math.max(4, barSlot * 0.72);
-            let barCoords = [];
-
-            for (let i = 0; i < numBars; i++) {
-                let val = (mode === 'kings') ? bars[i].k_pnl : bars[i].all_pnl;
-                let barH = (Math.abs(val) / valRange) * plotH;
-                let x = padLeft + i * barSlot + (barSlot - barW) / 2;
-                let y = (val >= 0) ? (zeroY - barH) : zeroY;
-
-                let isGreen = val >= 0;
-                let grad = ctx.createLinearGradient(0, y, 0, y + barH);
-                if (isGreen) {
-                    grad.addColorStop(0, '#00e676');
-                    grad.addColorStop(1, '#059669');
-                } else {
-                    grad.addColorStop(0, '#dc2626');
-                    grad.addColorStop(1, '#ef4444');
-                }
-
-                ctx.fillStyle = grad;
-                ctx.fillRect(x, y, barW, barH);
-
-                ctx.strokeStyle = isGreen ? '#34d399' : '#f87171';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x, y, barW, barH);
-
-                // Week label on X-axis
-                ctx.font = '10px Segoe UI, Tahoma, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#64748b';
-                let wkAxisLabel = bars[i].week !== undefined ? ('W' + bars[i].week) : (bars[i].label || ('W' + (bars[i].week_idx || (i+1))));
-                ctx.fillText(wkAxisLabel, x + barW / 2, padTop + plotH + 18);
-
-                barCoords.push({
-                    x: x,
-                    y: y,
-                    w: barW,
-                    h: barH,
-                    val: val,
-                    item: bars[i]
-                });
-            }
-
-            // Border
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(padLeft, padTop, plotW, plotH);
-
-            canvas._barCoords = barCoords;
-            canvas._padLeft = padLeft;
-            canvas._padTop = padTop;
-            canvas._plotW = plotW;
-            canvas._plotH = plotH;
-        }
-
-        let weeklyBarEventsInitialized = false;
-        function initWeeklyBarCanvasEvents() {
-            let canvas = document.getElementById('weeklyBarCanvas');
-            if (!canvas || canvas._eventsBound) return;
-            canvas._eventsBound = true;
-
-            canvas.addEventListener('mousemove', function(evt) {
-                if (!canvas._barCoords) return;
-                let rect = canvas.getBoundingClientRect();
-                let mouseX = evt.clientX - rect.left;
-                let mouseY = evt.clientY - rect.top;
-
-                let tt = document.getElementById('weeklyBarTooltip');
-                let found = null;
-
-                for (let i = 0; i < canvas._barCoords.length; i++) {
-                    let b = canvas._barCoords[i];
-                    if (mouseX >= b.x - 2 && mouseX <= b.x + b.w + 2) {
-                        found = b;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    if (tt) tt.style.display = 'none';
-                    drawWeeklyBarChart(currentWeeklyBarMode);
-                    return;
-                }
-
-                drawWeeklyBarChart(currentWeeklyBarMode);
-                let ctx = canvas.getContext('2d');
-                let dpr = window.devicePixelRatio || 1;
-                ctx.save();
-                ctx.scale(dpr, dpr);
-
-                // Highlight hovered bar
-                ctx.strokeStyle = '#facc15';
-                ctx.lineWidth = 2.5;
-                ctx.strokeRect(found.x - 1, found.y - 1, found.w + 2, found.h + 2);
-                ctx.restore();
-
-                if (tt) {
-                    tt.style.display = 'block';
-                    let item = found.item;
-                    let val = found.val;
-                    let pnlCol = val >= 0 ? '#00e676' : '#ef4444';
-                    let sign = val >= 0 ? '+' : '';
-                    let trds = (currentWeeklyBarMode === 'kings') ? item.k_trades : item.all_trades;
-                    let wins = (currentWeeklyBarMode === 'kings') ? item.k_wins : item.all_wins;
-                    let losses = (currentWeeklyBarMode === 'kings') ? item.k_losses : item.all_losses;
-                    let wr = (currentWeeklyBarMode === 'kings') ? item.k_wr : item.all_wr;
-                    let wkTitle = item.label || ('هفته ' + (item.week !== undefined ? item.week : (item.week_idx || '')));
-                    let dateSpan = item.dates || item.date_range || '';
-
-                    tt.innerHTML = `
-                        <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">${wkTitle} ${dateSpan ? '(' + dateSpan + ')' : ''}</div>
-                        <div>سود/زیان خالص این هفته: <b style="color:${pnlCol};font-size:13px;">${sign}$${val.toFixed(2)}</b></div>
-                        <div style="color:#94a3b8;margin-top:4px;">تعداد کل معاملات: <b style="color:#f1f5f9;">${trds} معامله</b></div>
-                        <div>بردها: <b style="color:#00e676;">${wins}</b> | باخت‌ها: <b style="color:#ef4444;">${losses}</b></div>
-                        <div>وین‌ریت هفته: <b style="color:#38bdf8;">${wr}%</b></div>
-                    `;
-
-                    let ttX = found.x + 15;
-                    let ttY = found.y - 50;
-                    if (ttX + 230 > rect.width) ttX = found.x - 240;
-                    if (ttY < 10) ttY = 10;
-                    tt.style.left = ttX + 'px';
-                    tt.style.top = ttY + 'px';
-                }
-            });
-
-            canvas.addEventListener('mouseleave', function() {
-                let tt = document.getElementById('weeklyBarTooltip');
+            if (!found) {
                 if (tt) tt.style.display = 'none';
                 drawWeeklyBarChart(currentWeeklyBarMode);
-            });
+                return;
+            }
 
-            window.addEventListener('resize', function() {
-                drawWeeklyBarChart(currentWeeklyBarMode);
-            });
-        }
+            drawWeeklyBarChart(currentWeeklyBarMode);
+            let ctx = canvas.getContext('2d');
+            let dpr = window.devicePixelRatio || 1;
+            ctx.save();
+            ctx.scale(dpr, dpr);
+
+            // Highlight hovered bar
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(found.x - 1, found.y - 1, found.w + 2, found.h + 2);
+            ctx.restore();
+
+            if (tt) {
+                tt.style.display = 'block';
+                let item = found.item;
+                let val = found.val;
+                let pnlCol = val >= 0 ? '#00e676' : '#ef4444';
+                let sign = val >= 0 ? '+' : '';
+                let trds = (currentWeeklyBarMode === 'kings') ? item.k_trades : item.all_trades;
+                let wins = (currentWeeklyBarMode === 'kings') ? item.k_wins : item.all_wins;
+                let losses = (currentWeeklyBarMode === 'kings') ? item.k_losses : item.all_losses;
+                let wr = (currentWeeklyBarMode === 'kings') ? item.k_wr : item.all_wr;
+                let wkTitle = item.label || ('هفته ' + (item.week !== undefined ? item.week : (item.week_idx || '')));
+                let dateSpan = item.dates || item.date_range || '';
+
+                tt.innerHTML = `
+                    <div style="font-weight:bold;color:#facc15;margin-bottom:4px;border-bottom:1px solid #334155;padding-bottom:2px;">${wkTitle} ${dateSpan ? '(' + dateSpan + ')' : ''}</div>
+                    <div>سود/زیان خالص این هفته: <b style="color:${pnlCol};font-size:13px;">${sign}$${val.toFixed(2)}</b></div>
+                    <div style="color:#94a3b8;margin-top:4px;">تعداد کل معاملات: <b style="color:#f1f5f9;">${trds} معامله</b></div>
+                    <div>بردها: <b style="color:#00e676;">${wins}</b> | باخت‌ها: <b style="color:#ef4444;">${losses}</b></div>
+                    <div>وین‌ریت هفته: <b style="color:#38bdf8;">${wr}%</b></div>
+                `;
+
+                let ttX = found.x + 15;
+                let ttY = found.y - 50;
+                if (ttX + 230 > rect.width) ttX = found.x - 240;
+                if (ttY < 10) ttY = 10;
+                tt.style.left = ttX + 'px';
+                tt.style.top = ttY + 'px';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            if (tt) tt.style.display = 'none';
+            drawWeeklyBarChart(currentWeeklyBarMode);
+        });
+    });
+
+    if (!window._weeklyBarResizeBound) {
+        window._weeklyBarResizeBound = true;
+        window.addEventListener('resize', function() {
+            drawWeeklyBarChart(currentWeeklyBarMode);
+        });
+    }
+}
 
 function selectWeeklyDetail(cardId) {
             if(!cardId) return;
