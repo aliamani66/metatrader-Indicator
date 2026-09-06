@@ -238,14 +238,13 @@ void ExportAllTradesToCSV()
       // ۲. پرتاب و کلوز کامل کندل در بیرون از محدوده (departedBar)
       // ۳. اردر لیمیت روی پولبک و ورود منحصراً در کندل‌های بعدی (k > departedBar)
       int departedBar = -1;
-      datetime maxBoxTime = g_drawnBoxes[b].t2;
-      if(maxBoxTime <= confirmTime) 
-         maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
+      datetime baseTime = MathMax(g_drawnBoxes[b].t2, confirmTime);
+      datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
 
       for(int k = confirmIdx; k < copied; k++)
       {
          // ابطال ۱: انقضای زمانی معامله با گذشت از اعتبار باکس
-         if(chartTime[k] > maxBoxTime) break;
+         if(departedBar < 0 && chartTime[k] > maxBoxTime) break;
 
          // ابطال ۲: برخورد قیمت به حد ضرر در هر زمان (حتی قبل از پرتاب) ستاپ را فوراً لغو می‌کند
          if(isBull)

@@ -191,15 +191,14 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
 
       bool isEntered = false;
       int  entryBarIdx = -1;
+      int  departedBar = -1;
       datetime entryTime = 0;
-      int departedBar = -1;
-      datetime maxBoxTime = g_drawnBoxes[b].t2;
-      if(maxBoxTime <= confirmTime)
-         maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
+      datetime baseTime = MathMax(g_drawnBoxes[b].t2, confirmTime);
+      datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
 
       for(int k = confirmIdx; k < ratesTotal; k++)
       {
-         if(chartTime[k] > maxBoxTime) break;
+         if(departedBar < 0 && chartTime[k] > maxBoxTime) break;
 
          if(isBull && chartLow[k] <= slPrice) break;
          if(!isBull && (chartHigh[k] + GetBarSpread(k, chartSpread, simSpread)) >= slPrice) break;

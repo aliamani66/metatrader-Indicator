@@ -1296,16 +1296,15 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
       int departedBar = -1;
-      datetime maxBoxTime = g_drawnBoxes[b].t2;
-      if(maxBoxTime <= confirmTime)
-         maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
+      datetime baseTime = MathMax(g_drawnBoxes[b].t2, confirmTime);
+      datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
 
       bool isSlBreached = false;
       bool isAlreadyEntered = false;
 
       for(int k = confirmIdx; k < ratesTotal; k++)
       {
-         if(chartTime[k] > maxBoxTime) break;
+         if(departedBar < 0 && chartTime[k] > maxBoxTime) break;
 
          if(isBull && chartLow[k] <= slPrice) { isSlBreached = true; break; }
          if(!isBull && (chartHigh[k] + GetBarSpread(k, chartSpread, simSpread)) >= slPrice) { isSlBreached = true; break; }

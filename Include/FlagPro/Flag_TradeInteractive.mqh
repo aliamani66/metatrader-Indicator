@@ -207,9 +207,8 @@ void ShowTradeSetupForBox(int boxIdx)
    double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
    if(simSpread <= 0) simSpread = 1.0 * pipSize;
 
-   datetime maxBoxTime = g_drawnBoxes[boxIdx].t2;
-   if(maxBoxTime <= confirmTime) 
-      maxBoxTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
+   datetime baseTime = MathMax(g_drawnBoxes[boxIdx].t2, confirmTime);
+   datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
 
    int cancelBarIdx = -1;
    string cancelReasonStr = "";
