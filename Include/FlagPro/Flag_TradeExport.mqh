@@ -21,17 +21,15 @@ void ExportAllTradesToCSV()
    StringReplace(symClean, "#", "");
    string symFilename = "flagpro_trades_" + symClean + ".csv";
    int handleSym = FileOpen(symFilename, FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
-   int handle = FileOpen("flagpro_trades_export.csv", FILE_WRITE | FILE_CSV | FILE_ANSI, ",");
 
-   if(handle == INVALID_HANDLE && handleSym == INVALID_HANDLE)
+   if(handleSym == INVALID_HANDLE)
    {
       Print("❌ FlagPro: خطا در باز کردن فایل CSV: ", GetLastError());
       return;
    }
 
    string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints";
-   if(handle != INVALID_HANDLE) FileWrite(handle, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
-   if(handleSym != INVALID_HANDLE) FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
+   FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
 
    datetime chartTime[];
    double chartHigh[], chartLow[], chartClose[];
@@ -65,7 +63,6 @@ void ExportAllTradesToCSV()
    CopySpread(_Symbol, _Period, 0, barsToCopy, chartSpread);
    if(copied < 10)
    {
-      if(handle != INVALID_HANDLE) FileClose(handle);
       if(handleSym != INVALID_HANDLE) FileClose(handleSym);
       return;
    }
@@ -423,32 +420,6 @@ void ExportAllTradesToCSV()
 
       double entrySpreadPts = (entryBarIdx >= 0) ? (GetBarSpread(entryBarIdx, chartSpread, simSpread) / _Point) : (simSpread / _Point);
 
-      if(handle != INVALID_HANDLE)
-      {
-         FileWrite(handle,
-                   _Symbol,
-                   IntegerToString(b),
-                   g_drawnBoxes[b].boxName,
-                   g_drawnBoxes[b].tfTag,
-                   role,
-                   (isBull ? "BUY" : "SELL"),
-                   TimeToString(g_drawnBoxes[b].t1),
-                   TimeToString(g_drawnBoxes[b].t2),
-                   (entryTime > 0 ? TimeToString(entryTime) : "None"),
-                   (exitTime > 0 ? TimeToString(exitTime) : "None"),
-                   DoubleToString(entryPrice, _Digits),
-                   DoubleToString(slPrice, _Digits),
-                   DoubleToString(risk / _Point, 1),
-                   DoubleToString(tps[0], _Digits),
-                   DoubleToString(tps[1], _Digits),
-                   DoubleToString(tps[2], _Digits),
-                   DoubleToString(tps[3], _Digits),
-                   outcomeStr,
-                   IntegerToString(hitTP),
-                   (isClosed ? "True" : "False"),
-                   DoubleToString(entrySpreadPts, 1));
-      }
-
       if(handleSym != INVALID_HANDLE)
       {
          FileWrite(handleSym,
@@ -478,30 +449,7 @@ void ExportAllTradesToCSV()
       exportedCount++;
    }
 
-   if(handle != INVALID_HANDLE) FileClose(handle);
    if(handleSym != INVALID_HANDLE) FileClose(handleSym);
 
-   // ذخیره خودکار فایل اکسل با نام تفصیلی و مشخص شامل تاریخ شروع و تعداد معاملات
-   datetime exportStartDt = (g_effectiveStartDate > 0) ? g_effectiveStartDate : 
-                           ((InpBacktestStartDate > 0) ? InpBacktestStartDate : 
-                           (copied > 0 ? chartTime[0] : 0));
-   string startDateStr = "2025-01-01";
-   if(exportStartDt > 0)
-   {
-      startDateStr = TimeToString(exportStartDt, TIME_DATE);
-      StringReplace(startDateStr, ".", "-");
-   }
-
-   string descFilename = StringFormat("flagpro_trades_%s_From_%s_%dTrades.csv", symClean, startDateStr, exportedCount);
-   bool copiedDesc = FileCopy(symFilename, 0, descFilename, FILE_REWRITE);
-   if(copiedDesc)
-   {
-      PrintFormat("📁 FlagPro: فایل اکسل تفصیلی «%s» با %d معامله با موفقیت در پوشه Files ذخیره شد.", descFilename, exportedCount);
-   }
-   else
-   {
-      PrintFormat("⚠️ FlagPro: خطا در ایجاد کپی تفصیلی «%s» (کد خطا: %d)", descFilename, GetLastError());
-   }
-
-   Print("📁 FlagPro: تعداد ", exportedCount, " موقعیت معاملاتی ", _Symbol, " با موفقیت در فایل‌های CSV ذخیره شد.");
+   PrintFormat("📁 FlagPro: تعداد %d موقعیت معاملاتی %s با موفقیت در فایل «%s» ذخیره شد.", exportedCount, _Symbol, symFilename);
 }
