@@ -64,14 +64,17 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
    string tfSymbol = (tf == PERIOD_H1) ? "H1" : tfTag;
 
    datetime limitTime = 0;
-   if(InpBacktestStartDate > 0)
+   if((bool)MQLInfoInteger(MQL_TESTER))
+   {
+      limitTime = 0; // در متاتستر تمام باکس‌های شبیه‌سازی از ابتدای تست حفظ می‌شوند
+   }
+   else if(InpBacktestStartDate > 0)
    {
       limitTime = InpBacktestStartDate;
    }
    else if(daysBack > 0)
    {
-      datetime baseTime = ((bool)MQLInfoInteger(MQL_TESTER)) ? g_testerStartBase : TimeCurrent();
-      limitTime = baseTime - daysBack * 24 * 60 * 60;
+      limitTime = TimeCurrent() - daysBack * 24 * 60 * 60;
    }
 
    //--- مرحله ۱: مشخص کردن اینکه کدام یال‌ها و پیووت‌ها متعلق به باکس‌های پرچم هستند

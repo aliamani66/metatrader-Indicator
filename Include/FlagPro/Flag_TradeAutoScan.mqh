@@ -227,7 +227,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                entryTime = chartTime[k];
                break;
             }
-            if(k - departedBar > 60) break;
+            // مهلت بازگشت پولبک حداکثر ۴۰ کندل (مطابق اکسپرت تستر)
+            if(k - departedBar > 40) break;
          }
       }
 
@@ -262,6 +263,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       datetime exitTime = 0;
       datetime hitTime = 0;
       datetime tpTimes[4] = {0, 0, 0, 0};
+      double currentSL = slPrice;
 
       for(int k = entryBarIdx; k < ratesTotal; k++)
       {
@@ -274,12 +276,16 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                   hitTP = tp + 1;
                   hitTime = chartTime[k];
                   if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
+                  // انتقال به بریک‌ایون پس از تاچ TP1 و تریلینگ به TP1 و TP2
+                  if(hitTP == 1) currentSL = entryPrice;
+                  else if(hitTP == 2) currentSL = tps[0];
+                  else if(hitTP == 3) currentSL = tps[1];
                }
             }
-            if(chartLow[k] <= slPrice)
+            if(chartLow[k] <= currentSL)
             {
                isClosed = true;
-               exitTime = (hitTP > 0) ? hitTime : chartTime[k];
+               exitTime = chartTime[k];
                break;
             }
             if(hitTP == 4)
@@ -299,12 +305,16 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                   hitTP = tp + 1;
                   hitTime = chartTime[k];
                   if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
+                  // انتقال به بریک‌ایون پس از تاچ TP1 و تریلینگ به TP1 و TP2
+                  if(hitTP == 1) currentSL = entryPrice;
+                  else if(hitTP == 2) currentSL = tps[0];
+                  else if(hitTP == 3) currentSL = tps[1];
                }
             }
-            if((chartHigh[k] + barSpread) >= slPrice)
+            if((chartHigh[k] + barSpread) >= currentSL)
             {
                isClosed = true;
-               exitTime = (hitTP > 0) ? hitTime : chartTime[k];
+               exitTime = chartTime[k];
                break;
             }
             if(hitTP == 4)
@@ -392,6 +402,11 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          int currentHitTP = g_tradeSetups[t].hitTP;
          datetime hitTime = 0;
 
+         double currentSL = g_tradeSetups[t].slPrice;
+         if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+         else if(currentHitTP == 2) currentSL = tps[0];
+         else if(currentHitTP >= 3) currentSL = tps[1];
+
          for(int k = entryBarIdx; k < ratesTotal; k++)
          {
             if(g_tradeSetups[t].isBuy)
@@ -406,12 +421,17 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                      else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
                      else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
                      else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+
+                     // به‌روزرسانی حد ضرر دینامیک
+                     if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+                     else if(currentHitTP == 2) currentSL = tps[0];
+                     else if(currentHitTP == 3) currentSL = tps[1];
                   }
                }
-               if(chartLow[k] <= g_tradeSetups[t].slPrice)
+               if(chartLow[k] <= currentSL)
                {
                   g_tradeSetups[t].isClosed = true;
-                  g_tradeSetups[t].exitTime = (currentHitTP > 0) ? hitTime : chartTime[k];
+                  g_tradeSetups[t].exitTime = chartTime[k];
                   break;
                }
                if(currentHitTP == 4)
@@ -434,12 +454,17 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                      else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
                      else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
                      else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+
+                     // به‌روزرسانی حد ضرر دینامیک
+                     if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+                     else if(currentHitTP == 2) currentSL = tps[0];
+                     else if(currentHitTP == 3) currentSL = tps[1];
                   }
                }
-               if((chartHigh[k] + barSpread) >= g_tradeSetups[t].slPrice)
+               if((chartHigh[k] + barSpread) >= currentSL)
                {
                   g_tradeSetups[t].isClosed = true;
-                  g_tradeSetups[t].exitTime = (currentHitTP > 0) ? hitTime : chartTime[k];
+                  g_tradeSetups[t].exitTime = chartTime[k];
                   break;
                }
                if(currentHitTP == 4)

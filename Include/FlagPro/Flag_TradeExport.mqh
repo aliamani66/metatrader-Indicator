@@ -133,6 +133,9 @@ void ExportAllTradesToCSV()
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
+      // فقط سلاطین طلایی تاییدشده مجاز به استخراج و نمایش در گزارش هستند
+      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[b].tf, role)) continue;
+
       bool isBull = true;
       double entryPrice = 0;
       double slPrice = 0;
@@ -205,6 +208,12 @@ void ExportAllTradesToCSV()
 
       double risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
+
+      // فیلترهای الگویی اولیه و اصطکاک (مستقل از زمان ورود)
+      if(InpFilterSingleLS && IsSingleLSPattern(role)) continue;
+      if(InpFilterToxicPatterns && IsToxicPattern(role)) continue;
+      if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
+      if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
 
       double tps[4];
       for(int tp = 0; tp < 4; tp++)
@@ -284,14 +293,21 @@ void ExportAllTradesToCSV()
                }
             }
 
-            // مهلت بازگشت پولبک حداکثر ۶۰ کندل بعد از پرتاب
-            if(k - departedBar > 60) break;
+            // مهلت بازگشت پولبک حداکثر ۴۰ کندل (مطابق با اکسپرت تستر)
+            if(k - departedBar > 40) break;
          }
       }
 
       int hitTP = -1;
       bool isClosed = false;
       datetime exitTime = 0;
+
+      // فیلترهای زمانی ورود (بر مبنای زمان واقعی ورود entryTime)
+      if(isEntered)
+      {
+         if(InpFilterNightHours && IsNightSessionHour(entryTime)) isEntered = false;
+         if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime)) isEntered = false;
+      }
 
       if(!isEntered)
       {
@@ -320,6 +336,8 @@ void ExportAllTradesToCSV()
 
          int maxHit = 0;
          datetime hitTime = 0;
+         double currentSL = slPrice;
+
          for(int k = entryBarIdx; k < copied; k++)
          {
             if(isBull)
@@ -330,14 +348,18 @@ void ExportAllTradesToCSV()
                   {
                      maxHit = tp + 1;
                      hitTime = chartTime[k];
+                     // انتقال به بریک‌ایون پس از تاچ TP1 و تریلینگ به TP1 و TP2
+                     if(maxHit == 1) currentSL = entryPrice;
+                     else if(maxHit == 2) currentSL = tps[0];
+                     else if(maxHit == 3) currentSL = tps[1];
                   }
                }
 
-               if(chartLow[k] <= slPrice)
+               if(chartLow[k] <= currentSL)
                {
                   hitTP = maxHit;
                   isClosed = true;
-                  exitTime = (maxHit > 0) ? hitTime : chartTime[k];
+                  exitTime = chartTime[k];
                   break;
                }
                if(maxHit == 4)
@@ -357,14 +379,18 @@ void ExportAllTradesToCSV()
                   {
                      maxHit = tp + 1;
                      hitTime = chartTime[k];
+                     // انتقال به بریک‌ایون پس از تاچ TP1 و تریلینگ به TP1 و TP2
+                     if(maxHit == 1) currentSL = entryPrice;
+                     else if(maxHit == 2) currentSL = tps[0];
+                     else if(maxHit == 3) currentSL = tps[1];
                   }
                }
 
-               if((chartHigh[k] + barSpread) >= slPrice)
+               if((chartHigh[k] + barSpread) >= currentSL)
                {
                   hitTP = maxHit;
                   isClosed = true;
-                  exitTime = (maxHit > 0) ? hitTime : chartTime[k];
+                  exitTime = chartTime[k];
                   break;
                }
                if(maxHit == 4)

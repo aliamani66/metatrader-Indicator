@@ -57,46 +57,24 @@ void InitMasterHistory(ENUM_HISTORY_MODE mode, datetime startDate, int daysBack)
       if(lastBar[0] > now || now <= 0) now = lastBar[0];
    }
 
-   // تشخیص کاملاً هوشمند تنظیمات کاربر:
-   // ۱. اگر کاربر تعداد روز گذشته را تغییر داده باشد (مثلاً ۱۰ برای ده روز اخیر یا ۳۰ برای یک ماه پیش)
-   bool userChangedDays = (daysBack > 0 && daysBack != 365);
-   // ۲. اگر کاربر تاریخ شروع را تغییر داده و جلو آورده باشد (مثلاً 2026.08.01)
-   bool userChangedDate = (startDate > D'2025.01.01 00:00');
-
-   if(mode == HIST_ALL_AVAILABLE)
+   // در محیط متاتستر متاتریدر ۵، دیتای تست از ابتدای دوره آزمون باید حفظ شود
+   if((bool)MQLInfoInteger(MQL_TESTER) || mode == HIST_ALL_AVAILABLE)
    {
       g_effectiveStartDate = 0;
       g_effectiveDaysBack  = 5000;
    }
-   else if(mode == HIST_DAYS_BACK || (mode == HIST_START_DATE && userChangedDays && !userChangedDate))
+   else if(mode == HIST_DAYS_BACK)
    {
-      // اولویت با تعداد روزهای دستی تنظیم‌شده توسط کاربر (پیش‌فرض: ۱۰ روز اخیر)
       g_effectiveDaysBack  = (daysBack > 0) ? daysBack : 10;
       g_effectiveStartDate = (now > g_effectiveDaysBack * 86400) ? (now - g_effectiveDaysBack * 86400) : 0;
    }
    else // HIST_START_DATE
    {
-      if(userChangedDate)
-      {
-         g_effectiveStartDate = startDate;
-         if(now > g_effectiveStartDate)
-            g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
-         else
-            g_effectiveDaysBack = 10;
-      }
-      else if(userChangedDays)
-      {
-         g_effectiveDaysBack  = daysBack;
-         g_effectiveStartDate = (now > g_effectiveDaysBack * 86400) ? (now - g_effectiveDaysBack * 86400) : 0;
-      }
+      g_effectiveStartDate = (startDate > 0) ? startDate : D'2025.01.01 00:00';
+      if(now > g_effectiveStartDate)
+         g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
       else
-      {
-         g_effectiveStartDate = (startDate > 0) ? startDate : D'2025.01.01 00:00';
-         if(now > g_effectiveStartDate)
-            g_effectiveDaysBack = (int)((now - g_effectiveStartDate) / 86400) + 1;
-         else
-            g_effectiveDaysBack = 10;
-      }
+         g_effectiveDaysBack = 10;
    }
 
    InpBacktestStartDate = g_effectiveStartDate;

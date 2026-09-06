@@ -1531,7 +1531,7 @@ void OnTick()
 
    // تنظیم بازه عمق بررسی متناسب با بازه انتخابی کاربر و targetBars
    InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
-   int effectiveDays = (InpHistoryMode == HIST_DAYS_BACK && InpHistoryDays > 0) ? InpHistoryDays : ((int)(targetBars / 1440) + 3);
+   int effectiveDays = ((bool)MQLInfoInteger(MQL_TESTER)) ? g_effectiveDaysBack : ((InpHistoryMode == HIST_DAYS_BACK && InpHistoryDays > 0) ? InpHistoryDays : ((int)(targetBars / 1440) + 3));
    int daysBackArr[7];
    for(int s = 0; s < 7; s++) daysBackArr[s] = effectiveDays;
    InpBacktestStartDate = g_effectiveStartDate;
