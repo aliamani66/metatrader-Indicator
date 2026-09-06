@@ -614,9 +614,9 @@ function initTesterCompareTab() {
         window.currentTesterReportKey = currentTesterReportKey;
     }
 
-    // Auto-sync with currently active equity scenario!
-    if (!window.userHasManuallySelectedScenario || !currentTesterScenarioKey || currentTesterScenarioKey === 'auto') {
-        currentTesterScenarioKey = 'equity_active';
+    // Auto-sync with report scenario or auto
+    if (!window.userHasManuallySelectedScenario || !currentTesterScenarioKey) {
+        currentTesterScenarioKey = 'auto';
         window.currentTesterScenarioKey = currentTesterScenarioKey;
     }
 
@@ -638,11 +638,11 @@ function initTesterCompareTab() {
         let scList = getAvailableTesterScenarios();
         let scHtml = '';
         scList.forEach(sc => {
-            let isSel = (sc.id === (currentTesterScenarioKey || 'equity_active')) ? 'selected' : '';
+            let isSel = (sc.id === (currentTesterScenarioKey || 'auto')) ? 'selected' : '';
             scHtml += `<option value="${sc.id}" ${isSel}>${sc.name}</option>`;
         });
         scSel.innerHTML = scHtml;
-        scSel.value = currentTesterScenarioKey || 'equity_active';
+        scSel.value = currentTesterScenarioKey || 'auto';
     }
 
     let report = window.TESTER_REPORTS[currentTesterReportKey];
@@ -1175,393 +1175,550 @@ function drawTesterCompareChart(report, scenarioKey) {
         return;
     }
 
+    let sym = report.symbol || window.currentActiveSymbol || 'GBPUSD';
+    let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
+    let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
+    let tradesList = sData.trades_sim_list || window.simTrades || [];
+
     let simPoints = [];
     let actPoints = [];
     let n = eqActual.length;
 
-    let actVal = 0.0;
-    let simVal = 0.0;
-    let winRateFrac = (scenario.simWinRate || 60.0) / 100.0;
-    let pfVal = scenario.simPf || 2.0;
-    let winStep = 22.0 * pfVal;
-    let lossStep = 22.0;
+    // Filter tradesList based on active scenario:
+    let scKings = (scenario.kings && Array.isArray(scenario.kings) && scenario.kings.length > 0) ? new Set(scenario.kings) : null;
+    let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
+    let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند') || scenario.id === 'base');
+    let minPot = scenario.minPot || 0.0;
 
-    for (let i = 0; i < n; i++) {
-        actVal = (eqActual[i].pnlPips !== undefined && !isNaN(Number(eqActual[i].pnlPips))) ? Number(eqActual[i].pnlPips) : 0.0;
-        actPoints.push({ time: eqActual[i].time || '', val: actVal });
-
-        // Deterministic realistic curve for selected scenario
-        let pseudoHash = ((i * 19 + 7) % 100) / 100.0;
-        if (pseudoHash < winRateFrac) {
-            simVal += winStep;
-        } else {
-            simVal -= lossStep;
-        }
-        simPoints.push({ time: eqActual[i].time || '', val: simVal });
+    let acceptedTrades = [];
+    if (scenario.id === 'base') {
+        acceptedTrades = tradesList.slice();
+    } else {
+        acceptedTrades = tradesList.filter(t => {
+            if (!allowsM1 && t.tf === 'M1') return false;
+            if (scHours && scHours.size > 0 && scHours.size < 24 && !scHours.has(t.h)) return false;
+            if (scKings && !scKings.has(t.kk) && !scKings.has(t.r)) return false;
+            if (minPot > 0 && t.pot < minPot) return false;
+            return true;
+        });
     }
 
-            let allVals = actPoints.map(p => p.val).concat(simPoints.map(p => p.val));
-            let minVal = -50.0;
-            let maxVal = 50.0;
-            for (let vi = 0; vi < allVals.length; vi++) {
-                if (allVals[vi] < minVal) minVal = allVals[vi];
-                if (allVals[vi] > maxVal) maxVal = allVals[vi];
+    for (let i = 0; i < n; i++) {
+        let tItem = eqActual[i];
+        let tTime = tItem.time || '';
+        let actVal = (tItem.pnlPips !== undefined && !isNaN(Number(tItem.pnlPips))) ? Number(tItem.pnlPips) : 0.0;
+        let actUSD = (tItem.pnlUSD !== undefined && !isNaN(Number(tItem.pnlUSD))) ? Number(tItem.pnlUSD) : (actVal / 10.0);
+        actPoints.push({ time: tTime, val: actVal, valUSD: actUSD });
+
+        // Calculate REAL cumulative strategy PnL up to tTime
+        let cumUSD = 0.0;
+        for (let j = 0; j < acceptedTrades.length; j++) {
+            if (acceptedTrades[j].t <= tTime) {
+                cumUSD += (acceptedTrades[j].p !== undefined ? acceptedTrades[j].p : 0.0);
             }
-            minVal -= 20.0;
-            maxVal += 20.0;
-            let valRange = Math.max(1, maxVal - minVal);
+        }
+        let cumPips = cumUSD * 10.0;
+        simPoints.push({ time: tTime, val: cumPips, valUSD: cumUSD });
+    }
 
-            function getY(val) {
-                return padTop + plotH - ((val - minVal) / valRange) * plotH;
+    // Update legend with real PnL
+    let legTester = document.getElementById('tcLegendTester');
+    let legSim = document.getElementById('tcLegendStrategy');
+    let lastAct = actPoints[n - 1] || { val: 0, valUSD: 0 };
+    let lastSim = simPoints[n - 1] || { val: 0, valUSD: 0 };
+    if (legTester) {
+        let pnlText = (lastAct.val >= 0 ? '+' : '') + lastAct.val.toFixed(1) + 'p (' + (lastAct.valUSD >= 0 ? '+$' : '-$') + Math.abs(lastAct.valUSD).toFixed(2) + ')';
+        legTester.innerHTML = `<span style="width:14px;height:4px;background:#ef4444;display:inline-block;border-radius:2px;"></span> تستر MT5 (${pnlText})`;
+    }
+    if (legSim) {
+        let pnlText = (lastSim.val >= 0 ? '+' : '') + lastSim.val.toFixed(1) + 'p (' + (lastSim.valUSD >= 0 ? '+$' : '-$') + Math.abs(lastSim.valUSD).toFixed(2) + ')';
+        let scTitle = scenario.title || scenario.name || 'شبیه‌ساز';
+        legSim.innerHTML = `<span style="width:14px;height:4px;background:#0284c7;display:inline-block;border-radius:2px;"></span> شبیه‌ساز استراتژی [${scTitle}]: (${pnlText})`;
+    }
+
+    let allVals = actPoints.map(p => p.val).concat(simPoints.map(p => p.val));
+    let minVal = -50.0;
+    let maxVal = 50.0;
+    for (let vi = 0; vi < allVals.length; vi++) {
+        if (allVals[vi] < minVal) minVal = allVals[vi];
+        if (allVals[vi] > maxVal) maxVal = allVals[vi];
+    }
+    minVal -= 20.0;
+    maxVal += 20.0;
+    let valRange = Math.max(1, maxVal - minVal);
+
+    function getY(val) {
+        return padTop + plotH - ((val - minVal) / valRange) * plotH;
+    }
+
+    function getX(idx) {
+        return padLeft + (idx / Math.max(1, n - 1)) * plotW;
+    }
+
+    // Zero line
+    let zeroY = getY(0);
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padLeft, zeroY);
+    ctx.lineTo(padLeft + plotW, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Grid lines
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.5;
+    let stepGrid = (maxVal - minVal > 600) ? 200 : 100;
+    let startGrid = Math.floor(minVal / stepGrid) * stepGrid;
+    for (let v = startGrid; v <= maxVal; v += stepGrid) {
+        if (v === 0) continue;
+        let y = getY(v);
+        if (y < padTop || y > padTop + plotH) continue;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(padLeft + plotW, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px Segoe UI';
+        ctx.textAlign = 'left';
+        ctx.fillText((v > 0 ? '+' : '') + v + 'p', padLeft + plotW + 8, y + 3);
+    }
+
+    // Draw Actual MT5 Tester Curve (Red)
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+        let x = getX(i);
+        let y = getY(actPoints[i].val);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Fill gradient for Actual MT5
+    let gradAct = ctx.createLinearGradient(0, zeroY, 0, padTop + plotH);
+    gradAct.addColorStop(0, 'rgba(239, 68, 68, 0.0)');
+    gradAct.addColorStop(1, 'rgba(239, 68, 68, 0.25)');
+    ctx.fillStyle = gradAct;
+    ctx.beginPath();
+    ctx.moveTo(getX(0), zeroY);
+    for (let i = 0; i < n; i++) ctx.lineTo(getX(i), getY(actPoints[i].val));
+    ctx.lineTo(getX(n - 1), zeroY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Strategy Theoretical Curve (Blue)
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+        let x = getX(i);
+        let y = getY(simPoints[i].val);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Fill gradient for Strategy Simulation (Blue)
+    let gradSim = ctx.createLinearGradient(0, padTop, 0, zeroY);
+    gradSim.addColorStop(0, 'rgba(56, 189, 248, 0.2)');
+    gradSim.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+    ctx.fillStyle = gradSim;
+    ctx.beginPath();
+    ctx.moveTo(getX(0), zeroY);
+    for (let i = 0; i < n; i++) ctx.lineTo(getX(i), getY(simPoints[i].val));
+    ctx.lineTo(getX(n - 1), zeroY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Dates on X axis
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px Segoe UI';
+    ctx.textAlign = 'center';
+    let step = Math.max(1, Math.floor(n / 6));
+    for (let i = 0; i < n; i += step) {
+        let x = getX(i);
+        let dStr = actPoints[i].time.substring(5, 10);
+        ctx.fillText(dStr, x, padTop + plotH + 16);
+    }
+
+    // Hover Tooltip / Crosshair
+    if (hoverIdx !== undefined && hoverIdx >= 0 && hoverIdx < n) {
+        let hX = getX(hoverIdx);
+        let hYAct = getY(actPoints[hoverIdx].val);
+        let hYSim = getY(simPoints[hoverIdx].val);
+
+        // Vertical Guide Line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(hX, padTop);
+        ctx.lineTo(hX, padTop + plotH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Red point
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(hX, hYAct, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Blue point
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(hX, hYSim, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Tooltip box
+        let ttW = 180;
+        let ttH = 80;
+        let ttX = hX + 10;
+        if (ttX + ttW > w - padRight) ttX = hX - ttW - 10;
+        let ttY = padTop + 10;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(ttX, ttY, ttW, ttH, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 11px Segoe UI, sans-serif';
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText('📅 ' + actPoints[hoverIdx].time, ttX + ttW - 10, ttY + 18);
+
+        ctx.font = '10.5px Segoe UI, sans-serif';
+        ctx.fillStyle = '#f87171';
+        let actSign = actPoints[hoverIdx].val >= 0 ? '+' : '';
+        ctx.fillText('تستر MT5: ' + actSign + actPoints[hoverIdx].val.toFixed(1) + 'p ($' + actPoints[hoverIdx].valUSD.toFixed(2) + ')', ttX + ttW - 10, ttY + 38);
+
+        ctx.fillStyle = '#38bdf8';
+        let simSign = simPoints[hoverIdx].val >= 0 ? '+' : '';
+        ctx.fillText('شبیه‌ساز: ' + simSign + simPoints[hoverIdx].val.toFixed(1) + 'p ($' + simPoints[hoverIdx].valUSD.toFixed(2) + ')', ttX + ttW - 10, ttY + 56);
+
+        let diffVal = simPoints[hoverIdx].val - actPoints[hoverIdx].val;
+        ctx.fillStyle = diffVal >= 0 ? '#34d399' : '#f87171';
+        ctx.font = '9.5px Segoe UI, sans-serif';
+        ctx.fillText('اختلاف: ' + (diffVal >= 0 ? '+' : '') + diffVal.toFixed(1) + 'p', ttX + ttW - 10, ttY + 72);
+    }
+
+    // Attach mouse event listeners once
+    if (!canvas._tcEventsAttached) {
+        canvas._tcEventsAttached = true;
+        canvas.addEventListener('mousemove', function(e) {
+            let cRect = canvas.getBoundingClientRect();
+            let mX = e.clientX - cRect.left;
+            let mY = e.clientY - cRect.top;
+            if (mX >= padLeft && mX <= padLeft + plotW && mY >= padTop && mY <= padTop + plotH) {
+                let frac = (mX - padLeft) / plotW;
+                let cIdx = Math.round(frac * (n - 1));
+                cIdx = Math.max(0, Math.min(n - 1, cIdx));
+                let curRep = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey]) || report;
+                drawTesterCompareChart(curRep, window.currentTesterScenarioKey, cIdx);
             }
+        });
+        canvas.addEventListener('mouseleave', function() {
+            let curRep = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey]) || report;
+            drawTesterCompareChart(curRep, window.currentTesterScenarioKey);
+        });
+    }
+}
 
-            function getX(idx) {
-                return padLeft + (idx / Math.max(1, n - 1)) * plotW;
+function renderTesterTradesTable(report, filterMode, searchQuery) {
+    filterMode = filterMode || window.currentTesterFilter || 'all';
+    searchQuery = searchQuery || window.currentTesterSearch || '';
+    let tbody = document.getElementById('testerTradesBody');
+    if (!tbody) return;
+
+    let trades = report.trades || [];
+    if (trades.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
+        return;
+    }
+
+    let sym = report.symbol || window.currentActiveSymbol || 'GBPUSD';
+    let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
+    let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
+    let indTrades = sData.trades_json_list || [];
+    let scenario = resolveActiveScenario(window.currentTesterScenarioKey, report);
+    let isBaseScenario = (scenario.id === 'base') || (scenario.id === 'auto' && (!report.parameters || report.parameters.InpScenarioName === 'Default' || report.parameters.InpEnableKingsM1 === true));
+
+    // Pre-match and prepare trade metadata for 1:1 Deal-by-Deal forensics
+    let processed = trades.map(t => {
+        let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
+        let profitUSD = (t.profitUSD !== undefined && !isNaN(Number(t.profitUSD))) ? Number(t.profitUSD) : ((t.pnlUSD !== undefined && !isNaN(Number(t.pnlUSD))) ? Number(t.pnlUSD) : 0);
+        let slippagePips = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
+        let boxEntry = (t.boxEntryPrice !== undefined && !isNaN(Number(t.boxEntryPrice))) ? Number(t.boxEntryPrice) : 0;
+        let marketFill = (t.marketFillPrice !== undefined && !isNaN(Number(t.marketFillPrice))) ? Number(t.marketFillPrice) : boxEntry;
+        let slPrice = (t.slPrice !== undefined && !isNaN(Number(t.slPrice))) ? Number(t.slPrice) : 0;
+        let tp1 = (t.tp1 !== undefined && !isNaN(Number(t.tp1))) ? Number(t.tp1) : 0;
+        let tp4 = (t.tp4 !== undefined && !isNaN(Number(t.tp4))) ? Number(t.tp4) : 0;
+
+        let tEntryTime = (t.entryTime || '').substring(0, 16).replace(/-/g, '.');
+        let tTF = (t.timeframe || '').replace('PERIOD_', '').trim();
+        let tDir = (t.side || '').toUpperCase().trim();
+
+        // 1:1 Match with Strategy / Indicator Dataset
+        let match = null;
+        let patClean = (t.pattern || '').trim();
+        for (let it of indTrades) {
+            let itEn = (it.en_t || '').substring(0, 16).replace(/-/g, '.');
+            let itBoxT = (it.box_t || '').substring(0, 16).replace(/-/g, '.');
+            let itTF = (it.tf || '').replace('PERIOD_', '').trim();
+            let itDir = (it.dir || '').toUpperCase().trim();
+            let itRole = (it.role || '').trim();
+
+            if (tTF !== itTF || tDir !== itDir) continue;
+
+            let isPatMatch = (patClean === itRole || patClean.replace(/\s*>\s*/g, '>') === itRole.replace(/\s*>\s*/g, '>') || patClean.includes(itRole) || itRole.includes(patClean));
+            if (!isPatMatch) continue;
+
+            if (tEntryTime && (tEntryTime === itEn || tEntryTime === itBoxT)) {
+                match = it;
+                break;
             }
-
-            // Zero line
-            let zeroY = getY(0);
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            ctx.moveTo(padLeft, zeroY);
-            ctx.lineTo(padLeft + plotW, zeroY);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Grid lines
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 0.5;
-            for (let v = -500; v <= 200; v += 100) {
-                if (v === 0) continue;
-                let y = getY(v);
-                ctx.beginPath();
-                ctx.moveTo(padLeft, y);
-                ctx.lineTo(padLeft + plotW, y);
-                ctx.stroke();
-
-                ctx.fillStyle = '#64748b';
-                ctx.font = '10px Segoe UI';
-                ctx.textAlign = 'left';
-                ctx.fillText((v > 0 ? '+' : '') + v + 'p', padLeft + plotW + 8, y + 3);
-            }
-
-            // Draw Actual MT5 Tester Curve (Red)
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            for (let i = 0; i < n; i++) {
-                let x = getX(i);
-                let y = getY(actPoints[i].val);
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-
-            // Fill gradient for Actual MT5
-            let gradAct = ctx.createLinearGradient(0, zeroY, 0, padTop + plotH);
-            gradAct.addColorStop(0, 'rgba(239, 68, 68, 0.0)');
-            gradAct.addColorStop(1, 'rgba(239, 68, 68, 0.25)');
-            ctx.fillStyle = gradAct;
-            ctx.beginPath();
-            ctx.moveTo(getX(0), zeroY);
-            for (let i = 0; i < n; i++) ctx.lineTo(getX(i), getY(actPoints[i].val));
-            ctx.lineTo(getX(n - 1), zeroY);
-            ctx.closePath();
-            ctx.fill();
-
-            // Draw Strategy Theoretical Curve (Blue)
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            for (let i = 0; i < n; i++) {
-                let x = getX(i);
-                let y = getY(simPoints[i].val);
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-
-            // Dates on X axis
-            ctx.fillStyle = '#64748b';
-            ctx.font = '10px Segoe UI';
-            ctx.textAlign = 'center';
-            let step = Math.max(1, Math.floor(n / 6));
-            for (let i = 0; i < n; i += step) {
-                let x = getX(i);
-                let dStr = actPoints[i].time.substring(5, 10);
-                ctx.fillText(dStr, x, padTop + plotH + 16);
+            if (tEntryTime && itEn && tEntryTime.substring(0, 10) === itEn.substring(0, 10)) {
+                let tM = parseInt(tEntryTime.substring(11, 13)) * 60 + parseInt(tEntryTime.substring(14, 16));
+                let iM = parseInt(itEn.substring(11, 13)) * 60 + parseInt(itEn.substring(14, 16));
+                if (Math.abs(tM - iM) <= 45) {
+                    match = it;
+                    break;
+                }
             }
         }
 
-        function renderTesterTradesTable(report, filterMode, searchQuery) {
-            filterMode = filterMode || window.currentTesterFilter || 'all';
-            searchQuery = searchQuery || window.currentTesterSearch || '';
-            let tbody = document.getElementById('testerTradesBody');
-            if (!tbody) return;
+        // Check if trade is allowed by active scenario
+        let isAllowed = true;
+        let filterReason = '';
 
-            let trades = report.trades || [];
-            if (trades.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
-                return;
+        if (!isBaseScenario) {
+            if (tTF === 'M1') {
+                let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند'));
+                if (!allowsM1) {
+                    isAllowed = false;
+                    filterReason = 'فیلتر نویز M1';
+                }
             }
-
-            let sym = report.symbol || window.currentActiveSymbol || 'EURUSD';
-            let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
-            let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
-            let indTrades = sData.trades_json_list || [];
-            let scenario = resolveActiveScenario(window.currentTesterScenarioKey, report);
-
-            // Pre-match and prepare trade metadata for 1:1 Deal-by-Deal forensics
-            let processed = trades.map(t => {
-                let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
-                let profitUSD = (t.profitUSD !== undefined && !isNaN(Number(t.profitUSD))) ? Number(t.profitUSD) : ((t.pnlUSD !== undefined && !isNaN(Number(t.pnlUSD))) ? Number(t.pnlUSD) : 0);
-                let slippagePips = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
-                let boxEntry = (t.boxEntryPrice !== undefined && !isNaN(Number(t.boxEntryPrice))) ? Number(t.boxEntryPrice) : 0;
-                let marketFill = (t.marketFillPrice !== undefined && !isNaN(Number(t.marketFillPrice))) ? Number(t.marketFillPrice) : boxEntry;
-                let slPrice = (t.slPrice !== undefined && !isNaN(Number(t.slPrice))) ? Number(t.slPrice) : 0;
-                let tp1 = (t.tp1 !== undefined && !isNaN(Number(t.tp1))) ? Number(t.tp1) : 0;
-                let tp4 = (t.tp4 !== undefined && !isNaN(Number(t.tp4))) ? Number(t.tp4) : 0;
-
-                let tEntryTime = (t.entryTime || '').substring(0, 16).replace(/-/g, '.');
-                let tTF = (t.timeframe || '').replace('PERIOD_', '');
-                let tDir = (t.side || '').toUpperCase();
-
-                // 1:1 Match with Strategy / Indicator Dataset
-                let match = indTrades.find(it => {
-                    let itEn = (it.en_t || '').substring(0, 16).replace(/-/g, '.');
-                    let itTF = (it.tf || '').replace('PERIOD_', '');
-                    let itDir = (it.dir || '').toUpperCase();
-                    let itPrice = parseFloat(it.en_p || 0);
-
-                    if (tEntryTime && itEn && tEntryTime === itEn && (!tTF || !itTF || tTF === itTF) && (!tDir || !itDir || tDir === itDir)) {
-                        return true;
-                    }
-                    if (boxEntry > 0 && itPrice > 0 && Math.abs(boxEntry - itPrice) < 0.00015 && tEntryTime.substring(0, 10) === itEn.substring(0, 10) && tTF === itTF) {
-                        return true;
-                    }
-                    return false;
-                });
-
-                // Check if trade is allowed by active scenario
-                let isAllowed = true;
-                let filterReason = '';
-                if (tTF === 'M1') {
-                    let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند'));
-                    if (!allowsM1) {
+            if (isAllowed) {
+                let h = tEntryTime.length >= 13 ? parseInt(tEntryTime.substring(11, 13)) : 0;
+                let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
+                if (scHours.size > 0 && scHours.size < 24) {
+                    if (!scHours.has(h)) {
                         isAllowed = false;
-                        filterReason = 'فیلتر نویز M1';
+                        filterReason = 'ساعت غیرمجاز (' + (h < 10 ? '0' + h : h) + ':00)';
                     }
+                } else if (scenario.id === 'day' && (h < 7 || h >= 20)) {
+                    isAllowed = false;
+                    filterReason = 'خارج از سشن روز (' + h + ':00)';
+                } else if (scenario.id === 'champion' && (h >= 22 || h < 4)) {
+                    isAllowed = false;
+                    filterReason = 'فیلتر ساعات شب (' + h + ':00)';
                 }
-                if (isAllowed) {
-                    let h = tEntryTime.length >= 13 ? parseInt(tEntryTime.substring(11, 13)) : 0;
-                    let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
-                    if (scHours.size > 0 && scHours.size < 24) {
-                        if (!scHours.has(h)) {
-                            isAllowed = false;
-                            filterReason = 'ساعت غیرمجاز (ساعت ' + (h < 10 ? '0' + h : h) + ':00)';
-                        }
-                    } else if (scenario.id === 'day' && (h < 7 || h >= 20)) {
-                        isAllowed = false;
-                        filterReason = 'خارج از سشن روز (ساعت ' + h + ')';
-                    } else if (scenario.id === 'champion' && (h >= 22 || h < 4)) {
-                        isAllowed = false;
-                        filterReason = 'فیلتر ساعات شب (ساعت ' + h + ')';
-                    }
-                }
-                if (isAllowed && scenario.minPot > 0) {
-                    let potVal = match && match.pts ? (match.pts * 0.04) : 0;
-                    if (potVal > 0 && potVal < scenario.minPot) {
-                        isAllowed = false;
-                        filterReason = 'کف سود زیر ' + scenario.minPotDisplay;
-                    }
-                }
-                if (isAllowed) {
-                    let patName = (t.pattern || (match ? match.role : '') || '').trim();
-                    let patKey = patName ? (patName + (tTF ? '|' + tTF : '')) : '';
-                    if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
-                        let kSet = new Set(scenario.kings);
-                        if (!kSet.has(patName) && !kSet.has(patKey)) {
-                            isAllowed = false;
-                            filterReason = 'سلطان غیرفعال در سناریو (' + (patName || 'الگو') + ')';
-                        }
-                    } else if (scenario.disabledKings && !scenario.disabledKings.includes('بدون مسدودی')) {
-                        if (patName && (scenario.disabledKings.includes(patName) || (patKey && scenario.disabledKings.includes(patKey)))) {
-                            isAllowed = false;
-                            filterReason = 'سلطان مسدود (' + patName + ')';
-                        }
-                    }
-                }
-
-                // Indicator Theoretical PnL & Outcome
-                let indNet = 0.0;
-                let indTgt = '';
-                let isIndWin = false;
-                if (match) {
-                    indNet = match.net !== undefined ? match.net : (match.t1 ? (match.pts * 0.04) : -(match.pts * 0.04));
-                    isIndWin = (match.t1 === 1 || indNet > 0);
-                    if (match.t4) indTgt = 'TP 1:4 🚀';
-                    else if (match.t3) indTgt = 'TP 1:3 🎯';
-                    else if (match.t2) indTgt = 'TP 1:2 🎯';
-                    else if (match.t1) indTgt = 'TP 1:1 🎯';
-                    else indTgt = 'حد ضرر SL ❌';
-                }
-
-                // Forensic Verdict & Discrepancy Detection
-                let verdictHtml = '';
-                let isDisc = false;
-                let exitCls = t.exitClass || '';
-                let discMsg = t.discrepancyReason || t.discrepancyLabel || '';
-
-                if (discMsg && discMsg.includes('اسپرد')) {
-                    isDisc = true;
-                    verdictHtml = `<span style="color:#fca5a5;font-size:11px;">❌ <b>اسپرد Ask روی استاپ:</b> در پوزیشن فروش، حد ضرر با قیمت Ask معامله‌گر لمس شد.</span>`;
-                } else if (discMsg && discMsg.includes('منطبق')) {
-                    verdictHtml = `<span style="color:#a7f3d0;font-size:11px;">🟢 <b>انطباق کامل:</b> تارگت ستاپ با موفقیت لمس شد و تمام پوزیشن‌ها با سود بسته شدند.</span>`;
-                } else if (!isAllowed) {
-                    isDisc = true;
-                    verdictHtml = `<span style="color:#fca5a5;font-size:11px;">🛑 <b>ورود اشتباه در تستر (فیلتر سناریو):</b> این ستاپ در سناریوی انتخابی به علت «${filterReason}» فیلتر بوده است اما در تستر به اشتباه باز شده و ${profitUSD < 0 ? 'منجر به باخت شد' : 'بسته شد'}.</span>`;
-                } else if (match && match.t4 && exitCls.includes('BE')) {
-                    isDisc = true;
-                    verdictHtml = `<span style="color:#c7d2fe;font-size:11px;">🛡️ <b>خروج در بریک‌ایون:</b> پوزیشن‌های باقی‌مانده پس از TP1 در اصلاح قیمت در نقطه ورود (BE) بسته شدند.</span>`;
-                } else if (slippagePips >= 2.0) {
-                    isDisc = true;
-                    verdictHtml = `<span style="color:#fde68a;font-size:11px;">⚡ <b>اسلیپیج شدید ${slippagePips.toFixed(1)} پیپ ورود:</b> لغزش قیمت در ورود مارکت نسبت سود به ریسک را کاهش داده است.</span>`;
-                } else if (match && match.t1 && profitUSD < 0) {
-                    isDisc = true;
-                    verdictHtml = `<span style="color:#fca5a5;font-size:11px;">❌ <b>اختلاف اجرای مارکت:</b> در اندیکاتور TP1 لمس شد اما در تستر به دلیل اسپرد یا نوسان حد ضرر لمس گردید.</span>`;
-                } else if (profitUSD >= 0) {
-                    verdictHtml = `<span style="color:#a7f3d0;font-size:11px;">🟢 <b>انطباق کامل:</b> تارگت در هر دو پلتفرم لمس شده و سود ذخیره گردید.</span>`;
-                } else {
-                    verdictHtml = `<span style="color:#94a3b8;font-size:11px;">همگام (استاپ طبیعی در هر دو پلتفرم).</span>`;
-                }
-
-                return {
-                    raw: t,
-                    profitPips: profitPips,
-                    profitUSD: profitUSD,
-                    slippagePips: slippagePips,
-                    boxEntry: boxEntry,
-                    marketFill: marketFill,
-                    slPrice: slPrice,
-                    tp1: tp1,
-                    tp4: tp4,
-                    tEntryTime: tEntryTime,
-                    tTF: tTF,
-                    tDir: tDir,
-                    pattern: t.pattern || '',
-                    exitClass: exitCls,
-                    match: match,
-                    isAllowed: isAllowed,
-                    filterReason: filterReason,
-                    indNet: indNet,
-                    indTgt: indTgt,
-                    isIndWin: isIndWin,
-                    verdictHtml: verdictHtml,
-                    isDisc: isDisc
-                };
-            });
-
-            // Update Filter Buttons Text & Badge Counts
-            let cntAll = processed.length;
-            let cntWin = processed.filter(x => x.profitUSD >= 0).length;
-            let cntLoss = processed.filter(x => x.profitUSD < 0).length;
-            let cntM1 = processed.filter(x => x.tTF === 'M1').length;
-            let cntSlip = processed.filter(x => x.slippagePips >= 2.0).length;
-            let cntBe = processed.filter(x => x.exitClass.includes('BE')).length;
-            let cntDisc = processed.filter(x => x.isDisc).length;
-
-            let bAll = document.getElementById('tcFilterAll'); if (bAll) bAll.textContent = 'همه (' + cntAll + ')';
-            let bWin = document.getElementById('tcFilterWin'); if (bWin) bWin.textContent = 'بردها (' + cntWin + ')';
-            let bLoss = document.getElementById('tcFilterLoss'); if (bLoss) bLoss.textContent = 'باخت‌ها (' + cntLoss + ')';
-            let bM1 = document.getElementById('tcFilterM1'); if (bM1) bM1.textContent = 'نویز M1 (' + cntM1 + ')';
-            let bSlip = document.getElementById('tcFilterSlip'); if (bSlip) bSlip.textContent = 'اسلیپیج بالا > 2p (' + cntSlip + ')';
-            let bBe = document.getElementById('tcFilterBe'); if (bBe) bBe.textContent = 'خروج در BE (' + cntBe + ')';
-            let bDisc = document.getElementById('tcFilterDisc'); if (bDisc) bDisc.textContent = '⚠️ مغایرت‌ها (' + cntDisc + ')';
-
-            let tblTitle = document.getElementById('tcTradesTableTitle');
-            if (tblTitle) {
-                tblTitle.textContent = 'جدول بازرسی و مقایسه نظیر به نظیر (1:1) معاملات متاتریدر ۵ با اندیکاتور (' + cntAll + ' ستاپ | ' + cntDisc + ' مغایرت ریشه‌ای)';
             }
-
-            // Apply active filter
-            let filtered = processed.filter(pt => {
-                if (filterMode === 'win' && pt.profitUSD < 0) return false;
-                if (filterMode === 'loss' && pt.profitUSD >= 0) return false;
-                if (filterMode === 'm1' && pt.tTF !== 'M1') return false;
-                if (filterMode === 'slip' && pt.slippagePips < 2.0) return false;
-                if (filterMode === 'be' && !pt.exitClass.includes('BE')) return false;
-                if (filterMode === 'disc' && !pt.isDisc) return false;
-                if (searchQuery) {
-                    let q = searchQuery.toLowerCase();
-                    let hay = (pt.pattern + ' ' + pt.tTF + ' ' + pt.tDir + ' ' + pt.tEntryTime + ' ' + pt.filterReason).toLowerCase();
-                    if (!hay.includes(q)) return false;
+            if (isAllowed && scenario.minPot > 0) {
+                let potVal = match && match.pts ? (match.pts * 0.04) : 0;
+                if (potVal > 0 && potVal < scenario.minPot) {
+                    isAllowed = false;
+                    filterReason = 'کف سود زیر ' + scenario.minPotDisplay;
                 }
-                return true;
-            });
-
-            let html = '';
-            filtered.forEach(pt => {
-                let isWin = (pt.profitUSD >= 0);
-                let sideBadge = pt.tDir === 'BUY'
-                    ? '<span style="color:#34d399;font-weight:bold;">BUY</span>'
-                    : '<span style="color:#f87171;font-weight:bold;">SELL</span>';
-
-                let tfBadge = pt.tTF === 'M1'
-                    ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1 (نویز)</span>'
-                    : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + pt.tTF + '</span>';
-
-                let slipColor = (pt.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
-
-                // Column: Status in Scenario
-                let scStatusBadge = pt.isAllowed
-                    ? '<span style="background:#064e3b;color:#a7f3d0;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;">🟢 مجاز در سناریو</span>'
-                    : '<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;font-size:10px;font-weight:bold;">🛑 ' + pt.filterReason + '</span>';
-
-                // Column: Indicator PnL & Target
-                let indResultHtml = '';
-                if (pt.match) {
-                    if (!pt.isAllowed) {
-                        indResultHtml = '<span style="color:#94a3b8;font-size:10.5px;">فیلتر ($0.00)</span> <span style="font-size:9.5px;color:#64748b;">(اندیکاتور: ' + pt.indTgt + ')</span>';
-                    } else if (pt.isIndWin) {
-                        indResultHtml = '<span style="color:#34d399;font-weight:bold;direction:ltr;">+$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:10px;color:#a7f3d0;">(' + pt.indTgt + ')</span>';
-                    } else {
-                        indResultHtml = '<span style="color:#f87171;font-weight:bold;direction:ltr;">-$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:10px;color:#fca5a5;">(استاپ)</span>';
+            }
+            if (isAllowed) {
+                let patName = (t.pattern || (match ? match.role : '') || '').trim();
+                let patKey = patName ? (patName + (tTF ? '|' + tTF : '')) : '';
+                if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
+                    let kSet = new Set(scenario.kings);
+                    if (!kSet.has(patName) && !kSet.has(patKey)) {
+                        isAllowed = false;
+                        filterReason = 'سلطان غیرمنتخب در سناریو (' + (patName || 'الگو') + ')';
                     }
-                } else if (pt.tEntryTime && pt.tEntryTime < '2026.08.28') {
-                    indResultHtml = '<span style="color:#94a3b8;font-size:10px;">📅 قبل از بازه چارت زنده (۲۶ و ۲۷ اوت)</span>';
-                } else if (pt.tTF === 'M5' || pt.tTF === 'M15') {
-                    indResultHtml = '<span style="color:#38bdf8;font-size:10px;">معامله در تایم ' + pt.tTF + ' (فیلتر نویز M1 فعال بود)</span>';
-                } else {
-                    indResultHtml = '<span style="color:#64748b;font-size:10px;">عدم تطابق داده</span>';
+                } else if (scenario.disabledKings && !scenario.disabledKings.includes('بدون مسدودی')) {
+                    if (patName && (scenario.disabledKings.includes(patName) || (patKey && scenario.disabledKings.includes(patKey)))) {
+                        isAllowed = false;
+                        filterReason = 'سلطان مسدود (' + patName + ')';
+                    }
                 }
-
-                let pnlColor = isWin ? '#34d399' : '#f87171';
-
-                let waitTag = (pt.match && pt.match.wait_fmt && pt.match.wait_fmt !== '-')
-                    ? `<div style="color:#38bdf8;font-size:9.5px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ${pt.match.wait_fmt}</div>`
-                    : '';
-
-                html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
-                    <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
-                    <td style="padding:7px 8px;font-weight:600;color:#f8fafc;">${pt.pattern}</td>
-                    <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
-                    <td style="padding:7px 8px;text-align:center;">${sideBadge}</td>
-                    <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;">${pt.tEntryTime}${waitTag}</td>
-                    <td style="padding:7px 8px;color:#cbd5e1;font-size:10.5px;">${pt.boxEntry.toFixed(5)}</td>
-                    <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;">${pt.marketFill.toFixed(5)}</td>
-                    <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>
-                    <td style="padding:7px 8px;text-align:center;background:#064e3b18;border-left:1px solid #05966933;">${scStatusBadge}</td>
-                    <td style="padding:7px 8px;text-align:center;background:#064e3b18;">${indResultHtml}</td>
-                    <td style="padding:7px 8px;text-align:center;background:#1e3a5f18;border-left:1px solid #0284c733;color:#e2e8f0;font-size:10.5px;">${pt.exitClass}</td>
-                    <td style="padding:7px 8px;text-align:center;background:#1e3a5f18;color:${pnlColor};font-weight:bold;direction:ltr;">${(pt.profitPips > 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p | ${(pt.profitUSD > 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</td>
-                    <td style="padding:7px 10px;border-left:1px solid #334155;">${pt.verdictHtml}</td>
-                </tr>`;
-            });
-
-            tbody.innerHTML = html;
+            }
         }
+
+        // Indicator Theoretical PnL & Outcome
+        let indNet = 0.0;
+        let indTgt = '';
+        let isIndWin = false;
+        if (match) {
+            indNet = match.net !== undefined ? match.net : (match.t1 ? (match.pts * 0.04) : -(match.pts * 0.04));
+            isIndWin = (match.t1 === 1 || indNet > 0);
+            if (match.t4) indTgt = 'TP 1:4 🚀';
+            else if (match.t3) indTgt = 'TP 1:3 🎯';
+            else if (match.t2) indTgt = 'TP 1:2 🎯';
+            else if (match.t1) indTgt = 'TP 1:1 🎯';
+            else indTgt = 'حد ضرر SL ❌';
+        }
+
+        // Forensic Verdict & Discrepancy Detection
+        let verdictHtml = '';
+        let isDisc = false;
+        let exitCls = t.exitClass || '';
+        let discMsg = t.discrepancyReason || t.discrepancyLabel || '';
+
+        if (discMsg && discMsg.includes('اسپرد')) {
+            isDisc = true;
+            verdictHtml = `<span style="color:#fca5a5;">❌ <b>اسپرد Ask روی استاپ:</b> در پوزیشن فروش، حد ضرر با قیمت Ask معامله‌گر لمس شد.</span>`;
+        } else if (!isAllowed) {
+            isDisc = true;
+            verdictHtml = `<span style="color:#fca5a5;">🛑 <b>فیلتر در سناریو:</b> این ستاپ در سناریوی انتخابی به علت «${filterReason}» فیلتر است (${profitUSD < 0 ? 'جلوی این باخت در سناریو گرفته شد' : 'در سناریو رد شد'}).</span>`;
+        } else if (tEntryTime && tEntryTime < '2026.08.28') {
+            verdictHtml = `<span style="color:#94a3b8;">📅 <b>تست ۱۰ روزه تستر:</b> معامله در ۲۶ و ۲۷ اوت پیش از تاریخ شروع ذخیره دیتای لایو چارت با موفقیت ثبت شده است.</span>`;
+        } else if (match && match.t1 && profitUSD > 0) {
+            verdictHtml = `<span style="color:#a7f3d0;">🟢 <b>انطباق کامل:</b> تارگت ستاپ در تستر و اندیکاتور با موفقیت لمس شد و سود ذخیره گردید.</span>`;
+        } else if (match && match.t1 && profitUSD < 0) {
+            isDisc = true;
+            verdictHtml = `<span style="color:#fca5a5;">❌ <b>اختلاف اجرای مارکت:</b> در اندیکاتور تارگت زده شد اما در تستر به دلیل اسپرد یا نوسان استاپ خورد.</span>`;
+        } else if (match && match.t4 && exitCls.includes('BE')) {
+            isDisc = true;
+            verdictHtml = `<span style="color:#c7d2fe;">🛡️ <b>خروج در بریک‌ایون:</b> پوزیشن‌های باقیمانده پس از ذخیره سود در نقطه ورود (BE) بسته شدند.</span>`;
+        } else if (slippagePips >= 2.0) {
+            isDisc = true;
+            verdictHtml = `<span style="color:#fde68a;">⚡ <b>اسلیپیج شدید ${slippagePips.toFixed(1)} پیپ ورود:</b> لغزش قیمت در مارکت نسبت سود به ریسک را کاهش داد.</span>`;
+        } else if (profitUSD >= 0) {
+            verdictHtml = `<span style="color:#a7f3d0;">🟢 <b>انطباق کامل:</b> معامله در هر دو پلتفرم با سود بسته شد.</span>`;
+        } else {
+            verdictHtml = `<span style="color:#94a3b8;">همگام (استاپ طبیعی در تستر و اندیکاتور).</span>`;
+        }
+
+        return {
+            raw: t,
+            profitPips: profitPips,
+            profitUSD: profitUSD,
+            slippagePips: slippagePips,
+            boxEntry: boxEntry,
+            marketFill: marketFill,
+            slPrice: slPrice,
+            tp1: tp1,
+            tp4: tp4,
+            tEntryTime: tEntryTime,
+            tTF: tTF,
+            tDir: tDir,
+            pattern: t.pattern || '',
+            exitClass: exitCls,
+            match: match,
+            isAllowed: isAllowed,
+            filterReason: filterReason,
+            indNet: indNet,
+            indTgt: indTgt,
+            isIndWin: isIndWin,
+            verdictHtml: verdictHtml,
+            isDisc: isDisc
+        };
+    });
+
+    // Update Filter Buttons Text & Badge Counts
+    let cntAll = processed.length;
+    let cntWin = processed.filter(x => x.profitUSD >= 0).length;
+    let cntLoss = processed.filter(x => x.profitUSD < 0).length;
+    let cntM1 = processed.filter(x => x.tTF === 'M1').length;
+    let cntSlip = processed.filter(x => x.slippagePips >= 2.0).length;
+    let cntBe = processed.filter(x => x.exitClass.includes('BE')).length;
+    let cntDisc = processed.filter(x => x.isDisc).length;
+
+    let bAll = document.getElementById('tcFilterAll'); if (bAll) bAll.textContent = 'همه (' + cntAll + ')';
+    let bWin = document.getElementById('tcFilterWin'); if (bWin) bWin.textContent = 'بردها (' + cntWin + ')';
+    let bLoss = document.getElementById('tcFilterLoss'); if (bLoss) bLoss.textContent = 'باخت‌ها (' + cntLoss + ')';
+    let bM1 = document.getElementById('tcFilterM1'); if (bM1) bM1.textContent = 'نویز M1 (' + cntM1 + ')';
+    let bSlip = document.getElementById('tcFilterSlip'); if (bSlip) bSlip.textContent = 'اسلیپیج بالا > 2p (' + cntSlip + ')';
+    let bBe = document.getElementById('tcFilterBe'); if (bBe) bBe.textContent = 'خروج در BE (' + cntBe + ')';
+    let bDisc = document.getElementById('tcFilterDisc'); if (bDisc) bDisc.textContent = '⚠️ مغایرت‌ها (' + cntDisc + ')';
+
+    let tblTitle = document.getElementById('tcTradesTableTitle');
+    if (tblTitle) {
+        tblTitle.textContent = 'جدول بازرسی و مقایسه نظیر به نظیر (1:1) معاملات متاتریدر ۵ با اندیکاتور (' + cntAll + ' ستاپ | ' + cntDisc + ' مغایرت ریشه‌ای)';
+    }
+
+    // Apply active filter
+    let filtered = processed.filter(pt => {
+        if (filterMode === 'win' && pt.profitUSD < 0) return false;
+        if (filterMode === 'loss' && pt.profitUSD >= 0) return false;
+        if (filterMode === 'm1' && pt.tTF !== 'M1') return false;
+        if (filterMode === 'slip' && pt.slippagePips < 2.0) return false;
+        if (filterMode === 'be' && !pt.exitClass.includes('BE')) return false;
+        if (filterMode === 'disc' && !pt.isDisc) return false;
+        if (searchQuery) {
+            let q = searchQuery.toLowerCase();
+            let hay = (pt.pattern + ' ' + pt.tTF + ' ' + pt.tDir + ' ' + pt.tEntryTime + ' ' + pt.filterReason).toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    let html = '';
+    filtered.forEach(pt => {
+        let isWin = (pt.profitUSD >= 0);
+        let sideBadge = pt.tDir === 'BUY'
+            ? '<span style="color:#34d399;font-weight:bold;">BUY</span>'
+            : '<span style="color:#f87171;font-weight:bold;">SELL</span>';
+
+        let tfBadge = pt.tTF === 'M1'
+            ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1 (نویز)</span>'
+            : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + pt.tTF + '</span>';
+
+        let slipColor = (pt.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
+
+        // Column: Indicator / Strategy Result
+        let indResultHtml = '';
+        if (pt.match) {
+            if (!pt.isAllowed) {
+                indResultHtml = '<span style="color:#94a3b8;font-size:10px;background:#334155;padding:2px 6px;border-radius:4px;">🛑 فیلتر ($0.00)</span>';
+            } else if (pt.isIndWin) {
+                indResultHtml = '<span style="color:#34d399;font-weight:bold;direction:ltr;">+$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:9.5px;color:#a7f3d0;">(' + pt.indTgt + ')</span>';
+            } else {
+                indResultHtml = '<span style="color:#f87171;font-weight:bold;direction:ltr;">-$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:9.5px;color:#fca5a5;">(استاپ)</span>';
+            }
+        } else if (pt.tEntryTime && pt.tEntryTime < '2026.08.28') {
+            indResultHtml = '<span style="color:#94a3b8;font-size:10px;background:#1e293b;padding:2px 6px;border-radius:4px;">📅 قبل از دیتای لایو</span>';
+        } else if (!pt.isAllowed) {
+            indResultHtml = '<span style="color:#fca5a5;font-size:10px;background:#450a0a;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;">🛑 ' + pt.filterReason + '</span>';
+        } else {
+            indResultHtml = '<span style="color:#64748b;font-size:10px;">عدم تطابق چارت</span>';
+        }
+
+        let pnlColor = isWin ? '#34d399' : '#f87171';
+
+        let waitTag = (pt.match && pt.match.wait_fmt && pt.match.wait_fmt !== '-')
+            ? `<div style="color:#38bdf8;font-size:9.5px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ${pt.match.wait_fmt}</div>`
+            : '';
+
+        // 14 Columns strictly aligned with table thead
+        html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
+            <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
+            <td style="padding:7px 8px;font-weight:600;color:#f8fafc;white-space:nowrap;text-align:right;">${pt.pattern}</td>
+            <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
+            <td style="padding:7px 8px;text-align:center;">${sideBadge}</td>
+            <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;direction:ltr;text-align:right;">${pt.tEntryTime}${waitTag}</td>
+            <td style="padding:7px 8px;color:#cbd5e1;font-size:10.5px;font-family:monospace;text-align:center;">${pt.boxEntry.toFixed(5)}</td>
+            <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;">${pt.marketFill.toFixed(5)}</td>
+            <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>
+            <td style="padding:7px 8px;text-align:center;color:#f87171;font-family:monospace;font-size:10.5px;">${pt.slPrice > 0 ? pt.slPrice.toFixed(5) : '-'}</td>
+            <td style="padding:7px 8px;text-align:center;color:#e2e8f0;font-size:10.5px;white-space:nowrap;">${pt.exitClass}</td>
+            <td style="padding:7px 8px;text-align:center;color:${pnlColor};font-weight:bold;direction:ltr;">${(pt.profitPips > 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p</td>
+            <td style="padding:7px 8px;text-align:center;color:${pnlColor};font-weight:bold;direction:ltr;">${(pt.profitUSD > 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</td>
+            <td style="padding:7px 8px;text-align:center;background:#064e3b14;border-left:1px solid #05966933;">${indResultHtml}</td>
+            <td style="padding:7px 10px;border-left:1px solid #334155;font-size:11px;line-height:1.5;text-align:right;">${pt.verdictHtml}</td>
+        </tr>`;
+    });
+
+    tbody.innerHTML = html;
+}
 
         function filterTesterTradesTable(mode, event) {
             currentTesterFilter = mode;
