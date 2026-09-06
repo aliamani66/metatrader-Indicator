@@ -69,7 +69,7 @@ input double             InpSLOffsetPips          = 8.0;         // 🛡️ فا
 input double             InpMaxSLPips             = 0.0;         // حداکثر حد ضرر مجاز به پیپ (0 = منطبق بر خط استاپ چارت)
 input int                InpSlippagePoints        = 20;          // ⚡ حداکثر اسلیپیج مجاز (لغزش قیمت به پوینت - 20 = 2 پیپ)
 input double             InpMaxEntryDeviationPips = 2.5;         // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
-input int                InpMaxOpenGroups         = 5;           // حداکثر تعداد ستاپ‌های همزمان فعال
+input int                InpMaxOpenGroups         = 20;          // حداکثر تعداد ستاپ‌های همزمان فعال
 
 //+------------------------------------------------------------------+
 //| ۴. ⏰ ساعات مجاز، کف سود ستاپ و فیوز ایمنی                     |
@@ -1404,11 +1404,6 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
             canPlaceLimit = true;
       }
 
-      // ثبت کلید معامله جهت جلوگیری از ارسال مجدد در تیک‌های بعدی
-      int newSize = ArraySize(m_executedTradesKeys) + 1;
-      ArrayResize(m_executedTradesKeys, newSize);
-      m_executedTradesKeys[newSize - 1] = tradeKey;
-
       double stageLots[4] = {InpLot_TP1, InpLot_TP2, InpLot_TP3, InpLot_TP4};
       double tps[4] = {tp1, tp2, tp3, tp4};
       ulong openedTickets[4] = {0, 0, 0, 0};
@@ -1428,6 +1423,10 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
 
          if(successfulOrders > 0)
          {
+            int newSize = ArraySize(m_executedTradesKeys) + 1;
+            ArrayResize(m_executedTradesKeys, newSize);
+            m_executedTradesKeys[newSize - 1] = tradeKey;
+
             int gSize = ArraySize(m_activeGroups) + 1;
             ArrayResize(m_activeGroups, gSize);
             m_activeGroups[gSize - 1].tradeKey      = tradeKey;
@@ -1462,11 +1461,24 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       }
       else
       {
-         // اگر قیمت به لبه باکس رسیده یا رد شده و انحراف ورود در محدوده مجاز است، ورود فوری مارکت
+         // 🚀 اگر فاصله تا لبه باکس کمتر از ۱.۵ پیپ (minStops) است، ورود مستقیم مارکت به جای صرف‌نظر کردن
          double curPrice = isBull ? ask : bid;
          double dev = MathAbs(curPrice - entryPrice);
 
-         if(dev <= maxDev)
+         // اعتبارسنجی ورود مارکت: قیمت به SL نرسیده باشد، TP1 زده نشده باشد، و در محدوده انحراف مجاز (maxDev) باشد
+         bool canMarketEnter = false;
+         if(isBull)
+         {
+            if(curPrice > sl && curPrice < tp1 && (curPrice <= entryPrice + maxDev || dev <= maxDev))
+               canMarketEnter = true;
+         }
+         else
+         {
+            if(curPrice < sl && curPrice > tp1 && (curPrice >= entryPrice - maxDev || dev <= maxDev))
+               canMarketEnter = true;
+         }
+
+         if(canMarketEnter)
          {
             for(int p = 0; p < 4; p++)
             {
@@ -1478,6 +1490,10 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
 
             if(successfulOrders > 0)
             {
+               int newSize = ArraySize(m_executedTradesKeys) + 1;
+               ArrayResize(m_executedTradesKeys, newSize);
+               m_executedTradesKeys[newSize - 1] = tradeKey;
+
                int gSize = ArraySize(m_activeGroups) + 1;
                ArrayResize(m_activeGroups, gSize);
                m_activeGroups[gSize - 1].tradeKey      = tradeKey;
@@ -1505,8 +1521,8 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
                m_activeGroups[gSize - 1].trailTP2Applied = false;
                m_activeGroups[gSize - 1].isFinished       = false;
 
-               PrintFormat("✅ [FlagPro Market Fill] ورود مستقیم مارکت به علت نزدیکی قیمت به باکس | الگو: %s [%s] | نوع: %s @ %.5f",
-                           role, EnumToString(g_drawnBoxes[b].tf), (isBull ? "BUY" : "SELL"), curPrice);
+               PrintFormat("✅ [FlagPro Market Fallback] فاصله کمتر از %.1f پیپ لیمیت بروکر بود؛ ورود مستقیم مارکت انجام شد | الگو: %s [%s] | نوع: %s @ %.5f",
+                           minStops / pipSize, role, EnumToString(g_drawnBoxes[b].tf), (isBull ? "BUY" : "SELL"), curPrice);
             }
          }
       }
@@ -1611,6 +1627,15 @@ void OnTick()
                }
             }
             m_activeGroups[g].isFinished = true;
+            // آزاد کردن کلید معامله تا پس از پایان سشن شب در صورت معتبر بودن باکس، معامله بتواند در روز فعال شود
+            for(int k = 0; k < ArraySize(m_executedTradesKeys); k++)
+            {
+               if(m_executedTradesKeys[k] == m_activeGroups[g].tradeKey)
+               {
+                  m_executedTradesKeys[k] = "";
+                  break;
+               }
+            }
          }
       }
    }
