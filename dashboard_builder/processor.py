@@ -105,6 +105,13 @@ def process_symbol_dataset(csv_file):
         if m['is_king_eligible']:
             qualified_kings.append(m)
 
+    # Fallback: if no pattern qualified, include all available patterns with closed trades
+    if not qualified_kings:
+        for (tf, role), t_list in tf_role_map_raw.items():
+            m = calc_pattern_metrics(t_list, tf, role, FRICTION_04_PER_TRADE)
+            if m and m.get('cnt', 0) > 0:
+                qualified_kings.append(m)
+
     qualified_kings.sort(key=lambda x: (x['score'], x['cnt']), reverse=True)
 
     kings_trades = []

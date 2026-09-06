@@ -9,8 +9,8 @@ def _make_preset_fdesc(p_opt):
 
 def optimize_smart_presets(trades_sim_list, kings_sim_list, closed_count):
     total_kings_trades = len([t for t in trades_sim_list if t.get('k') == 1])
-    min_15pct_trades = max(15, int(total_kings_trades * 0.15))
-    min_35pct_trades = max(25, int(total_kings_trades * 0.35))
+    min_15pct_trades = max(1, min(15, int(total_kings_trades * 0.15)))
+    min_35pct_trades = max(1, min(25, int(total_kings_trades * 0.35)))
 
     k_eval_stats = {}
     for t in trades_sim_list:
@@ -223,7 +223,10 @@ def optimize_smart_presets(trades_sim_list, kings_sim_list, closed_count):
                 consec_loss = 0
 
         c = len(sub)
-        if c == 0: continue
+        if c == 0:
+            sub = [t for t in trades_sim_list]
+            c = len(sub)
+            if c == 0: continue
         nt = sum(t['p'] for t in sub)
         w = len([t for t in sub if t['p'] > 0])
         wr = (w / c * 100) if c > 0 else 0.0

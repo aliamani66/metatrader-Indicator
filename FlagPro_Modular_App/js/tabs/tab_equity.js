@@ -1,6 +1,6 @@
 // Global Simulation State
 var simState = (typeof simState !== 'undefined') ? simState : {
-    mode: 'kings',
+    mode: 'all', // Default: Raw Test (All Trades)
     enabledKings: new Set(),
     allowedHours: new Array(24).fill(true),
     minProfit: 0.0,
@@ -55,8 +55,23 @@ function clearPresetActiveState() {
                 simState.mode = 'kings';
                 let btnK = document.getElementById('btnEqKings');
                 let btnA = document.getElementById('btnEqAll');
-                if (btnK) btnK.classList.add('active');
-                if (btnA) btnA.classList.remove('active');
+                if (btnK) {
+                    btnK.style.background = '#eab308';
+                    btnK.style.color = '#000';
+                    btnK.classList.add('active');
+                }
+                if (btnA) {
+                    btnA.style.background = 'transparent';
+                    btnA.style.color = '#94a3b8';
+                    btnA.classList.remove('active');
+                }
+                let lbl = document.getElementById('lblActiveEquityScenario');
+                if (lbl) {
+                    lbl.textContent = p.title || p.name || '👑 سناریوی فیلترشده';
+                    lbl.style.borderColor = '#eab308';
+                    lbl.style.color = '#fde047';
+                    lbl.style.background = '#2a1b00';
+                }
 
                 // 2. Set min profit
                 simState.minProfit = (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0.0;
@@ -787,10 +802,16 @@ function openSavePresetModal() {
 
         function resetAllSimFilters() {
             clearPresetActiveState();
-            simState.mode = 'kings';
-            kingsSimList.forEach(k => simState.enabledKings.add(k.kk));
+            simState.mode = 'all'; // Reset to Raw Test (All Trades)
+            if (Array.isArray(kingsSimList)) {
+                kingsSimList.forEach(k => simState.enabledKings.add(k.kk));
+            }
             simState.allowedHours.fill(true);
             simState.minProfit = 0.0;
+            window.currentActivePreset = null;
+            window.currentActivePresetIdx = -1;
+            window.currentActivePresetTitle = '📊 نتیجه تست خام (کل معاملات چارت)';
+            window.currentActiveSimSettings = JSON.parse(JSON.stringify(simState));
 
             let slider = document.getElementById('simProfitSlider');
             if (slider) slider.value = 0;
@@ -812,8 +833,23 @@ function openSavePresetModal() {
 
             let btnK = document.getElementById('btnEqKings');
             let btnA = document.getElementById('btnEqAll');
-            if (btnK) btnK.classList.add('active');
-            if (btnA) btnA.classList.remove('active');
+            if (btnK) {
+                btnK.style.background = 'transparent';
+                btnK.style.color = '#94a3b8';
+                btnK.classList.remove('active');
+            }
+            if (btnA) {
+                btnA.style.background = '#0284c7';
+                btnA.style.color = '#fff';
+                btnA.classList.add('active');
+            }
+            let lbl = document.getElementById('lblActiveEquityScenario');
+            if (lbl) {
+                lbl.textContent = '📊 نتیجه تست خام (کل معاملات چارت)';
+                lbl.style.borderColor = '#0284c7';
+                lbl.style.color = '#38bdf8';
+                lbl.style.background = '#0f2942';
+            }
 
             simState.consecLossTrigger = 0;
             simState.consecLossSkipCount = 1;
@@ -833,12 +869,45 @@ function openSavePresetModal() {
             simState.mode = mode;
             let btnK = document.getElementById('btnEqKings');
             let btnA = document.getElementById('btnEqAll');
+            let lbl = document.getElementById('lblActiveEquityScenario');
             if(mode === 'kings') {
-                if(btnK) btnK.classList.add('active');
-                if(btnA) btnA.classList.remove('active');
+                if(btnK) {
+                    btnK.style.background = '#eab308';
+                    btnK.style.color = '#000';
+                    btnK.classList.add('active');
+                }
+                if(btnA) {
+                    btnA.style.background = 'transparent';
+                    btnA.style.color = '#94a3b8';
+                    btnA.classList.remove('active');
+                }
+                if(lbl) {
+                    lbl.textContent = window.currentActivePresetTitle || '👑 سناریوی فیلترشده';
+                    lbl.style.borderColor = '#eab308';
+                    lbl.style.color = '#fde047';
+                    lbl.style.background = '#2a1b00';
+                }
             } else {
-                if(btnK) btnK.classList.remove('active');
-                if(btnA) btnA.classList.add('active');
+                if(btnK) {
+                    btnK.style.background = 'transparent';
+                    btnK.style.color = '#94a3b8';
+                    btnK.classList.remove('active');
+                }
+                if(btnA) {
+                    btnA.style.background = '#0284c7';
+                    btnA.style.color = '#fff';
+                    btnA.classList.add('active');
+                }
+                if(lbl) {
+                    lbl.textContent = '📊 نتیجه تست خام (کل معاملات چارت)';
+                    lbl.style.borderColor = '#0284c7';
+                    lbl.style.color = '#38bdf8';
+                    lbl.style.background = '#0f2942';
+                }
+                window.currentActivePreset = null;
+                window.currentActivePresetIdx = -1;
+                window.currentActivePresetTitle = '📊 نتیجه تست خام (کل معاملات چارت)';
+                clearPresetActiveState();
             }
             runEquitySimulation();
         }

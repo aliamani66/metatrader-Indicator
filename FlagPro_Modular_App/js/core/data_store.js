@@ -10,7 +10,7 @@ var smartPresets = [];
 var allTrades = [];
 var currentExportConfig = null;
 var simState = {
-    mode: 'kings',
+    mode: 'all', // Default: Raw Test (All Trades)
     enabledKings: new Set(),
     allowedHours: new Array(24).fill(true),
     minProfit: 0.0,
@@ -119,14 +119,18 @@ function switchDashboardSymbol(symName) {
                 updateValidationStatus();
             }
 
-            // 4. Reset Simulator State
-            simState.mode = 'kings';
+            // 4. Reset Simulator State to Raw Test (All Trades)
+            simState.mode = 'all';
             simState.enabledKings = new Set(kingsSimList.map(k => k.kk));
             simState.allowedHours = new Array(24).fill(true);
             simState.minProfit = 0.0;
             simState.consecLossTrigger = 0;
             simState.consecLossSkipCount = 1;
             simState.consecLossSkipDay = false;
+            window.currentActivePreset = null;
+            window.currentActivePresetIdx = -1;
+            window.currentActivePresetTitle = '📊 نتیجه تست خام (کل معاملات چارت)';
+            window.currentActiveSimSettings = JSON.parse(JSON.stringify(simState));
 
             // Reset UI controls
             let slider = document.getElementById('simProfitSlider');
@@ -150,6 +154,26 @@ function switchDashboardSymbol(symName) {
                 p.style.background = '#081a2e';
                 p.style.color = '#38bdf8';
             });
+
+            let btnK = document.getElementById('btnEqKings');
+            let btnA = document.getElementById('btnEqAll');
+            if (btnK) {
+                btnK.style.background = 'transparent';
+                btnK.style.color = '#94a3b8';
+                btnK.classList.remove('active');
+            }
+            if (btnA) {
+                btnA.style.background = '#0284c7';
+                btnA.style.color = '#fff';
+                btnA.classList.add('active');
+            }
+            let lbl = document.getElementById('lblActiveEquityScenario');
+            if (lbl) {
+                lbl.textContent = '📊 نتیجه تست خام (کل معاملات چارت)';
+                lbl.style.borderColor = '#0284c7';
+                lbl.style.color = '#38bdf8';
+                lbl.style.background = '#0f2942';
+            }
 
             // Re-render UI components safely
             try { if (typeof initEquityCanvasEvents === 'function') initEquityCanvasEvents(); } catch(e) { console.error('initEquityCanvasEvents error:', e); }

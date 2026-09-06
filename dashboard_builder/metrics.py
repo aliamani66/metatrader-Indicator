@@ -124,8 +124,10 @@ def calc_pattern_metrics(t_list, tf, role, friction_04_per_trade=FRICTION_04_PER
     min_sl = min(stops) if stops else 0.0
     max_sl = max(stops) if stops else 0.0
     avg_sl = sum(stops) / len(stops) if stops else 0.0
-
-    is_king_eligible = is_perfect or (cnt >= 4 and net > 5.0 and w1_p >= 50.0)
+    if cnt < 4:
+        is_king_eligible = is_perfect or (net >= 0 and w1_p >= 40.0) or (final_score > 0 and net > -2.0)
+    else:
+        is_king_eligible = is_perfect or (cnt >= 4 and net > 5.0 and w1_p >= 50.0)
 
     return {
         'tf': tf, 'role': role, 'cnt': cnt,
