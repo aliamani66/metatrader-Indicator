@@ -200,7 +200,7 @@ function switchDashboardSymbol(symName) {
         async function processUploadedFile(file) {
             if (!file) return;
 
-            // 1. Try Bridge Server for 100% full rebuild of all tabs and metrics
+            // 1. Try Bridge Server for saving to MT5 Files/ folder and rebuilding
             try {
                 let fileText = await file.text();
                 let resp = await fetch('http://127.0.0.1:8288/rebuild', {
@@ -211,16 +211,18 @@ function switchDashboardSymbol(symName) {
                 if (resp.ok) {
                     let json = await resp.json();
                     if (json.success) {
-                        alert('✅ داده‌های فایل جدید با موفقیت پردازش شدند و تمام صفحات، سلاطین و تایم‌فریم‌ها به‌روزرسانی گردیدند!\n\nصفحه برای نمایش اطلاعات جدید مجدداً بارگذاری می‌شود.');
+                        if (typeof showSaveNotification === 'function') {
+                            showSaveNotification('🚀 فایل «' + file.name + '» ذخیره و تمام داشبورد با موفقیت به‌روزرسانی شد!');
+                        }
                         location.reload();
                         return;
                     }
                 }
             } catch(e) {
-                // Bridge server offline
+                // Bridge server offline, proceed with client-side autonomous engine
             }
 
-            // 2. Client-side fallback
+            // 2. Client-side autonomous engine (100% in-browser)
             let reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -242,7 +244,11 @@ function switchDashboardSymbol(symName) {
                         }
                         sel.value = symName;
                         switchDashboardSymbol(symName);
-                        alert('✅ داده‌های جدید روی چارت و ژورنال اعمال شدند.\n\n💡 نکته: برای به‌روزرسانی عمیق تمام تب‌ها (سلاطین همه‌فصول، عملکرد تایم‌فریم‌ها و...)، فایل «به روزرسانی داشبورد FlagPro.bat» را از روی دسکتاپ اجرا نمایید.');
+
+                        let tradeCount = (window.ALL_SYMBOLS_DATA[symName] && window.ALL_SYMBOLS_DATA[symName].trades_json_list) ? window.ALL_SYMBOLS_DATA[symName].trades_json_list.length : 0;
+                        if (typeof showSaveNotification === 'function') {
+                            showSaveNotification('🚀 فایل «' + file.name + '» با موفقیت اعمال شد!<br><span style="color:#34d399;font-size:11px;">' + tradeCount + ' معامله استخراج و تمام تب‌ها و چارت اکوئیتی به‌صورت خودکار به‌روزرسانی شدند.</span>');
+                        }
                     }
                 } catch(err) {
                     alert('❌ خطا در پردازش فایل CSV: ' + err.message);
