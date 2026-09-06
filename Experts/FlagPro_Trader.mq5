@@ -35,6 +35,8 @@ enum ENUM_ORDER_EXEC_MODE
 input group "=== 🎯 ۱. حجم معاملات و خروج ۴ مرحله‌ای (Scale-Out & Trailing) ==="
 input ENUM_ORDER_EXEC_MODE InpOrderExecMode         = EXEC_MODE_LIMIT; // ⚡ حالت اجرای سفارشات (اردر لیمیت دقیق / مارکت اردر)
 input int                  InpLimitExpirationBars   = 40;              // ⏳ حداکثر طول عمر اردر لیمیت به کندل (در صورت عدم تاچ)
+input bool                 InpFallbackToMarketWhenNear = true;         // 🏃 تبدیل خودکار لیمیت به مارکت در فاصله کمتر از حد مجاز بروکر (< 1.5 پیپ)
+input double               InpMarketFallbackDistPips   = 1.5;          // 📏 حداقل فاصله مجاز به پیپ جهت تبدیل لیمیت به مارکت (StopsLevel Fallback)
 input bool                 InpEnableScaleOut        = true;        // فعال‌سازی سیستم خروج ۴ مرحله‌ای
 input double             InpLot_TP1               = 0.01;        // 🎯 حجم خروج مرحله ۱ در TP1 (25% کل حجم)
 input double             InpLot_TP2               = 0.01;        // 🎯 حجم خروج مرحله ۲ در TP2 (25% کل حجم)
@@ -1122,7 +1124,8 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
 
    double minStops = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
-   if(minStops < 15.0 * _Point) minStops = 15.0 * _Point;
+   double fallbackDist = (InpMarketFallbackDistPips > 0) ? (InpMarketFallbackDistPips * pipSize) : (15.0 * _Point);
+   if(minStops < fallbackDist) minStops = fallbackDist;
 
    double maxDev = (InpMaxEntryDeviationPips > 0) ? (InpMaxEntryDeviationPips * pipSize) : (3.0 * pipSize);
 
@@ -1459,9 +1462,9 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
                         role, EnumToString(g_drawnBoxes[b].tf), (isBull ? "BUY" : "SELL"), entryPrice, sl, tp1, tp2, tp3, tp4);
          }
       }
-      else
+      else if(InpFallbackToMarketWhenNear)
       {
-         // 🚀 اگر فاصله تا لبه باکس کمتر از ۱.۵ پیپ (minStops) است، ورود مستقیم مارکت به جای صرف‌نظر کردن
+         // 🚀 اگر فاصله تا لبه باکس کمتر از حد مجاز لیمیت بروکر (minStops) است، ورود مستقیم مارکت به جای صرف‌نظر کردن
          double curPrice = isBull ? ask : bid;
          double dev = MathAbs(curPrice - entryPrice);
 
