@@ -27,7 +27,7 @@ bool   g_askLineVisible = true;
 //| ۱. 🎯 تنظیم بازه تاریخی و عملکرد                                  |
 //+------------------------------------------------------------------+
 input group "=== 🎯 ۱. تنظیم بازه تاریخی و عملکرد ==="
-input datetime          InpHistoryStartDate   = D'2025.01.01 00:00';    // 📅 تاریخ شروع دلخواه (مثلاً 2026.08.01 برای یک ماه پیش)
+input datetime          InpHistoryStartDate   = D'2026.09.01 00:00';    // 📅 تاریخ شروع دلخواه (ابتدای ماه جاری)
 input int               InpHistoryDays        = 10;                     // ⏳ یا تعداد روز گذشته (پیش‌فرض: ۱۰ روز برای پوشش کامل هفته و تست‌ها)
 input ENUM_HISTORY_MODE InpHistoryMode        = HIST_DAYS_BACK;         // ⚙️ مبنای بازه تاریخی (تعداد روز گذشته / تاریخ شروع دلخواه / کل تاریخچه)
 input bool              InpShowBoxes          = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (کلید B برای سوئیچ سریع)

@@ -104,7 +104,7 @@ input bool               InpUseTF5                = true;        // معامله
 input bool               InpTradeMacroTFs         = false;       // معامله در تایم‌های ماکرو H1, H4, D1, W1 (پیش‌فرض: غیرفعال)
 input int                InpLookbackBars          = 15000;       // ⚡ عمق اسکن کندل‌ها در لحظه (۱۵۰۰۰ کندل = حدود ۱۰ روز تایم ۱ دقیقه)
 input ENUM_HISTORY_MODE  InpHistoryMode           = HIST_DAYS_BACK; // ⚙️ مبنای بازه تاریخی (تعداد روز گذشته)
-input datetime           InpHistoryStartDate      = D'2025.01.01 00:00'; // 📅 تاریخ شروع
+input datetime           InpHistoryStartDate      = D'2026.09.01 00:00'; // 📅 تاریخ شروع دلخواه (ابتدای ماه جاری)
 input int                InpHistoryDays           = 10;          // ⏳ بازه روز گذشته (پیش‌فرض: ۱۰ روز برای پوشش کامل هفته و تست‌ها)
 
 //+------------------------------------------------------------------+
