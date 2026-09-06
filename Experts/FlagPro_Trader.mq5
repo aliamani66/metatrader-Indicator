@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "FlagPro Quantitative Trading Systems"
 #property link        "https://github.com/aliamani66/metatrader-Indicator"
-#property version     "2.11"
+#property version     "2.12"
 #property description "ربات معامله‌گر مستقل FlagPro - سیستم خروج چندمرحله‌ای (Scale-Out) و بریک‌ایون خودکار"
 
 #include <Trade\Trade.mqh>
@@ -1340,8 +1340,19 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       // فقط ستاپ‌هایی که اخیراً خروج کرده‌اند مجاز به ثبت اردر لیمیت هستند
       if(ratesTotal - 1 - departedBar > InpLimitExpirationBars) continue;
 
-      string tradeKey = g_drawnBoxes[b].boxName + "_LIMIT_" + IntegerToString((int)confirmTime);
+      string tradeKey = g_drawnBoxes[b].boxName;
       if(IsTradeAlreadyExecuted(tradeKey)) continue;
+
+      bool isBoxBusy = false;
+      for(int g = 0; g < ArraySize(m_activeGroups); g++)
+      {
+         if(m_activeGroups[g].boxName == g_drawnBoxes[b].boxName)
+         {
+            isBoxBusy = true;
+            break;
+         }
+      }
+      if(isBoxBusy) continue;
 
       // محاسبه دقیق SL و TPها
       double sl = NormalizeDouble(slPrice, _Digits);
@@ -1626,7 +1637,7 @@ void OnTick()
          if(g_tradeSetups[t].entryTime < chartTime[ratesTotal - 2])
             continue;
 
-         string tradeKey = g_tradeSetups[t].boxName + "_" + IntegerToString((int)g_tradeSetups[t].entryTime);
+         string tradeKey = g_tradeSetups[t].boxName;
          if(IsTradeAlreadyExecuted(tradeKey))
             continue;
 
