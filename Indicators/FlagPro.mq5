@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 #property copyright "FlagPro Indicator"
 #property link      ""
-#property version   "1.00"
+#property version   "2.11"
 #property indicator_chart_window
 #property indicator_buffers 2
 #property indicator_plots   1
@@ -216,13 +216,15 @@ int OnInit()
    ObjectsDeleteAll(0, FP_PREFIX);
    ChartRedraw(0);
    g_forceRecalc = true;
-   IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro v1.00");
-   PrintFormat("🚀 [FlagPro v1.00] بازه فعال: از تاریخ %s (%d روز گذشته) | کندل‌های پردازش: %d | باکس‌ها: %s | خط اسک: %s | معاملات: %s",
+   IndicatorSetString(INDICATOR_SHORTNAME, "FlagPro " + FLAGPRO_VERSION);
+   PrintFormat("🚀 [FlagPro %s] بازه فعال: از تاریخ %s (%d روز گذشته) | کندل‌های پردازش: %d | باکس‌ها: %s | خط اسک: %s | معاملات: %s",
+               FLAGPRO_VERSION,
                (g_effectiveStartDate > 0 ? TimeToString(g_effectiveStartDate, TIME_DATE) : "کل تاریخچه"),
                g_effectiveDaysBack, g_effectiveTargetBars,
                (InpShowBoxes ? "روشن" : "خاموش"),
                (InpShowAskLine ? "روشن" : "خاموش"),
                (InpAutoDrawTrades ? "روشن" : "خاموش"));
+   RenderVersionBadge("FlagPro Indicator", FLAGPRO_VERSION);
    return INIT_SUCCEEDED;
 }
 
@@ -383,6 +385,8 @@ int OnCalculate(const int rates_total,
 
    // اکسپورت خودکار گزارش جامع ستاپ‌ها به فایل CSV
    ExportAllTradesToCSV();
+
+   RenderVersionBadge("FlagPro Indicator", FLAGPRO_VERSION);
 
    if(!(bool)MQLInfoInteger(MQL_TESTER)) ChartRedraw(0);
    return rates_total;

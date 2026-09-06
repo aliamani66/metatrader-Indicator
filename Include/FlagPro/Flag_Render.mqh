@@ -384,3 +384,31 @@ void HighlightBox(int boxIdx)
 
    ChartRedraw(0);
 }
+
+//+------------------------------------------------------------------+
+//| رسم بج نسخه در گوشه بالا-راست چارت                               |
+//+------------------------------------------------------------------+
+void RenderVersionBadge(const string moduleName, const string version = FLAGPRO_VERSION)
+{
+   bool isEA = (StringFind(moduleName, "EA") >= 0 || StringFind(moduleName, "Trader") >= 0);
+   string objName = FP_PREFIX + (isEA ? "VER_EA" : "VER_IND");
+   if(ObjectFind(0, objName) < 0)
+   {
+      ObjectCreate(0, objName, OBJ_LABEL, 0, 0, 0);
+   }
+   int yDist = 20;
+   if(isEA && ObjectFind(0, FP_PREFIX + "VER_IND") >= 0)
+      yDist = 42;
+
+   ObjectSetInteger(0, objName, OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+   ObjectSetInteger(0, objName, OBJPROP_XDISTANCE, 20);
+   ObjectSetInteger(0, objName, OBJPROP_YDISTANCE, yDist);
+   ObjectSetInteger(0, objName, OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
+   ObjectSetString(0, objName, OBJPROP_TEXT, StringFormat("⚡ %s %s", moduleName, version));
+   ObjectSetString(0, objName, OBJPROP_FONT, "Segoe UI Black");
+   ObjectSetInteger(0, objName, OBJPROP_FONTSIZE, 10);
+   ObjectSetInteger(0, objName, OBJPROP_COLOR, isEA ? clrGold : clrAquamarine);
+   ObjectSetInteger(0, objName, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, objName, OBJPROP_BACK, false);
+   ObjectSetInteger(0, objName, OBJPROP_HIDDEN, true);
+}

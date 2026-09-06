@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "FlagPro Quantitative Trading Systems"
 #property link        "https://github.com/aliamani66/metatrader-Indicator"
-#property version     "1.01"
+#property version     "2.11"
 #property description "ربات معامله‌گر مستقل FlagPro - سیستم خروج چندمرحله‌ای (Scale-Out) و بریک‌ایون خودکار"
 
 #include <Trade\Trade.mqh>
@@ -284,7 +284,8 @@ int OnInit()
    g_tradeCount = 0;
    g_testerStartBase = 0;
 
-   Print("🚀 FlagPro_Trader EA آماده به کار است. سیستم خروج ۴ مرحله‌ای (Scale-Out) و بریک‌ایون فعال شد.");
+   PrintFormat("🚀 FlagPro_Trader EA آماده به کار است (نسخه %s). سیستم خروج ۴ مرحله‌ای (Scale-Out) و بریک‌ایون فعال شد.", FLAGPRO_VERSION);
+   RenderVersionBadge("FlagPro Trader EA", FLAGPRO_VERSION);
    return INIT_SUCCEEDED;
 }
 
@@ -597,6 +598,8 @@ void OnDeinit(const int reason)
    ArrayResize(g_tradeSetups, 0);
    g_tradeCount = 0;
    g_testerStartBase = 0;
+   ObjectDelete(0, FP_PREFIX + "VER_EA");
+   ChartRedraw(0);
 }
 
 //+------------------------------------------------------------------+
@@ -1570,6 +1573,8 @@ void OnTick()
    ProcessUniversalSwapLines(chartTime, chartHigh, chartLow, ratesTotal);
 
    RenderAutoTradeSetups(chartTime, chartHigh, chartLow, chartClose, ratesTotal);
+
+   RenderVersionBadge("FlagPro Trader EA", FLAGPRO_VERSION);
 
    if(!InpShowBoxes)
    {
