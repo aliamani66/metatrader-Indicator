@@ -158,6 +158,7 @@ def process_symbol_dataset(csv_file):
 
     rows = [r for r in all_raw_rows if r.get('Timeframe') in available_tfs]
     total_setups = len(rows)
+    pending = [r for r in rows if r.get('Outcome') == 'Pending']
     entered = [r for r in rows if r.get('Outcome') != 'Pending']
     closed = [r for r in entered if r.get('IsClosed') == 'True']
     if not closed:
@@ -2319,6 +2320,9 @@ def process_symbol_dataset(csv_file):
 
     
 
+    cnt_pts_k = max(1, len(pts_kings) - 1)
+    avg_trade_k = (net_k / cnt_pts_k) if (len(pts_kings) - 1) > 0 else 0.0
+
     tab_equity_html = f"""<!-- Equity Metrics Banner (Dynamically updated by simulation) -->
             <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;margin-bottom:10px;">
                 <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
@@ -2358,7 +2362,7 @@ def process_symbol_dataset(csv_file):
                 </div>
                 <div class="kpi-card" style="border-color:#a855f7;padding:6px 10px;">
                     <div class="kpi-title" style="font-size:9.5px;">⚡ متوسط سود هر ترید</div>
-                    <div class="kpi-value" id="eqKpiAvgTrade" style="color:#c084fc;font-size:16px;">+${(net_k/(len(pts_kings)-1)):.2f}</div>
+                    <div class="kpi-value" id="eqKpiAvgTrade" style="color:#c084fc;font-size:16px;">{'+$' if avg_trade_k>=0 else '-$'}{abs(avg_trade_k):.2f}</div>
                     <div class="kpi-sub" id="eqKpiAvgTradeSub" style="font-size:9.5px;">میانگین خروجی هر ترید</div>
                 </div>
                 <div class="kpi-card" style="border-color:#0284c7;padding:6px 10px;">
@@ -2904,12 +2908,12 @@ def process_symbol_dataset(csv_file):
                 <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
                     <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
                     <div class="kpi-value" style="color:#38bdf8;">{total_setups:,}</div>
-                    <div class="kpi-sub">تایم‌های M1, M5, M15</div>
+                    <div class="kpi-sub">تایم‌های {tfs_str}</div>
                 </div>
                 <div class="kpi-card" style="border-top: 4px solid #00e676;">
                     <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
                     <div class="kpi-value" style="color:#00e676;">{len(closed):,}</div>
-                    <div class="kpi-sub">در انتظار / فعال: {len(in_trade)} معامله</div>
+                    <div class="kpi-sub">{len(pending):,} باکس بدون ورود / منقضی{f" | {len(in_trade)} معامله فعال" if len(in_trade) > 0 else ""}</div>
                 </div>
                 <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
                     <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>

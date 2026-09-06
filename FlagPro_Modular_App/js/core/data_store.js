@@ -326,12 +326,23 @@ function switchDashboardSymbol(symName) {
 
             let rawTrades = [];
             let detectedSym = '';
+            let totalBoxesCount = 0;
+            let pendingBoxesCount = 0;
+            let openTradesCount = 0;
             for (let i = 1; i < lines.length; i++) {
                 let parts = lines[i].split(',').map(p => p.trim());
                 if (parts.length < 5) continue;
+                totalBoxesCount++;
                 let isClosed = colIdx['IsClosed'] !== undefined ? parts[colIdx['IsClosed']] : 'True';
                 let outcome = colIdx['Outcome'] !== undefined ? parts[colIdx['Outcome']] : '';
-                if (isClosed !== 'True' || outcome === 'Pending') continue;
+                if (outcome === 'Pending') {
+                    pendingBoxesCount++;
+                    continue;
+                }
+                if (isClosed !== 'True') {
+                    openTradesCount++;
+                    continue;
+                }
 
                 let sym = colIdx['Symbol'] !== undefined ? parts[colIdx['Symbol']] : '';
                 if (sym && !detectedSym) detectedSym = sym;
@@ -571,7 +582,7 @@ function switchDashboardSymbol(symName) {
                 weekly_bar_data: clientWeeklyBars,
                 trades_json_list: clientAllTrades,
                 tab_equity_html: '<div style="padding:20px;text-align:center;color:#94a3b8;">شبیه‌ساز و چارت رشد سرمایه در تب اول آماده تحلیل است.</div>',
-                tab_kings_html: generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, friction),
+                tab_kings_html: generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, friction, totalBoxesCount, pendingBoxesCount, openTradesCount),
                 tab_scaleout_html: generateClientScaleoutHTML(detectedSym, rawTrades, clientKingsSimList, friction),
                 tab_timeframes_html: generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList, friction),
                 tab_filters_html: generateClientFiltersHTML(detectedSym, rawTrades, friction),
@@ -592,8 +603,11 @@ function switchDashboardSymbol(symName) {
 
 // ================= CLIENT-SIDE DYNAMIC TAB GENERATORS =================
 
-function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, friction) {
+function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, friction, totalBoxesCount, pendingBoxesCount, openTradesCount) {
     let totalRaw = rawTrades.length;
+    let totalBoxes = (typeof totalBoxesCount === 'number' && totalBoxesCount > 0) ? totalBoxesCount : totalRaw;
+    let pendingBoxes = (typeof pendingBoxesCount === 'number') ? pendingBoxesCount : 0;
+    let openTrades = (typeof openTradesCount === 'number') ? openTradesCount : 0;
     let kingsCount = clientKingsSimList.reduce((sum, k) => sum + k.cnt, 0);
     let kingsNet = clientKingsSimList.reduce((sum, k) => sum + k.net, 0);
     let totalSL = rawTrades.filter(t => t.hr === 0).length;
@@ -622,18 +636,26 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
         </tr>
     `).join('');
 
+    let closedSubText = 'شامل تمام پوزیشن‌های قطعی';
+    if (pendingBoxes > 0) {
+        closedSubText = `${pendingBoxes.toLocaleString()} باکس در انتظار / بدون پولبک`;
+        if (openTrades > 0) {
+            closedSubText += ` | ${openTrades.toLocaleString()} فعال`;
+        }
+    }
+
     return `
         <!-- Global Performance KPI Cards -->
         <div class="kpi-grid" style="margin-bottom:20px;">
             <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
                 <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
-                <div class="kpi-value" style="color:#38bdf8;">${totalRaw.toLocaleString()}</div>
+                <div class="kpi-value" style="color:#38bdf8;">${totalBoxes.toLocaleString()}</div>
                 <div class="kpi-sub">تایم‌های تحت پوشش فایل</div>
             </div>
             <div class="kpi-card" style="border-top: 4px solid #00e676;">
                 <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
                 <div class="kpi-value" style="color:#00e676;">${totalRaw.toLocaleString()}</div>
-                <div class="kpi-sub">شامل تمام پوزیشن‌های قطعی</div>
+                <div class="kpi-sub">${closedSubText}</div>
             </div>
             <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
                 <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
@@ -655,7 +677,7 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
         <div class="section-box" style="border: 1px solid #eab308; background: #1a1608; margin-top: 15px;">
             <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
                 <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب نماد ${detectedSym}</h3>
-                <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">تحلیل خودکار از ${totalRaw.toLocaleString()} معامله واقعی (گزینش با فرمول شاخص هج‌فاندی ۷ ستونه):</p>
+                <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">تحلیل خودکار از ${totalRaw.toLocaleString()} معامله بسته‌شده واقعی (گزینش با فرمول شاخص هج‌فاندی ۷ ستونه):</p>
             </div>
             <div style="overflow-x:auto;">
                 <table>
