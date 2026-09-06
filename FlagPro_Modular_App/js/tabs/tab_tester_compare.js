@@ -1444,7 +1444,7 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
 
     let trades = report.trades || [];
     if (trades.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
         return;
     }
 
@@ -1553,17 +1553,54 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
         }
 
         // Indicator Theoretical PnL & Outcome
+        let isJpy = sym.includes('JPY');
+        let pipMult = isJpy ? 100 : 10000;
+        let riskPips = (boxEntry > 0 && slPrice > 0) ? (Math.round(Math.abs(boxEntry - slPrice) * pipMult * 10) / 10) : 10.0;
+        let riskPts = riskPips * 10;
+
         let indNet = 0.0;
+        let indPips = 0.0;
         let indTgt = '';
         let isIndWin = false;
+
         if (match) {
-            indNet = match.net !== undefined ? match.net : (match.t1 ? (match.pts * 0.04) : -(match.pts * 0.04));
+            indNet = match.net !== undefined ? Number(match.net) : (match.t1 ? (match.pts * 0.04) : -(match.pts * 0.04));
             isIndWin = (match.t1 === 1 || indNet > 0);
+            indPips = match.pts ? (Math.round((match.pts / 10.0) * 10) / 10) : riskPips;
+            if (!isIndWin && indPips > 0) indPips = -indPips;
             if (match.t4) indTgt = 'TP 1:4 🚀';
             else if (match.t3) indTgt = 'TP 1:3 🎯';
             else if (match.t2) indTgt = 'TP 1:2 🎯';
             else if (match.t1) indTgt = 'TP 1:1 🎯';
-            else indTgt = 'حد ضرر SL ❌';
+            else indTgt = 'Full SL ❌';
+        } else {
+            let tpsHit = (t.tpsHit !== undefined) ? parseInt(t.tpsHit) : ((t.outcome === 'Win' || profitUSD > 0) ? 1 : 0);
+            if (tpsHit === 0) {
+                indNet = -Math.round(riskPts * 0.04 * 100) / 100;
+                indPips = -riskPips;
+                indTgt = 'Full SL ❌';
+                isIndWin = false;
+            } else if (tpsHit === 1) {
+                indNet = Math.round(riskPts * 0.04 * 0.5 * 100) / 100;
+                indPips = riskPips;
+                indTgt = 'TP 1:1 🎯';
+                isIndWin = true;
+            } else if (tpsHit === 2) {
+                indNet = Math.round(riskPts * 0.04 * 1.5 * 100) / 100;
+                indPips = Math.round(riskPips * 2.0 * 10) / 10;
+                indTgt = 'TP 1:2 🎯';
+                isIndWin = true;
+            } else if (tpsHit === 3) {
+                indNet = Math.round(riskPts * 0.04 * 2.5 * 100) / 100;
+                indPips = Math.round(riskPips * 3.0 * 10) / 10;
+                indTgt = 'TP 1:3 🎯';
+                isIndWin = true;
+            } else {
+                indNet = Math.round(riskPts * 0.04 * 4.0 * 100) / 100;
+                indPips = Math.round(riskPips * 4.0 * 10) / 10;
+                indTgt = 'TP 1:4 🚀';
+                isIndWin = true;
+            }
         }
 
         // Forensic Verdict & Discrepancy Detection
@@ -1577,22 +1614,22 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             verdictHtml = `<span style="color:#fca5a5;">❌ <b>اسپرد Ask روی استاپ:</b> در پوزیشن فروش، حد ضرر با قیمت Ask معامله‌گر لمس شد.</span>`;
         } else if (!isAllowed) {
             isDisc = true;
-            verdictHtml = `<span style="color:#fca5a5;">🛑 <b>فیلتر در سناریو:</b> این ستاپ در سناریوی انتخابی به علت «${filterReason}» فیلتر است (${profitUSD < 0 ? 'جلوی این باخت در سناریو گرفته شد' : 'در سناریو رد شد'}).</span>`;
-        } else if (tEntryTime && tEntryTime < '2026.08.28') {
-            verdictHtml = `<span style="color:#94a3b8;">📅 <b>تست ۱۰ روزه تستر:</b> معامله در ۲۶ و ۲۷ اوت پیش از تاریخ شروع ذخیره دیتای لایو چارت با موفقیت ثبت شده است.</span>`;
-        } else if (match && match.t1 && profitUSD > 0) {
-            verdictHtml = `<span style="color:#a7f3d0;">🟢 <b>انطباق کامل:</b> تارگت ستاپ در تستر و اندیکاتور با موفقیت لمس شد و سود ذخیره گردید.</span>`;
-        } else if (match && match.t1 && profitUSD < 0) {
+            verdictHtml = `<span style="color:#fca5a5;">🛑 <b>فیلتر در سناریو:</b> علت: «${filterReason}» (${profitUSD < 0 ? 'جلوی این باخت در سناریو گرفته شد' : 'در سناریو رد شد'}).</span>`;
+        } else if (isIndWin && profitUSD < 0) {
             isDisc = true;
-            verdictHtml = `<span style="color:#fca5a5;">❌ <b>اختلاف اجرای مارکت:</b> در اندیکاتور تارگت زده شد اما در تستر به دلیل اسپرد یا نوسان استاپ خورد.</span>`;
-        } else if (match && match.t4 && exitCls.includes('BE')) {
+            verdictHtml = `<span style="color:#fca5a5;">❌ <b>اختلاف اجرای مارکت:</b> در اندیکاتور تارگت زده شد اما در تستر به دلیل نوسان یا اسپرد استاپ خورد.</span>`;
+        } else if (!isIndWin && profitUSD >= 0) {
             isDisc = true;
-            verdictHtml = `<span style="color:#c7d2fe;">🛡️ <b>خروج در بریک‌ایون:</b> پوزیشن‌های باقیمانده پس از ذخیره سود در نقطه ورود (BE) بسته شدند.</span>`;
+            verdictHtml = `<span style="color:#a7f3d0;">🟢 <b>سودآوری مازاد تستر:</b> خروج تستر با تریل یا نوسان سودآورتر از حد ضرر اندیکاتور بود.</span>`;
+        } else if (isIndWin && profitUSD >= 0) {
+            if (exitCls.includes('BE') || exitCls.includes('پولبک')) {
+                verdictHtml = `<span style="color:#38bdf8;">🛡️ <b>سیو سود روی پولبک:</b> سود اولیه در هر دو ذخیره شد؛ در تستر پوزیشن باقیمانده روی BE خارج شد.</span>`;
+            } else {
+                verdictHtml = `<span style="color:#a7f3d0;">🟢 <b>انطباق کامل:</b> تارگت ستاپ در تستر و اندیکاتور با موفقیت لمس شد و سود ثبت گردید.</span>`;
+            }
         } else if (slippagePips >= 2.0) {
             isDisc = true;
-            verdictHtml = `<span style="color:#fde68a;">⚡ <b>اسلیپیج شدید ${slippagePips.toFixed(1)} پیپ ورود:</b> لغزش قیمت در مارکت نسبت سود به ریسک را کاهش داد.</span>`;
-        } else if (profitUSD >= 0) {
-            verdictHtml = `<span style="color:#a7f3d0;">🟢 <b>انطباق کامل:</b> معامله در هر دو پلتفرم با سود بسته شد.</span>`;
+            verdictHtml = `<span style="color:#fde68a;">⚡ <b>اسلیپیج شدید ${slippagePips.toFixed(1)} پیپ:</b> لغزش قیمت در لحظه اجرای مارکت نسبت به قیمت لیمیت.</span>`;
         } else {
             verdictHtml = `<span style="color:#94a3b8;">همگام (استاپ طبیعی در تستر و اندیکاتور).</span>`;
         }
@@ -1616,6 +1653,7 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             isAllowed: isAllowed,
             filterReason: filterReason,
             indNet: indNet,
+            indPips: indPips,
             indTgt: indTgt,
             isIndWin: isIndWin,
             verdictHtml: verdictHtml,
@@ -1664,6 +1702,10 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
     let html = '';
     filtered.forEach(pt => {
         let isWin = (pt.profitUSD >= 0);
+        let tUsdColor = isWin ? '#34d399' : '#f87171';
+        let indUsdColor = (pt.indNet >= 0) ? '#34d399' : '#f87171';
+        let slipColor = (pt.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
+
         let sideBadge = pt.tDir === 'BUY'
             ? '<span style="color:#34d399;font-weight:bold;">BUY</span>'
             : '<span style="color:#f87171;font-weight:bold;">SELL</span>';
@@ -1672,33 +1714,36 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1 (نویز)</span>'
             : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + pt.tTF + '</span>';
 
-        let slipColor = (pt.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
+        // Tester PnL HTML (USD & Pips)
+        let tUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${tUsdColor};">${(pt.profitUSD >= 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</span>`;
+        let tPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${tUsdColor};">${(pt.profitPips >= 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p</span>`;
 
-        // Column: Indicator / Strategy Result
-        let indResultHtml = '';
-        if (pt.match) {
-            if (!pt.isAllowed) {
-                indResultHtml = '<span style="color:#94a3b8;font-size:10px;background:#334155;padding:2px 6px;border-radius:4px;">🛑 فیلتر ($0.00)</span>';
-            } else if (pt.isIndWin) {
-                indResultHtml = '<span style="color:#34d399;font-weight:bold;direction:ltr;">+$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:9.5px;color:#a7f3d0;">(' + pt.indTgt + ')</span>';
-            } else {
-                indResultHtml = '<span style="color:#f87171;font-weight:bold;direction:ltr;">-$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:9.5px;color:#fca5a5;">(استاپ)</span>';
-            }
-        } else if (pt.tEntryTime && pt.tEntryTime < '2026.08.28') {
-            indResultHtml = '<span style="color:#94a3b8;font-size:10px;background:#1e293b;padding:2px 6px;border-radius:4px;">📅 قبل از دیتای لایو</span>';
-        } else if (!pt.isAllowed) {
-            indResultHtml = '<span style="color:#fca5a5;font-size:10px;background:#450a0a;padding:2px 6px;border-radius:4px;border:1px solid #7f1d1d;">🛑 ' + pt.filterReason + '</span>';
+        // Indicator PnL HTML (USD & Pips)
+        let indUsdHtml = '';
+        let indPipsHtml = '';
+        if (!pt.isAllowed) {
+            indUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;color:#94a3b8;font-size:10px;text-decoration:line-through;">${(pt.indNet >= 0 ? '+$' : '-$')}${Math.abs(pt.indNet).toFixed(2)}</span> <span style="color:#fca5a5;font-size:9.5px;">(فیلتر)</span>`;
+            indPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;color:#94a3b8;font-size:10px;text-decoration:line-through;">${(pt.indPips >= 0 ? '+' : '')}${pt.indPips.toFixed(1)}p</span>`;
         } else {
-            indResultHtml = '<span style="color:#64748b;font-size:10px;">عدم تطابق چارت</span>';
+            indUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${indUsdColor};">${(pt.indNet >= 0 ? '+$' : '-$')}${Math.abs(pt.indNet).toFixed(2)}</span>`;
+            indPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${indUsdColor};">${(pt.indPips >= 0 ? '+' : '')}${pt.indPips.toFixed(1)}p</span>`;
         }
 
-        let pnlColor = isWin ? '#34d399' : '#f87171';
+        // Target Badge HTML
+        let indTgtHtml = '';
+        if (!pt.isAllowed) {
+            indTgtHtml = `<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;font-size:10px;border:1px solid #7f1d1d;">🛑 ${pt.filterReason}</span>`;
+        } else if (pt.isIndWin) {
+            indTgtHtml = `<span style="background:#064e3b;color:#a7f3d0;padding:2px 6px;border-radius:4px;font-size:10px;border:1px solid #059669;font-weight:600;">${pt.indTgt}</span>`;
+        } else {
+            indTgtHtml = `<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;font-size:10px;border:1px solid #7f1d1d;">${pt.indTgt}</span>`;
+        }
 
         let waitTag = (pt.match && pt.match.wait_fmt && pt.match.wait_fmt !== '-')
             ? `<div style="color:#38bdf8;font-size:9.5px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ${pt.match.wait_fmt}</div>`
             : '';
 
-        // 14 Columns strictly aligned with table thead
+        // 16 Columns strictly aligned with table thead
         html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
             <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
             <td style="padding:7px 8px;font-weight:600;color:#f8fafc;white-space:nowrap;text-align:right;">${pt.pattern}</td>
@@ -1710,9 +1755,11 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>
             <td style="padding:7px 8px;text-align:center;color:#f87171;font-family:monospace;font-size:10.5px;">${pt.slPrice > 0 ? pt.slPrice.toFixed(5) : '-'}</td>
             <td style="padding:7px 8px;text-align:center;color:#e2e8f0;font-size:10.5px;white-space:nowrap;">${pt.exitClass}</td>
-            <td style="padding:7px 8px;text-align:center;color:${pnlColor};font-weight:bold;direction:ltr;">${(pt.profitPips > 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p</td>
-            <td style="padding:7px 8px;text-align:center;color:${pnlColor};font-weight:bold;direction:ltr;">${(pt.profitUSD > 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</td>
-            <td style="padding:7px 8px;text-align:center;background:#064e3b14;border-left:1px solid #05966933;">${indResultHtml}</td>
+            <td style="padding:7px 8px;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${tUsdHtml}</td>
+            <td style="padding:7px 8px;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;">${indUsdHtml}</td>
+            <td style="padding:7px 8px;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${tPipsHtml}</td>
+            <td style="padding:7px 8px;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;">${indPipsHtml}</td>
+            <td style="padding:7px 8px;text-align:center;background:#131d2e22;white-space:nowrap;">${indTgtHtml}</td>
             <td style="padding:7px 10px;border-left:1px solid #334155;font-size:11px;line-height:1.5;text-align:right;">${pt.verdictHtml}</td>
         </tr>`;
     });
