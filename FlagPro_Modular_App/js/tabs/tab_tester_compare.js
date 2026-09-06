@@ -1,7 +1,7 @@
 window.currentTesterReportKey = window.currentTesterReportKey || '';
 window.currentTesterFilter = window.currentTesterFilter || 'all';
 window.currentTesterSearch = window.currentTesterSearch || '';
-window.currentTesterScenarioKey = window.currentTesterScenarioKey || 'auto';
+window.currentTesterScenarioKey = window.currentTesterScenarioKey || 'equity_active';
 
 var currentTesterReportKey = window.currentTesterReportKey;
 var currentTesterFilter = window.currentTesterFilter;
@@ -633,9 +633,9 @@ function initTesterCompareTab() {
         window.currentTesterReportKey = currentTesterReportKey;
     }
 
-    // Auto-sync with report scenario or auto
+    // Auto-sync with active equity tab scenario
     if (!window.userHasManuallySelectedScenario || !currentTesterScenarioKey) {
-        currentTesterScenarioKey = 'auto';
+        currentTesterScenarioKey = 'equity_active';
         window.currentTesterScenarioKey = currentTesterScenarioKey;
     }
 
@@ -657,11 +657,11 @@ function initTesterCompareTab() {
         let scList = getAvailableTesterScenarios();
         let scHtml = '';
         scList.forEach(sc => {
-            let isSel = (sc.id === (currentTesterScenarioKey || 'auto')) ? 'selected' : '';
+            let isSel = (sc.id === (currentTesterScenarioKey || 'equity_active')) ? 'selected' : '';
             scHtml += `<option value="${sc.id}" ${isSel}>${sc.name}</option>`;
         });
         scSel.innerHTML = scHtml;
-        scSel.value = currentTesterScenarioKey || 'auto';
+        scSel.value = currentTesterScenarioKey || 'equity_active';
     }
 
     updateQuickSelectButtons(currentTesterReportKey);
@@ -1253,7 +1253,6 @@ function drawTesterCompareChart(report, scenarioKey) {
     // Filter tradesList based on active scenario:
     let scKings = (scenario.kings && Array.isArray(scenario.kings) && scenario.kings.length > 0) ? new Set(scenario.kings) : null;
     let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
-    let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند') || scenario.id === 'base');
     let minPot = scenario.minPot || 0.0;
 
     let acceptedTrades = [];
@@ -1261,10 +1260,17 @@ function drawTesterCompareChart(report, scenarioKey) {
         acceptedTrades = tradesList.slice();
     } else {
         acceptedTrades = tradesList.filter(t => {
-            if (!allowsM1 && t.tf === 'M1') return false;
+            // Check King status (match Tab 1 simulation logic)
+            if (scKings) {
+                if (!scKings.has(t.kk) && !scKings.has(t.r)) return false;
+            } else if (t.k !== 1) {
+                return false;
+            }
+            // Check Hours
             if (scHours && scHours.size > 0 && scHours.size < 24 && !scHours.has(t.h)) return false;
-            if (scKings && !scKings.has(t.kk) && !scKings.has(t.r)) return false;
-            if (minPot > 0 && t.pot < minPot) return false;
+            if (scenario.hours && Array.isArray(scenario.hours) && scenario.hours[t.h] === false) return false;
+            // Check Min Potential
+            if (minPot > 0 && t.pot !== undefined && t.pot < minPot) return false;
             return true;
         });
     }
@@ -1570,7 +1576,15 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
         let filterReason = '';
 
         if (!isBaseScenario) {
-            if (tTF === 'M1') {
+            let patName = (t.pattern || (match ? match.role : '') || '').trim();
+            let patKey = patName ? (patName + (tTF ? '|' + tTF : '')) : '';
+            let isScenarioKing = false;
+            if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
+                let kSet = new Set(scenario.kings);
+                isScenarioKing = kSet.has(patName) || kSet.has(patKey);
+            }
+
+            if (tTF === 'M1' && !isScenarioKing) {
                 let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند'));
                 if (!allowsM1) {
                     isAllowed = false;
@@ -1601,11 +1615,8 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
                 }
             }
             if (isAllowed) {
-                let patName = (t.pattern || (match ? match.role : '') || '').trim();
-                let patKey = patName ? (patName + (tTF ? '|' + tTF : '')) : '';
                 if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
-                    let kSet = new Set(scenario.kings);
-                    if (!kSet.has(patName) && !kSet.has(patKey)) {
+                    if (!isScenarioKing) {
                         isAllowed = false;
                         filterReason = 'سلطان غیرمنتخب در سناریو (' + (patName || 'الگو') + ')';
                     }
@@ -1623,6 +1634,13 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
         let pipMult = isJpy ? 100 : 10000;
         let riskPips = (boxEntry > 0 && slPrice > 0) ? (Math.round(Math.abs(boxEntry - slPrice) * pipMult * 10) / 10) : 10.0;
         let riskPts = riskPips * 10;
+
+        let exitPrice = 0.0;
+        if (t.closePrice !== undefined && !isNaN(Number(t.closePrice))) {
+            exitPrice = Number(t.closePrice);
+        } else if (marketFill > 0 && profitPips !== 0) {
+            exitPrice = (tDir === 'BUY') ? (marketFill + (profitPips / pipMult)) : (marketFill - (profitPips / pipMult));
+        }
 
         let indNet = 0.0;
         let indPips = 0.0;
@@ -1710,6 +1728,7 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             slPrice: slPrice,
             tp1: tp1,
             tp4: tp4,
+            exitPrice: exitPrice,
             tEntryTime: tEntryTime,
             tTF: tTF,
             tDir: tDir,
@@ -1795,7 +1814,13 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             indPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${indUsdColor};">${(pt.indPips >= 0 ? '+' : '')}${pt.indPips.toFixed(1)}p</span>`;
         }
 
-        // Target Badge HTML
+        // Tester Exit / Target HTML
+        let tExitHtml = `<div style="color:#e2e8f0;font-size:10.5px;font-weight:600;white-space:nowrap;">${pt.exitClass}</div>`;
+        if (pt.exitPrice > 0) {
+            tExitHtml += `<div style="color:#38bdf8;font-size:9.5px;font-family:monospace;margin-top:2px;">${pt.exitPrice.toFixed(5)}</div>`;
+        }
+
+        // Indicator Target HTML
         let indTgtHtml = '';
         if (!pt.isAllowed) {
             indTgtHtml = `<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;font-size:10px;border:1px solid #7f1d1d;">🛑 ${pt.filterReason}</span>`;
@@ -1804,28 +1829,32 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
         } else {
             indTgtHtml = `<span style="background:#450a0a;color:#fca5a5;padding:2px 6px;border-radius:4px;font-size:10px;border:1px solid #7f1d1d;">${pt.indTgt}</span>`;
         }
+        if (pt.tp1 > 0 && pt.isAllowed) {
+            indTgtHtml += `<div style="color:#34d399;font-size:9.5px;font-family:monospace;margin-top:2px;">TP1: ${pt.tp1.toFixed(5)}</div>`;
+        }
 
         let waitTag = (pt.match && pt.match.wait_fmt && pt.match.wait_fmt !== '-')
             ? `<div style="color:#38bdf8;font-size:9.5px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ${pt.match.wait_fmt}</div>`
             : '';
 
-        // 16 Columns strictly aligned with table thead
+        // 16 Columns strictly aligned with table thead:
+        // 1:# | 2:الگو | 3:تایم | 4:جهت | 5:زمان ورود | 6:ورود تستر | 7:ورود اندیکاتور | 8:لغزش | 9:حد ضرر | 10:تارگت تستر | 11:تارگت اندیکاتور | 12:سود تستر $ | 13:سود اندیکاتور $ | 14:سود تستر p | 15:سود اندیکاتور p | 16:کالبدشکافی
         html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
             <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
             <td style="padding:7px 8px;font-weight:600;color:#f8fafc;white-space:nowrap;text-align:right;">${pt.pattern}</td>
             <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
             <td style="padding:7px 8px;text-align:center;">${sideBadge}</td>
             <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;direction:ltr;text-align:right;">${pt.tEntryTime}${waitTag}</td>
-            <td style="padding:7px 8px;color:#cbd5e1;font-size:10.5px;font-family:monospace;text-align:center;">${pt.boxEntry.toFixed(5)}</td>
-            <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;">${pt.marketFill.toFixed(5)}</td>
+            <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${pt.marketFill > 0 ? pt.marketFill.toFixed(5) : '-'}</td>
+            <td style="padding:7px 8px;color:#34d399;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;">${pt.boxEntry > 0 ? pt.boxEntry.toFixed(5) : '-'}</td>
             <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>
             <td style="padding:7px 8px;text-align:center;color:#f87171;font-family:monospace;font-size:10.5px;">${pt.slPrice > 0 ? pt.slPrice.toFixed(5) : '-'}</td>
-            <td style="padding:7px 8px;text-align:center;color:#e2e8f0;font-size:10.5px;white-space:nowrap;">${pt.exitClass}</td>
+            <td style="padding:7px 8px;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;white-space:nowrap;">${tExitHtml}</td>
+            <td style="padding:7px 8px;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;white-space:nowrap;">${indTgtHtml}</td>
             <td style="padding:7px 8px;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${tUsdHtml}</td>
             <td style="padding:7px 8px;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;">${indUsdHtml}</td>
             <td style="padding:7px 8px;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${tPipsHtml}</td>
             <td style="padding:7px 8px;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;">${indPipsHtml}</td>
-            <td style="padding:7px 8px;text-align:center;background:#131d2e22;white-space:nowrap;">${indTgtHtml}</td>
             <td style="padding:7px 10px;border-left:1px solid #334155;font-size:11px;line-height:1.5;text-align:right;">${pt.verdictHtml}</td>
         </tr>`;
     });
