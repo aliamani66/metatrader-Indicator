@@ -1123,7 +1123,8 @@
                                     <select id="testerRunSelector" onchange="switchTesterReport(this.value)" style="background:#1e293b;border:1px solid #38bdf8;color:#f8fafc;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:280px;font-family:inherit;">
                                     </select>
                                     <select id="testerScenarioSelector" onchange="switchTesterScenario(this.value)" style="background:#0f172a;border:1px solid #10b981;color:#a7f3d0;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:240px;font-family:inherit;font-weight:600;" title="انتخاب سناریوی بهینه جهت مقایسه انحراف پارامترها و بازده تئوریک">
-                                        <option value="auto" selected>🔍 تشخیص خودکار سناریو از فایل تستر</option>
+                                        <option value="equity_active" selected>📈 سناریوی انتخابی نمودار اکوئیتی (همگام‌سازی زنده)</option>
+                                        <option value="auto">🔍 تشخیص خودکار سناریو از فایل تستر</option>
                                         <option value="golden">⚖️ تعادل طلایی حجم و سود (Golden Balance)</option>
                                         <option value="champion">💎 سلاطین برتر و اسنایپر (Champion Sniper)</option>
                                         <option value="day">☀️ سشن لندن و نیویورک (London & NY)</option>
@@ -1163,10 +1164,10 @@
                         </div>
 
                         <!-- 🚨 ROOT CAUSE ANALYSIS CALLOUT BOX -->
-                        <div class="section-box" style="margin-bottom:12px;background:#18111c;border:1px solid #ef4444;padding:12px 16px;border-radius:8px;">
+                        <div id="tcForensicCalloutBox" class="section-box" style="margin-bottom:12px;background:#18111c;border:1px solid #ef4444;padding:12px 16px;border-radius:8px;">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                                 <span style="font-size:20px;">🚨</span>
-                                <span style="font-size:13.5px;font-weight:bold;color:#fca5a5;">کالبدشکافی ریشه‌ای: چرا تست ۱۵ روزه متاتریدر ۵ نزولی شد در حالی که استراتژی داشبورد کاملاً سودده است؟</span>
+                                <span style="font-size:13.5px;font-weight:bold;color:#fca5a5;">کالبدشکافی ریشه‌ای و مقایسه هوشمند: تست متاتریدر ۵ vs سناریوی استراتژی</span>
                             </div>
                             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px;font-size:11.5px;line-height:1.5;">
                                 <div style="background:#221524;border:1px solid #7f1d1d;padding:9px 12px;border-radius:6px;">

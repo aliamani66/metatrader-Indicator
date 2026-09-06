@@ -45,6 +45,12 @@ function clearPresetActiveState() {
                     return;
                 }
 
+                // Track active preset globally for synchronizing with Tester Compare tab
+                window.currentActivePreset = p;
+                window.currentActivePresetIdx = idx;
+                window.currentActivePresetTitle = p.title || p.name || ('سناریوی ' + idx);
+                window.currentActiveSimSettings = JSON.parse(JSON.stringify(simState));
+
                 // 1. Set mode to kings
                 simState.mode = 'kings';
                 let btnK = document.getElementById('btnEqKings');
@@ -336,6 +342,11 @@ function openSavePresetModal() {
         function applyCustomPreset(id) {
             let p = customPresetsList.find(x => x.id === id);
             if (!p) return;
+
+            window.currentActivePreset = p;
+            window.currentActivePresetId = p.id;
+            window.currentActivePresetTitle = p.name || p.title || 'سناریوی شخصی';
+            window.currentActiveSimSettings = JSON.parse(JSON.stringify(simState));
 
             simState.mode = 'kings';
             let btnK = document.getElementById('btnEqKings');
@@ -955,6 +966,19 @@ function openSavePresetModal() {
             let pf = grossL > 0 ? (grossP / grossL) : (grossP > 0 ? 999.0 : 1.0);
             let wr = totalTrades > 0 ? ((winCnt / totalTrades) * 100) : 0;
             let avgTrade = totalTrades > 0 ? (net / totalTrades) : 0;
+
+            // Globally expose live simulation stats for Tester Compare sync
+            window.currentActiveSimStats = {
+                wr: wr,
+                pf: pf,
+                net: net,
+                totalTrades: totalTrades,
+                winCnt: winCnt,
+                maxDD: maxDD,
+                grossProfit: grossP,
+                grossLoss: grossL
+            };
+            window.currentActiveSimSettings = JSON.parse(JSON.stringify(simState));
 
             // Update KPI Banner
             let elNetVal = document.getElementById('eqKpiNetVal');

@@ -60,26 +60,10 @@ def load_tester_reports(reports_dir):
         if m:
             start_d = m.group(1).replace('-', '.')
             end_d = m.group(2).replace('-', '.')
-        # 2. Try peek json for dateRange
-        if not end_d:
-            try:
-                for enc in ['utf-8-sig', 'utf-16', 'utf-8']:
-                    try:
-                        with open(fpath, 'r', encoding=enc) as fp:
-                            data_peek = json.load(fp)
-                            dr = data_peek.get('dateRange', '')
-                            m2 = re.search(r'(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})', dr)
-                            if m2:
-                                start_d = m2.group(1).replace('/', '.').replace('-', '.')
-                                end_d = m2.group(2).replace('/', '.').replace('-', '.')
-                            break
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        return (end_d, start_d, mtime, fname)
+        # Sort key: mtime is primary (#1) so the newest test run is ALWAYS at index 0 (top of dropdown)
+        return (mtime, end_d, start_d, fname)
 
-    # Sort descending: test end date DESC, start date DESC, mtime DESC
+    # Sort descending: newest modification time first!
     candidates.sort(key=lambda x: extract_sort_key(x[0], x[1]), reverse=True)
 
     reports = OrderedDict()
@@ -178,7 +162,8 @@ def get_tester_compare_html(reports_dict, default_key):
                     </select>
                     <input type="file" id="testerReportFileInput" accept=".json,.csv" style="display:none;" onchange="handleTesterReportUpload(event)">
                     <select id="testerScenarioSelector" onchange="switchTesterScenario(this.value)" style="background:#0f172a;border:1px solid #10b981;color:#a7f3d0;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:240px;font-family:inherit;font-weight:600;" title="انتخاب سناریوی بهینه جهت مقایسه انحراف پارامترها و بازده تئوریک">
-                        <option value="auto" selected>🔍 تشخیص خودکار سناریو از فایل تستر</option>
+                        <option value="equity_active" selected>📈 سناریوی انتخابی نمودار اکوئیتی (همگام‌سازی زنده)</option>
+                        <option value="auto">🔍 تشخیص خودکار سناریو از فایل تستر</option>
                         <option value="golden">⚖️ تعادل طلایی حجم و سود (Golden Balance)</option>
                         <option value="champion">💎 سلاطین برتر و اسنایپر (Champion Sniper)</option>
                         <option value="day">☀️ سشن لندن و نیویورک (London & NY)</option>
@@ -200,27 +185,27 @@ def get_tester_compare_html(reports_dict, default_key):
             <!-- Meta Info Badges -->
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#090d16;padding:8px 12px;border-radius:6px;border:1px solid #1e293b;font-size:11.5px;">
                 <span style="color:#94a3b8;">گزارش فعال:</span>
-                <span id="tcBadgeReportTitle" style="color:#38bdf8;font-weight:bold;">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1</span>
+                <span id="tcBadgeReportTitle" style="color:#38bdf8;font-weight:bold;">-</span>
                 <span style="color:#475569;">|</span>
                 <span style="color:#94a3b8;">نماد:</span>
-                <span id="tcBadgeSymbol" style="color:#f59e0b;font-weight:bold;background:#78350f33;padding:2px 6px;border-radius:4px;border:1px solid #b45309;">GBPUSD!</span>
+                <span id="tcBadgeSymbol" style="color:#f59e0b;font-weight:bold;background:#78350f33;padding:2px 6px;border-radius:4px;border:1px solid #b45309;">-</span>
                 <span style="color:#475569;">|</span>
                 <span style="color:#94a3b8;">بازه زمانی تست:</span>
-                <span id="tcBadgeDateRange" style="color:#a7f3d0;font-weight:bold;">2026.08.01 الی 2026.08.15</span>
+                <span id="tcBadgeDateRange" style="color:#a7f3d0;font-weight:bold;">-</span>
                 <span style="color:#475569;">|</span>
                 <span style="color:#94a3b8;">تعداد ستاپ‌ها:</span>
-                <span id="tcBadgeTradesCount" style="color:#e0e7ff;font-weight:bold;">۵۳ ستاپ (۲۱۲ پوزیشن)</span>
+                <span id="tcBadgeTradesCount" style="color:#e0e7ff;font-weight:bold;">-</span>
                 <span style="color:#475569;">|</span>
                 <span style="color:#94a3b8;">تاریخ استخراج:</span>
-                <span id="tcBadgeExportTime" style="color:#cbd5e1;">2026.09.04 16:25</span>
+                <span id="tcBadgeExportTime" style="color:#cbd5e1;">-</span>
             </div>
         </div>
 
         <!-- 🚨 ROOT CAUSE ANALYSIS CALLOUT BOX -->
-        <div class="section-box" style="margin-bottom:12px;background:#18111c;border:1px solid #ef4444;padding:12px 16px;border-radius:8px;">
+        <div id="tcForensicCalloutBox" class="section-box" style="margin-bottom:12px;background:#18111c;border:1px solid #ef4444;padding:12px 16px;border-radius:8px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                 <span style="font-size:20px;">🚨</span>
-                <span style="font-size:13.5px;font-weight:bold;color:#fca5a5;">کالبدشکافی ریشه‌ای: چرا تست ۱۵ روزه متاتریدر ۵ نزولی شد در حالی که استراتژی داشبورد کاملاً سودده است؟</span>
+                <span style="font-size:13.5px;font-weight:bold;color:#fca5a5;">کالبدشکافی ریشه‌ای و مقایسه هوشمند: تست متاتریدر ۵ vs سناریوی استراتژی</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px;font-size:11.5px;line-height:1.5;">
                 <div style="background:#221524;border:1px solid #7f1d1d;padding:9px 12px;border-radius:6px;">

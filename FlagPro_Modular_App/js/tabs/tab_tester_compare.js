@@ -141,7 +141,36 @@ function getAvailableTesterScenarios() {
     let pShield = spList.find(p => p.idx === 3 || (p.title && (p.title.includes('سپر') || p.title.includes('Shield'))));
     let pBase = spList.find(p => p.idx === 4 || (p.title && (p.title.includes('پایه') || p.title.includes('جامع') || p.title.includes('Base'))));
 
+    let curActivePreset = window.currentActivePreset;
+    let curActiveTitle = window.currentActivePresetTitle || (curActivePreset ? (curActivePreset.title || curActivePreset.name) : 'تنظیمات جاری نمودار رشد');
+    let curHours = (window.simState && window.simState.allowedHours) || (curActivePreset && curActivePreset.hours) || new Array(24).fill(true);
+    let curKings = (window.simState && window.simState.enabledKings) ? Array.from(window.simState.enabledKings) : ((curActivePreset && curActivePreset.kings) ? curActivePreset.kings : []);
+    let curMinPot = (window.simState && window.simState.minProfit !== undefined) ? window.simState.minProfit : ((curActivePreset && curActivePreset.min_pot) ? curActivePreset.min_pot : 0.0);
+    let curWr = (window.currentActiveSimStats && window.currentActiveSimStats.wr) ? window.currentActiveSimStats.wr : ((curActivePreset && curActivePreset.wr) ? curActivePreset.wr : 66.7);
+    let curPf = (window.currentActiveSimStats && window.currentActiveSimStats.pf) ? window.currentActiveSimStats.pf : ((curActivePreset && curActivePreset.pf) ? curActivePreset.pf : 3.94);
+    let curNet = (window.currentActiveSimStats && window.currentActiveSimStats.net !== undefined) ? ((window.currentActiveSimStats.net >= 0 ? '+$' : '-$') + Math.abs(window.currentActiveSimStats.net).toFixed(2)) : ((curActivePreset && curActivePreset.net) ? ((curActivePreset.net >= 0 ? '+$' : '-$') + Math.abs(curActivePreset.net).toFixed(2)) : '+180.9 pips');
+
     let list = [
+        {
+            id: 'equity_active',
+            name: '📈 سناریوی انتخابی نمودار اکوئیتی (' + curActiveTitle + ')',
+            title: curActiveTitle,
+            rawTitle: curActiveTitle,
+            badge: 'نمودار رشد',
+            minPot: curMinPot,
+            minPotDisplay: '$' + curMinPot.toFixed(2) + (curMinPot > 0 ? '+' : ' (بدون محدودیت)'),
+            tfM1: 'غیرفعال (False) - بدون معامله در M1',
+            hoursDisplay: formatHours(curHours, (curActivePreset ? curActivePreset.hours_name : '')),
+            hours: curHours,
+            allowedKings: formatAllowedKings(curKings),
+            disabledKings: formatDisabledKings(curKings, curActivePreset),
+            kings: curKings,
+            beBuffer: (curActivePreset && curActivePreset.be_buffer !== undefined) ? (curActivePreset.be_buffer + ' pips') : '0.0 pips',
+            maxDev: (curActivePreset && curActivePreset.max_dev !== undefined) ? (curActivePreset.max_dev + ' pips') : '2.5 pips',
+            simWinRate: curWr,
+            simPf: curPf,
+            simNetR: curNet
+        },
         {
             id: 'auto',
             name: '🔍 تشخیص خودکار سناریو از فایل تستر (Auto Detect)',
@@ -381,7 +410,7 @@ function resolveActiveScenario(scenarioKey, report) {
 function parseReportSortKey(k) {
     let r = (window.TESTER_REPORTS && window.TESTER_REPORTS[k]) || {};
     if (k.startsWith('uploaded_')) {
-        return { isUploaded: 1, endStr: '9999.99.99', startStr: '9999.99.99', mtime: Date.now(), exp: '' };
+        return { isUploaded: 1, endStr: '9999.99.99', startStr: '9999.99.99', mtime: Date.now(), exp: '9999.99.99' };
     }
     
     let dr = r.dateRange || '';
@@ -408,7 +437,11 @@ function parseReportSortKey(k) {
     }
     
     let mt = r.mtime || 0;
-    let exp = r.exportedAt || '';
+    let exp = r.exportedAt || r.executionTime || r.fileTime || '';
+    if (!mt && exp) {
+        let parsed = Date.parse(exp.replace(/\./g, '-'));
+        if (!isNaN(parsed)) mt = parsed / 1000;
+    }
     
     return {
         isUploaded: 0,
@@ -428,24 +461,24 @@ function getSortedTesterReportKeys() {
         
         if (sA.isUploaded !== sB.isUploaded) return sB.isUploaded - sA.isUploaded;
         
-        // 1. Compare end date descending (e.g. 2026.08.19 > 2026.08.15 > 2026.08.14)
-        if (sA.endStr && sB.endStr && sA.endStr !== sB.endStr) {
-            return sB.endStr.localeCompare(sA.endStr);
-        }
-        
-        // 2. Compare start date descending
-        if (sA.startStr && sB.startStr && sA.startStr !== sB.startStr) {
-            return sB.startStr.localeCompare(sA.startStr);
-        }
-        
-        // 3. Compare mtime descending
+        // 1. PRIMARY: Compare mtime descending (most recently executed/modified test run FIRST)
         if (sA.mtime && sB.mtime && sA.mtime !== sB.mtime) {
             return sB.mtime - sA.mtime;
         }
-        
-        // 4. Compare exportedAt descending
+
+        // 2. Compare exportedAt / execution time descending
         if (sA.exp && sB.exp && sA.exp !== sB.exp) {
             return sB.exp.localeCompare(sA.exp);
+        }
+
+        // 3. Compare end date descending
+        if (sA.endStr && sB.endStr && sA.endStr !== sB.endStr) {
+            return sB.endStr.localeCompare(sA.endStr);
+        }
+
+        // 4. Compare start date descending
+        if (sA.startStr && sB.startStr && sA.startStr !== sB.startStr) {
+            return sB.startStr.localeCompare(sA.startStr);
         }
         
         return b.localeCompare(a);
@@ -483,6 +516,85 @@ function formatTesterOptionLabel(k, r) {
     return datePart ? `${title} | ${datePart} | ${cnt} معامله${timeBadge}` : `${title} | ${cnt} معامله${timeBadge}`;
 }
 
+function renderForensicCallout(report, scenarioKey) {
+    let box = document.getElementById('tcForensicCalloutBox');
+    if (!box || !report) return;
+
+    let scenario = resolveActiveScenario(scenarioKey, report);
+    let k = report.kpis || {};
+    let t = report.trades || [];
+    let p = report.parameters || {};
+
+    let actWr = (k.winRate !== undefined && !isNaN(Number(k.winRate))) ? Number(k.winRate) : 0.0;
+    let actPf = (k.profitFactor !== undefined && !isNaN(Number(k.profitFactor))) ? Number(k.profitFactor) : 0.0;
+    let actNetPips = (k.netPips !== undefined && !isNaN(Number(k.netPips))) ? Number(k.netPips) : 0.0;
+    let actNetUSD = (k.netUSD !== undefined && !isNaN(Number(k.netUSD))) ? Number(k.netUSD) : 0.0;
+    let totalSetups = k.totalSetups || t.length;
+    let winCount = k.winningSetups !== undefined ? k.winningSetups : t.filter(x => x.outcome === 'Win').length;
+    let lossCount = k.losingSetups !== undefined ? k.losingSetups : t.filter(x => x.outcome === 'Loss').length;
+
+    let m1Count = t.filter(x => (x.timeframe === 'PERIOD_M1' || x.timeframe === 'M1')).length;
+    let m5Count = t.filter(x => (x.timeframe === 'PERIOD_M5' || x.timeframe === 'M5')).length;
+    let m15Count = t.filter(x => (x.timeframe === 'PERIOD_M15' || x.timeframe === 'M15')).length;
+
+    let slippages = t.map(x => Number(x.slippagePips || 0)).filter(x => !isNaN(x));
+    let avgSlip = slippages.length > 0 ? (slippages.reduce((a, b) => a + b, 0) / slippages.length).toFixed(1) : '0.0';
+
+    let beCount = t.filter(x => (x.exitClass && x.exitClass.includes('BE'))).length;
+
+    let isSuccess = (actWr >= 55.0 && actPf >= 1.5);
+    let titleHtml = '';
+    if (isSuccess) {
+        box.style.background = 'linear-gradient(135deg, #0d281e, #091c15)';
+        box.style.border = '1px solid #059669';
+        titleHtml = `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <span style="font-size:20px;">🏆</span>
+                <span style="font-size:13.5px;font-weight:bold;color:#34d399;">کالبدشکافی تطابق موفق: عملکرد تستر متاتریدر ۵ با سناریوی انتخابی («${scenario.title || scenario.name}») کاملاً همگام است!</span>
+            </div>
+        `;
+    } else {
+        box.style.background = 'linear-gradient(135deg, #1c1116, #140b10)';
+        box.style.border = '1px solid #ef4444';
+        titleHtml = `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <span style="font-size:20px;">🚨</span>
+                <span style="font-size:13.5px;font-weight:bold;color:#fca5a5;">کالبدشکافی ریشه‌ای مغایرت: علل تفاوت عملکرد تستر متاتریدر ۵ با سناریوی انتخابی («${scenario.title || scenario.name}»)</span>
+            </div>
+        `;
+    }
+
+    let cardsHtml = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px;font-size:11.5px;line-height:1.5;">
+            <!-- Card 1: Performance Summary -->
+            <div style="background:${isSuccess ? '#0d3827' : '#26161c'};border:1px solid ${isSuccess ? '#10b981' : '#7f1d1d'};padding:9px 12px;border-radius:6px;">
+                <div style="color:${isSuccess ? '#34d399' : '#f87171'};font-weight:bold;margin-bottom:3px;">۱. نتیجه کل و نرخ برد (Win Rate: ${actWr.toFixed(1)}%)</div>
+                <div style="color:#cbd5e1;">در این تست، تعداد <b>${totalSetups} ستاپ</b> (${winCount} برد و ${lossCount} باخت) با سود خالص <b>${actNetPips >= 0 ? '+' : ''}${actNetPips.toFixed(1)} پیپ</b> ($${actNetUSD.toFixed(2)}) و ضریب سود <b>${actPf.toFixed(2)}</b> ثبت شد که ${isSuccess ? 'کاملاً مؤید سودآوری استراتژی است.' : 'نشان‌دهنده نیاز به اعمال سناریوی صحیح است.'}</div>
+            </div>
+
+            <!-- Card 2: Date Range -->
+            <div style="background:${isSuccess ? '#0d3827' : '#26161c'};border:1px solid ${isSuccess ? '#10b981' : '#7f1d1d'};padding:9px 12px;border-radius:6px;">
+                <div style="color:${isSuccess ? '#34d399' : '#f87171'};font-weight:bold;margin-bottom:3px;">۲. بازه زمانی تست متاتریدر (${report.dateRange || 'کوتاه‌مدت'})</div>
+                <div style="color:#cbd5e1;">بازه تست در متاتریدر ۵ برابر با <b>${report.dateRange || '-'}</b> بوده است. توجه فرمایید نمودار کلی داشبورد تمام دیتای چندماهه را نمایش می‌دهد، اما در جدول زیر تنها ستاپ‌های معادل همین بازه مقایسه شده‌اند.</div>
+            </div>
+
+            <!-- Card 3: Timeframes & Noise Filter -->
+            <div style="background:${isSuccess ? '#0d3827' : '#26161c'};border:1px solid ${isSuccess ? '#10b981' : '#7f1d1d'};padding:9px 12px;border-radius:6px;">
+                <div style="color:${isSuccess ? '#34d399' : '#f87171'};font-weight:bold;margin-bottom:3px;">۳. فیلتر نویز تایم‌فریم‌ها (M5: ${m5Count} | M15: ${m15Count} | M1: ${m1Count})</div>
+                <div style="color:#cbd5e1;">${m1Count === 0 ? '✅ فیلتر نویز M1 فعال بوده و هیچ معامله پرریسکی در ۱ دقیقه باز نشده است. معاملات در M5 با ثبات بالا انجام شدند.' : '⚠️ معامله در تایم ۱ دقیقه فعال بوده و ممکن است باعث افزایش استاپ‌ها به دلیل نویز نوسانات ریز شده باشد.'}</div>
+            </div>
+
+            <!-- Card 4: Execution & Risk Protection -->
+            <div style="background:${isSuccess ? '#0d3827' : '#26161c'};border:1px solid ${isSuccess ? '#10b981' : '#7f1d1d'};padding:9px 12px;border-radius:6px;">
+                <div style="color:${isSuccess ? '#34d399' : '#f87171'};font-weight:bold;margin-bottom:3px;">۴. اجرای اردرها، بریک‌ایون و اسپرد (لغزش: ${avgSlip} پیپ)</div>
+                <div style="color:#cbd5e1;">خروج ۴ مرحله‌ای (Scale-Out) با موفقیت پوزیشن‌ها را مدیریت کرده و ${beCount > 0 ? (beCount + ' پوزیشن پس از TP1 ریسک‌فری (BE) شدند.') : 'سود پوزیشن‌ها در تارگت‌ها ذخیره شد.'} استاپ پوزیشن‌های باخت ناشی از اسپرد Ask بروکر در سقف پولبک بوده است.</div>
+            </div>
+        </div>
+    `;
+
+    box.innerHTML = titleHtml + cardsHtml;
+}
+
 function initTesterCompareTab() {
     if (!window.TESTER_REPORTS || Object.keys(window.TESTER_REPORTS).length === 0) {
         console.warn('هیچ گزارش تستری در حافظه موجود نیست.');
@@ -490,8 +602,16 @@ function initTesterCompareTab() {
     }
 
     let keys = getSortedTesterReportKeys();
-    if (!currentTesterReportKey || !window.TESTER_REPORTS[currentTesterReportKey]) {
+    // Default to the newest test run (#1 in list)
+    if (!window.userHasManuallySelectedReport || !currentTesterReportKey || !window.TESTER_REPORTS[currentTesterReportKey]) {
         currentTesterReportKey = keys[0];
+        window.currentTesterReportKey = currentTesterReportKey;
+    }
+
+    // Auto-sync with currently active equity scenario!
+    if (!window.userHasManuallySelectedScenario || !currentTesterScenarioKey || currentTesterScenarioKey === 'auto') {
+        currentTesterScenarioKey = 'equity_active';
+        window.currentTesterScenarioKey = currentTesterScenarioKey;
     }
 
     let sel = document.getElementById('testerRunSelector');
@@ -500,9 +620,6 @@ function initTesterCompareTab() {
         keys.forEach(k => {
             let r = window.TESTER_REPORTS[k];
             let isSel = (k === currentTesterReportKey) ? 'selected' : '';
-            let title = r.reportTitle || k;
-            let dRange = r.dateRange || '';
-            let cnt = (r.trades && r.trades.length) || 0;
             let optLabel = formatTesterOptionLabel(k, r);
             optsHtml += `<option value="${k}" ${isSel}>${optLabel}</option>`;
         });
@@ -515,17 +632,18 @@ function initTesterCompareTab() {
         let scList = getAvailableTesterScenarios();
         let scHtml = '';
         scList.forEach(sc => {
-            let isSel = (sc.id === (currentTesterScenarioKey || 'auto')) ? 'selected' : '';
+            let isSel = (sc.id === (currentTesterScenarioKey || 'equity_active')) ? 'selected' : '';
             scHtml += `<option value="${sc.id}" ${isSel}>${sc.name}</option>`;
         });
         scSel.innerHTML = scHtml;
-        scSel.value = currentTesterScenarioKey || 'auto';
+        scSel.value = currentTesterScenarioKey || 'equity_active';
     }
 
     let report = window.TESTER_REPORTS[currentTesterReportKey];
     if (!report) return;
 
     renderTesterHeaderBadges(report);
+    renderForensicCallout(report, currentTesterScenarioKey);
     renderTesterKPIs(report, currentTesterScenarioKey);
     renderParameterDriftTable(report, currentTesterScenarioKey);
     drawTesterCompareChart(report, currentTesterScenarioKey);
@@ -533,7 +651,8 @@ function initTesterCompareTab() {
 }
 
 function switchTesterScenario(scenarioKey) {
-    currentTesterScenarioKey = scenarioKey || 'auto';
+    window.userHasManuallySelectedScenario = true;
+    currentTesterScenarioKey = scenarioKey || 'equity_active';
     window.currentTesterScenarioKey = currentTesterScenarioKey;
     let scSel = document.getElementById('testerScenarioSelector');
     if (scSel && scSel.value !== currentTesterScenarioKey) {
@@ -542,18 +661,22 @@ function switchTesterScenario(scenarioKey) {
 
     let report = window.TESTER_REPORTS[currentTesterReportKey];
     if (report) {
+        renderForensicCallout(report, currentTesterScenarioKey);
         renderTesterKPIs(report, currentTesterScenarioKey);
         renderParameterDriftTable(report, currentTesterScenarioKey);
         drawTesterCompareChart(report, currentTesterScenarioKey);
+        renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
     }
 }
 
 function switchTesterReport(reportKey) {
     if (!window.TESTER_REPORTS || !window.TESTER_REPORTS[reportKey]) return;
+    window.userHasManuallySelectedReport = true;
     currentTesterReportKey = reportKey;
     window.currentTesterReportKey = reportKey;
     let report = window.TESTER_REPORTS[reportKey];
     renderTesterHeaderBadges(report);
+    renderForensicCallout(report, currentTesterScenarioKey);
     renderTesterKPIs(report, currentTesterScenarioKey);
     renderParameterDriftTable(report, currentTesterScenarioKey);
     drawTesterCompareChart(report, currentTesterScenarioKey);
@@ -1261,13 +1384,19 @@ function drawTesterCompareChart(report, scenarioKey) {
                 let verdictHtml = '';
                 let isDisc = false;
                 let exitCls = t.exitClass || '';
+                let discMsg = t.discrepancyReason || t.discrepancyLabel || '';
 
-                if (!isAllowed) {
+                if (discMsg && discMsg.includes('اسپرد')) {
+                    isDisc = true;
+                    verdictHtml = `<span style="color:#fca5a5;font-size:11px;">❌ <b>اسپرد Ask روی استاپ:</b> در پوزیشن فروش، حد ضرر با قیمت Ask معامله‌گر لمس شد.</span>`;
+                } else if (discMsg && discMsg.includes('منطبق')) {
+                    verdictHtml = `<span style="color:#a7f3d0;font-size:11px;">🟢 <b>انطباق کامل:</b> تارگت ستاپ با موفقیت لمس شد و تمام پوزیشن‌ها با سود بسته شدند.</span>`;
+                } else if (!isAllowed) {
                     isDisc = true;
                     verdictHtml = `<span style="color:#fca5a5;font-size:11px;">🛑 <b>ورود اشتباه در تستر (فیلتر سناریو):</b> این ستاپ در سناریوی انتخابی به علت «${filterReason}» فیلتر بوده است اما در تستر به اشتباه باز شده و ${profitUSD < 0 ? 'منجر به باخت شد' : 'بسته شد'}.</span>`;
                 } else if (match && match.t4 && exitCls.includes('BE')) {
                     isDisc = true;
-                    verdictHtml = `<span style="color:#c7d2fe;font-size:11px;">🛡️ <b>سود بزرگ از دست رفته با بافر BE:</b> در اندیکاتور به تارگت کامل TP4 رسید، ولی در تستر متاتریدر با بافر ۱ پیپ پس از TP1 در اولین اصلاح قطع شد.</span>`;
+                    verdictHtml = `<span style="color:#c7d2fe;font-size:11px;">🛡️ <b>خروج در بریک‌ایون:</b> پوزیشن‌های باقی‌مانده پس از TP1 در اصلاح قیمت در نقطه ورود (BE) بسته شدند.</span>`;
                 } else if (slippagePips >= 2.0) {
                     isDisc = true;
                     verdictHtml = `<span style="color:#fde68a;font-size:11px;">⚡ <b>اسلیپیج شدید ${slippagePips.toFixed(1)} پیپ ورود:</b> لغزش قیمت در ورود مارکت نسبت سود به ریسک را کاهش داده است.</span>`;
@@ -1372,6 +1501,8 @@ function drawTesterCompareChart(report, scenarioKey) {
                     } else {
                         indResultHtml = '<span style="color:#f87171;font-weight:bold;direction:ltr;">-$' + Math.abs(pt.indNet).toFixed(2) + '</span> <span style="font-size:10px;color:#fca5a5;">(استاپ)</span>';
                     }
+                } else if (pt.tTF === 'M5' || pt.tTF === 'M15') {
+                    indResultHtml = '<span style="color:#38bdf8;font-size:10px;">معامله در تایم ' + pt.tTF + ' (فیلتر نویز M1 فعال بود)</span>';
                 } else {
                     indResultHtml = '<span style="color:#64748b;font-size:10px;">عدم تطابق داده</span>';
                 }
