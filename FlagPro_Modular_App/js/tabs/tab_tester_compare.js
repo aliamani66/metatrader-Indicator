@@ -143,14 +143,19 @@ function getAvailableTesterScenarios() {
 
     let curActivePreset = window.currentActivePreset;
     let curActiveTitle = window.currentActivePresetTitle || (curActivePreset ? (curActivePreset.title || curActivePreset.name) : 'تنظیمات جاری نمودار رشد');
-    let curHours = (window.simState && window.simState.allowedHours) || (curActivePreset && curActivePreset.hours) || new Array(24).fill(true);
-    let curKings = (window.simState && window.simState.enabledKings) ? Array.from(window.simState.enabledKings) : ((curActivePreset && curActivePreset.kings) ? curActivePreset.kings : []);
-    let curMinPot = (window.simState && window.simState.minProfit !== undefined) ? window.simState.minProfit : ((curActivePreset && curActivePreset.min_pot) ? curActivePreset.min_pot : 0.0);
+
+    let isRawEquity = (window.currentActivePresetIdx === -1)
+        || !window.currentActivePreset
+        || (curActiveTitle && (curActiveTitle.includes('خام') || curActiveTitle.includes('کل معاملات') || curActiveTitle.includes('بدون فیلتر')))
+        || (window.simState && window.simState.mode === 'all');
+
+    let curHours = isRawEquity ? new Array(24).fill(true) : ((window.simState && window.simState.allowedHours) || (curActivePreset && curActivePreset.hours) || new Array(24).fill(true));
+    let curKings = isRawEquity ? [] : ((window.simState && window.simState.enabledKings) ? Array.from(window.simState.enabledKings) : ((curActivePreset && curActivePreset.kings) ? curActivePreset.kings : []));
+    let curMinPot = isRawEquity ? 0.0 : ((window.simState && window.simState.minProfit !== undefined) ? window.simState.minProfit : ((curActivePreset && curActivePreset.min_pot) ? curActivePreset.min_pot : 0.0));
     let curWr = (window.currentActiveSimStats && window.currentActiveSimStats.wr) ? window.currentActiveSimStats.wr : ((curActivePreset && curActivePreset.wr) ? curActivePreset.wr : 66.7);
     let curPf = (window.currentActiveSimStats && window.currentActiveSimStats.pf) ? window.currentActiveSimStats.pf : ((curActivePreset && curActivePreset.pf) ? curActivePreset.pf : 3.94);
     let curNet = (window.currentActiveSimStats && window.currentActiveSimStats.net !== undefined) ? ((window.currentActiveSimStats.net >= 0 ? '+$' : '-$') + Math.abs(window.currentActiveSimStats.net).toFixed(2)) : ((curActivePreset && curActivePreset.net) ? ((curActivePreset.net >= 0 ? '+$' : '-$') + Math.abs(curActivePreset.net).toFixed(2)) : '+180.9 pips');
 
-    let isRawEquity = curActiveTitle.includes('خام') || curActiveTitle.includes('کل معاملات');
     let curTfM1 = isRawEquity ? 'فعال (True) - شامل تمام معاملات M1' : ((curActivePreset && curActivePreset.tfM1 !== undefined) ? (curActivePreset.tfM1 ? 'فعال (True)' : 'غیرفعال (False)') : 'غیرفعال (False) - بدون معامله در M1');
 
     let list = [
@@ -159,20 +164,44 @@ function getAvailableTesterScenarios() {
             name: '📈 سناریوی انتخابی نمودار اکوئیتی (' + curActiveTitle + ')',
             title: curActiveTitle,
             rawTitle: curActiveTitle,
-            badge: 'نمودار رشد',
-            minPot: curMinPot,
-            minPotDisplay: '$' + curMinPot.toFixed(2) + (curMinPot > 0 ? '+' : ' (بدون محدودیت)'),
+            badge: isRawEquity ? 'تست خام' : 'نمودار رشد',
+            isRaw: isRawEquity,
+            isBaseScenario: isRawEquity,
+            minPot: isRawEquity ? 0.0 : curMinPot,
+            minPotDisplay: isRawEquity ? '$0.00 (بدون فیلتر)' : ('$' + curMinPot.toFixed(2) + (curMinPot > 0 ? '+' : ' (بدون محدودیت)')),
             tfM1: curTfM1,
-            hoursDisplay: formatHours(curHours, (curActivePreset ? curActivePreset.hours_name : '')),
+            hoursDisplay: isRawEquity ? '۲۴ ساعته کامل (00 الی 23)' : formatHours(curHours, (curActivePreset ? curActivePreset.hours_name : '')),
             hours: curHours,
-            allowedKings: formatAllowedKings(curKings),
-            disabledKings: formatDisabledKings(curKings, curActivePreset),
+            allowedKings: isRawEquity ? 'تمام معاملات چارت (خام بدون فیلتر)' : formatAllowedKings(curKings),
+            disabledKings: isRawEquity ? 'بدون مسدودی (همه معاملات مجاز)' : formatDisabledKings(curKings, curActivePreset),
             kings: curKings,
             beBuffer: (curActivePreset && curActivePreset.be_buffer !== undefined) ? (curActivePreset.be_buffer + ' pips') : '0.0 pips',
             maxDev: (curActivePreset && curActivePreset.max_dev !== undefined) ? (curActivePreset.max_dev + ' pips') : '2.5 pips',
             simWinRate: curWr,
             simPf: curPf,
             simNetR: curNet
+        },
+        {
+            id: 'raw',
+            name: '📊 نتیجه تست خام (کل معاملات چارت - بدون هیچ فیلتری)',
+            title: 'نتیجه تست خام (کل معاملات چارت)',
+            rawTitle: 'نتیجه تست خام (کل معاملات چارت)',
+            badge: 'خام چارت',
+            minPot: 0.0,
+            minPotDisplay: '$0.00 (بدون فیلتر)',
+            tfM1: 'فعال (True) - تمام تایم‌ها',
+            hoursDisplay: '۲۴ ساعته کامل (00 الی 23)',
+            hours: new Array(24).fill(true),
+            allowedKings: 'تمام معاملات چارت (بدون فیلتر)',
+            disabledKings: 'بدون مسدودی (تمام معاملات مجاز)',
+            kings: [],
+            beBuffer: '0.0 pips',
+            maxDev: '0.0 (نامحدود)',
+            isRaw: true,
+            isBaseScenario: true,
+            simWinRate: sData.raw_wr || 52.0,
+            simPf: sData.raw_pf || 1.35,
+            simNetR: sData.raw_net || '+45.0R'
         },
         {
             id: 'auto',
@@ -402,12 +431,12 @@ function resolveActiveScenario(scenarioKey, report) {
         if (scName.includes('shield') || scName.includes('stop')) {
             return scenarios.find(s => s.id === 'shield') || scenarios[1];
         }
-        if (scName.includes('base') || scName.includes('all') || scName.includes('default') || p.InpEnableKingsM1 === true) {
-            return scenarios.find(s => s.id === 'base') || scenarios[1];
+        if (scName.includes('base') || scName.includes('all') || scName.includes('default') || scName.includes('raw') || scName.includes('خام') || p.InpEnableKingsM1 === true) {
+            return scenarios.find(s => s.id === 'raw') || scenarios.find(s => s.id === 'base') || scenarios[0];
         }
         return scenarios.find(s => s.id === 'golden') || scenarios[1];
     }
-    return scenarios.find(s => s.id === scenarioKey) || scenarios[1];
+    return scenarios.find(s => s.id === scenarioKey) || scenarios[0];
 }
 
 function parseReportSortKey(k) {
@@ -842,6 +871,27 @@ function extractHourSet(val, fallbackDisplay) {
     return set;
 }
 
+function checkIsRawOrBaseScenario(scenario, report) {
+    if (!scenario) return false;
+    if (scenario.isRaw === true || scenario.isBaseScenario === true) return true;
+    if (scenario.id === 'base' || scenario.id === 'raw' || scenario.id === 'all') return true;
+    let title = ((scenario.title || scenario.rawTitle || scenario.name || '')).toLowerCase();
+    if (title.includes('خام') || title.includes('کل معاملات') || title.includes('بدون فیلتر')) return true;
+    if (scenario.id === 'equity_active') {
+        let activeTitle = (window.currentActivePresetTitle || '').toLowerCase();
+        if (window.currentActivePresetIdx === -1 || !window.currentActivePreset || activeTitle.includes('خام') || activeTitle.includes('کل معاملات') || (window.simState && window.simState.mode === 'all')) {
+            return true;
+        }
+    }
+    if (scenario.id === 'auto') {
+        let p = (report && report.parameters) || {};
+        if (!p.InpScenarioName || p.InpScenarioName.toLowerCase() === 'default' || p.InpScenarioName.toLowerCase().includes('base') || p.InpEnableKingsM1 === true) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function getProcessedTesterTrades(report, scenarioKey) {
     if (!report) return [];
     let trades = report.trades || [];
@@ -852,7 +902,7 @@ function getProcessedTesterTrades(report, scenarioKey) {
     let sData = (window.ALL_SYMBOLS_DATA && (window.ALL_SYMBOLS_DATA[sym] || window.ALL_SYMBOLS_DATA[cleanSym] || window.ALL_SYMBOLS_DATA[window.currentActiveSymbol])) || {};
     let indTrades = sData.trades_json_list || [];
     let scenario = resolveActiveScenario(scenarioKey || window.currentTesterScenarioKey, report);
-    let isBaseScenario = (scenario.id === 'base') || (scenario.id === 'auto' && (!report.parameters || report.parameters.InpScenarioName === 'Default' || report.parameters.InpEnableKingsM1 === true));
+    let isBaseScenario = checkIsRawOrBaseScenario(scenario, report);
 
     // Pre-match and prepare trade metadata for 1:1 Deal-by-Deal forensics
     return trades.map(t => {
@@ -907,8 +957,12 @@ function getProcessedTesterTrades(report, scenarioKey) {
             let patKey = patName ? (patName + (tTF ? '|' + tTF : '')) : '';
             let isScenarioKing = false;
             if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
-                let kSet = new Set(scenario.kings);
-                isScenarioKing = kSet.has(patName) || kSet.has(patKey);
+                let cleanP = patName.replace(/\s+/g, '').toLowerCase();
+                let cleanPK = patKey.replace(/\s+/g, '').toLowerCase();
+                isScenarioKing = scenario.kings.some(k => {
+                    let kClean = (typeof k === 'string' ? k : (k.kk || k.role || '')).replace(/\s+/g, '').toLowerCase();
+                    return kClean === cleanP || kClean === cleanPK || kClean.includes(cleanP) || cleanP.includes(kClean);
+                });
             }
 
             if (tTF === 'M1' && !isScenarioKing) {
@@ -1266,8 +1320,8 @@ function renderParameterDriftTable(report, scenarioKey) {
     let expScName = (scenario.title || scenario.rawTitle || scenario.name || '').trim();
     let expScLower = expScName.toLowerCase();
 
-    let isActDefaultOrBase = !actScName || actScLower === 'default' || actScLower.includes('default') || actScLower.includes('base') || actScName.includes('پایه') || actScName.includes('پیش‌فرض') || actScName.includes('سبد جامع');
-    let isExpDefaultOrBase = scenario.id === 'base' || scenario.id === 'default' || expScLower.includes('base') || expScName.includes('پایه') || expScName.includes('سبد جامع') || expScName.includes('پیش‌فرض');
+    let isActDefaultOrBase = !actScName || actScLower === 'default' || actScLower.includes('default') || actScLower.includes('base') || actScName.includes('پایه') || actScName.includes('پیش‌فرض') || actScName.includes('سبد جامع') || actScName.includes('خام');
+    let isExpDefaultOrBase = checkIsRawOrBaseScenario(scenario, report) || scenario.id === 'base' || scenario.id === 'default' || expScLower.includes('base') || expScName.includes('پایه') || expScName.includes('سبد جامع') || expScName.includes('پیش‌فرض') || expScName.includes('خام');
 
     let nameMatched = false;
     if (isActDefaultOrBase && isExpDefaultOrBase) {
@@ -1295,7 +1349,7 @@ function renderParameterDriftTable(report, scenarioKey) {
     let nameImpact = '';
     if (nameMatched) {
         if (isActDefaultOrBase && isExpDefaultOrBase) {
-            nameImpact = 'تنظیمات Default در تستر MT5 کاملاً منطبق بر سبد جامع پایه (تمام سلاطین ۲۴ ساعته) است.';
+            nameImpact = 'تنظیمات Default / خام در تستر MT5 کاملاً منطبق بر تست خام (کل معاملات چارت) است.';
         } else {
             nameImpact = 'نام سناریو در متاتریدر ۵ («' + (p.InpScenarioName || '') + '») کاملاً منطبق بر این سناریو است.';
         }
@@ -1581,8 +1635,9 @@ function drawTesterCompareChart(report, scenarioKey) {
     let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
     let minPot = scenario.minPot || 0.0;
 
+    let isBaseScenario = checkIsRawOrBaseScenario(scenario, report);
     let acceptedTrades = [];
-    if (scenario.id === 'base') {
+    if (isBaseScenario) {
         acceptedTrades = tradesList.slice();
     } else {
         acceptedTrades = tradesList.filter(t => {
