@@ -1,4 +1,5 @@
 import os
+import glob
 from datetime import datetime, timedelta
 from dashboard_builder.config import REPO_ROOT
 
@@ -324,7 +325,7 @@ def export_preset_set_files(symbols_data, repo_root=None):
             max_dev = "2.5" if is_base else "2.0"
             use_m1 = "true" if is_base else "false"
 
-            filename = f"FlagPro_{sym}_{clean_title}_WR{round(wr)}_PF{pf:.1f}_{now_str}.set"
+            filename = f"FlagPro_{sym}_{clean_title}.set"
 
             lines = [
                 ";+------------------------------------------------------------------+",
@@ -393,6 +394,10 @@ def export_preset_set_files(symbols_data, repo_root=None):
             content = "\r\n".join(lines)
 
             for d in dirs:
+                # Clean any older patterns for this preset
+                for old_f in glob.glob(os.path.join(d, f"FlagPro_{sym}_{clean_title}*.set")):
+                    try: os.remove(old_f)
+                    except Exception: pass
                 fp = os.path.join(d, filename)
                 try:
                     with open(fp, 'w', encoding='utf-16') as f:
@@ -403,7 +408,11 @@ def export_preset_set_files(symbols_data, repo_root=None):
 
             tester_dir = os.path.join(repo_root, "Profiles", "Tester")
             os.makedirs(tester_dir, exist_ok=True)
-            ini_filename = f"FlagPro_Tester_{sym}_{clean_title}_WR{round(wr)}_PF{pf:.1f}.ini"
+            ini_filename = f"FlagPro_Tester_{sym}_{clean_title}.ini"
+            # Clean any older tester ini for this preset
+            for old_ini in glob.glob(os.path.join(tester_dir, f"FlagPro_Tester_{sym}_{clean_title}*.ini")):
+                try: os.remove(old_ini)
+                except Exception: pass
             broker_sym = sym if sym.endswith('!') else sym + '!'
             ini_lines = [
                 ";MetaTrader 5 Strategy Tester Configuration (.ini)",
