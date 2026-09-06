@@ -9,7 +9,7 @@
 
 // پیشوند اختصاصی اشیاء گرافیکی FlagPro جهت جلوگیری از هرگونه تداخل با سایر اندیکاتورها
 #define FP_PREFIX "FLAGPRO_"
-#define FLAGPRO_VERSION "v2.12"
+#define FLAGPRO_VERSION "v2.13"
 
 enum ENUM_LABEL_STYLE
 {

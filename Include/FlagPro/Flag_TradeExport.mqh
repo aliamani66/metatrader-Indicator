@@ -173,8 +173,8 @@ void ExportAllTradesToCSV()
       }
 
       int bStartIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t1);
-      int bEndIdx   = FindBarIndex(chartTime, copied, g_drawnBoxes[b].confirmationTime);
-      if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[b].t2);
+      datetime formEnd = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
+      int bEndIdx   = FindBarIndex(chartTime, copied, formEnd);
       if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
 
       double patternHigh = g_drawnBoxes[b].top;
@@ -219,11 +219,13 @@ void ExportAllTradesToCSV()
          else       tps[tp] = entryPrice - risk * (tp + 1);
       }
 
+      datetime baseTime = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
       datetime confirmTime = g_drawnBoxes[b].confirmationTime;
-      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].formationTime + PeriodSeconds(g_drawnBoxes[b].tf) * InpSwingBars;
-      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].t1;
+      if(confirmTime <= 0 || confirmTime > baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 15)
+         confirmTime = baseTime;
 
       int confirmIdx = FindBarIndex(chartTime, copied, confirmTime);
+      if(confirmIdx < 0) confirmIdx = FindBarIndex(chartTime, copied, baseTime);
       if(confirmIdx < 0) confirmIdx = 0;
 
       double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
@@ -238,7 +240,6 @@ void ExportAllTradesToCSV()
       // ۲. پرتاب و کلوز کامل کندل در بیرون از محدوده (departedBar)
       // ۳. اردر لیمیت روی پولبک و ورود منحصراً در کندل‌های بعدی (k > departedBar)
       int departedBar = -1;
-      datetime baseTime = MathMax(g_drawnBoxes[b].t2, confirmTime);
       datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
 
       for(int k = confirmIdx; k < copied; k++)

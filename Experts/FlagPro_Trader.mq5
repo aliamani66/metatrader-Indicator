@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "FlagPro Quantitative Trading Systems"
 #property link        "https://github.com/aliamani66/metatrader-Indicator"
-#property version     "2.12"
+#property version     "2.13"
 #property description "ربات معامله‌گر مستقل FlagPro - سیستم خروج چندمرحله‌ای (Scale-Out) و بریک‌ایون خودکار"
 
 #include <Trade\Trade.mqh>
@@ -1245,8 +1245,8 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       }
 
       int bStartIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t1);
-      int bEndIdx   = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].confirmationTime);
-      if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, ratesTotal, g_drawnBoxes[b].t2);
+      datetime formEnd = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
+      int bEndIdx   = FindBarIndex(chartTime, ratesTotal, formEnd);
       if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
 
       double patternHigh = g_drawnBoxes[b].top;
@@ -1276,9 +1276,10 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
       if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
 
+      datetime baseTime = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
       datetime confirmTime = g_drawnBoxes[b].confirmationTime;
-      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].formationTime + PeriodSeconds(g_drawnBoxes[b].tf) * InpSwingBars;
-      if(confirmTime <= 0) confirmTime = g_drawnBoxes[b].t1;
+      if(confirmTime <= 0 || confirmTime > baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 15)
+         confirmTime = baseTime;
 
       // ⏰ فیلتر ساعات مجاز معامله
       if(!IsHourAllowedByScenario(confirmTime)) continue;
@@ -1293,13 +1294,13 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       if(IsSetupFilteredOut(role, confirmTime, risk / _Point)) continue;
 
       int confirmIdx = FindBarIndex(chartTime, ratesTotal, confirmTime);
+      if(confirmIdx < 0) confirmIdx = FindBarIndex(chartTime, ratesTotal, baseTime);
       if(confirmIdx < 0) confirmIdx = 0;
 
       double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
       double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
       int departedBar = -1;
-      datetime baseTime = MathMax(g_drawnBoxes[b].t2, confirmTime);
       datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[b].tf) * 40;
 
       bool isSlBreached = false;

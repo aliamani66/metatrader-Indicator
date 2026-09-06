@@ -148,8 +148,8 @@ void ShowTradeSetupForBox(int boxIdx)
    }
 
    int bStartIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t1);
-   int bEndIdx   = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].confirmationTime);
-   if(bEndIdx < bStartIdx) bEndIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t2);
+   datetime formEnd = (g_drawnBoxes[boxIdx].formationTime > 0) ? g_drawnBoxes[boxIdx].formationTime : g_drawnBoxes[boxIdx].t1;
+   int bEndIdx   = FindBarIndex(chartTime, copied, formEnd);
    if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
 
    double patternHigh = g_drawnBoxes[boxIdx].top;
@@ -189,11 +189,13 @@ void ShowTradeSetupForBox(int boxIdx)
       else       tps[tp] = entryPrice - risk * (tp + 1);
    }
 
+   datetime baseTime = (g_drawnBoxes[boxIdx].formationTime > 0) ? g_drawnBoxes[boxIdx].formationTime : g_drawnBoxes[boxIdx].t1;
    datetime confirmTime = g_drawnBoxes[boxIdx].confirmationTime;
-   if(confirmTime <= 0) confirmTime = g_drawnBoxes[boxIdx].formationTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * InpSwingBars;
-   if(confirmTime <= 0) confirmTime = g_drawnBoxes[boxIdx].t1;
+   if(confirmTime <= 0 || confirmTime > baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 15)
+      confirmTime = baseTime;
 
    int confirmIdx = FindBarIndex(chartTime, copied, confirmTime);
+   if(confirmIdx < 0) confirmIdx = FindBarIndex(chartTime, copied, baseTime);
    if(confirmIdx < 0) confirmIdx = 0;
 
    double boxHeight = MathAbs(g_drawnBoxes[boxIdx].top - g_drawnBoxes[boxIdx].bottom);
@@ -207,7 +209,6 @@ void ShowTradeSetupForBox(int boxIdx)
    double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
    if(simSpread <= 0) simSpread = 1.0 * pipSize;
 
-   datetime baseTime = MathMax(g_drawnBoxes[boxIdx].t2, confirmTime);
    datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
 
    int cancelBarIdx = -1;

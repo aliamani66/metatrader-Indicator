@@ -518,12 +518,10 @@ void ProcessRSLinesFromLSBoxes(const datetime &chartTime[], const double &chartH
 
          if(matchedBoxIdx >= 0)
          {
-            g_drawnBoxes[matchedBoxIdx].isBOFlag = true;
-            g_drawnBoxes[matchedBoxIdx].isRSBull = !targetIsHigh;
-            if(endTime > g_drawnBoxes[matchedBoxIdx].confirmationTime)
-               g_drawnBoxes[matchedBoxIdx].confirmationTime = endTime;
+             g_drawnBoxes[matchedBoxIdx].isBOFlag = true;
+             g_drawnBoxes[matchedBoxIdx].isRSBull = !targetIsHigh;
 
-            bool alreadyTagged = false;
+             bool alreadyTagged = false;
             for(int t = 0; t < ArraySize(g_drawnBoxes[matchedBoxIdx].rsTags); t++)
             {
                if(g_drawnBoxes[matchedBoxIdx].rsTags[t] == "RS") { alreadyTagged = true; break; }
@@ -723,8 +721,6 @@ void ProcessUniversalSwapLines(const datetime &chartTime[], const double &chartH
             g_drawnBoxes[matchedBoxIdx].isSwap = true;
             g_drawnBoxes[matchedBoxIdx].isSwapBull = !isBull;
             g_drawnBoxes[matchedBoxIdx].swapSourceRole = srcRole;
-            if(endTime > g_drawnBoxes[matchedBoxIdx].confirmationTime)
-               g_drawnBoxes[matchedBoxIdx].confirmationTime = endTime;
 
             string sTag = "S-" + srcRole;
             bool alreadyTagged = false;

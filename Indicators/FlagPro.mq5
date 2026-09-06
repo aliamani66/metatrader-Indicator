@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 #property copyright "FlagPro Indicator"
 #property link      ""
-#property version   "2.12"
+#property version   "2.13"
 #property indicator_chart_window
 #property indicator_buffers 2
 #property indicator_plots   1
