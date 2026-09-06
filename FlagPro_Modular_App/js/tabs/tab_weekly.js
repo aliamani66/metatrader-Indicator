@@ -48,8 +48,8 @@ function switchWeeklyBarMode(mode) {
             canvas.height = Math.round(h * dpr);
             ctx.scale(dpr, dpr);
 
-            let w = rect.width;
-            let h = rect.height;
+            w = rect.width || w;
+            h = rect.height || h;
             let padLeft = 45;
             let padRight = 20;
             let padTop = 25;

@@ -2009,16 +2009,21 @@ def process_symbol_dataset(csv_file):
     cands_p4 = sorted([r for r in evaluated_combos if r['pf'] >= 2.5 and r['total'] >= min_15pct_trades and r['total'] != opt_p1['total']], key=lambda x: x['max_dd'])
     opt_p4 = cands_p4[0] if cands_p4 else opt_p1
 
+    def _make_preset_fdesc(p_opt):
+        pot_v = p_opt.get('pot', 0.0)
+        h_lbl = p_opt.get('h_label', '')
+        return f"{h_lbl} | کف: ${pot_v:.1f}" if pot_v > 0 else h_lbl
+
     smart_presets_defs = [
         {
             'id': 'preset-champion',
             'idx': 0,
-            'title': f'۱. الماس و سوپر اسنایپر خودکار (AI Champion Sniper 🎯)',
-            'badge': f'🏆 قهرمان کشف‌شده: PF {opt_p1["pf"]:.2f} & WR {opt_p1["wr"]:.0f}%',
+            'title': '🎯 اسنایپر هوشمند',
+            'badge': f'🏆 منتخب (PF {opt_p1["pf"]:.2f})',
             'badge_bg': '#831843',
             'badge_col': '#fbcfe8',
-            'strategy_desc': f'بهترین ترکیب هوشمند داده‌های {symbol} با شرط حداقل ۱۵٪ معاملات - پرافیت فاکتور {opt_p1["pf"]:.2f}، وین‌ریت {opt_p1["wr"]:.1f}٪، میانگین سود ${opt_p1["avg"]:.2f} و افت ${opt_p1["max_dd"]:.2f} ({opt_p1["total"]} ترید)',
-            'filter_desc': f'کف سود: <b>${opt_p1["pot"]:.2f}+</b> | ساعات: <b>{opt_p1["h_label"]}</b> | وقفه: <b>{opt_p1["cb_label"]}</b>',
+            'strategy_desc': 'بالاترین پرافیت فاکتور و بیشترین بازدهی با کنترل دقیق ریسک',
+            'filter_desc': _make_preset_fdesc(opt_p1),
             'min_pot': opt_p1['pot'],
             'hours': opt_p1['h_arr'],
             'hours_name': opt_p1['h_key'],
@@ -2031,12 +2036,12 @@ def process_symbol_dataset(csv_file):
         {
             'id': 'preset-golden',
             'idx': 1,
-            'title': '۲. تعادل طلایی حجم و سود (Golden Balance ⚖️)',
-            'badge': f'⭐ بالانس بهینه ({opt_p2["total"]} ترید)',
+            'title': '⚖️ تعادل طلایی',
+            'badge': '⭐ سود متوازن',
             'badge_bg': '#854d0e',
             'badge_col': '#fef08a',
-            'strategy_desc': f'تعادل عالی میان تعداد ترید بالا ({opt_p2["total"]} معامله) و پرافیت فاکتور {opt_p2["pf"]:.2f} با میانگین سود ${opt_p2["avg"]:.2f}',
-            'filter_desc': f'کف سود: <b>${opt_p2["pot"]:.2f}+</b> | ساعات: <b>{opt_p2["h_label"]}</b>',
+            'strategy_desc': 'بیشترین سود دلاری پایدار با حجم ترید بالا و پرافیت فاکتور مطلوب',
+            'filter_desc': _make_preset_fdesc(opt_p2),
             'min_pot': opt_p2['pot'],
             'hours': opt_p2['h_arr'],
             'hours_name': opt_p2['h_key'],
@@ -2049,12 +2054,12 @@ def process_symbol_dataset(csv_file):
         {
             'id': 'preset-day',
             'idx': 2,
-            'title': '۳. اسنایپر سشن روزانه لندن و نیویورک (Day Session ☀️)',
-            'badge': '☀️ اوج نقدینگی روزانه',
+            'title': '☀️ سشن روزانه',
+            'badge': '☀️ اوج بازار',
             'badge_bg': '#0c4a6e',
             'badge_col': '#7dd3fc',
-            'strategy_desc': f'معامله در ساعات پرقدرت روز با اسپرد پایین و تاییدیه مومنتوم - PF {opt_p3["pf"]:.2f} و افت ${opt_p3["max_dd"]:.0f}',
-            'filter_desc': f'کف سود: <b>${opt_p3["pot"]:.2f}+</b> | ساعات: <b>{opt_p3["h_label"]}</b>',
+            'strategy_desc': 'معاملات پرقدرت روز در ساعات اوج نقدینگی و کمترین اسپرد',
+            'filter_desc': _make_preset_fdesc(opt_p3),
             'min_pot': opt_p3['pot'],
             'hours': opt_p3['h_arr'],
             'hours_name': opt_p3['h_key'],
@@ -2067,12 +2072,12 @@ def process_symbol_dataset(csv_file):
         {
             'id': 'preset-shield',
             'idx': 3,
-            'title': '۴. سپر محافظتی کمترین افت سرمایه (Ultra-Low DD Shield 🛡️)',
-            'badge': f'🛡️ حداقل افت: ${opt_p4["max_dd"]:.0f}',
+            'title': '🛡️ سپر حداقل افت',
+            'badge': f'🛡️ حداقل افت (${opt_p4["max_dd"]:.0f})',
             'badge_bg': '#064e3b',
             'badge_col': '#34d399',
-            'strategy_desc': f'کمترین ریسک دلاری ممکن روی حساب ({symbol}) با حفظ پرافیت فاکتور عالی {opt_p4["pf"]:.2f} و وین‌ریت {opt_p4["wr"]:.1f}٪',
-            'filter_desc': f'کف سود: <b>${opt_p4["pot"]:.2f}+</b> | ساعات: <b>{opt_p4["h_label"]}</b> | وقفه: <b>{opt_p4["cb_label"]}</b>',
+            'strategy_desc': 'محافظه‌کارانه‌ترین استراتژی با حذف گره‌های پرریسک و حفظ سرمایه',
+            'filter_desc': _make_preset_fdesc(opt_p4),
             'min_pot': opt_p4['pot'],
             'hours': opt_p4['h_arr'],
             'hours_name': opt_p4['h_key'],
@@ -2085,12 +2090,12 @@ def process_symbol_dataset(csv_file):
         {
             'id': 'preset-base',
             'idx': 4,
-            'title': f'۵. سبد جامع پایه {symbol} (تمام سلاطین ۲۴ ساعته 🌐)',
-            'badge': '🌐 مبنای کل چارت',
+            'title': '🌐 سبد پایه ۲۴ ساعته',
+            'badge': '🌐 کل چارت',
             'badge_bg': '#1e293b',
             'badge_col': '#94a3b8',
-            'strategy_desc': f'شبیه‌سازی کامل تمام سلاطین بدون فیلتر سود یا زمان - بالاترین حجم آماری ({len(pts_kings)-1} ترید)',
-            'filter_desc': 'کف سود: <b>$0.00</b> | ساعات: <b>۲۴ ساعته کامل</b>',
+            'strategy_desc': 'شبیه‌سازی کامل تمام سلاطین در ۲۴ ساعت بدون فیلتر',
+            'filter_desc': '۲۴ ساعته کامل | بدون محدودیت کف',
             'min_pot': 0.0,
             'hours': [True]*24,
             'hours_name': 'all',
@@ -2167,55 +2172,57 @@ def process_symbol_dataset(csv_file):
         row_border = "border: 2px solid #facc15; background: #1c1806;" if p['is_featured'] else "border-bottom: 1px solid #1e293b;"
         pf_display = f"{pf:.2f}" if pf < 900 else "∞"
         net_col = "#00e676" if nt >= 0 else "#ef4444"
-        featured_tag = f" <span style='background:{p['badge_bg']};color:{p['badge_col']};font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>{p['badge']}</span>"
+        featured_tag = f" <span style='background:{p['badge_bg']};color:{p['badge_col']};font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:bold;'>{p['badge']}</span>"
 
         smart_presets_rows_html.append(f"""
         <tr id="presetRow{p['idx']}" style="{row_border}transition:all 0.2s;" class="preset-table-row {'featured-preset' if p['is_featured'] else ''}">
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#facc15;">#{p['idx']+1}</td>
-            <td style="padding:7px 8px;">
-                <div style="font-weight:bold;color:#f1f5f9;font-size:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;font-size:12px;color:#facc15;">#{p['idx']+1}</td>
+            <td style="padding:8px 8px;">
+                <div style="font-weight:700;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                     <span>{p['title']}</span>
                     {featured_tag}
                 </div>
                 <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">{p['strategy_desc']}</div>
             </td>
-            <td style="padding:7px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+            <td style="padding:8px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
                 <div>{p['filter_desc']}</div>
-                <div style="font-weight:bold;color:#38bdf8;font-size:10.5px;margin-top:2px;">👑 {len(p['kings'])} سلطان فعال</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10px;margin-top:2px;">👑 {len(p['kings'])} سلطان فعال</div>
             </td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;font-size:12px;color:#e2e8f0;">
+            <td style="text-align:center;padding:8px 4px;font-weight:600;font-size:12px;color:#e2e8f0;">
                 {c:,}
             </td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#34d399;font-size:12px;">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#34d399;font-size:12px;">
                 {wr:.1f}٪
             </td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
                 {pf_display}
             </td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#facc15;font-size:12.5px;">
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#facc15;font-size:12px;">
                 ${avg:+.2f}
             </td>
-            <td style="text-align:center;padding:7px 4px;font-weight:bold;color:#fca5a5;font-size:11.5px;">
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#fca5a5;font-size:11.5px;">
                 ${max_dd:.0f}
             </td>
-            <td style="text-align:center;padding:7px 6px;font-weight:bold;color:{net_col};font-size:13.5px;background:#064e3b22;white-space:nowrap;">
+            <td style="text-align:center;padding:8px 6px;font-weight:800;color:{net_col};font-size:13px;background:#064e3b22;white-space:nowrap;">
                 {'+$' if nt>=0 else '-$'}{abs(nt):,.0f}
             </td>
-            <td style="text-align:center;padding:7px 6px;white-space:nowrap;">
+            <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
                 <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
-                    <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:5px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 8px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی داشبورد">
+                    <button id="btnApplyPreset{p['idx']}" class="apply-preset-btn" onclick="applySmartPreset({p['idx']})" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 6px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی">
                         ⚡ اعمال
                     </button>
-                    <button onclick="exportPresetToMT5({p['idx']})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:5px 7px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل استراتژی تستر متاتریدر ۵ (.ini) جهت Drag & Drop به تستر">
-                        <span>🤖 تنظیمات تستر (.ini)</span>
+                    <button onclick="exportPresetToMT5({p['idx']})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;" title="خروجی فایل تنظیمات تستر متاتریدر ۵ (.ini)">
+                        🤖 تستر
                     </button>
                 </div>
             </td>
         </tr>
         """)
 
-    json_smart_presets = json.dumps(smart_presets_json_data, separators=(',', ':'))
-    smart_presets_table_rows_str = ''.join(smart_presets_rows_html)
+    if not smart_presets_rows_html:
+        smart_presets_table_rows_str = '<tr><td colspan="10" style="text-align:center;padding:16px;color:#94a3b8;font-size:12px;">💡 در حال حاضر برای این جفت‌ارز معاملات کافی برای استخراج سناریوهای سلطان ثبت نشده است. لطفاً جفت‌ارز دارای معاملات کامل (مانند GBPUSD) را انتخاب نمایید.</td></tr>'
+    else:
+        smart_presets_table_rows_str = ''.join(smart_presets_rows_html)
 
     # Trades Journal JSON Data Preparation
     trades_sorted = sorted([r for r in closed if r.get('Timeframe') in ['M1','M5','M15']], key=lambda x: x.get('EntryTime', ''), reverse=True)
@@ -2398,7 +2405,7 @@ def process_symbol_dataset(csv_file):
                 </div>
 
                 <!-- Canvas Box -->
-                <div style="position:relative;width:100%;height:450px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                <div style="position:relative;width:100%;height:400px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
                     <!-- ⚡ Live & Peak Concurrent Trades Corner Badge -->
                     <div id="eqConcurrentBadge" style="position:absolute;top:12px;left:12px;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid #0284c7;border-radius:8px;padding:6px 12px;z-index:15;box-shadow:0 6px 20px rgba(0,0,0,0.6);display:flex;align-items:center;gap:10px;direction:rtl;pointer-events:none;">
                         <div style="width:26px;height:26px;border-radius:6px;background:#0369a1;border:1px solid #38bdf8;display:flex;align-items:center;justify-content:center;font-size:13px;">
@@ -2505,15 +2512,15 @@ def process_symbol_dataset(csv_file):
                         <thead>
                             <tr style="background:#1e293b;color:#94a3b8;border-bottom:2px solid #334155;font-size:11.5px;">
                                 <th style="padding:7px 5px;text-align:center;">#</th>
-                                <th style="padding:7px 8px;">سناریوی استراتژی و ویژگی‌ها</th>
-                                <th style="padding:7px 6px;text-align:center;">تنظیمات و سلاطین</th>
+                                <th style="padding:7px 8px;">نام و سناریو</th>
+                                <th style="padding:7px 6px;text-align:center;">تنظیمات کلیدی</th>
                                 <th style="padding:7px 4px;text-align:center;">تعداد</th>
                                 <th style="padding:7px 4px;text-align:center;">وین‌ریت</th>
                                 <th style="padding:7px 4px;text-align:center;">PF</th>
                                 <th style="padding:7px 4px;text-align:center;">متوسط سود</th>
-                                <th style="padding:7px 4px;text-align:center;">Max DD</th>
+                                <th style="padding:7px 4px;text-align:center;">افت DD</th>
                                 <th style="padding:7px 6px;text-align:center;">سود خالص</th>
-                                <th style="padding:7px 6px;text-align:center;">اقدام</th>
+                                <th style="padding:7px 6px;text-align:center;">عملیات</th>
                             </tr>
                         </thead>
                         <!-- 1. SYSTEM BUILT-IN PRESETS -->
@@ -3912,7 +3919,7 @@ def build_dashboard(custom_csv=None):
     # Auto-export smart preset .set files to Experts/تنظیمات
     export_preset_set_files(symbols_data)
 
-    default_sym = 'EURUSD' if 'EURUSD' in symbols_data else list(symbols_data.keys())[0]
+    default_sym = 'GBPUSD' if 'GBPUSD' in symbols_data else max(symbols_data.keys(), key=lambda s: len(symbols_data[s].get('trades_json_list', [])))
     default_data = symbols_data[default_sym]
     print(f"🌟 نماد پیش‌فرض هدر داشبورد: {default_sym} ({default_data['tfs_str']})")
 

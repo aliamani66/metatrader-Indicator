@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>داشبورد جامع و هوشمند FlagPro (سیستم ماژولار تفکیک‌شده)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Styles -->
     <link rel="stylesheet" href="css/main.css">
 </head>
@@ -89,7 +93,8 @@
                     <div style="display:flex;align-items:center;gap:6px;background:#081420;border:1px solid #38bdf8;padding:4px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(56,189,248,0.15);">
                         <label for="symbolSelector" style="font-size:11.5px;color:#94a3b8;font-weight:bold;">🌍 نماد / جفت‌ارز:</label>
                         <select id="symbolSelector" onchange="switchDashboardSymbol(this.value)" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;font-weight:bold;padding:4px 8px;border-radius:6px;font-size:12px;outline:none;cursor:pointer;">
-                            <option value="EURUSD" selected>EURUSD (M1, M15, M5)</option>
+                            <option value="GBPUSD" selected>GBPUSD (M1, M15, M5)</option>
+                            <option value="EURUSD">EURUSD (M1, M15, M5)</option>
                         </select>
                     </div>
                     <button onclick="triggerCSVUploadClick()" style="background:linear-gradient(135deg, #064e3b, #059669);border:1px solid #34d399;color:#fff;padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.3);" title="انتخاب مستقیم فایل CSV یا Drag & Drop فایل به داخل مرورگر (مسیر پوشه Files خودکار در کلیپ‌بورد کپی می‌شود)" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='linear-gradient(135deg, #064e3b, #059669)'">
@@ -109,7 +114,7 @@
                     </button>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleCSVFileUpload(this)">
                     <span id="headerSymbolBadge" style="background:#081420;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;color:#38bdf8;">
-                        EURUSD! (M1, M15, M5)
+                        GBPUSD (M1, M15, M5)
                     </span>
                 </div>
             </div>

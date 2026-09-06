@@ -28,7 +28,7 @@ function clearPresetActiveState() {
                 r.style.boxShadow = 'none';
             });
             document.querySelectorAll('.apply-preset-btn').forEach(b => {
-                b.innerHTML = '⚡ اعمال روی نمودار';
+                b.innerHTML = '⚡ اعمال';
                 b.style.background = 'linear-gradient(135deg, #0284c7, #0369a1)';
                 b.style.borderColor = '#38bdf8';
             });
@@ -124,7 +124,7 @@ function clearPresetActiveState() {
                 }
                 let activeBtn = document.getElementById('btnApplyPreset' + idx);
                 if (activeBtn) {
-                    activeBtn.innerHTML = '✅ سناریوی فعال';
+                    activeBtn.innerHTML = '✅ فعال';
                     activeBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
                     activeBtn.style.borderColor = '#34d399';
                 }
@@ -322,7 +322,7 @@ function openSavePresetModal() {
                         '<div style="display:flex;gap:3px;justify-content:center;align-items:center;flex-wrap:nowrap;">' +
                             '<button data-id="' + p.id + '" onclick="applyCustomPreset(this.dataset.id)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 7px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;" title="اعمال روی چارت">⚡ اعمال</button>' +
                             '<button data-id="' + p.id + '" onclick="exportCustomPresetToMT5(this.dataset.id)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 7px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل استراتژی تستر متاتریدر ۵ (.ini) جهت Drag & Drop">' +
-                                '<span>🤖 تنظیمات تستر (.ini)</span>' +
+                                '<span>🤖 تستر</span>' +
                             '</button>' +
                             '<button data-id="' + p.id + '" onclick="updateCustomPresetWithCurrent(this.dataset.id)" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;padding:4px 5px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="به‌روزرسانی این سناریو با فیلترهای فعلی">🔄</button>' +
                             '<button data-id="' + p.id + '" onclick="deleteCustomPreset(this.dataset.id)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;padding:4px 5px;border-radius:4px;font-size:10.5px;cursor:pointer;" title="حذف سناریو">🗑️</button>' +
@@ -2036,7 +2036,7 @@ function openSavePresetModal() {
                                         ⚡ اعمال
                                     </button>
                                     <button onclick="exportPresetToMT5(${aiIdx})" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:5px 7px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;display:inline-flex;align-items:center;gap:3px;" title="دریافت فایل استراتژی تستر متاتریدر ۵ (.ini) جهت Drag & Drop به تستر">
-                                        <span>🤖 تنظیمات تستر (.ini)</span>
+                                        <span>🤖 تستر</span>
                                     </button>
                                 </div>
                             </td>
