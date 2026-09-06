@@ -354,6 +354,126 @@ function switchDashboardSymbol(symName) {
             }
         });
 
+        function calc7PillarKingMetrics(trades, tf, role, friction) {
+            let cnt = trades.length;
+            if (cnt === 0) return null;
+
+            let w1 = 0, w2 = 0, w3 = 0, w4 = 0, sl = 0;
+            trades.forEach(t => {
+                let hr = t.hr !== undefined ? t.hr : 0;
+                if (hr >= 1) w1++;
+                if (hr >= 2) w2++;
+                if (hr >= 3) w3++;
+                if (hr >= 4) w4++;
+                if (hr === 0) sl++;
+            });
+
+            let w1_p = (w1 / cnt) * 100.0;
+            let w2_p = (w2 / cnt) * 100.0;
+            let w3_p = (w3 / cnt) * 100.0;
+            let w4_p = (w4 / cnt) * 100.0;
+            let sl_p = (sl / cnt) * 100.0;
+
+            let is_perfect = (cnt >= 2 && sl === 0);
+            let is_runner = (w3_p >= 30.0 || w4_p >= 30.0);
+
+            let gross = 0.0;
+            trades.forEach(t => {
+                let pts = t.pts || 0;
+                let hr = t.hr !== undefined ? t.hr : 0;
+                if (hr === 0) {
+                    gross -= pts * 0.04;
+                } else {
+                    if (hr >= 1) gross += pts * 1.0 * 0.01;
+                    if (hr >= 2) gross += pts * 2.0 * 0.01;
+                    if (hr >= 3) gross += pts * 3.0 * 0.01;
+                    if (hr >= 4) gross += pts * 4.0 * 0.01;
+                }
+            });
+
+            let fric = cnt * friction;
+            let net = gross - fric;
+
+            let cum_pnl = 0.0, peak = 0.0, max_dd = 0.0;
+            let gross_win = 0.0, gross_loss = 0.0;
+            let sorted_trades = trades.slice().sort((a, b) => ((a.et || '') > (b.et || '') ? 1 : ((a.et || '') < (b.et || '') ? -1 : 0)));
+            sorted_trades.forEach(t => {
+                let pts = t.pts || 0;
+                let hr = t.hr !== undefined ? t.hr : 0;
+                let pnl = 0.0;
+                if (hr === 0) {
+                    pnl = -pts * 0.04 - friction;
+                    gross_loss += Math.abs(pnl);
+                } else {
+                    pnl = -friction;
+                    if (hr >= 1) pnl += pts * 1.0 * 0.01;
+                    if (hr >= 2) pnl += pts * 2.0 * 0.01;
+                    if (hr >= 3) pnl += pts * 3.0 * 0.01;
+                    if (hr >= 4) pnl += pts * 4.0 * 0.01;
+                    if (pnl > 0) gross_win += pnl;
+                    if (pnl < 0) gross_loss += Math.abs(pnl);
+                }
+
+                cum_pnl += pnl;
+                if (cum_pnl > peak) peak = cum_pnl;
+                let dd = peak - cum_pnl;
+                if (dd > max_dd) max_dd = dd;
+            });
+
+            let pf = gross_loss > 0 ? (gross_win / gross_loss) : (gross_win > 0 ? 99.0 : 0.0);
+            let ret_dd = max_dd > 0 ? (net / max_dd) : (net > 0 ? net : 0.0);
+
+            let profit_per_trade = net / Math.max(cnt, 1);
+            let final_score = 0.0;
+
+            if (net <= 0) {
+                final_score = net * 2.0 - sl_p;
+            } else {
+                // Pillar 1: 🛡️ Purity / Zero-SL (0 to 500 pts)
+                let f_purity = 0.0;
+                if (cnt >= 2 && sl === 0) f_purity = 500.0;
+                else if (cnt >= 3 && sl_p <= 15.0) f_purity = 300.0;
+                else if (cnt >= 3 && sl_p <= 25.0) f_purity = 200.0;
+                else if (cnt >= 4 && sl_p <= 35.0) f_purity = 100.0;
+                else if (cnt >= 4 && sl_p <= 45.0) f_purity = 50.0;
+
+                // Pillar 2: 🎯 TP2 Depth (0 to 400 pts)
+                let f_tp2 = w2_p * 4.0;
+
+                // Pillar 3: ⚡ Runner & Target Progression Quality (up to ~250 pts)
+                let f_prog = (w1_p * 0.5) + (w3_p * 1.0) + (w4_p * 1.5) - (sl_p * 0.5);
+
+                // Pillar 4: 💰 Efficiency ($/trade) (0 to 200 pts)
+                let f_eff = Math.min(Math.max(profit_per_trade, 0.0) * 20.0, 200.0);
+
+                // Pillar 5: 📊 Statistical Confidence (0 to 50 pts)
+                let f_rel = Math.min(Math.log10(cnt + 9) * 20.0, 50.0);
+
+                // Pillar 6: ⚖️ Institutional Profit Factor (0 to 100 pts)
+                let f_pf = (sl === 0 && cnt >= 2) ? 100.0 : Math.min(Math.max(pf - 1.0, 0.0) * 50.0, 100.0);
+
+                // Pillar 7: 🛡️ Drawdown Resistance & Recovery Factor (0 to 100 pts)
+                let f_rec = (sl === 0 && cnt >= 2) ? 100.0 : Math.min(ret_dd * 6.0, 100.0);
+                if (max_dd > 30.0 && !(sl === 0 && cnt >= 2)) {
+                    f_rec = Math.max(f_rec - (max_dd - 30.0) * 1.5, 0.0);
+                }
+
+                final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel + f_pf + f_rec;
+            }
+
+            let is_king_eligible = is_perfect || (cnt >= 4 && net > 5.0 && w1_p >= 50.0);
+
+            return {
+                tf, role, cnt,
+                w1, w2, w3, w4, sl,
+                w1_p, w2_p, w3_p, w4_p, sl_p,
+                score: final_score, is_perfect, is_runner,
+                gross, fric, net,
+                max_dd, pf, ret_dd,
+                trades, is_king_eligible
+            };
+        }
+
         function parseClientCSV(csvText, fileName) {
             if (!csvText || typeof csvText !== 'string') throw new Error('محتوای فایل خالی است.');
             let lines = csvText.split(String.fromCharCode(10)).map(l => l.trim()).filter(l => l.length > 0);
@@ -514,31 +634,16 @@ function switchDashboardSymbol(symName) {
 
             let scoredBoxes = [];
             Object.values(boxGroups).forEach(bg => {
-                let cnt = bg.trades.length;
-                if (cnt === 0) return;
-                let w1_p = (bg.w1 / cnt) * 100;
-                let sl_p = (bg.sl / cnt) * 100;
-                let pf = bg.grossLoss > 0 ? bg.grossWin / bg.grossLoss : (bg.grossWin > 0 ? 99 : 0);
-                let peak = 0, cum = 0, maxDD = 0;
-                bg.trades.forEach(tr => { cum += tr.pnl; if (cum > peak) peak = cum; let dd = peak - cum; if (dd > maxDD) maxDD = dd; });
-                let purity = (cnt >= 2 && bg.sl === 0) ? 500 : Math.max(0, 400 - sl_p * 8);
-                let t2 = ((bg.w2 / cnt) * 100) * 4.0;
-                let pnlTrade = (bg.net / cnt) * 15.0;
-                let pfScore = Math.min(100, pf * 15);
-                let ddScore = maxDD > 0 ? Math.min(100, (bg.net / maxDD) * 10) : 100;
-                let score = purity + t2 + pnlTrade + pfScore + ddScore;
-
-                scoredBoxes.push({
-                    role: bg.role, tf: bg.tf, kk: bg.kk, score, cnt, net: bg.net,
-                    w1: bg.w1, w2: bg.w2, w3: bg.w3, w4: bg.w4, sl: bg.sl,
-                    w1_p, sl_p, pf, maxDD,
-                    is_perfect: (cnt >= 2 && bg.sl === 0),
-                    is_runner: (bg.w3 / cnt >= 0.3 || bg.w4 / cnt >= 0.3)
-                });
+                let m = calc7PillarKingMetrics(bg.trades, bg.tf, bg.role, friction);
+                if (m) {
+                    m.kk = bg.kk;
+                    scoredBoxes.push(m);
+                }
             });
 
-            scoredBoxes.sort((a, b) => b.score - a.score);
-            let qualified = scoredBoxes.filter(b => b.score >= 100 && b.net > 0 && (b.cnt >= 3 || b.is_perfect));
+            scoredBoxes.sort((a, b) => (b.score !== a.score ? b.score - a.score : b.cnt - a.cnt));
+            let qualified = scoredBoxes.filter(b => b.is_king_eligible);
+            if (qualified.length === 0) qualified = scoredBoxes.filter(b => b.score >= 100 && b.net > 0);
             if (qualified.length === 0) qualified = scoredBoxes.slice(0, 10);
             let kingKeySet = new Set(qualified.map(k => k.kk));
 
@@ -546,12 +651,19 @@ function switchDashboardSymbol(symName) {
             clientAllTrades.forEach(t => { t.is_k = kingKeySet.has(t.role + '|' + t.tf) ? 1 : 0; });
 
             let clientKingsSimList = qualified.map((k, idx) => ({
-                id: idx + 1, role: k.role, tf: k.tf, kk: k.kk, score: Math.round(k.score * 10) / 10,
+                id: idx + 1, role: k.role, tf: k.tf, kk: k.kk,
+                score: Math.round(k.score * 10) / 10,
                 cnt: k.cnt, net: Math.round(k.net * 100) / 100,
                 w1: k.w1, w2: k.w2, w3: k.w3, w4: k.w4, sl: k.sl,
                 w1_p: Math.round(k.w1_p * 10) / 10,
+                w2_p: Math.round(k.w2_p * 10) / 10,
+                w3_p: Math.round(k.w3_p * 10) / 10,
+                w4_p: Math.round(k.w4_p * 10) / 10,
                 sl_cnt: k.sl, sl_usd: Math.round(k.sl * (friction + 2.0) * 100) / 100,
-                sl_p: Math.round(k.sl_p * 10) / 10, pf: Math.round(k.pf * 100) / 100,
+                sl_p: Math.round(k.sl_p * 10) / 10,
+                pf: Math.round(k.pf * 100) / 100,
+                max_dd: Math.round(k.max_dd * 100) / 100,
+                ret_dd: Math.round(k.ret_dd * 10) / 10,
                 perf: k.is_perfect ? 1 : 0, run: k.is_runner ? 1 : 0
             }));
 
@@ -621,16 +733,16 @@ function switchDashboardSymbol(symName) {
                     <td style="text-align:center;color:#facc15;font-weight:bold;font-size:14px;">${k.score} 👑</td>
                     <td style="text-align:center;font-weight:bold;">${k.cnt}</td>
                     <td style="text-align:center;color:#34d399;font-weight:bold;">${k.w1_p}%</td>
-                    <td style="text-align:center;color:#60a5fa;">${k.w1_p > 15 ? (k.w1_p*0.7).toFixed(1) : '0.0'}%</td>
-                    <td style="text-align:center;color:#38bdf8;">${k.w1_p > 25 ? (k.w1_p*0.5).toFixed(1) : '0.0'}%</td>
-                    <td style="text-align:center;color:#c084fc;">${k.w1_p > 35 ? (k.w1_p*0.35).toFixed(1) : '0.0'}%</td>
+                    <td style="text-align:center;color:#60a5fa;">${k.w2_p !== undefined ? k.w2_p : (k.w1_p > 15 ? (k.w1_p*0.7).toFixed(1) : '0.0')}%</td>
+                    <td style="text-align:center;color:#38bdf8;">${k.w3_p !== undefined ? k.w3_p : (k.w1_p > 25 ? (k.w1_p*0.5).toFixed(1) : '0.0')}%</td>
+                    <td style="text-align:center;color:#c084fc;">${k.w4_p !== undefined ? k.w4_p : (k.w1_p > 35 ? (k.w1_p*0.35).toFixed(1) : '0.0')}%</td>
                     <td style="text-align:center;color:#ef4444;">${k.sl_p}%</td>
-                    <td style="text-align:center;color:#38bdf8;font-weight:bold;">${k.pf >= 900 ? '999+' : k.pf.toFixed(2)}</td>
+                    <td style="text-align:center;color:#38bdf8;font-weight:bold;">${k.pf >= 90 ? 'MAX' : k.pf.toFixed(2)}</td>
                     <td style="text-align:center;color:#f87171;">$${k.sl_usd}</td>
-                    <td style="text-align:center;color:#facc15;">${(k.net / Math.max(1, k.sl_usd)).toFixed(1)}x</td>
+                    <td style="text-align:center;color:#facc15;">${k.ret_dd !== undefined ? k.ret_dd.toFixed(1) + 'x' : (k.net / Math.max(1, k.sl_usd)).toFixed(1) + 'x'}</td>
                     <td style="text-align:center;color:#38bdf8;">$${(k.net + k.cnt * friction).toFixed(2)}</td>
-                    <td style="text-align:color:#f87171;">-$${(k.cnt * friction).toFixed(2)}</td>
-                    <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;background:#064e3b44;">$${k.net.toFixed(2)}</td>
+                    <td style="text-align:center;color:#f87171;">-$${(k.cnt * friction).toFixed(2)}</td>
+                    <td style="text-align:center;color:#00e676;font-weight:bold;font-size:14px;background:#064e3b44;">+${k.net >= 0 ? '+' : ''}$${k.net.toFixed(2)}</td>
                 </tr>
             `).join('');
 
@@ -910,8 +1022,6 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     let totW3_p = totKingsCount > 0 ? (totKingsW3 / totKingsCount * 100).toFixed(1) : '0.0';
     let totW4_p = totKingsCount > 0 ? (totKingsW4 / totKingsCount * 100).toFixed(1) : '0.0';
     let totSL_p = totKingsCount > 0 ? (totKingsSL / totKingsCount * 100).toFixed(1) : '0.0';
-    let totKingsFriction = totKingsCount * friction;
-    let totKingsGross = totKingsNet + totKingsFriction;
 
     let rawRows = tfKeys.map(tf => {
         let r = tfMapRaw[tf];
@@ -953,121 +1063,8 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     let computedTfRoles = [];
     for (let key in tfRoleMap) {
         let item = tfRoleMap[key];
-        let tList = item.trades;
-        let cnt = tList.length;
-        let w1 = 0, w2 = 0, w3 = 0, w4 = 0, sl = 0;
-        tList.forEach(t => {
-            let hr = t.hr || 0;
-            if (hr >= 1) w1++;
-            if (hr >= 2) w2++;
-            if (hr >= 3) w3++;
-            if (hr >= 4) w4++;
-            if (hr === 0) sl++;
-        });
-
-        let w1_p = (w1 / cnt) * 100.0;
-        let w2_p = (w2 / cnt) * 100.0;
-        let w3_p = (w3 / cnt) * 100.0;
-        let w4_p = (w4 / cnt) * 100.0;
-        let sl_p = (sl / cnt) * 100.0;
-
-        let is_perfect = (cnt >= 2 && sl === 0);
-        let is_runner = (w3_p >= 30.0 || w4_p >= 30.0);
-
-        // Calculate Net Profit with 0.04 scale-out
-        let gross = 0.0;
-        tList.forEach(t => {
-            let pts = t.pts || 0;
-            let hr = t.hr || 0;
-            if (hr === 0) {
-                gross -= pts * 0.04;
-            } else {
-                if (hr >= 1) gross += pts * 1.0 * 0.01;
-                if (hr >= 2) gross += pts * 2.0 * 0.01;
-                if (hr >= 3) gross += pts * 3.0 * 0.01;
-                if (hr >= 4) gross += pts * 4.0 * 0.01;
-            }
-        });
-        let fric = cnt * friction;
-        let net = gross - fric;
-
-        // Chronological Max Drawdown & Profit Factor
-        let cum_pnl = 0.0, peak = 0.0, max_dd = 0.0, gross_win = 0.0, gross_loss = 0.0;
-        let sortedTrades = tList.slice().sort((a, b) => (a.et > b.et ? 1 : (a.et < b.et ? -1 : 0)));
-        sortedTrades.forEach(t => {
-            let pts = t.pts || 0;
-            let hr = t.hr || 0;
-            let pnl = 0.0;
-            if (hr === 0) {
-                pnl = -pts * 0.04 - friction;
-                gross_loss += Math.abs(pnl);
-            } else {
-                pnl = -friction;
-                if (hr >= 1) pnl += pts * 1.0 * 0.01;
-                if (hr >= 2) pnl += pts * 2.0 * 0.01;
-                if (hr >= 3) pnl += pts * 3.0 * 0.01;
-                if (hr >= 4) pnl += pts * 4.0 * 0.01;
-                if (pnl > 0) gross_win += pnl;
-                if (pnl < 0) gross_loss += Math.abs(pnl);
-            }
-            cum_pnl += pnl;
-            if (cum_pnl > peak) peak = cum_pnl;
-            let dd = peak - cum_pnl;
-            if (dd > max_dd) max_dd = dd;
-        });
-
-        let pf = gross_loss > 0 ? (gross_win / gross_loss) : (gross_win > 0 ? 99.0 : 0.0);
-        let ret_dd = max_dd > 0 ? (net / max_dd) : (net > 0 ? net : 0.0);
-
-        // 7-Pillar Institutional King Score Formula
-        let profit_per_trade = net / Math.max(cnt, 1);
-        let final_score = 0.0;
-
-        if (net <= 0) {
-            final_score = net * 2.0 - sl_p;
-        } else {
-            // Pillar 1: Purity (0 to 500)
-            let f_purity = 0.0;
-            if (cnt >= 2 && sl === 0) f_purity = 500.0;
-            else if (cnt >= 3 && sl_p <= 15.0) f_purity = 300.0;
-            else if (cnt >= 3 && sl_p <= 25.0) f_purity = 200.0;
-            else if (cnt >= 4 && sl_p <= 35.0) f_purity = 100.0;
-            else if (cnt >= 4 && sl_p <= 45.0) f_purity = 50.0;
-
-            // Pillar 2: TP2 Depth (0 to 400)
-            let f_tp2 = w2_p * 4.0;
-
-            // Pillar 3: Runner Progression (up to ~250)
-            let f_prog = (w1_p * 0.5) + (w3_p * 1.0) + (w4_p * 1.5) - (sl_p * 0.5);
-
-            // Pillar 4: Efficiency (0 to 200)
-            let f_eff = Math.min(Math.max(profit_per_trade, 0.0) * 20.0, 200.0);
-
-            // Pillar 5: Statistical Confidence (0 to 50)
-            let f_rel = Math.min(Math.log10(cnt + 9) * 20.0, 50.0);
-
-            // Pillar 6: Institutional PF (0 to 100)
-            let f_pf = (sl === 0 && cnt >= 2) ? 100.0 : Math.min(Math.max(pf - 1.0, 0.0) * 50.0, 100.0);
-
-            // Pillar 7: Recovery Factor (0 to 100)
-            let f_rec = 0.0;
-            if (sl === 0 && cnt >= 2) {
-                f_rec = 100.0;
-            } else {
-                f_rec = Math.min(ret_dd * 6.0, 100.0);
-                if (max_dd > 30.0) f_rec = Math.max(f_rec - (max_dd - 30.0) * 1.5, 0.0);
-            }
-
-            final_score = f_purity + f_tp2 + f_prog + f_eff + f_rel + f_pf + f_rec;
-        }
-
-        computedTfRoles.push({
-            tf: item.tf, role: item.role, cnt: cnt,
-            w1_p: w1_p, w2_p: w2_p, w3_p: w3_p, w4_p: w4_p, sl_p: sl_p,
-            score: final_score, is_perfect: is_perfect, is_runner: is_runner,
-            gross: gross, fric: fric, net: net,
-            max_dd: max_dd, pf: pf, ret_dd: ret_dd
-        });
+        let m = calc7PillarKingMetrics(item.trades, item.tf, item.role, friction);
+        if (m) computedTfRoles.push(m);
     }
 
     // Sort by King Score descending
