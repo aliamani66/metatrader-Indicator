@@ -487,7 +487,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
 
    int drawnCount = 0;
-   int maxTradesToDraw = 250;
+   int maxTradesToDraw = 2000;
 
    for(int t = g_tradeCount - 1; t >= 0; t--)
    {

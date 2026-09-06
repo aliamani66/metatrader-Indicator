@@ -382,15 +382,9 @@ void ProcessTF(ENUM_TIMEFRAMES tf, int sBars, color clr,
                   }
                   else
                   {
-                     double area1 = MathAbs(g_drawnBoxes[idx1].top - g_drawnBoxes[idx1].bottom) * (double)(g_drawnBoxes[idx1].t2 - g_drawnBoxes[idx1].t1 + 1);
-                     double area2 = MathAbs(g_drawnBoxes[idx2].top - g_drawnBoxes[idx2].bottom) * (double)(g_drawnBoxes[idx2].t2 - g_drawnBoxes[idx2].t1 + 1);
-                     if(area1 >= area2)
-                        g_drawnBoxes[idx2].top = -1;
-                     else
-                     {
-                        g_drawnBoxes[idx1].top = -1;
-                        break;
-                     }
+                     // اولویت با باکسی است که زودتر تشکیل شده است (idx1) تا با ورود کندل‌های آینده،
+                     // باکس‌ها و معاملات گذشته به طور عطف به ماسبق حذف نشوند و رفتار زنده با تاریخچه ۱۰۰٪ همخوان بماند
+                     g_drawnBoxes[idx2].top = -1;
                   }
                }
             }
