@@ -381,3 +381,35 @@ void RenderVersionBadge(const string moduleName, const string version = FLAGPRO_
    ObjectSetInteger(0, objName, OBJPROP_BACK, false);
    ObjectSetInteger(0, objName, OBJPROP_HIDDEN, true);
 }
+
+//+------------------------------------------------------------------+
+//| رسم بج وضعیت همگام‌سازی تستر (Auto-Sync)                         |
+//+------------------------------------------------------------------+
+void RenderSyncStatusBadge()
+{
+   string objName = FP_PREFIX + "SYNC_BADGE";
+   if(!g_syncActive || g_syncScenarioName == "")
+   {
+      ObjectDelete(0, objName);
+      return;
+   }
+
+   if(ObjectFind(0, objName) < 0)
+      ObjectCreate(0, objName, OBJ_LABEL, 0, 0, 0);
+
+   int yDist = (ObjectFind(0, FP_PREFIX + "VER_EA") >= 0) ? 64 : 42;
+
+   ObjectSetInteger(0, objName, OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+   ObjectSetInteger(0, objName, OBJPROP_XDISTANCE, 20);
+   ObjectSetInteger(0, objName, OBJPROP_YDISTANCE, yDist);
+   ObjectSetInteger(0, objName, OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
+   string syncText = StringFormat("🔄 تستر فعال: %s (%s)", g_syncScenarioName, (ActiveOnlyTradeKings() ? "👑 سلاطین" : "همه ستاپ‌ها"));
+   ObjectSetString(0, objName, OBJPROP_TEXT, syncText);
+   ObjectSetString(0, objName, OBJPROP_FONT, "Segoe UI Semibold");
+   ObjectSetInteger(0, objName, OBJPROP_FONTSIZE, 9);
+   ObjectSetInteger(0, objName, OBJPROP_COLOR, C'80,220,255'); // فیروزه‌ای درخشان
+   ObjectSetInteger(0, objName, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, objName, OBJPROP_BACK, false);
+   ObjectSetInteger(0, objName, OBJPROP_HIDDEN, true);
+}
+

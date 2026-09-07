@@ -34,7 +34,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    g_tradeCount = 0;
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
-   double bufferPips = InpRSPipBuffer * pipSize;
+   double bufferPips = ActiveSLOffsetPips() * pipSize;
    double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
    if(simSpread <= 0) simSpread = 1.0 * pipSize;
 
@@ -47,7 +47,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    {
       g_drawnBoxes[b].hasTradeEntered = false;
       if(g_drawnBoxes[b].top <= 0) continue;
-      if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
+      if(!ActiveTradeMacroTFs() && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
       if(g_effectiveStartDate > 0 && g_drawnBoxes[b].t1 < g_effectiveStartDate) continue;
 
       string role = "Flag";
@@ -104,7 +104,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       }
 
       // فقط در صورت فعال بودن قفل سلاطین، ستاپ‌های غیرسلطان حذف شوند
-      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[b].tf, role))
+      if((ActiveOnlyTradeKings() || ActiveTradeOnlyGoldenKings()) && !IsQualifiedKing(g_drawnBoxes[b].tf, role))
          continue;
 
       bool isBull = true;
@@ -178,10 +178,10 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
       // ۱. فیلترهای الگویی اولیه و اصطکاک (مستقل از زمان ورود)
-      if(InpFilterSingleLS && IsSingleLSPattern(role)) continue;
-      if(InpFilterToxicPatterns && IsToxicPattern(role)) continue;
-      if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
-      if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
+      if(ActiveFilterSingleLS() && IsSingleLSPattern(role)) continue;
+      if(ActiveFilterToxicPatterns() && IsToxicPattern(role)) continue;
+      if(ActiveFilterPureFlags() && IsPureNoiseFlag(role)) continue;
+      if(ActiveFilterLowReward() && IsRewardLessThanFriction(risk / _Point)) continue;
 
       datetime baseTime = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
       datetime confirmTime = g_drawnBoxes[b].confirmationTime;
@@ -233,15 +233,15 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                break;
             }
             // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars (مطابق اکسپرت تستر)
-            if(k - departedBar > InpLimitExpirationBars) break;
+            if(k - departedBar > ActiveLimitExpirationBars()) break;
          }
       }
 
       if(!isEntered) continue;
 
       // ۲. فیلترهای زمانی ورود (بر مبنای زمان واقعی ورود entryTime - هماهنگ ۱۰۰٪ با اکسپرت)
-      if(InpFilterNightHours && IsNightSessionHour(entryTime)) continue;
-      if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime)) continue;
+      if(ActiveFilterNightHours() && IsNightSessionHour(entryTime)) continue;
+      if(ActiveFilterPreLondonHunt() && IsPreLondonHour(entryTime)) continue;
 
       g_drawnBoxes[b].hasTradeEntered = true;
 
@@ -348,7 +348,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       if(!exists)
       {
          // بررسی تداخل فقط در صورت غیرفعال بودن معاملات همزمان توسط کاربر
-         if(!InpAllowOverlappingTrades)
+         if(!ActiveAllowOverlappingTrades())
          {
             bool isBusy = false;
             for(int t = 0; t < g_tradeCount; t++)
@@ -497,7 +497,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    for(int t = g_tradeCount - 1; t >= 0; t--)
    {
       // 👑 فقط رسم معاملات ۱۸ سلطان برگزیده بر اساس تایم‌فریم
-      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
+      if((ActiveOnlyTradeKings() || ActiveTradeOnlyGoldenKings()) && !IsQualifiedKing(g_tradeSetups[t].tf, g_tradeSetups[t].boxRole))
          continue;
 
       datetime t1 = g_tradeSetups[t].entryTime;

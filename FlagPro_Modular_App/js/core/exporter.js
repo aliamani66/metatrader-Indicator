@@ -444,6 +444,95 @@ function exportPresetToMT5(idx) {
     }
 }
 
+function exportPresetSetFile(idx) {
+    try {
+        let p = (smartPresets || []).find(x => x.idx == idx);
+        if (!p && smartPresets && smartPresets.length > 0) {
+            p = smartPresets[0];
+        }
+        if (!p) {
+            if (typeof alert === 'function') alert('سناریو برای خروجی تنظیمات اندیکاتور یافت نشد!');
+            return;
+        }
+
+        let allowedHours = [];
+        if (p.hours) {
+            for (let h = 0; h < 24; h++) {
+                if (p.hours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+            }
+        }
+        let hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+        let disabledKings = [];
+        let enabledSet = new Set(p.kings || []);
+        for (let k of (kingsSimList || [])) {
+            if (k && k.kk && !enabledSet.has(k.kk)) {
+                let kClean = k.kk.replace(/\|(M\d+)/, ' [$1]');
+                disabledKings.push(kClean);
+            }
+        }
+        let disabledStr = disabledKings.join(', ');
+
+        let sym = (typeof currentActiveSymbol !== 'undefined' && currentActiveSymbol) ? currentActiveSymbol : 'EURUSD';
+        let isBase = (p.idx === 4 || (p.title && (p.title.includes('پایه') || p.title.includes('جامع') || p.title.includes('AllKings'))));
+        let useTF7 = isBase ? true : false;
+        let beBuffer = isBase ? 1.0 : 0.0;
+        let maxDev = (p.title && (p.title.includes('الماس') || p.title.includes('سپر'))) ? 2.0 : 2.5;
+
+        let fNightPreset = isBase ? false : (p.hours_name === 'lon_ny' || p.hours_name === 'no_night');
+        let fPreLonPreset = isBase ? false : true;
+        let fToxicPreset = isBase ? false : true;
+        let fSingleLSPreset = isBase ? false : true;
+        let fPureFlagsPreset = isBase ? false : true;
+
+        let allowedKings = (p.kings && Array.isArray(p.kings)) ? p.kings.join(', ') : '';
+
+        let config = {
+            title: (p.title || 'Custom').replace(/[^a-zA-Z0-9_\s\-\u0600-\u06FF]/gi, '').trim(),
+            min_pot: (p.min_pot !== undefined && !isNaN(Number(p.min_pot))) ? Number(p.min_pot) : 0,
+            hours_str: hoursStr,
+            consec_trig: p.consec_trig || 0,
+            consec_action: p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1),
+            allowed_kings_str: allowedKings,
+            disabled_kings_str: disabledStr,
+            use_tf7: useTF7,
+            enable_kings_m1: useTF7,
+            be_buffer: beBuffer,
+            max_dev: maxDev,
+            filterNightHours: fNightPreset,
+            filterPreLondonHunt: fPreLonPreset,
+            filterToxicPatterns: fToxicPreset,
+            filterSingleLS: fSingleLSPreset,
+            filterPureFlags: fPureFlagsPreset,
+            cnt: p.cnt || p.count || '-',
+            wr: p.wr || 0,
+            pf: p.pf || 0,
+            avg: p.avg || 0,
+            net: p.net || 0,
+            kings_count: (p.kings ? p.kings.length : (kingsSimList ? kingsSimList.length : 0)),
+            symbol: sym
+        };
+
+        let filename = buildMT5SetFilename(config);
+        let text = generateSetFileText(config);
+        let blob = createUTF16LEBlob(text);
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (typeof showSaveNotification === 'function') {
+            showSaveNotification('📥 فایل تنظیمات اندیکاتور (.set) «' + filename + '» دانلود شد.');
+        }
+    } catch(err) {
+        console.error('Error in exportPresetSetFile:', err);
+        if (typeof alert === 'function') alert('خطا در دانلود تنظیمات اندیکاتور: ' + err.message);
+    }
+}
+
 function exportCurrentStateToMT5() {
     try {
         let allowedHours = [];
@@ -608,6 +697,7 @@ function exportCustomPresetToMT5(id) {
 // Export functions to global scope
 if (typeof window !== 'undefined') {
     window.exportPresetToMT5 = exportPresetToMT5;
+    window.exportPresetSetFile = exportPresetSetFile;
     window.exportCustomPresetToMT5 = exportCustomPresetToMT5;
     window.exportCurrentStateToMT5 = exportCurrentStateToMT5;
 }

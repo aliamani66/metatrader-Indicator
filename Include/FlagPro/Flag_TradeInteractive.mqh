@@ -106,7 +106,7 @@ void ShowTradeSetupForBox(int boxIdx)
    }
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
-   double bufferPips = InpRSPipBuffer * pipSize;
+   double bufferPips = ActiveSLOffsetPips() * pipSize;
 
    bool isBull = true;
    double entryPrice = 0;
@@ -285,7 +285,7 @@ void ShowTradeSetupForBox(int boxIdx)
          }
 
          // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars
-         if(k - departedBar > InpLimitExpirationBars)
+         if(k - departedBar > ActiveLimitExpirationBars())
          {
             cancelBarIdx = k;
             cancelReasonStr = "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";

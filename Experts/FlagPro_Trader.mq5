@@ -268,6 +268,30 @@ int OnInit()
    // اعمال تم شیک چارت (حذف چهارخونه‌های گرید و تنظیم رنگ‌های نرم)
    ApplyProChartTheme();
 
+   // ذخیره مشخصات این سناریو در فایل مشترک جهت همگام‌سازی خودکار و زنده با اندیکاتور چارت (Auto-Sync)
+   SaveActiveScenarioToCommon(InpScenarioName,
+                              InpOnlyTradeKings,
+                              InpTradeOnlyGoldenKings,
+                              InpAllowedKingsList,
+                              InpDisabledKingsList,
+                              InpEnableKingsM15,
+                              InpEnableKingsM5,
+                              InpEnableKingsM1,
+                              InpFilterNightHours,
+                              InpFilterPreLondonHunt,
+                              InpFilterToxicPatterns,
+                              InpFilterSingleLS,
+                              InpFilterPureFlags,
+                              InpFilterLowRewardVsFriction,
+                              InpSLOffsetPips,
+                              InpMaxEntryDeviationPips,
+                              InpLimitExpirationBars,
+                              InpUseTF7,
+                              InpUseTF6,
+                              InpUseTF5,
+                              InpAllowOverlappingTrades,
+                              InpTradeMacroTFs);
+
    InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
    g_boxesVisible = InpShowBoxes;
    if(!InpShowBoxes)

@@ -68,7 +68,7 @@ void ExportAllTradesToCSV()
    }
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
-   double bufferPips = InpRSPipBuffer * pipSize;
+   double bufferPips = ActiveSLOffsetPips() * pipSize;
    double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
    if(simSpread <= 0) simSpread = 1.0 * pipSize;
    int exportedCount = 0;
@@ -76,7 +76,7 @@ void ExportAllTradesToCSV()
    {
       if(g_drawnBoxes[b].top <= 0) continue;
       if(minBacktestTime > 0 && g_drawnBoxes[b].t1 < minBacktestTime) continue;
-      if(!InpTradeMacroTFs && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
+      if(!ActiveTradeMacroTFs() && g_drawnBoxes[b].tf >= PERIOD_H1) continue;
       string role = "Flag";
       bool isSwap = g_drawnBoxes[b].isSwap;
       bool isLS   = false;
@@ -292,7 +292,7 @@ void ExportAllTradesToCSV()
             }
 
             // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars (مطابق با اکسپرت تستر)
-            if(k - departedBar > InpLimitExpirationBars) break;
+            if(k - departedBar > ActiveLimitExpirationBars()) break;
          }
       }
 

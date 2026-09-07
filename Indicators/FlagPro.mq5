@@ -24,6 +24,12 @@ bool   g_askLineVisible = true;
 //| INPUT PARAMETERS                                                 |
 //+------------------------------------------------------------------+
 //+------------------------------------------------------------------+
+//| ۰. 🔄 همگام‌سازی خودکار با استراتژی تستر (تستر ⇄ اندیکاتور)        |
+//+------------------------------------------------------------------+
+input group "=== 🔄 همگام‌سازی خودکار با استراتژی تستر (تستر ⇄ اندیکاتور) ==="
+input bool              InpAutoSyncWithTester = true;                   // 🔄 همگام‌سازی زنده و لحظه‌ای با تست‌های استراتژی تستر (تستر ⇄ چارت)
+
+//+------------------------------------------------------------------+
 //| ۱. 🎯 بازه زمانی تحلیل و عمق تاریخچه                             |
 //+------------------------------------------------------------------+
 input group "=== 🎯 ۱. بازه زمانی تحلیل و عمق تاریخچه ==="
@@ -218,7 +224,13 @@ int OnInit()
                (InpShowBoxes ? "روشن" : "خاموش"),
                (InpShowAskLine ? "روشن" : "خاموش"),
                (InpAutoDrawTrades ? "روشن" : "خاموش"));
+   if(InpAutoSyncWithTester)
+   {
+      CheckAndLoadActiveScenario(true);
+      EventSetTimer(2);
+   }
    RenderVersionBadge("FlagPro Indicator", FLAGPRO_VERSION);
+   RenderSyncStatusBadge();
    return INIT_SUCCEEDED;
 }
 
@@ -227,11 +239,31 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   if(InpAutoSyncWithTester)
+      EventKillTimer();
    ArrayResize(g_tradeSetups, 0);
    g_tradeCount = 0;
    ObjectsDeleteAll(0, FP_PREFIX);
    ChartRedraw(0);
    g_testerStartBase = 0;
+}
+
+//+------------------------------------------------------------------+
+//| تایمر دوره‌ای جهت همگام‌سازی خودکار و زنده با استراتژی تستر       |
+//+------------------------------------------------------------------+
+void OnTimer()
+{
+   if(!InpAutoSyncWithTester) return;
+
+   if(CheckAndLoadActiveScenario(false))
+   {
+      g_forceRecalc = true;
+      datetime tArr[];
+      CopyTime(_Symbol, _Period, 0, 1, tArr);
+      RenderFinalBoxes(tArr, 1);
+      RenderSyncStatusBadge();
+      ChartRedraw(0);
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -309,11 +341,14 @@ int OnCalculate(const int rates_total,
    for(int s = 0; s < 7; s++)
       daysBackArr[s] = g_effectiveDaysBack;
 
-   // منحصراً ۳ تایم‌فریم M15، M5 و M1 فعال هستند (D1, W1, H4, H1 خاموش)
+   // تایم‌فریم‌های فعال معامله (با پشتیبانی از Auto-Sync با تستر)
    useArr[0] = false; // D1
    useArr[1] = false; // W1
    useArr[2] = false; // H4
    useArr[3] = false; // H1
+   useArr[4] = ActiveUseTF5(); // M15
+   useArr[5] = ActiveUseTF6(); // M5
+   useArr[6] = ActiveUseTF7(); // M1
 
    // بارگذاری عمیق تاریخچه با محاسبه خودکار تعداد کندل‌ها جهت پوشش کامل بازه
    datetime fullTime[];
@@ -381,6 +416,7 @@ int OnCalculate(const int rates_total,
    ExportAllTradesToCSV();
 
    RenderVersionBadge("FlagPro Indicator", FLAGPRO_VERSION);
+   RenderSyncStatusBadge();
 
    if(!(bool)MQLInfoInteger(MQL_TESTER)) ChartRedraw(0);
    return rates_total;
@@ -440,6 +476,25 @@ void OnChartEvent(const int id,
          PlotIndexSetInteger(0, PLOT_DRAW_TYPE, g_askLineVisible ? DRAW_LINE : DRAW_NONE);
          ChartRedraw(0);
          Print("FlagPro: وضعیت نمایش خط قیمت اسک (Ask): ", (g_askLineVisible ? "روشن (نمایان)" : "خاموش (مخفی)"));
+      }
+      // فشردن کلید S در کیبورد برای همگام‌سازی فوری با آخرین تست فعال استراتژی تستر (Sync)
+      else if(lparam == 'S' || lparam == 's')
+      {
+         Print("🔄 FlagPro: درخواست همگام‌سازی دستی با آخرین تنظیمات استراتژی تستر...");
+         if(CheckAndLoadActiveScenario(true))
+         {
+            g_forceRecalc = true;
+            datetime tArr[];
+            CopyTime(_Symbol, _Period, 0, 1, tArr);
+            RenderFinalBoxes(tArr, 1);
+            RenderSyncStatusBadge();
+            ChartRedraw(0);
+            PrintFormat("✅ FlagPro: با موفقیت با سناریوی تستر «%s» همگام شد.", g_syncScenarioName);
+         }
+         else
+         {
+            Print("⚠️ FlagPro: هیچ فایلی از استراتژی تستر یافت نشد یا تغییری نکرده است.");
+         }
       }
    }
 }

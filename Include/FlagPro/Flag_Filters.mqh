@@ -6,6 +6,8 @@
 #property copyright "FlagPro Indicator"
 #property link      ""
 
+#include <FlagPro\Flag_Sync.mqh>
+
 //+------------------------------------------------------------------+
 //| فیلتر ۱: بررسی باکس‌های منفرد LS بدون تلاقی                       |
 //| آمار ۳ ماهه: ۱۳۱۱ حذف | ۸۹۹ استاپ نجات‌یافته | دقت: ۶۸.۶٪           |
@@ -107,22 +109,22 @@ bool IsRewardLessThanFriction(double riskPoints)
 //+------------------------------------------------------------------+
 bool IsSetupFilteredOut(const string roleTag, const datetime entryTime, double riskPoints = 0.0)
 {
-   if(InpFilterSingleLS && IsSingleLSPattern(roleTag))
+   if(ActiveFilterSingleLS() && IsSingleLSPattern(roleTag))
       return true;
 
-   if(InpFilterNightHours && IsNightSessionHour(entryTime))
+   if(ActiveFilterNightHours() && IsNightSessionHour(entryTime))
       return true;
 
-   if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime))
+   if(ActiveFilterPreLondonHunt() && IsPreLondonHour(entryTime))
       return true;
 
-   if(InpFilterToxicPatterns && IsToxicPattern(roleTag))
+   if(ActiveFilterToxicPatterns() && IsToxicPattern(roleTag))
       return true;
 
-   if(InpFilterPureFlags && IsPureNoiseFlag(roleTag))
+   if(ActiveFilterPureFlags() && IsPureNoiseFlag(roleTag))
       return true;
 
-   if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(riskPoints))
+   if(ActiveFilterLowReward() && IsRewardLessThanFriction(riskPoints))
       return true;
 
    return false;
@@ -152,24 +154,25 @@ bool IsInTokenList(const string tokenList, const string targetKey1, const string
 //+------------------------------------------------------------------+
 bool IsQualifiedKing(ENUM_TIMEFRAMES tf, const string role)
 {
-   // ۱. اگر لیست انحصاری سلاطین مجاز (InpAllowedKingsList) پر شده باشد، اولویت قطعی با این لیست است:
-   if(StringLen(InpAllowedKingsList) > 0)
+   string allowedKings = ActiveAllowedKingsList();
+   // ۱. اگر لیست انحصاری سلاطین مجاز پر شده باشد، اولویت قطعی با این لیست است:
+   if(StringLen(allowedKings) > 0)
    {
       string kKey1 = role + "|" + TFName(tf);
       string kKey2 = role + " [" + TFName(tf) + "]";
       string kKey3 = role;
-      return IsInTokenList(InpAllowedKingsList, kKey1, kKey2, kKey3);
+      return IsInTokenList(allowedKings, kKey1, kKey2, kKey3);
    }
 
    // ۲. در غیر این صورت، از لیست پیش‌فرض ۱۸ سلطان طلایی استفاده می‌شود:
    if(tf == PERIOD_M15)
    {
-      if(!InpEnableKingsM15) return false;
+      if(!ActiveEnableKingsM15()) return false;
       if(role == "S-OInner") return true;
    }
    else if(tf == PERIOD_M5)
    {
-      if(!InpEnableKingsM5) return false;
+      if(!ActiveEnableKingsM5()) return false;
       if(role == "Flag-BE" ||
          role == "Flag-BU" ||
          role == "LS-BE > OInner-BE > RS-BE" ||
@@ -181,7 +184,7 @@ bool IsQualifiedKing(ENUM_TIMEFRAMES tf, const string role)
    }
    else if(tf == PERIOD_M1)
    {
-      if(!InpEnableKingsM1) return false;
+      if(!ActiveEnableKingsM1()) return false;
       if(role == "Flag-BE" ||
          role == "Flag-BU" ||
          role == "OInner-BE" ||
@@ -215,26 +218,26 @@ bool IsGoldenTradeSetup(const string roleTag)
 //+------------------------------------------------------------------+
 string GetFilterRejectionReason(const string roleTag, const datetime entryTime, double riskPoints = 0.0)
 {
-   if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(riskPoints))
+   if(ActiveFilterLowReward() && IsRewardLessThanFriction(riskPoints))
    {
       double pips = riskPoints / 10.0;
       double costPips = InpEstimatedSpreadPips + (InpBrokerCommissionPerLot / 10.0);
       return StringFormat("💰 فیلتر اصطکاک: سود TP1 (%.1f پیپ) کمتر یا سربه‌سر با کمیسیون و اسپرد (%.1f پیپ) است!", pips, costPips);
    }
 
-   if(InpFilterSingleLS && IsSingleLSPattern(roleTag))
+   if(ActiveFilterSingleLS() && IsSingleLSPattern(roleTag))
       return "⛔ فیلتر باکس منفرد LS [دقت فیلتر: ۶۸.۶٪ | از هر ۱۰ ترید حذفی، ۷ تا استاپ بود]";
 
-   if(InpFilterToxicPatterns && IsToxicPattern(roleTag))
+   if(ActiveFilterToxicPatterns() && IsToxicPattern(roleTag))
       return "⛔ فیلتر زنجیره سمی و فرسایشی [دقت فیلتر: ۷۰.۶٪ | از هر ۱۰ ترید حذفی، ۷ تا استاپ بود]";
 
-   if(InpFilterNightHours && IsNightSessionHour(entryTime))
+   if(ActiveFilterNightHours() && IsNightSessionHour(entryTime))
       return "⏰ فیلتر ساعات شبانه ۲۱ تا ۰۱ [دقت فیلتر: ۶۵.۲٪ | از هر ۳ ترید حذفی، ۲ تا استاپ بود]";
 
-   if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime))
+   if(ActiveFilterPreLondonHunt() && IsPreLondonHour(entryTime))
       return "⏰ فیلتر ساعت ۰۷:۰۰ قبل لندن [دقت فیلتر: ۵۸.۷٪ | از هر ۱۰ ترید حذفی، ۶ تا استاپ بود]";
 
-   if(InpFilterPureFlags && IsPureNoiseFlag(roleTag))
+   if(ActiveFilterPureFlags() && IsPureNoiseFlag(roleTag))
       return "📦 فیلتر فلگ ساده بدون تلاقی [دقت فیلتر: ۶۰.۳٪ | از هر ۵ ترید حذفی، ۳ تا استاپ بود]";
 
    return "مجاز (تایید فیلترها) ✅";
