@@ -252,7 +252,7 @@ void ShowTradeSetupForBox(int boxIdx)
          else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
 
          // مهلت خروج اولیه از باکس حداکثر ۳۰ کندل
-         datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 30;
+         datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 30;
          if(chartTime[k] > maxDepTime)
          {
             cancelBarIdx = k;
@@ -286,7 +286,7 @@ void ShowTradeSetupForBox(int boxIdx)
          }
 
          // مهلت بازگشت پولبک بر مبنای تایم‌فریم الگو و پارامتر ورودی InpLimitExpirationBars
-         datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[b].tf) * ActiveLimitExpirationBars();
+         datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * ActiveLimitExpirationBars();
          if(chartTime[k] > maxLimitTime)
          {
             cancelBarIdx = k;
