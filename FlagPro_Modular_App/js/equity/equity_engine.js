@@ -267,15 +267,6 @@
             let target = document.getElementById(subtabId);
             if (target) target.style.display = 'block';
             if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
-
-            if (subtabId === 'eq-sub-weekly') {
-                setTimeout(() => {
-                    drawWeeklyBarChart(currentWeeklyBarMode);
-                }, 40);
-            }
-            if (subtabId === 'eq-sub-compare') {
-                updateEqCompareTable();
-            }
         }
 
         function updateEqCompareTable() {

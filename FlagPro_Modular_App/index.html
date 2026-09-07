@@ -266,12 +266,6 @@
                     <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-risk')">
                         🚨 کالبدشکافی استاپ‌ها
                     </button>
-                    <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-weekly')">
-                        📊 کارنامه هفتگی
-                    </button>
-                    <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-compare')">
-                        ⚖️ مقایسه با کل چارت
-                    </button>
                 </div>
                 <div style="display:flex;gap:5px;align-items:center;">
                     <button onclick="runClientAutoOptimizer()" style="background:linear-gradient(135deg, #7c3aed, #a855f7);border:1px solid #c084fc;color:#fff;font-size:11.5px;padding:5px 11px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 10px rgba(168,85,247,0.4);display:flex;align-items:center;gap:5px;">
@@ -892,97 +886,8 @@
                         </div>
                     </div>
             </div>
-
-            <!-- SUBPANEL 4: WEEKLY P&L BARS -->
-            <div id="eq-sub-weekly" class="eq-subpanel" style="display:none;">
-                <!-- Interactive Weekly P&L Bar Chart Container -->
-            <div class="section-box" style="border:1px solid #10b981;background:#0b0f19;padding:10px 14px;margin-bottom:10px;border-radius:8px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:10px;flex-wrap:wrap;gap:12px;">
-                    <div>
-                        <h3 style="margin:0;color:#10b981;font-size:15px;display:flex;align-items:center;gap:6px;">
-                            <span>📊 نمودار میله‌ای سود و زیان هفته به هفته (Weekly Net Profit & Loss)</span>
-                        </h3>
-                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">توزیع عملکرد دلاری 2 هفته متوالی - میله‌های سبز نشان‌دهنده سوددهی هفتگی و میله‌های قرمز نشان‌دهنده هفته‌های اصلاحی هستند:</p>
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button id="btnEqWkKings" class="sort-btn btn-wk-kings active" onclick="switchWeeklyBarMode('kings')">👑 سلاطین 3 گانه</button>
-                        <button id="btnEqWkAll" class="sort-btn btn-wk-all" onclick="switchWeeklyBarMode('all')">🌐 کل معاملات چارت</button>
-                    </div>
-                </div>
-
-                <!-- Canvas Box -->
-                <div style="position:relative;width:100%;height:340px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
-                    <canvas id="eqWeeklyBarCanvas" class="weekly-bar-canvas" style="width:100%;height:100%;display:block;cursor:pointer;"></canvas>
-                    <div id="eqWeeklyBarTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #10b981;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:220px;"></div>
-                </div>
-
-                <!-- Legend & Summary -->
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:10px;">
-                    <div style="display:flex;align-items:center;gap:16px;">
-                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:12px;background:#00e676;border-radius:2px;"></span> هفته سودده (Green Week)</span>
-                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;"></span> هفته زیان‌ده (Red Week)</span>
-                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:2px;background:#64748b;"></span> خط تراز صفر ($0)</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <span>تعداد کل هفته‌ها: <b style="color:#f1f5f9;">2 هفته</b></span>
-                        <span>|</span>
-                        <span>هفته‌های سودده: <b style="color:#00e676;">2 هفته (100.0٪)</b></span>
-                        <span>|</span>
-                        <span>هفته‌های زیان‌ده: <b style="color:#ef4444;">0 هفته (0.0٪)</b></span>
-                    </div>
-                </div>
-            </div>
-            </div>
-
-            <!-- SUBPANEL 5: COMPARISON TABLE -->
-            <div id="eq-sub-compare" class="eq-subpanel" style="display:none;">
-                <!-- Comparison Table: Kings vs All -->
-            <div class="section-box" style="border:1px solid #475569;background:#1e293b;">
-                <div style="border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:14px;">
-                    <h4 style="margin:0;color:#e2e8f0;font-size:16px;">⚖️ مقایسه شاخص‌های کلیدی منحنی رشد: سلاطین منتخب در برابر کل معاملات خام چارت</h4>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table>
-                        <thead>
-                            <tr style="background:#0f172a;color:#94a3b8;">
-                                <th>استراتژی و دامنه ساختارها</th>
-                                <th style="text-align:center;">تعداد کل معامله</th>
-                                <th style="text-align:center;">بالانس اولیه</th>
-                                <th style="text-align:center;">بالانس نهایی</th>
-                                <th style="text-align:center;">سود خالص دلاری ($)</th>
-                                <th style="text-align:center;">درصد رشد حساب</th>
-                                <th style="text-align:center;">حداکثر افت (Max Drawdown)</th>
-                                <th style="text-align:center;">قضاوت عملکرد</th>
-                            </tr>
-                        </thead>
-                        <tbody id="eqCompareTableBody">
-                            <tr style="border-bottom:1px solid #334155;">
-                                <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین 3 گانه (گزینش هوشمند)</td>
-                                <td style="text-align:center;font-weight:bold;">20</td>
-                                <td style="text-align:center;">$100</td>
-                                <td style="text-align:center;font-weight:bold;color:#00e676;">$124</td>
-                                <td style="text-align:center;font-weight:bold;color:#00e676;">+$24</td>
-                                <td style="text-align:center;font-weight:bold;color:#00e676;">+24.0٪</td>
-                                <td style="text-align:center;color:#34d399;font-weight:bold;">$17 (13.1٪)</td>
-                                <td style="text-align:center;"><span style="background:#064e3b;color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">💎 رشد مستمر و اکوئیتی صعودی</span></td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight:bold;color:#94a3b8;">🌐 کل ساختارهای خام چارت (بدون فیلتر)</td>
-                                <td style="text-align:center;font-weight:bold;">175</td>
-                                <td style="text-align:center;">$100</td>
-                                <td style="text-align:center;font-weight:bold;color:#ef4444;">$-96</td>
-                                <td style="text-align:center;font-weight:bold;color:#ef4444;">-$196</td>
-                                <td style="text-align:center;font-weight:bold;color:#ef4444;">-195.8٪</td>
-                                <td style="text-align:center;color:#ef4444;font-weight:bold;">$231 (214.6٪)</td>
-                                <td style="text-align:center;"><span style="background:#451a03;color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">⚠️ فرسایش ناشی از نویزها</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     </div>
-</div>
 </div>
 </div>
                 </div>
