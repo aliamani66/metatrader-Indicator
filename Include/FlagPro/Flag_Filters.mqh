@@ -20,8 +20,38 @@ bool IsSingleLSPattern(const string roleTag)
 }
 
 //+------------------------------------------------------------------+
-//| فیلتر ۲: بررسی ساعات شبانه و بسته شدن نیویورک (۲۱ تا ۰۱)          |
-//| آمار ۳ ماهه: ۶۰۷ حذف | ۳۹۶ استاپ نجات‌یافته | دقت: ۶۵.۲٪           |
+//| بررسی ساعات مجاز معامله طبق سناریوی فعال (تستر ⇄ اندیکاتور)      |
+//+------------------------------------------------------------------+
+bool IsHourAllowedByScenario(const datetime t)
+{
+   string allowedHours = ActiveAllowedTradingHours();
+   if(StringLen(allowedHours) == 0) return true;
+   MqlDateTime dt;
+   TimeToStruct(t, dt);
+   string searchTarget = "," + allowedHours + ",";
+   string token1 = "," + IntegerToString(dt.hour) + ",";
+   string token2 = "," + StringFormat("%02d", dt.hour) + ",";
+
+   if(StringFind(searchTarget, token1) >= 0 || StringFind(searchTarget, token2) >= 0)
+      return true;
+
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| بررسی حداقل پتانسیل سود معامله طبق سناریوی فعال (اسلایدر کف سود) |
+//+------------------------------------------------------------------+
+bool IsPotentialAllowedByScenario(const double riskPoints)
+{
+   double minPot = ActiveMinTradePotential();
+   if(minPot <= 0.0) return true;
+   double pot = (riskPoints * 0.04) * 2.5 - 0.44;
+   return (pot >= minPot);
+}
+
+//+------------------------------------------------------------------+
+//| فیلتر ۲: بررسی ساعات شبانه (۲۲ تا ۰۴ - فرار از اسپرد و سشن مرده) |
+//| آمار ۳ ماهه: ۶۰۷ حذف | ۳۹۶ استاپ نجات‌یافته | هماهنگ با داشبورد     |
 //+------------------------------------------------------------------+
 bool IsNightSessionHour(const datetime entryTime)
 {
@@ -29,8 +59,8 @@ bool IsNightSessionHour(const datetime entryTime)
    MqlDateTime dt;
    TimeToStruct(entryTime, dt);
 
-   // ساعات ۲۱:۰۰، ۲۲:۰۰، ۲۳:۰۰، ۰۰:۰۰ (بسته شدن نیویورک و اسپرد Rollover)
-   if(dt.hour == 21 || dt.hour == 22 || dt.hour == 23 || dt.hour == 0)
+   // ساعات ۲۲:۰۰ تا ۰۳:۵۹ (بسته شدن نیویورک، اسپرد Rollover و خواب آسیا)
+   if(dt.hour >= 22 || dt.hour <= 3)
       return true;
 
    return false;

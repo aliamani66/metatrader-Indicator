@@ -31,6 +31,8 @@ bool     g_syncUseTF6                 = true;
 bool     g_syncUseTF5                 = true;
 bool     g_syncAllowOverlappingTrades = true;
 bool     g_syncTradeMacroTFs          = false;
+string   g_syncAllowedTradingHours    = "";
+double   g_syncMinTradePotential     = 0.0;
 
 #define SYNC_SCENARIO_FILENAME "FlagPro_ActiveScenario.ini"
 
@@ -58,6 +60,8 @@ bool ActiveUseTF6()               { return (g_syncActive ? g_syncUseTF6 : InpUse
 bool ActiveUseTF5()               { return (g_syncActive ? g_syncUseTF5 : InpUseTF5); }
 bool ActiveAllowOverlappingTrades(){ return (g_syncActive ? g_syncAllowOverlappingTrades : InpAllowOverlappingTrades); }
 bool ActiveTradeMacroTFs()        { return (g_syncActive ? g_syncTradeMacroTFs : InpTradeMacroTFs); }
+string ActiveAllowedTradingHours(){ return (g_syncActive ? g_syncAllowedTradingHours : InpAllowedTradingHours); }
+double ActiveMinTradePotential() { return (g_syncActive ? g_syncMinTradePotential : InpMinTradePotential); }
 
 //+------------------------------------------------------------------+
 //| ذخیره‌سازی مشخصات سناریوی فعال تستر در فایل مشترک (توسط اکسپرت)   |
@@ -83,7 +87,9 @@ void SaveActiveScenarioToCommon(const string scenarioName,
                                 bool useTF6,
                                 bool useTF5,
                                 bool allowOverlap = true,
-                                bool tradeMacro = false)
+                                bool tradeMacro = false,
+                                const string allowedHours = "",
+                                double minPot = 0.0)
 {
    int hFile = FileOpen(SYNC_SCENARIO_FILENAME, FILE_WRITE | FILE_TXT | FILE_UNICODE | FILE_COMMON);
    if(hFile == INVALID_HANDLE)
@@ -116,6 +122,8 @@ void SaveActiveScenarioToCommon(const string scenarioName,
       FileWriteString(hFile, "InpUseTF5=" + (useTF5 ? "true" : "false") + "\r\n");
       FileWriteString(hFile, "InpAllowOverlappingTrades=" + (allowOverlap ? "true" : "false") + "\r\n");
       FileWriteString(hFile, "InpTradeMacroTFs=" + (tradeMacro ? "true" : "false") + "\r\n");
+      FileWriteString(hFile, "InpAllowedTradingHours=" + allowedHours + "\r\n");
+      FileWriteString(hFile, "InpMinTradePotential=" + DoubleToString(minPot, 2) + "\r\n");
       FileClose(hFile);
 
       PrintFormat("🔄 [FlagPro Auto-Sync] سناریوی «%s» در فایل مشترک ذخیره شد جهت هماهنگی خودکار با اندیکاتور چارت.", scenarioName);
@@ -147,6 +155,8 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
    int lBars = 40;
    bool uTF7 = true, uTF6 = true, uTF5 = true;
    bool aOverlap = true, tMacro = false;
+   string aHours = "";
+   double mPot = 0.0;
 
    while(!FileIsEnding(hFile))
    {
@@ -187,6 +197,8 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
       else if(key == "InpUseTF5")                   uTF5 = (val == "true" || val == "1");
       else if(key == "InpAllowOverlappingTrades")   aOverlap = (val == "true" || val == "1");
       else if(key == "InpTradeMacroTFs")            tMacro = (val == "true" || val == "1");
+      else if(key == "InpAllowedTradingHours")       aHours = val;
+      else if(key == "InpMinTradePotential")        mPot = StringToDouble(val);
    }
    FileClose(hFile);
 
@@ -217,8 +229,11 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
    g_syncUseTF5                 = uTF5;
    g_syncAllowOverlappingTrades = aOverlap;
    g_syncTradeMacroTFs          = tMacro;
+   g_syncAllowedTradingHours    = aHours;
+   g_syncMinTradePotential      = mPot;
 
-   PrintFormat("⚡ [FlagPro Auto-Sync] اندیکاتور چارت با سناریوی تستر «%s» همگام شد! (سلاطین: %s | M1: %s)",
-               g_syncScenarioName, (g_syncOnlyTradeKings ? "فعال" : "غیرفعال"), (g_syncUseTF7 ? "فعال" : "غیرفعال"));
+   PrintFormat("⚡ [FlagPro Auto-Sync] اندیکاتور چارت با سناریوی تستر «%s» همگام شد! (سلاطین: %s | M1: %s | ساعات: %s | کف سود: $%.1f)",
+               g_syncScenarioName, (g_syncOnlyTradeKings ? "فعال" : "غیرفعال"), (g_syncUseTF7 ? "فعال" : "غیرفعال"),
+               (g_syncAllowedTradingHours == "" ? "۲۴ ساعته" : g_syncAllowedTradingHours), g_syncMinTradePotential);
    return true;
 }

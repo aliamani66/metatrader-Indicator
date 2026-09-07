@@ -129,6 +129,8 @@ input bool              InpFilterLowRewardVsFriction = false;           // 💰 
 input double            InpBrokerCommissionPerLot    = 6.0;             // 💵 کمیسیون بروکر به ازای هر ۱ لات معامله ($)
 input double            InpEstimatedSpreadPips       = 0.8;             // 📊 اسپرد تخمینی معامله به پیپ
 input double            InpMinNetProfitRatioTP1      = 1.0;             // ⚖️ حداقل نسبت سود تارگت اول (TP1) به کل اصطکاک بروکر
+input string            InpAllowedTradingHours       = "";              // ⏰ ساعات مجاز معامله طبق سناریو (خالی = ۲۴ ساعته)
+input double            InpMinTradePotential         = 0.0;             // 💰 حداقل کف سود دلاری معامله (اسلایدر داشبورد)
 
 //+------------------------------------------------------------------+
 //| ۸. 🎨 استایل و رنگ‌بندی تفکیکی الگوهای ساختاری                    |

@@ -290,7 +290,9 @@ int OnInit()
                               InpUseTF6,
                               InpUseTF5,
                               InpAllowOverlappingTrades,
-                              InpTradeMacroTFs);
+                              InpTradeMacroTFs,
+                              InpAllowedTradingHours,
+                              InpMinTradePotential);
 
    InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
    g_boxesVisible = InpShowBoxes;
@@ -1028,33 +1030,6 @@ bool IsKingAllowedByScenario(ENUM_TIMEFRAMES tf, string role)
 }
 
 //+------------------------------------------------------------------+
-//| فیلتر ۲ سناریو: بررسی ساعات مجاز معامله طبق سناریو                |
-//+------------------------------------------------------------------+
-bool IsHourAllowedByScenario(datetime t)
-{
-   if(StringLen(InpAllowedTradingHours) == 0) return true;
-   MqlDateTime dt;
-   TimeToStruct(t, dt);
-   string h2 = StringFormat("%02d", dt.hour);
-   string h1 = IntegerToString(dt.hour);
-
-   if(StringFind(InpAllowedTradingHours, h2) >= 0 || StringFind(InpAllowedTradingHours, h1) >= 0)
-      return true;
-
-   return false;
-}
-
-//+------------------------------------------------------------------+
-//| فیلتر ۳ سناریو: بررسی حداقل پتانسیل سود معامله (اسلایدر کف سود)  |
-//+------------------------------------------------------------------+
-bool IsPotentialAllowedByScenario(double riskPoints)
-{
-   if(InpMinTradePotential <= 0.0) return true;
-   double pot = (riskPoints * 0.04) * 2.5 - 0.44;
-   return (pot >= InpMinTradePotential);
-}
-
-//+------------------------------------------------------------------+
 //| فیلتر ۴ سناریو: بررسی فیوز استاپ‌های متوالی (Circuit Breaker)     |
 //+------------------------------------------------------------------+
 int      g_skippedSetupsCount = 0;
@@ -1344,7 +1319,8 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
          {
             if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
             else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
-            if(k - confirmIdx > 30) break;
+            datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 30;
+            if(chartTime[k] > maxDepTime) break;
          }
          else
          {
@@ -1359,7 +1335,8 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
                isAlreadyEntered = true;
                break;
             }
-            if(k - departedBar > InpLimitExpirationBars) break;
+            datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[b].tf) * InpLimitExpirationBars;
+            if(chartTime[k] > maxLimitTime) break;
          }
       }
 
@@ -1367,7 +1344,7 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       if(departedBar < 0 || isSlBreached || isAlreadyEntered) continue;
 
       // فقط ستاپ‌هایی که اخیراً خروج کرده‌اند مجاز به ثبت اردر لیمیت هستند
-      if(ratesTotal - 1 - departedBar > InpLimitExpirationBars) continue;
+      if(chartTime[ratesTotal - 1] > chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[b].tf) * InpLimitExpirationBars) continue;
 
       string tradeKey = g_drawnBoxes[b].boxName;
       if(IsTradeAlreadyExecuted(tradeKey)) continue;
@@ -1437,7 +1414,7 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       ulong openedTickets[4] = {0, 0, 0, 0};
       int successfulOrders = 0;
 
-      datetime limitExpire = TimeCurrent() + PeriodSeconds(_Period) * InpLimitExpirationBars;
+      datetime limitExpire = TimeCurrent() + PeriodSeconds(g_drawnBoxes[b].tf) * InpLimitExpirationBars;
 
       if(canPlaceLimit)
       {

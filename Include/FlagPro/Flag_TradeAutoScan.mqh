@@ -212,7 +212,8 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          {
             if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
             else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
-            if(k - confirmIdx > 30) break;
+            datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[b].tf) * 30;
+            if(chartTime[k] > maxDepTime) break;
          }
          else
          {
@@ -232,21 +233,24 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
                entryTime = chartTime[k];
                break;
             }
-            // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars (مطابق اکسپرت تستر)
-            if(k - departedBar > ActiveLimitExpirationBars()) break;
+            // مهلت بازگشت پولبک به ثانیه بر مبنای تایم‌فریم الگو و پارامتر ورودی InpLimitExpirationBars
+            datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[b].tf) * ActiveLimitExpirationBars();
+            if(chartTime[k] > maxLimitTime) break;
          }
       }
 
       if(!isEntered) continue;
 
-      // ۲. فیلترهای زمانی ورود (بر مبنای زمان واقعی ورود entryTime - هماهنگ ۱۰۰٪ با اکسپرت)
+      // ۲. فیلترهای سناریو و زمان ورود (بر مبنای زمان واقعی ورود entryTime - هماهنگ ۱۰۰٪ با اکسپرت و داشبورد)
+      if(!IsHourAllowedByScenario(entryTime)) continue;
+      if(!IsPotentialAllowedByScenario(risk / _Point)) continue;
       if(ActiveFilterNightHours() && IsNightSessionHour(entryTime)) continue;
       if(ActiveFilterPreLondonHunt() && IsPreLondonHour(entryTime)) continue;
 
       g_drawnBoxes[b].hasTradeEntered = true;
 
-      // به‌روزرسانی نهایی حد ضرر و تارگت‌ها بر مبنای نوک واقعی شدوها از ابتدا تا دقیقاً لحظه ورود (entryBarIdx)
-      for(int ck = bStartIdx; ck <= entryBarIdx && ck < ratesTotal; ck++)
+      // تثبیت حد ضرر و تارگت‌ها بر مبنای تشکیل الگو تا پایان باکس (هماهنگ ۱۰۰٪ با اکسپرت و خروجی CSV)
+      for(int ck = bStartIdx; ck <= bEndIdx && ck < ratesTotal; ck++)
       {
          if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
          if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
@@ -258,7 +262,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
-      // محاسبه فوری سرنوشت و زمان خروج واقعی معامله
+      // محاسبه فوری سرنوشت و زمان خروج واقعی معامله با دقت ۱ دقیقه‌ای (M1 Precision)
       double tps[4];
       for(int tp = 0; tp < 4; tp++)
          tps[tp] = isBull ? entryPrice + risk * (tp + 1) : entryPrice - risk * (tp + 1);
@@ -270,63 +274,136 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       datetime tpTimes[4] = {0, 0, 0, 0};
       double currentSL = slPrice;
 
-      for(int k = entryBarIdx; k < ratesTotal; k++)
+      // دریافت کندل‌های ۱ دقیقه‌ای (M1) برای شبیه‌سازی دقیق و ثانیه‌ای خروج (هماهنگ ۱۰۰٪ با استراتژی تستر)
+      MqlRates m1Rates[];
+      int m1Count = CopyRates(_Symbol, PERIOD_M1, entryTime, chartTime[ratesTotal - 1], m1Rates);
+
+      if(m1Count > 1)
       {
-         if(isBull)
+         for(int m = 1; m < m1Count; m++)
          {
-            for(int tp = hitTP; tp < 4; tp++)
+            if(isBull)
             {
-               if(chartHigh[k] >= tps[tp])
+               // اولویت قطعی حد ضرر بر تارگت (فرار از وین فیک هنگام برخورد به استاپ)
+               if(m1Rates[m].low <= currentSL)
                {
-                  hitTP = tp + 1;
-                  hitTime = chartTime[k];
-                  if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
-                  // انتقال به بریک‌ایون پس از تاچ TP1 و تریلینگ به TP1 و TP2
-                  if(hitTP == 1) currentSL = entryPrice;
-                  else if(hitTP == 2) currentSL = tps[0];
-                  else if(hitTP == 3) currentSL = tps[1];
+                  isClosed = true;
+                  exitTime = m1Rates[m].time;
+                  break;
+               }
+               for(int tp = hitTP; tp < 4; tp++)
+               {
+                  if(m1Rates[m].high >= tps[tp])
+                  {
+                     hitTP = tp + 1;
+                     hitTime = m1Rates[m].time;
+                     if(tpTimes[tp] == 0) tpTimes[tp] = m1Rates[m].time;
+                     if(hitTP == 1) currentSL = entryPrice;
+                     else if(hitTP == 2) currentSL = tps[0];
+                     else if(hitTP == 3) currentSL = tps[1];
+                  }
+               }
+               if(hitTP == 4)
+               {
+                  isClosed = true;
+                  exitTime = hitTime;
+                  break;
                }
             }
-            if(chartLow[k] <= currentSL)
+            else
             {
-               isClosed = true;
-               exitTime = chartTime[k];
-               break;
-            }
-            if(hitTP == 4)
-            {
-               isClosed = true;
-               exitTime = hitTime;
-               break;
+               double barSpread = simSpread;
+               if((m1Rates[m].high + barSpread) >= currentSL)
+               {
+                  isClosed = true;
+                  exitTime = m1Rates[m].time;
+                  break;
+               }
+               for(int tp = hitTP; tp < 4; tp++)
+               {
+                  if((m1Rates[m].low + barSpread) <= tps[tp])
+                  {
+                     hitTP = tp + 1;
+                     hitTime = m1Rates[m].time;
+                     if(tpTimes[tp] == 0) tpTimes[tp] = m1Rates[m].time;
+                     if(hitTP == 1) currentSL = entryPrice;
+                     else if(hitTP == 2) currentSL = tps[0];
+                     else if(hitTP == 3) currentSL = tps[1];
+                  }
+               }
+               if(hitTP == 4)
+               {
+                  isClosed = true;
+                  exitTime = hitTime;
+                  break;
+               }
             }
          }
-         else
+      }
+      else
+      {
+         for(int k = entryBarIdx; k < ratesTotal; k++)
          {
-            double barSpread = GetBarSpread(k, chartSpread, simSpread);
-            for(int tp = hitTP; tp < 4; tp++)
+            if(isBull)
             {
-               if((chartLow[k] + barSpread) <= tps[tp])
+               if(chartLow[k] <= currentSL)
                {
-                  hitTP = tp + 1;
-                  hitTime = chartTime[k];
-                  if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
-                  // انتقال به بریک‌ایون پس از تاچ TP1 و تریلینگ به TP1 و TP2
-                  if(hitTP == 1) currentSL = entryPrice;
-                  else if(hitTP == 2) currentSL = tps[0];
-                  else if(hitTP == 3) currentSL = tps[1];
+                  isClosed = true;
+                  exitTime = chartTime[k];
+                  break;
+               }
+               if(k > entryBarIdx)
+               {
+                  for(int tp = hitTP; tp < 4; tp++)
+                  {
+                     if(chartHigh[k] >= tps[tp])
+                     {
+                        hitTP = tp + 1;
+                        hitTime = chartTime[k];
+                        if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
+                        if(hitTP == 1) currentSL = entryPrice;
+                        else if(hitTP == 2) currentSL = tps[0];
+                        else if(hitTP == 3) currentSL = tps[1];
+                     }
+                  }
+                  if(hitTP == 4)
+                  {
+                     isClosed = true;
+                     exitTime = hitTime;
+                     break;
+                  }
                }
             }
-            if((chartHigh[k] + barSpread) >= currentSL)
+            else
             {
-               isClosed = true;
-               exitTime = chartTime[k];
-               break;
-            }
-            if(hitTP == 4)
-            {
-               isClosed = true;
-               exitTime = hitTime;
-               break;
+               double barSpread = GetBarSpread(k, chartSpread, simSpread);
+               if((chartHigh[k] + barSpread) >= currentSL)
+               {
+                  isClosed = true;
+                  exitTime = chartTime[k];
+                  break;
+               }
+               if(k > entryBarIdx)
+               {
+                  for(int tp = hitTP; tp < 4; tp++)
+                  {
+                     if((chartLow[k] + barSpread) <= tps[tp])
+                     {
+                        hitTP = tp + 1;
+                        hitTime = chartTime[k];
+                        if(tpTimes[tp] == 0) tpTimes[tp] = chartTime[k];
+                        if(hitTP == 1) currentSL = entryPrice;
+                        else if(hitTP == 2) currentSL = tps[0];
+                        else if(hitTP == 3) currentSL = tps[1];
+                     }
+                  }
+                  if(hitTP == 4)
+                  {
+                     isClosed = true;
+                     exitTime = hitTime;
+                     break;
+                  }
+               }
             }
          }
       }
@@ -412,71 +489,150 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else if(currentHitTP == 2) currentSL = tps[0];
          else if(currentHitTP >= 3) currentSL = tps[1];
 
-         for(int k = entryBarIdx; k < ratesTotal; k++)
-         {
-            if(g_tradeSetups[t].isBuy)
-            {
-               for(int tp = currentHitTP; tp < 4; tp++)
-               {
-                  if(chartHigh[k] >= tps[tp])
-                  {
-                     currentHitTP = tp + 1;
-                     hitTime = chartTime[k];
-                     if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
-                     else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
-                     else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
-                     else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+         MqlRates m1Rates[];
+         int m1Count = CopyRates(_Symbol, PERIOD_M1, g_tradeSetups[t].entryTime, chartTime[ratesTotal - 1], m1Rates);
 
-                     // به‌روزرسانی حد ضرر دینامیک
-                     if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
-                     else if(currentHitTP == 2) currentSL = tps[0];
-                     else if(currentHitTP == 3) currentSL = tps[1];
+         if(m1Count > 1)
+         {
+            for(int m = 1; m < m1Count; m++)
+            {
+               if(g_tradeSetups[t].isBuy)
+               {
+                  if(m1Rates[m].low <= currentSL)
+                  {
+                     g_tradeSetups[t].isClosed = true;
+                     g_tradeSetups[t].exitTime = m1Rates[m].time;
+                     break;
+                  }
+                  for(int tp = currentHitTP; tp < 4; tp++)
+                  {
+                     if(m1Rates[m].high >= tps[tp])
+                     {
+                        currentHitTP = tp + 1;
+                        hitTime = m1Rates[m].time;
+                        if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
+                        else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
+                        else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
+                        else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+
+                        if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+                        else if(currentHitTP == 2) currentSL = tps[0];
+                        else if(currentHitTP == 3) currentSL = tps[1];
+                     }
+                  }
+                  if(currentHitTP == 4)
+                  {
+                     g_tradeSetups[t].isClosed = true;
+                     g_tradeSetups[t].exitTime = hitTime;
+                     break;
                   }
                }
-               if(chartLow[k] <= currentSL)
+               else
                {
-                  g_tradeSetups[t].isClosed = true;
-                  g_tradeSetups[t].exitTime = chartTime[k];
-                  break;
-               }
-               if(currentHitTP == 4)
-               {
-                  g_tradeSetups[t].isClosed = true;
-                  g_tradeSetups[t].exitTime = hitTime;
-                  break;
+                  double barSpread = simSpread;
+                  if((m1Rates[m].high + barSpread) >= currentSL)
+                  {
+                     g_tradeSetups[t].isClosed = true;
+                     g_tradeSetups[t].exitTime = m1Rates[m].time;
+                     break;
+                  }
+                  for(int tp = currentHitTP; tp < 4; tp++)
+                  {
+                     if((m1Rates[m].low + barSpread) <= tps[tp])
+                     {
+                        currentHitTP = tp + 1;
+                        hitTime = m1Rates[m].time;
+                        if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
+                        else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
+                        else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
+                        else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+
+                        if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+                        else if(currentHitTP == 2) currentSL = tps[0];
+                        else if(currentHitTP == 3) currentSL = tps[1];
+                     }
+                  }
+                  if(currentHitTP == 4)
+                  {
+                     g_tradeSetups[t].isClosed = true;
+                     g_tradeSetups[t].exitTime = hitTime;
+                     break;
+                  }
                }
             }
-            else
+         }
+         else
+         {
+            for(int k = entryBarIdx; k < ratesTotal; k++)
             {
-               double barSpread = GetBarSpread(k, chartSpread, simSpread);
-               for(int tp = currentHitTP; tp < 4; tp++)
+               if(g_tradeSetups[t].isBuy)
                {
-                  if((chartLow[k] + barSpread) <= tps[tp])
+                  if(chartLow[k] <= currentSL)
                   {
-                     currentHitTP = tp + 1;
-                     hitTime = chartTime[k];
-                     if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
-                     else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
-                     else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
-                     else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+                     g_tradeSetups[t].isClosed = true;
+                     g_tradeSetups[t].exitTime = chartTime[k];
+                     break;
+                  }
+                  if(k > entryBarIdx)
+                  {
+                     for(int tp = currentHitTP; tp < 4; tp++)
+                     {
+                        if(chartHigh[k] >= tps[tp])
+                        {
+                           currentHitTP = tp + 1;
+                           hitTime = chartTime[k];
+                           if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
+                           else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
+                           else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
+                           else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
 
-                     // به‌روزرسانی حد ضرر دینامیک
-                     if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
-                     else if(currentHitTP == 2) currentSL = tps[0];
-                     else if(currentHitTP == 3) currentSL = tps[1];
+                           if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+                           else if(currentHitTP == 2) currentSL = tps[0];
+                           else if(currentHitTP == 3) currentSL = tps[1];
+                        }
+                     }
+                     if(currentHitTP == 4)
+                     {
+                        g_tradeSetups[t].isClosed = true;
+                        g_tradeSetups[t].exitTime = hitTime;
+                        break;
+                     }
                   }
                }
-               if((chartHigh[k] + barSpread) >= currentSL)
+               else
                {
-                  g_tradeSetups[t].isClosed = true;
-                  g_tradeSetups[t].exitTime = chartTime[k];
-                  break;
-               }
-               if(currentHitTP == 4)
-               {
-                  g_tradeSetups[t].isClosed = true;
-                  g_tradeSetups[t].exitTime = hitTime;
-                  break;
+                  double barSpread = GetBarSpread(k, chartSpread, simSpread);
+                  if((chartHigh[k] + barSpread) >= currentSL)
+                  {
+                     g_tradeSetups[t].isClosed = true;
+                     g_tradeSetups[t].exitTime = chartTime[k];
+                     break;
+                  }
+                  if(k > entryBarIdx)
+                  {
+                     for(int tp = currentHitTP; tp < 4; tp++)
+                     {
+                        if((chartLow[k] + barSpread) <= tps[tp])
+                        {
+                           currentHitTP = tp + 1;
+                           hitTime = chartTime[k];
+                           if(tp == 0 && g_tradeSetups[t].tp1Time == 0) g_tradeSetups[t].tp1Time = hitTime;
+                           else if(tp == 1 && g_tradeSetups[t].tp2Time == 0) g_tradeSetups[t].tp2Time = hitTime;
+                           else if(tp == 2 && g_tradeSetups[t].tp3Time == 0) g_tradeSetups[t].tp3Time = hitTime;
+                           else if(tp == 3 && g_tradeSetups[t].tp4Time == 0) g_tradeSetups[t].tp4Time = hitTime;
+
+                           if(currentHitTP == 1) currentSL = g_tradeSetups[t].entryPrice;
+                           else if(currentHitTP == 2) currentSL = tps[0];
+                           else if(currentHitTP == 3) currentSL = tps[1];
+                        }
+                     }
+                     if(currentHitTP == 4)
+                     {
+                        g_tradeSetups[t].isClosed = true;
+                        g_tradeSetups[t].exitTime = hitTime;
+                        break;
+                     }
+                  }
                }
             }
          }
