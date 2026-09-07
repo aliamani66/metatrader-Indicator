@@ -80,44 +80,23 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
-      // در تایم ۱ دقیقه (M1) اگر فیلتر نمایش همه باکس‌ها فعال نباشد، فقط باکس‌های استراتژیک رسم شوند
-      if(InpBoxDisplayFilter != FILTER_SHOW_ALL && g_drawnBoxes[b].tf == PERIOD_M1 && !InpShowNormalMicroBoxes)
+      // فیلتر نحوه نمایش باکس‌ها روی چارت
+      if(InpBoxDisplayFilter == BOX_FILTER_NONE)
+         continue;
+
+      if(InpBoxDisplayFilter == BOX_FILTER_TRADED_ONLY)
       {
-         bool isStrategicM1 = false;
-         for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
-         {
-            string tName = g_drawnBoxes[b].rsTags[tg];
-            if(tName == "LS" || tName == "OInner" || tName == "RS" ||
-               tName == "S-LS" || tName == "S-OInner" || tName == "S-RS")
-            {
-               isStrategicM1 = true;
-               break;
-            }
-         }
-         if(!isStrategicM1)
+         // فقط باکس‌هایی که معامله واقعی روی آن‌ها ثبت شده است رسم شوند
+         if(!g_drawnBoxes[b].hasTradeEntered)
             continue;
       }
-
-      bool shouldDraw = false;
-      if(InpBoxDisplayFilter == FILTER_SHOW_ALL)
+      else if(InpBoxDisplayFilter == BOX_FILTER_SETUPS_ONLY)
       {
-         shouldDraw = true;
+         // فقط باکس‌های دارای الگوی ساختاری (LS, RS, OInner, Swap) رسم شوند
+         if(!hasRSTags)
+            continue;
       }
-      else if(isMacro)
-      {
-         if(InpShowMacroAlways)
-            shouldDraw = true;
-      }
-      else
-      {
-         if(hasRSTags && InpShowOnlyRSMicroBoxes)
-            shouldDraw = true;
-         else if(InpShowNormalMicroBoxes)
-            shouldDraw = true;
-      }
-
-      if(!shouldDraw)
-         continue;
+      // در حالت BOX_FILTER_ALL تمامی باکس‌ها (شامل سویینگ‌های ساده) رسم می‌شوند
 
       color drawClr = g_drawnBoxes[b].baseColor;
       int drawWidth = g_drawnBoxes[b].baseWidth;
@@ -125,12 +104,6 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       string shortRoleTag = "";
 
       ENUM_LINE_STYLE drawStyle = g_drawnBoxes[b].baseStyle;
-
-      if(!hasRSTags)
-      {
-         if(InpBoxDisplayFilter != FILTER_SHOW_ALL)
-            continue;
-      }
 
       if(hasRSTags)
       {
@@ -174,13 +147,6 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
             string swDir = g_drawnBoxes[b].isSwapBull ? "-BU" : "-BE";
             string fullSwap = swapTag + swDir;
             tagCombo += (tagCombo == "" ? fullSwap : " > " + fullSwap);
-         }
-
-         // ===== اعمال فیلتر هوشمند الگوها =====
-         if(InpBoxDisplayFilter == FILTER_TOP_WINNERS_ONLY)
-         {
-            if(!IsGoldenTradeSetup(tagCombo))
-               continue;
          }
 
          bool isBull = false;

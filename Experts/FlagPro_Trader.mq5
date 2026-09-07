@@ -126,7 +126,7 @@ input bool               InpExportCSV             = false;       // 📁 است�
 //+------------------------------------------------------------------+
 input group "=== 🎨 ۸. رنگ‌ها و تنظیمات ظاهری باکس‌های چارت ==="
 input bool               InpShowBoxes             = false;       // 👁️ رسم باکس‌های قیمتی روی چارت
-input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها روی چارت
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = BOX_FILTER_TRADED_ONLY; // فیلتر نمایش باکس‌ها روی چارت
 input bool               InpHideFilteredBoxes     = true;        // مخفی‌سازی باکس‌های فیلترشده از چارت
 
 input ENUM_TIMEFRAMES    InpTF7                   = PERIOD_M1;

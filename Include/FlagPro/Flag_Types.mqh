@@ -20,9 +20,15 @@ enum ENUM_LABEL_STYLE
 
 enum ENUM_BOX_DISPLAY_FILTER
 {
-   FILTER_TOP_WINNERS_ONLY = 0,        // فقط برترین الگوهای طلایی برنده (Top Winners Only - پیش‌فرض)
-   FILTER_SHOW_ALL = 1                 // نمایش همه باکس‌ها (بدون فیلتر)
+   BOX_FILTER_TRADED_ONLY = 0,    // فقط باکس‌های معامله‌شده (دارای ترید - خلوت و هدفمند)
+   BOX_FILTER_SETUPS_ONLY = 1,    // فقط باکس‌های دارای الگو و ستاپ (LS, RS, OInner, Swap)
+   BOX_FILTER_ALL         = 2,    // نمایش تمام باکس‌ها (شامل تمام سویینگ‌ها - شلوغ)
+   BOX_FILTER_NONE        = 3     // مخفی‌سازی کامل باکس‌ها (فقط خطوط و سطوح معاملات)
 };
+
+// ماکروهای سازگاری با نسخه‌های پیشین
+#define FILTER_TOP_WINNERS_ONLY BOX_FILTER_TRADED_ONLY
+#define FILTER_SHOW_ALL         BOX_FILTER_ALL
 
 enum ENUM_LABEL_FORMAT
 {
