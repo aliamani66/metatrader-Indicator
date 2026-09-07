@@ -103,8 +103,9 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
-      // فقط سلاطین طلایی تاییدشده مجاز به معامله هستند
-      if(!IsQualifiedKing(g_drawnBoxes[b].tf, role)) continue;
+      // فقط در صورت فعال بودن قفل سلاطین، ستاپ‌های غیرسلطان حذف شوند
+      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[b].tf, role))
+         continue;
 
       bool isBull = true;
       double entryPrice = 0;

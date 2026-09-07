@@ -90,14 +90,14 @@ void ShowTradeSetupForBox(int boxIdx)
       else role = "Flag-" + (g_drawnBoxes[boxIdx].isBullish ? "BU" : "BE");
    }
 
-   // بررسی شرط سلاطین ۷ گانه (فقط ۷ الگوی طلایی مجاز به معامله هستند)
-   if(!IsGoldenTradeSetup(role))
+   // بررسی شرط سلاطین طلایی در صورت فعال بودن فیلتر سلاطین
+   if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[boxIdx].tf, role))
    {
       string noTradeMsg = StringFormat(
          "═══════════════════════════════════════════════════\n"
          "📦 باکس %s [%s]\n"
-         "⚠️ این ساختار جزو ۷ سلطان طلایی معامله نیست.\n"
-         "👑 معامله منحصراً فقط روی ۷ الگوی برتر استراتژی مجاز است.\n"
+         "⚠️ این ساختار جزو سلاطین برگزیده معامله نیست.\n"
+         "👑 فیلتر سلاطین روشن است و معامله فقط روی الگوهای برتر مجاز است.\n"
          "═══════════════════════════════════════════════════",
          g_drawnBoxes[boxIdx].tfTag, role);
       Comment(noTradeMsg);

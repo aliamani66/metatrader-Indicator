@@ -30,7 +30,7 @@ input group "=== 🎯 ۱. تنظیم بازه تاریخی و عملکرد ==="
 input datetime          InpHistoryStartDate   = D'2026.09.01 00:00';    // 📅 تاریخ شروع دلخواه (ابتدای ماه جاری)
 input int               InpHistoryDays        = 10;                     // ⏳ یا تعداد روز گذشته (پیش‌فرض: ۱۰ روز برای پوشش کامل هفته و تست‌ها)
 input ENUM_HISTORY_MODE InpHistoryMode        = HIST_DAYS_BACK;         // ⚙️ مبنای بازه تاریخی (تعداد روز گذشته / تاریخ شروع دلخواه / کل تاریخچه)
-input bool              InpShowBoxes          = false;                  // 👁️ رسم باکس‌های قیمتی روی چارت (کلید B برای سوئیچ سریع)
+input bool              InpShowBoxes          = true;                   // 👁️ رسم باکس‌های قیمتی روی چارت (کلید B برای سوئیچ سریع)
 input bool              InpAutoDrawTrades     = true;                   // 🎯 رسم معاملات (خطوط ورود، حد ضرر، تارگت‌ها و نتیجه) روی چارت
 input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار فایل CSV برای داشبورد
 
@@ -38,12 +38,13 @@ input bool              InpExportCSV          = true;                   // 📁 
 //| ۲. 👑 سلاطین طلایی معاملاتی (Golden Kings)                      |
 //+------------------------------------------------------------------+
 input group "=== 👑 ۲. سلاطین طلایی معاملاتی (Golden Kings) ==="
-input bool              InpOnlyTradeKings     = true;                   // 👑 فقط معامله و رسم سلاطین برگزیده (Kings Only)
+input bool              InpOnlyTradeKings     = false;                  // 👑 فقط معامله و رسم سلاطین برگزیده (Kings Only)
 input bool              InpEnableKingsM15     = true;                   // 👑 فعال‌سازی سلاطین تایم M15 (۲ ساختار برتر)
 input bool              InpEnableKingsM5      = true;                   // 👑 فعال‌سازی سلاطین تایم M5 (۷ ساختار برتر)
 input bool              InpEnableKingsM1      = true;                   // 👑 فعال‌سازی سلاطین تایم M1 (۹ ساختار برتر)
-input bool              InpTradeOnlyGoldenKings = true;                 // 👑 قفل انحصاری سلاطین طلایی
+input bool              InpTradeOnlyGoldenKings = false;                // 👑 قفل انحصاری سلاطین طلایی
 input string            InpAllowedKingsList   = "";                     // 👑 لیست انحصاری سلاطین مجاز (جدا شده با کاما، مثلاً "S-RS|M1, Flag-BE|M1" - خالی = پیش‌فرض)
+input string            InpDisabledKingsList  = "";                     // 🚫 لیست سلاطین غیرمجاز (جدا شده با کاما، مثلاً "OInner-BE [M1]")
 input bool              InpAllowOverlappingTrades = true;               // 🔓 اجازه معاملات همزمان (ستاپ‌های هم‌پوشان)
 
 //+------------------------------------------------------------------+
@@ -54,12 +55,12 @@ input bool              InpEnableTradeSetup   = true;                   // فع�
 input double            InpSLOffsetPips       = 8.0;                    // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
 #define InpRSPipBuffer InpSLOffsetPips
 input double            InpMaxEntryDeviationPips = 2.5;                 // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
-input bool              InpFilterNightHours   = true;                   // 🛡️ فیلتر ۱: مسدودسازی بازه شب ۲۱ تا ۰۱
-input bool              InpFilterPreLondonHunt= true;                   // 🛡️ فیلتر ۲: مسدودسازی ساعت ۰۷:۰۰ قبل لندن
-input bool              InpFilterToxicPatterns= true;                   // 🛡️ فیلتر ۳: حذف زنجیره‌های سمی
-input bool              InpFilterSingleLS     = true;                   // 🛡️ فیلتر ۴: حذف باکس‌های منفرد LS
-input bool              InpFilterPureFlags    = true;                   // 🛡️ فیلتر ۵: حذف فلگ‌های بدون تلاقی
-input bool              InpFilterLowRewardVsFriction = true;            // 💰 فیلتر عدم ورود اگر سود کمتر از اصطکاک باشد
+input bool              InpFilterNightHours   = false;                  // 🛡️ فیلتر ۱: مسدودسازی بازه شب ۲۱ تا ۰۱
+input bool              InpFilterPreLondonHunt= false;                  // 🛡️ فیلتر ۲: مسدودسازی ساعت ۰۷:۰۰ قبل لندن
+input bool              InpFilterToxicPatterns= false;                  // 🛡️ فیلتر ۳: حذف زنجیره‌های سمی
+input bool              InpFilterSingleLS     = false;                  // 🛡️ فیلتر ۴: حذف باکس‌های منفرد LS
+input bool              InpFilterPureFlags    = false;                  // 🛡️ فیلتر ۵: حذف فلگ‌های بدون تلاقی
+input bool              InpFilterLowRewardVsFriction = false;           // 💰 فیلتر عدم ورود اگر سود کمتر از اصطکاک باشد
 input double            InpBrokerCommissionPerLot    = 6.0;             // کمیسیون بروکر در هر ۱ لات کامل ($)
 input double            InpEstimatedSpreadPips       = 0.8;             // اسپرد تخمینی معامله (پیپ)
 input double            InpMinNetProfitRatioTP1      = 1.0;             // حداقل نسبت سود TP1 به کل اصطکاک
@@ -77,8 +78,8 @@ input bool              InpTradeMacroTFs      = false;                  // مع�
 //| ۵. 🎨 تنظیمات ظاهری، رسم خطوط و رنگ‌های چارت (پایین لیست)       |
 //+------------------------------------------------------------------+
 input group "=== 🎨 ۵. تنظیمات ظاهری، رسم خطوط و رنگ‌های چارت (پایین لیست) ==="
-input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_TOP_WINNERS_ONLY; // فیلتر نمایش باکس‌ها (فقط سلاطین برگزیده)
-input bool              InpHideFilteredBoxes  = true;                   // مخفی‌سازی باکس‌های فیلترشده از روی چارت
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = FILTER_SHOW_ALL;    // فیلتر نمایش باکس‌ها (نمایش همه باکس‌ها بدون فیلتر)
+input bool              InpHideFilteredBoxes  = false;                  // مخفی‌سازی باکس‌های فیلترشده از روی چارت
 input bool              InpUniqueTradeColors  = true;                   // 🎨 رنگ مجزا برای هر معامله (تفکیک آسان معاملات همزمان)
 input bool              InpShowTradeShading   = false;                  // 🎨 نمایش پس‌زمینه رنگی معاملات
 input color             InpTradeEntryColor    = clrWhite;               // رنگ خط ورود به معامله (Entry)
@@ -110,9 +111,9 @@ input ENUM_TIMEFRAMES   InpTF1                = PERIOD_D1;
 input bool              InpUseTF1             = false;                  // محاسبه روزانه (D1)
 input color             InpColorTF1           = clrMagenta;
 
-input bool              InpShowMacroAlways    = false;
-input bool              InpShowOnlyRSMicroBoxes = true;
-input bool              InpShowNormalMicroBoxes = false;
+input bool              InpShowMacroAlways    = true;
+input bool              InpShowOnlyRSMicroBoxes = false;
+input bool              InpShowNormalMicroBoxes = true;
 input string            InpRSTagPrefix        = "RS";
 input int               InpSwingBars          = 6;
 input int               InpLineWidth          = 1;

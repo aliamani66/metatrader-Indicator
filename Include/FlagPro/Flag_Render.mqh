@@ -80,9 +80,8 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
-      // در تایم ۱ دقیقه (M1) فقط و فقط باکس‌های استراتژیک (LS, OInner, RS و سواپ‌های آن‌ها مثل S-LS, S-OInner, S-RS) رسم شوند
-      // فلگ‌های عادی و یا سواپ فلگ‌های معمولی (S-Flag) در ۱ دقیقه هرگز رسم نشوند
-      if(g_drawnBoxes[b].tf == PERIOD_M1 && !InpShowNormalMicroBoxes)
+      // در تایم ۱ دقیقه (M1) اگر فیلتر نمایش همه باکس‌ها فعال نباشد، فقط باکس‌های استراتژیک رسم شوند
+      if(InpBoxDisplayFilter != FILTER_SHOW_ALL && g_drawnBoxes[b].tf == PERIOD_M1 && !InpShowNormalMicroBoxes)
       {
          bool isStrategicM1 = false;
          for(int tg = 0; tg < ArraySize(g_drawnBoxes[b].rsTags); tg++)
@@ -100,7 +99,11 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       }
 
       bool shouldDraw = false;
-      if(isMacro)
+      if(InpBoxDisplayFilter == FILTER_SHOW_ALL)
+      {
+         shouldDraw = true;
+      }
+      else if(isMacro)
       {
          if(InpShowMacroAlways)
             shouldDraw = true;
