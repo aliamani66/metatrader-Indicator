@@ -1,4 +1,4 @@
-﻿// FlagPro Strategy Dashboard - CSV Data Loader, Autonomous Parser & File Integrity System
+// FlagPro Strategy Dashboard - CSV Data Loader, Autonomous Parser & File Integrity System
 
 async function processUploadedFile(file) {
     if (!file) return;
@@ -342,6 +342,7 @@ function parseClientCSV(csvText, fileName) {
         let et = colIdx['EntryTime'] !== undefined ? parts[colIdx['EntryTime']] : '';
         let ex = colIdx['ExitTime'] !== undefined ? parts[colIdx['ExitTime']] : '';
         let enPrice = colIdx['EntryPrice'] !== undefined ? parseFloat(parts[colIdx['EntryPrice']]) || 0 : 0;
+        let exPrice = colIdx['ExitPrice'] !== undefined ? parseFloat(parts[colIdx['ExitPrice']]) || 0 : 0;
         let slPrice = colIdx['StopLoss'] !== undefined ? parseFloat(parts[colIdx['StopLoss']]) || 0 : 0;
         let pts = colIdx['RiskPoints'] !== undefined ? parseFloat(parts[colIdx['RiskPoints']]) || 0 : 0;
         let hr = colIdx['HitTargetRatio'] !== undefined ? parseInt(parts[colIdx['HitTargetRatio']]) || 0 : 0;
@@ -354,7 +355,7 @@ function parseClientCSV(csvText, fileName) {
         let bte = colIdx['BoxTimeEnd'] !== undefined ? parts[colIdx['BoxTimeEnd']] : '';
         let wm = (typeof calcWaitMinutes === 'function') ? calcWaitMinutes(bts, et) : null;
 
-        rawTrades.push({ sym, role, tf, bname, dir, bts, bte, et, ex, enPrice, slPrice, pts, hr, tp1, tp2, tp3, tp4, wm });
+        rawTrades.push({ sym, role, tf, bname, dir, bts, bte, et, ex, enPrice, exPrice, slPrice, pts, hr, tp1, tp2, tp3, tp4, wm });
     }
 
     if (rawTrades.length === 0) throw new Error('هیچ معامله بسته‌شده‌ای در این فایل یافت نشد.');
@@ -402,7 +403,7 @@ function parseClientCSV(csvText, fileName) {
 
         let hVal = t.et.length >= 13 ? parseInt(t.et.substring(11, 13)) : 0;
         clientSimTrades.push({
-            i: idx + 1, t: t.et, xt: t.ex || t.et, h: hVal, tf: t.tf, r: t.role, k: 1, kk: kk, pts: Math.round(t.pts * 10) / 10, pot: Math.round(t.pts * 0.04 * 100) / 100, hr: t.hr, p: Math.round(pnl * 100) / 100
+            i: idx + 1, t: t.et, xt: t.ex || t.et, h: hVal, tf: t.tf, r: t.role, k: 1, kk: kk, pts: Math.round(t.pts * 10) / 10, pot: Math.round(t.pts * 0.04 * 100) / 100, hr: t.hr, p: Math.round(pnl * 100) / 100, ex_p: t.exPrice
         });
 
         clientAllTrades.push({
@@ -418,6 +419,7 @@ function parseClientCSV(csvText, fileName) {
             role: t.role,
             dir: t.dir,
             en_p: t.enPrice,
+            ex_p: t.exPrice,
             sl: t.slPrice,
             pts: t.pts,
             net: Math.round(pnl * 100) / 100,

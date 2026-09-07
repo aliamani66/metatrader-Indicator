@@ -642,7 +642,8 @@ def process_symbol_dataset(csv_file):
             'pts': round(pts, 1),
             'pot': round(pts * 0.04, 2),
             'hr': hr,
-            'p': round(pnl, 2)
+            'p': round(pnl, 2),
+            'ex_p': round(float(r.get('ExitPrice', 0.0)), 5)
         })
 
     active_open_intervals = []
@@ -695,6 +696,7 @@ def process_symbol_dataset(csv_file):
             'is_k': is_k,
             'dir': r.get('Direction', 'BUY'),
             'en_p': round(float(r.get('EntryPrice', 0.0)), 5),
+            'ex_p': round(float(r.get('ExitPrice', 0.0)), 5),
             'sl': round(float(r.get('StopLoss', 0.0)), 5),
             'pts': round(pts, 1),
             'tp1': round(float(r.get('TP1', 0.0)), 5),

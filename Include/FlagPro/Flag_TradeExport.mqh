@@ -28,8 +28,8 @@ void ExportAllTradesToCSV()
       return;
    }
 
-   string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints";
-   FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
+   string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,ExitPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints";
+   FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "ExitPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
 
    datetime chartTime[];
    double chartHigh[], chartLow[], chartClose[];
@@ -302,6 +302,7 @@ void ExportAllTradesToCSV()
       int hitTP = -1;
       bool isClosed = false;
       datetime exitTime = 0;
+      double exitPrice = 0.0;
 
       // 🌟 فیلترهای زمانی ورود (جهت ثبت ساعت واقعی ورود در CSV داشبورد، ورود حفظ می‌شود)
       // if(isEntered)
@@ -316,6 +317,7 @@ void ExportAllTradesToCSV()
          isClosed = false;
          entryTime = 0;
          exitTime = 0;
+         exitPrice = 0.0;
       }
       else
       {
@@ -361,6 +363,7 @@ void ExportAllTradesToCSV()
                   hitTP = maxHit;
                   isClosed = true;
                   exitTime = chartTime[k];
+                  exitPrice = currentSL;
                   break;
                }
                if(maxHit == 4)
@@ -368,6 +371,7 @@ void ExportAllTradesToCSV()
                   hitTP = 4;
                   isClosed = true;
                   exitTime = hitTime;
+                  exitPrice = tps[3];
                   break;
                }
             }
@@ -392,6 +396,7 @@ void ExportAllTradesToCSV()
                   hitTP = maxHit;
                   isClosed = true;
                   exitTime = chartTime[k];
+                  exitPrice = currentSL;
                   break;
                }
                if(maxHit == 4)
@@ -399,6 +404,7 @@ void ExportAllTradesToCSV()
                   hitTP = 4;
                   isClosed = true;
                   exitTime = hitTime;
+                  exitPrice = tps[3];
                   break;
                }
             }
@@ -408,6 +414,7 @@ void ExportAllTradesToCSV()
          {
             hitTP = maxHit;
             exitTime = (maxHit > 0) ? hitTime : chartTime[copied - 1];
+            exitPrice = (copied > 0) ? chartClose[copied - 1] : 0.0;
          }
       }
 
@@ -438,6 +445,7 @@ void ExportAllTradesToCSV()
                    (entryTime > 0 ? TimeToString(entryTime) : "None"),
                    (exitTime > 0 ? TimeToString(exitTime) : "None"),
                    DoubleToString(entryPrice, _Digits),
+                   DoubleToString(exitPrice, _Digits),
                    DoubleToString(slPrice, _Digits),
                    DoubleToString(risk / _Point, 1),
                    DoubleToString(tps[0], _Digits),
