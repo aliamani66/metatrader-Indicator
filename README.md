@@ -1,18 +1,31 @@
-# MQL5 Indicators
+﻿# 🏛️ اکوسیستم الگوتریدینگ و تحلیل استراتژی FlagPro (FlagPro Algorithmic Trading Ecosystem)
 
-This repository contains custom MQL5 indicators for MetaTrader 5.
+سیستم نهادی شناسایی الگوهای ساختار بازار، استخراج دیتای خالص، کالبدشکافی آماری هج‌فاندی، بهینه‌سازی تعاملی در آزمایشگاه وب و اجرای خودکار الگوریتمی با مدیریت ریسک پلکانی در MetaTrader 5.
 
-## Indicators
+---
 
-- **Flag.mq5**: Flag/BOS continuation box indicator with multi-pivot support (3, 5, 8)
+## 📖 مستندات جامع معماری پروژه
+برای مشاهده جزییات کامل ساختار پوشه‌ها، جریان داده‌ها، سیستم خروج ۴ مرحله‌ای، فرمول شاخص ۷ ستونه سلاطین و فیلترهای ضد استاپ، سند جامع زیر را مطالعه نمایید:
+👉 **[مشاهده مستندات جامع معماری و ساختار پروژه (PROJECT_STRUCTURE.md)](PROJECT_STRUCTURE.md)**
 
-## Features
+---
 
-- Multiple timeframe support (Daily, Weekly, H4, H1)
-- Configurable pivot periods
-- Box extension logic based on price action
-- Custom filtering conditions for valid boxes
+## 🚀 ارکان سه‌گانه سیستم
 
+1. **اندیکاتور و اسکنر ساختار چارت (`Indicators/FlagPro.mq5`):**
+   - اسکن هندسی الگوهای فلگ، BOS و QM با پیوت‌های فرکتالی ۳، ۵ و ۸.
+   - خروجی ۱۰۰٪ دیتای خالص تاریخچه معاملات به فرمت CSV در `Files/flagpro_trades_SYMBOL.csv`.
+2. **آزمایشگاه بهینه‌سازی استراتژی و داشبورد ماژولار (`FlagPro_Modular_App`):**
+   - تحلیل و گزینش سلاطین برگزیده با شاخص هج‌فاندی ۷ ستونه.
+   - کالبدشکافی تاخیر ورود به معامله (Box-to-Entry Latency) و کارنامه هفته به هفته.
+   - پنل تعاملی تست فیلترهای ۱ تا ۵ و شبیه‌سازی زنده رشد اکوئیتی و دراوداون.
+   - صدور مستقیم فایل‌های کانفیگ `.ini` و `.set` برای متاتریدر ۵.
+3. **اکسپرت معامله‌گر خودکار (`Experts/FlagPro_Trader.mq5`):**
+   - ثبت اردرهای لیمیت روی الگوهای سلاطین برگزیده.
+   - مدیریت پوزیشن با سیستم خروج پلکانی ۴ مرحله‌ای (0.04 لات) و ریسک‌فری خودکار در TP1.
+   - اعمال فیلترهای محافظتی ساعات شبانه، پیش‌لندن، ساختارهای سمی و نویز.
+
+---
 
 # ⚠️ قوانین توسعه و گیت پروژه (Project Guidelines & Git Rules)
 
