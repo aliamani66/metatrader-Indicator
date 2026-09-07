@@ -1324,12 +1324,13 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
          }
          else
          {
-            if(isBull && chartLow[k] <= entryPrice && chartHigh[k] >= entryPrice)
+            double barSpread = GetBarSpread(k, chartSpread, simSpread);
+            if(isBull && (chartLow[k] + barSpread) <= entryPrice)
             {
                isAlreadyEntered = true;
                break;
             }
-            else if(!isBull && chartHigh[k] >= entryPrice && chartLow[k] <= entryPrice)
+            else if(!isBull && chartHigh[k] >= entryPrice)
             {
                isAlreadyEntered = true;
                break;

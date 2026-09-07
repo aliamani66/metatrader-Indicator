@@ -266,16 +266,13 @@ void ExportAllTradesToCSV()
             // مهلت خروج اولیه از باکس حداکثر ۳۰ کندل
             if(k - confirmIdx > 30) break;
          }
-         else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
+         else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی - دقیقاً مطابق اردر لیمیت اکسپرت)
          {
             double barSpread = GetBarSpread(k, chartSpread, simSpread);
-            double maxDevDist = InpMaxEntryDeviationPips * pipSize;
-            double buyThresh  = entryPrice + maxDevDist;
-            double sellThresh = entryPrice - maxDevDist;
 
             if(isBull)
             {
-               if((chartLow[k] + barSpread) <= buyThresh)
+               if((chartLow[k] + barSpread) <= entryPrice)
                {
                   isEntered = true;
                   entryBarIdx = k;
@@ -285,7 +282,7 @@ void ExportAllTradesToCSV()
             }
             else
             {
-               if(chartHigh[k] >= sellThresh)
+               if(chartHigh[k] >= entryPrice)
                {
                   isEntered = true;
                   entryBarIdx = k;
@@ -294,8 +291,8 @@ void ExportAllTradesToCSV()
                }
             }
 
-            // مهلت بازگشت پولبک حداکثر ۴۰ کندل (مطابق با اکسپرت تستر)
-            if(k - departedBar > 40) break;
+            // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars (مطابق با اکسپرت تستر)
+            if(k - departedBar > InpLimitExpirationBars) break;
          }
       }
 

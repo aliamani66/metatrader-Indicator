@@ -262,13 +262,10 @@ void ShowTradeSetupForBox(int boxIdx)
       else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
       {
          double barSpread = GetBarSpread(k, chartSpread, simSpread);
-         double maxDevDist = InpMaxEntryDeviationPips * pipSize;
-         double buyThresh  = entryPrice + maxDevDist;
-         double sellThresh = entryPrice - maxDevDist;
 
          if(isBull)
          {
-            if((chartLow[k] + barSpread) <= buyThresh)
+            if((chartLow[k] + barSpread) <= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
@@ -278,7 +275,7 @@ void ShowTradeSetupForBox(int boxIdx)
          }
          else
          {
-            if(chartHigh[k] >= sellThresh)
+            if(chartHigh[k] >= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
@@ -287,8 +284,8 @@ void ShowTradeSetupForBox(int boxIdx)
             }
          }
 
-         // مهلت بازگشت پولبک حداکثر ۶۰ کندل بعد از پرتاب
-         if(k - departedBar > 60)
+         // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars
+         if(k - departedBar > InpLimitExpirationBars)
          {
             cancelBarIdx = k;
             cancelReasonStr = "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";

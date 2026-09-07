@@ -217,26 +217,23 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
          else
          {
             double barSpread = GetBarSpread(k, chartSpread, simSpread);
-            double maxDevDist = InpMaxEntryDeviationPips * pipSize;
-            double buyThresh  = entryPrice + maxDevDist;
-            double sellThresh = entryPrice - maxDevDist;
 
-            if(isBull && (chartLow[k] + barSpread) <= buyThresh)
+            if(isBull && (chartLow[k] + barSpread) <= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
                entryTime = chartTime[k];
                break;
             }
-            else if(!isBull && chartHigh[k] >= sellThresh)
+            else if(!isBull && chartHigh[k] >= entryPrice)
             {
                isEntered = true;
                entryBarIdx = k;
                entryTime = chartTime[k];
                break;
             }
-            // مهلت بازگشت پولبک حداکثر ۴۰ کندل (مطابق اکسپرت تستر)
-            if(k - departedBar > 40) break;
+            // مهلت بازگشت پولبک بر مبنای پارامتر ورودی InpLimitExpirationBars (مطابق اکسپرت تستر)
+            if(k - departedBar > InpLimitExpirationBars) break;
          }
       }
 
