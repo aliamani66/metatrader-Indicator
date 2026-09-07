@@ -7,7 +7,12 @@ var simState = (typeof simState !== 'undefined') ? simState : {
     consecLossTrigger: 0,
     consecLossSkipCount: 1,
     consecLossSkipDay: false,
-    showDrawdown: true
+    showDrawdown: true,
+    filterNightHours: false,
+    filterPreLondonHunt: false,
+    filterToxicPatterns: false,
+    filterSingleLS: false,
+    filterPureFlags: false
 };
 var kingsSimList = (typeof kingsSimList !== 'undefined') ? kingsSimList : [];
 var top3SLCntKeys = (typeof top3SLCntKeys !== 'undefined') ? top3SLCntKeys : [];
@@ -132,9 +137,18 @@ function clearPresetActiveState() {
                     if (typeof syncConsecButtonsUI === 'function') syncConsecButtonsUI();
                 }
 
+                // 4B. Configure MT5 Anti-Stop Filters
+                let isBase = (p.id === 'preset-base');
+                simState.filterNightHours = isBase ? false : (p.hours_name === 'lon_ny' || p.hours_name === 'no_night');
+                simState.filterPreLondonHunt = isBase ? false : true;
+                simState.filterToxicPatterns = isBase ? false : true;
+                simState.filterSingleLS = isBase ? false : true;
+                simState.filterPureFlags = isBase ? false : true;
+
                 // 5. Update UI components
                 if (typeof renderSimKingsGrid === 'function') renderSimKingsGrid();
                 if (typeof renderSimHoursBar === 'function') renderSimHoursBar();
+                if (typeof syncMT5FilterCheckboxesUI === 'function') syncMT5FilterCheckboxesUI();
 
                 // 6. Highlight active preset row
                 clearPresetActiveState();
@@ -515,6 +529,7 @@ function openSavePresetModal() {
         function initSimUI() {
             renderSimKingsGrid();
             renderSimHoursBar();
+            syncMT5FilterCheckboxesUI();
             loadCustomPresets();
             runEquitySimulation();
         }
@@ -735,6 +750,48 @@ function openSavePresetModal() {
             }
         }
 
+        function syncMT5FilterCheckboxesUI() {
+            const filterDefs = [
+                { id: 'chkFilterNight', lbl: 'lblFilterNight', key: 'filterNightHours', activeBorder: '#38bdf8' },
+                { id: 'chkFilterPreLondon', lbl: 'lblFilterPreLondon', key: 'filterPreLondonHunt', activeBorder: '#38bdf8' },
+                { id: 'chkFilterToxic', lbl: 'lblFilterToxic', key: 'filterToxicPatterns', activeBorder: '#f87171' },
+                { id: 'chkFilterSingleLS', lbl: 'lblFilterSingleLS', key: 'filterSingleLS', activeBorder: '#facc15' },
+                { id: 'chkFilterPureFlags', lbl: 'lblFilterPureFlags', key: 'filterPureFlags', activeBorder: '#34d399' }
+            ];
+            filterDefs.forEach(item => {
+                let el = document.getElementById(item.id);
+                let lbl = document.getElementById(item.lbl);
+                let on = !!simState[item.key];
+                if (el) el.checked = on;
+                if (lbl) {
+                    lbl.style.borderColor = on ? item.activeBorder : '#1e293b';
+                    lbl.style.background = on ? '#0c223a' : '#091422';
+                    lbl.style.boxShadow = on ? ('0 0 10px ' + item.activeBorder + '33') : 'none';
+                }
+            });
+        }
+
+        function toggleMT5Filter(key, isChecked) {
+            clearPresetActiveState();
+            simState[key] = !!isChecked;
+            syncMT5FilterCheckboxesUI();
+            runEquitySimulation();
+        }
+
+        function setAllMT5Filters(enableAll) {
+            clearPresetActiveState();
+            simState.filterNightHours = !!enableAll;
+            simState.filterPreLondonHunt = !!enableAll;
+            simState.filterToxicPatterns = !!enableAll;
+            simState.filterSingleLS = !!enableAll;
+            simState.filterPureFlags = !!enableAll;
+            syncMT5FilterCheckboxesUI();
+            runEquitySimulation();
+        }
+        window.syncMT5FilterCheckboxesUI = syncMT5FilterCheckboxesUI;
+        window.toggleMT5Filter = toggleMT5Filter;
+        window.setAllMT5Filters = setAllMT5Filters;
+
         function toggleHour(h) {
             clearPresetActiveState();
             simState.allowedHours[h] = !simState.allowedHours[h];
@@ -860,6 +917,13 @@ function openSavePresetModal() {
             if (selAct) selAct.value = 'skip_1';
             syncConsecButtonsUI();
 
+            simState.filterNightHours = false;
+            simState.filterPreLondonHunt = false;
+            simState.filterToxicPatterns = false;
+            simState.filterSingleLS = false;
+            simState.filterPureFlags = false;
+            syncMT5FilterCheckboxesUI();
+
             renderSimKingsGrid();
             renderSimHoursBar();
             runEquitySimulation();
@@ -955,6 +1019,13 @@ function openSavePresetModal() {
 
                 // Min profit filter
                 if (t.pot < simState.minProfit) continue;
+
+                // MT5 Smart Anti-Stop & Pattern Filters (Filters 1-5)
+                if (simState.filterNightHours && (t.h >= 21 || t.h <= 1)) continue;
+                if (simState.filterPreLondonHunt && t.h === 7) continue;
+                if (simState.filterToxicPatterns && t.r && (t.r.includes('LS-BE > RS-BE') || t.r.includes('LS-BU > RS-BU'))) continue;
+                if (simState.filterSingleLS && (t.r === 'LS-BE' || t.r === 'LS-BU' || t.r === 'LS')) continue;
+                if (simState.filterPureFlags && t.r && (t.r.startsWith('Flag-') || t.r === 'Flag' || (!t.r.includes('LS') && !t.r.includes('RS') && !t.r.includes('OInner') && !t.r.includes('S-')))) continue;
 
                 // Consecutive loss circuit breaker filter
                 let tradeDate = t.t ? t.t.substring(0, 10) : '';

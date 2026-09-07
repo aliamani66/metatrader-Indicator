@@ -684,6 +684,61 @@
                     </div>
                 </div>
 
+                <!-- 2D. MT5 SMART ANTI-STOP & STRUCTURAL PATTERN FILTERS (FILTERS 1 TO 5) -->
+                <div style="margin-top:12px;background:#061424;padding:12px 14px;border-radius:10px;border:1px solid #1e3a5f;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                        <div style="color:#38bdf8;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                            <span>🛡️ فیلترهای هوشمند ضد استاپ و ساختاری متاتریدر (فیلترهای ۱ تا ۵):</span>
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="setAllMT5Filters(true)">فعال‌سازی همه ☑️</button>
+                            <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="setAllMT5Filters(false)">غیرفعال‌سازی همه ⬜</button>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:8px;">
+                        <!-- Filter 1: Night Hours -->
+                        <label id="lblFilterNight" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterNight" onchange="toggleMT5Filter('filterNightHours', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">🌙 فیلتر ۱: شبانه (۲۱ تا ۰۱)</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterNightHours (فرار از اسپرد شب)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 2: Pre-London Hunt -->
+                        <label id="lblFilterPreLondon" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterPreLondon" onchange="toggleMT5Filter('filterPreLondonHunt', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">⚡ فیلتر ۲: قبل لندن ۰۷:۰۰</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterPreLondonHunt (شکار آسیا)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 3: Toxic Patterns -->
+                        <label id="lblFilterToxic" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterToxic" onchange="toggleMT5Filter('filterToxicPatterns', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">☣️ فیلتر ۳: زنجیره‌های سمی</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterToxicPatterns (اشباع فرسایشی)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 4: Single LS -->
+                        <label id="lblFilterSingleLS" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterSingleLS" onchange="toggleMT5Filter('filterSingleLS', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">🛡️ فیلتر ۴: تک‌باکس‌های LS</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterSingleLS (باکس‌های منفرد)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 5: Pure Flags -->
+                        <label id="lblFilterPureFlags" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterPureFlags" onchange="toggleMT5Filter('filterPureFlags', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">🚩 فیلتر ۵: فلگ‌های بدون تلاقی</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterPureFlags (فلگ‌های نویز خالص)</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Status Footer -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid #133352;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
                     <div>

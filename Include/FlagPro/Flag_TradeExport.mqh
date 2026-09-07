@@ -130,8 +130,8 @@ void ExportAllTradesToCSV()
          else role = "Flag-" + (g_drawnBoxes[b].isBullish ? "BU" : "BE");
       }
 
-      // فقط سلاطین طلایی تاییدشده مجاز به استخراج و نمایش در گزارش هستند
-      if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[b].tf, role)) continue;
+      // 🌟 استخراج تمام الگوها و ستاپ‌ها بدون فیلتر جهت تحلیل و شبیه‌سازی در داشبورد
+      // if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[b].tf, role)) continue;
 
       bool isBull = true;
       double entryPrice = 0;
@@ -206,11 +206,11 @@ void ExportAllTradesToCSV()
       double risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
-      // فیلترهای الگویی اولیه و اصطکاک (مستقل از زمان ورود)
-      if(InpFilterSingleLS && IsSingleLSPattern(role)) continue;
-      if(InpFilterToxicPatterns && IsToxicPattern(role)) continue;
-      if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
-      if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
+      // 🌟 فیلترهای الگویی اولیه و اصطکاک (جهت شبیه‌سازی در داشبورد، تمام ستاپ‌ها صادر می‌شوند)
+      // if(InpFilterSingleLS && IsSingleLSPattern(role)) continue;
+      // if(InpFilterToxicPatterns && IsToxicPattern(role)) continue;
+      // if(InpFilterPureFlags && IsPureNoiseFlag(role)) continue;
+      // if(InpFilterLowRewardVsFriction && IsRewardLessThanFriction(risk / _Point)) continue;
 
       double tps[4];
       for(int tp = 0; tp < 4; tp++)
@@ -303,12 +303,12 @@ void ExportAllTradesToCSV()
       bool isClosed = false;
       datetime exitTime = 0;
 
-      // فیلترهای زمانی ورود (بر مبنای زمان واقعی ورود entryTime)
-      if(isEntered)
-      {
-         if(InpFilterNightHours && IsNightSessionHour(entryTime)) isEntered = false;
-         if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime)) isEntered = false;
-      }
+      // 🌟 فیلترهای زمانی ورود (جهت ثبت ساعت واقعی ورود در CSV داشبورد، ورود حفظ می‌شود)
+      // if(isEntered)
+      // {
+      //    if(InpFilterNightHours && IsNightSessionHour(entryTime)) isEntered = false;
+      //    if(InpFilterPreLondonHunt && IsPreLondonHour(entryTime)) isEntered = false;
+      // }
 
       if(!isEntered)
       {
