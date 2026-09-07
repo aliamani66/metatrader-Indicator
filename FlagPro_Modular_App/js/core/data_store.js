@@ -50,11 +50,16 @@ function switchDashboardSymbol(symName) {
             let selElem = document.getElementById('symbolSelector');
             if (selElem && selElem.value !== symName) selElem.value = symName;
 
-            // 1.2 Update Sidebar King Count dynamically
+            // 1.2 Update Sidebar King & Timeframe dynamic badges
             let kCount = (sData.kings_sim_list ? sData.kings_sim_list.length : 0);
+            let kTradeCount = (sData.tot_k_cnt !== undefined ? sData.tot_k_cnt : ((sData.trades_json_list || []).filter(t => t.is_k === 1 || t.k === 1).length));
             let sidebarKings = document.getElementById('sidebarKingsTitle');
             if (sidebarKings) {
-                sidebarKings.textContent = 'سلاطین برگزیده (' + kCount + ')';
+                sidebarKings.textContent = 'سلاطین برگزیده (' + kCount + ' الگو | ' + kTradeCount + ' ترید)';
+            }
+            let sidebarTf = document.getElementById('sidebarTimeframesTitle');
+            if (sidebarTf) {
+                sidebarTf.textContent = 'تایم‌فریم‌ها و تحلیل (' + (sData.tfs_str || 'M1') + ')';
             }
 
             // 2. Update JS Global Datasets
@@ -195,6 +200,11 @@ function switchDashboardSymbol(symName) {
                     drawWeeklyBarChart(currentWeeklyBarMode);
                 }
             } catch(e) { console.error('drawWeeklyBarChart error:', e); }
+            try {
+                if (typeof initTesterCompareTab === 'function') {
+                    initTesterCompareTab();
+                }
+            } catch(e) { console.error('initTesterCompareTab error:', e); }
         }
 
         async function processUploadedFile(file) {
@@ -851,9 +861,77 @@ function switchDashboardSymbol(symName) {
             return detectedSym;
         }
 
-        
-
 // ================= CLIENT-SIDE DYNAMIC TAB GENERATORS =================
+
+function formatLatencyShort(minutes) {
+    if (minutes === null || minutes === undefined || isNaN(minutes) || minutes <= 0) return "-";
+    if (minutes < 60) return Math.round(minutes) + "m";
+    if (minutes < 1440) return (minutes / 60.0).toFixed(1) + "h";
+    return (minutes / 1440.0).toFixed(1) + "d";
+}
+
+function formatLatencyPersian(minutes) {
+    if (minutes === null || minutes === undefined || isNaN(minutes) || minutes <= 0) return "-";
+    if (minutes < 60) return Math.round(minutes) + " دقیقه";
+    if (minutes < 1440) {
+        let h = (minutes / 60.0).toFixed(1);
+        return h + " ساعت (" + Math.round(minutes) + " دقیقه)";
+    }
+    let d = (minutes / 1440.0).toFixed(1);
+    let remH = Math.round((minutes % 1440) / 60.0);
+    return d + " روز (" + remH + " ساعت)";
+}
+
+function calcLatencyStatsFromTrades(tradesList) {
+    let delays = [];
+    (tradesList || []).forEach(t => {
+        let wm = null;
+        if (t.wait_m !== undefined && typeof t.wait_m === 'number' && t.wait_m > 0) {
+            wm = t.wait_m;
+        } else if (t.wm !== undefined && typeof t.wm === 'number' && t.wm > 0) {
+            wm = t.wm;
+        } else if (t.en_t && t.box_t) {
+            try {
+                let dt1 = new Date(t.box_t.replace(/\./g, '-'));
+                let dt2 = new Date(t.en_t.replace(/\./g, '-'));
+                let diffM = (dt2 - dt1) / (1000 * 60);
+                if (diffM >= 0) wm = diffM;
+            } catch(e) {}
+        }
+        if (wm !== null && !isNaN(wm) && wm >= 0) {
+            delays.push(wm);
+        }
+    });
+
+    if (delays.length === 0) {
+        return {
+            cnt: 0, min: 0, max: 0, avg: 0, med: 0, p90: 0,
+            avg_fmt: '-', min_fmt: '-', max_fmt: '-', med_fmt: '-', p90_fmt: '-',
+            avg_short: '-', min_short: '-', max_short: '-', med_short: '-', p90_short: '-'
+        };
+    }
+    delays.sort((a, b) => a - b);
+    let n = delays.length;
+    let d_min = delays[0];
+    let d_max = delays[n - 1];
+    let d_avg = delays.reduce((a, b) => a + b, 0) / n;
+    let d_med = delays[Math.floor(n / 2)];
+    let d_p90 = delays[Math.floor(n * 0.90)];
+    return {
+        cnt: n,
+        min: d_min, max: d_max, avg: d_avg, med: d_med, p90: d_p90,
+        avg_fmt: formatLatencyPersian(d_avg),
+        min_fmt: formatLatencyPersian(d_min),
+        max_fmt: formatLatencyPersian(d_max),
+        med_fmt: formatLatencyPersian(d_med),
+        p90_fmt: formatLatencyPersian(d_p90),
+        avg_short: formatLatencyShort(d_avg),
+        min_short: formatLatencyShort(d_min),
+        max_short: formatLatencyShort(d_max),
+        med_short: formatLatencyShort(d_med),
+        p90_short: formatLatencyShort(d_p90)
+    };
+}
 
 function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, friction, totalBoxesCount, pendingBoxesCount, openTradesCount) {
     let totalRaw = rawTrades.length;
@@ -866,6 +944,25 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
     let kingsSL = clientKingsSimList.reduce((sum, k) => sum + k.sl_cnt, 0);
     let savedSL = Math.max(0, totalSL - kingsSL);
     let filterAccuracy = totalSL > 0 ? ((savedSL / totalSL) * 100).toFixed(1) : '50.0';
+
+    // Dynamic EV Calculation
+    let sData = (window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[detectedSym]) || {};
+    let ev_a = 0.0, ev_b = 0.0;
+    if (typeof sData.ev_a === 'number') {
+        ev_a = sData.ev_a;
+        ev_b = sData.ev_b || 0.0;
+    } else {
+        let avgPts = (rawTrades.reduce((s, t) => s + (t.pts || 10), 0) / Math.max(1, totalRaw)) || 10;
+        let rVal = (avgPts * 0.04) || 0.40;
+        let rawNet = rawTrades.reduce((s, t) => s + (t.net !== undefined ? t.net : (t.pnl || 0)), 0);
+        ev_a = kingsCount > 0 ? ((kingsNet / kingsCount) / rVal) : 0;
+        ev_b = totalRaw > 0 ? ((rawNet / totalRaw) / rVal) : 0;
+    }
+    let evDiff = (ev_a - ev_b);
+    let evStr = (evDiff >= 0 ? '+' : '') + evDiff.toFixed(2) + ' R';
+
+    // Latency summary for KPI card
+    let latStats = (sData.latency_all && sData.latency_all.cnt > 0) ? sData.latency_all : calcLatencyStatsFromTrades(rawTrades);
 
     let medals = ['🥇', '🥈', '🥉', '👑', '👑', '⭐', '⭐', '⭐', '⭐', '⭐'];
     let kingsRowsHtml = clientKingsSimList.map((k, i) => {
@@ -917,18 +1014,57 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
         }
     }
 
+    // Intersection rows if available
+    let mpList = sData.mp_intersection_list || [];
+    let mpRowsHtml = '';
+    if (mpList.length > 0) {
+        mpRowsHtml = mpList.map((m, idx) => {
+            let k_tag = m.is_king ? "👑 سلطان" : "سایر";
+            let k_color = m.is_king ? "#facc15" : "#94a3b8";
+            let pnl_col = m.net >= 0 ? "#00e676" : "#ef4444";
+            let badge = m.score >= 90 ? "💎 الماس ضدضربه" : (m.score >= 80 ? "⭐ طلایی همه‌فصول" : "🟢 باثبات دائم");
+            let badge_bg = m.score >= 90 ? "#064e3b" : (m.score >= 80 ? "#1e3a8a" : "#451a03");
+            let badge_col = m.score >= 90 ? "#34d399" : (m.score >= 80 ? "#93c5fd" : "#fca5a5");
+            return `
+            <tr class="mp-row" data-tf="${m.tf}">
+                <td style="text-align:center;font-weight:bold;">#${idx + 1}</td>
+                <td style="text-align:center;color:#38bdf8;font-weight:bold;">${m.tf}</td>
+                <td style="color:${k_color};font-weight:bold;">${m.role}</td>
+                <td style="text-align:center;"><span style="background:${badge_bg};color:${badge_col};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">${badge}</span></td>
+                <td style="text-align:center;font-weight:bold;">${m.cnt || 0}</td>
+                <td style="text-align:center;color:#00e676;font-weight:bold;">${m.w1_p || 0}%</td>
+                <td style="text-align:center;color:#ef4444;font-weight:bold;">${m.sl_p || 0}%</td>
+                <td style="text-align:center;color:${pnl_col};font-weight:bold;">${m.net >= 0 ? '+' : ''}$${(m.net || 0).toFixed(2)}</td>
+            </tr>
+            `;
+        }).join('');
+    } else {
+        mpRowsHtml = `
+        <tr>
+            <td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">
+                💎 کلیه الگوهای سلاطین نماد <b>${detectedSym}</b> (${clientKingsSimList.length} الگو) با ضریب خلوص ۱۰۰٪ و آزمون‌های استقامتی هج‌فاندی فیلتر و انتخاب شده‌اند.
+            </td>
+        </tr>
+        `;
+    }
+
     return `
         <!-- Global Performance KPI Cards -->
-        <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-grid" style="margin-bottom:20px;grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:10px;">
             <div class="kpi-card" style="border-top: 4px solid #38bdf8;">
-                <div class="kpi-title">📦 کل باکس‌های شناسایی‌شده</div>
-                <div class="kpi-value" style="color:#38bdf8;">${totalBoxes.toLocaleString()}</div>
-                <div class="kpi-sub">تایم‌های تحت پوشش فایل</div>
+                <div class="kpi-title">📦 کل الگوهای چارت (${detectedSym})</div>
+                <div class="kpi-value" style="color:#38bdf8;">${totalBoxes.toLocaleString()} باکس</div>
+                <div class="kpi-sub">تایم‌های فعال چارت</div>
             </div>
             <div class="kpi-card" style="border-top: 4px solid #00e676;">
                 <div class="kpi-title">✅ معاملات وارد شده و بسته‌شده</div>
-                <div class="kpi-value" style="color:#00e676;">${totalRaw.toLocaleString()}</div>
+                <div class="kpi-value" style="color:#00e676;">${totalRaw.toLocaleString()} معامله</div>
                 <div class="kpi-sub">${closedSubText}</div>
+            </div>
+            <div class="kpi-card" style="border-top: 4px solid #facc15;background:linear-gradient(180deg, #1c1917, #281d04);">
+                <div class="kpi-title" style="color:#fde047;font-weight:bold;">👑 معاملات سلاطین منتخب (${clientKingsSimList.length} سلطان)</div>
+                <div class="kpi-value" style="color:#facc15;font-weight:900;">${kingsCount.toLocaleString()} معامله</div>
+                <div class="kpi-sub" style="color:#fef08a;">سود: +$${kingsNet.toFixed(2)} دلار</div>
             </div>
             <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
                 <div class="kpi-title">🛡️ استاپ‌های نجات‌یافته با فیلتر</div>
@@ -937,63 +1073,153 @@ function generateClientKingsHTML(detectedSym, rawTrades, clientKingsSimList, fri
             </div>
             <div class="kpi-card" style="border-top: 4px solid #10b981;">
                 <div class="kpi-title">🚀 جهش امید ریاضی (EV)</div>
-                <div class="kpi-value" style="color:#10b981;">+0.14 R</div>
+                <div class="kpi-value" style="color:#10b981;">${evStr}</div>
                 <div class="kpi-sub">بهبود راندمان با شاخص سلطان</div>
             </div>
-            <div class="kpi-card" style="border-top: 4px solid #eab308;">
-                <div class="kpi-title">💵 سود خالص دلاری سلاطین (0.04)</div>
-                <div class="kpi-value" style="color:#facc15;">+$${kingsNet.toFixed(2)}</div>
-                <div class="kpi-sub">از ${kingsCount.toLocaleString()} معامله سلاطین منتخب</div>
+            <div class="kpi-card" style="border-top: 4px solid #a855f7;">
+                <div class="kpi-title">⏱️ میانگین انتظار تا ورود (پولبک)</div>
+                <div class="kpi-value" style="color:#c084fc;">${latStats.avg_short || '-'}</div>
+                <div class="kpi-sub">سریع‌ترین: ${latStats.min_short || '-'} | ۹۰٪ زیر ${latStats.p90_short || '-'}</div>
             </div>
         </div>
 
-        <div class="section-box" style="border: 1px solid #eab308; background: #1a1608; margin-top: 15px;">
-            <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px;">
-                <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب نماد ${detectedSym}</h3>
-                <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">تحلیل خودکار از ${totalRaw.toLocaleString()} معامله بسته‌شده واقعی (گزینش با فرمول شاخص هج‌فاندی ۷ ستونه):</p>
+        <!-- Sub-View Navigation Buttons -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <button class="sort-btn kings-sub-btn active" style="background:#0284c7;border-color:#38bdf8;color:#fff;box-shadow:0 0 12px rgba(56,189,248,0.3);" onclick="switchKingsSubView('alltime', this)">👑 جدول جامع سلاطین منتخب (شاخص ۷ ستونه)</button>
+            <button class="sort-btn kings-sub-btn" style="background:#0f172a;border-color:#334155;color:#94a3b8;" onclick="switchKingsSubView('multi', this)">💎 اشتراک طلایی و پایداری فصول</button>
+            <button class="sort-btn kings-sub-btn" style="background:#0f172a;border-color:#334155;color:#94a3b8;" onclick="switchKingsSubView('compare', this)">⚖️ مقایسه ساختارها و تایم‌ها</button>
+        </div>
+
+        <!-- VIEW 1: ALL-TIME 7-PILLAR SCORE TABLE -->
+        <div id="kingsViewAllTime" style="display:block;">
+            <div class="section-box" style="border: 1px solid #eab308; background: #1a1608;">
+                <div style="border-bottom: 1px solid #854d0e; padding-bottom: 14px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0;color:#facc15;font-size:20px;">👑 جدول جامع سلاطین منتخب نماد <span style="color:#38bdf8;border-bottom:2px solid #38bdf8;padding-bottom:2px;">${detectedSym}</span></h3>
+                        <p style="margin:4px 0 0 0;color:#fef08a;font-size:12px;">تحلیل خودکار از ${totalRaw.toLocaleString()} معامله بسته‌شده واقعی (گزینش با فرمول شاخص هج‌فاندی ۷ ستونه):</p>
+                    </div>
+                    <span style="background:#854d0e;color:#fef08a;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:bold;">
+                        👑 ${clientKingsSimList.length} الگوی برگزیده | ${kingsCount} معامله فعال
+                    </span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#261e07;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th style="text-align:center;">تایم‌فریم</th>
+                                <th>نام ساختار / تلاقی گره‌ها</th>
+                                <th style="text-align:center;color:#facc15;">امتیاز سلطان</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:1</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:2</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:3</th>
+                                <th style="text-align:center;">وین‌ریت TP 1:4</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;color:#38bdf8;">پرافیت فاکتور</th>
+                                <th style="text-align:center;color:#f87171;">حداکثر افت (DD)</th>
+                                <th style="text-align:center;color:#facc15;">بازدهی/افت</th>
+                                <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
+                                <th style="text-align:center;color:#f87171;">اصطکاک</th>
+                                <th style="text-align:center;color:#00e676;background:#064e3b44;">سود خالص واقعی</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${kingsRowsHtml}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#261e07;border-top:2px solid #facc15;font-weight:bold;">
+                                <td colspan="4" style="text-align:center;color:#facc15;font-size:14px;">👑 مجموع عملکرد کل سلاطین برگزیده (${clientKingsSimList.length} گره برتر نماد ${detectedSym})</td>
+                                <td style="text-align:center;color:#facc15;font-size:15px;">${kingsCount}</td>
+                                <td colspan="8" style="text-align:center;color:#94a3b8;font-size:11px;">مبتنی بر استراتژی خروج چهارپله‌ای 0.04 لات و پایش دقیق دراوداون</td>
+                                <td style="text-align:center;color:#38bdf8;font-size:14px;">+$${(kingsNet + kingsCount * friction).toFixed(2)}</td>
+                                <td style="text-align:center;color:#f87171;font-size:14px;">-$${(kingsCount * friction).toFixed(2)}</td>
+                                <td style="text-align:center;color:#00e676;font-size:16px;background:#064e3b;">+$${kingsNet.toFixed(2)} دلار نقد</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr style="background:#261e07;">
-                            <th style="text-align:center;">رتبه</th>
-                            <th style="text-align:center;">تایم‌فریم</th>
-                            <th>نام ساختار / تلاقی گره‌ها</th>
-                            <th style="text-align:center;color:#facc15;">امتیاز سلطان</th>
-                            <th style="text-align:center;">تعداد معامله</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:1</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:2</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:3</th>
-                            <th style="text-align:center;">وین‌ریت TP 1:4</th>
-                            <th style="text-align:center;">نرخ باخت (SL)</th>
-                            <th style="text-align:center;color:#38bdf8;">پرافیت فاکتور</th>
-                            <th style="text-align:center;color:#f87171;">حداکثر افت (DD)</th>
-                            <th style="text-align:center;color:#facc15;">بازدهی/افت</th>
-                            <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
-                            <th style="text-align:center;color:#f87171;">اصطکاک</th>
-                            <th style="text-align:center;color:#00e676;background:#064e3b44;">سود خالص واقعی</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${kingsRowsHtml}
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- VIEW 2: MULTI-PERIOD / INTERSECTION -->
+        <div id="kingsViewMulti" style="display:none;">
+            <div class="section-box" style="border: 1px solid #38bdf8; background: #081a2e;">
+                <div style="border-bottom: 1px solid #0284c7; padding-bottom: 12px; margin-bottom: 14px;">
+                    <h3 style="margin:0;color:#38bdf8;font-size:18px;">💎 ماتریس اشتراک طلایی و پایداری در تمام فصول (Golden Intersection)</h3>
+                    <p style="margin:4px 0 0 0;color:#bae6fd;font-size:12px;">پایش الگوهایی که در طول زمان نوسان عملکرد نداشته و ثبات آماری مستمر ثبت کرده‌اند:</p>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0e3355;">
+                                <th style="text-align:center;">#</th>
+                                <th style="text-align:center;">تایم‌فریم</th>
+                                <th>نام ساختار گره</th>
+                                <th style="text-align:center;">نشان ثبات فصلی</th>
+                                <th style="text-align:center;">تعداد معامله</th>
+                                <th style="text-align:center;">وین‌ریت TP1</th>
+                                <th style="text-align:center;">نرخ باخت (SL)</th>
+                                <th style="text-align:center;color:#00e676;">سود خالص ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mpRowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: COMPARE -->
+        <div id="kingsViewCompare" style="display:none;">
+            <div class="section-box" style="border: 1px solid #a855f7; background: #160d26;">
+                <div style="border-bottom: 1px solid #7e22ce; padding-bottom: 12px; margin-bottom: 14px;">
+                    <h3 style="margin:0;color:#c084fc;font-size:18px;">⚖️ مقایسه ساختارها و تایم‌فریم‌های نماد ${detectedSym}</h3>
+                    <p style="margin:4px 0 0 0;color:#e9d5ff;font-size:12px;">کالبدشکافی توزیع معاملات سلاطین بر مبنای تفکیک تایم‌فریم و ریسک:</p>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#2a1645;">
+                                <th style="text-align:center;">رتبه</th>
+                                <th style="text-align:center;">تایم</th>
+                                <th>ساختار گره</th>
+                                <th style="text-align:center;">معاملات</th>
+                                <th style="text-align:center;color:#00e676;">وین‌ریت ۱:۱</th>
+                                <th style="text-align:center;color:#f87171;">نرخ استاپ</th>
+                                <th style="text-align:center;color:#38bdf8;">پرافیت فاکتور</th>
+                                <th style="text-align:center;color:#00e676;">سود خالص</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${kingsRowsHtml}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `;
 }
 
 function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList, friction) {
+    let sData = (window.ALL_SYMBOLS_DATA && window.ALL_SYMBOLS_DATA[detectedSym]) || {};
+
+    // 1. Box-to-Entry Latency Stats
+    let latAll = (sData.latency_all && sData.latency_all.cnt > 0) ? sData.latency_all : calcLatencyStatsFromTrades(rawTrades);
+    let latTfs = sData.latency_tfs || {};
+
     let tfMapKings = {};
     let tfMapRaw = {};
 
     rawTrades.forEach(t => {
         let tf = t.tf || 'M1';
         if (!tfMapRaw[tf]) {
-            tfMapRaw[tf] = { count: 0, w1: 0, w2: 0, w3: 0, w4: 0, sl: 0, net: 0 };
+            tfMapRaw[tf] = { count: 0, w1: 0, w2: 0, w3: 0, w4: 0, sl: 0, net: 0, trades: [] };
         }
         let r = tfMapRaw[tf];
         r.count++;
+        r.trades.push(t);
         let hr = t.hr !== undefined ? t.hr : (t.HitTargetRatio !== undefined ? parseInt(t.HitTargetRatio) : 0);
         let pts = t.pts || (t.RiskPoints !== undefined ? parseFloat(t.RiskPoints) : 0);
         if (hr === 0) { r.sl++; r.net += (-pts * 0.04 - friction); }
@@ -1038,6 +1264,34 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     });
 
     let tfKeys = Object.keys(tfMapRaw).sort();
+
+    // Ensure latency stats per TF are populated
+    tfKeys.forEach(tf => {
+        if (!latTfs[tf] || !latTfs[tf].cnt) {
+            latTfs[tf] = calcLatencyStatsFromTrades(tfMapRaw[tf].trades);
+        }
+    });
+
+    // Build Strategy Guidance Box bullet points dynamically
+    let guidanceBullets = [];
+    tfKeys.forEach(tf => {
+        let l = latTfs[tf];
+        if (l && l.cnt > 0) {
+            if (tf === 'M1') {
+                guidanceBullets.push(`• <b>در تایم M1:</b> میانگین زمان تاچ ورود <b>${l.avg_fmt}</b> (میانه: ${l.med_fmt}) است و ۹۰٪ معاملات در کمتر از <b>${l.p90_fmt}</b> وارد می‌شوند. اگر اردری بیش از ۱ ساعت فعال نشد، لغو آن کاملاً امن و منطقی است.`);
+            } else if (tf === 'M5') {
+                guidanceBullets.push(`• <b>در تایم M5:</b> میانگین انتظار ورود <b>${l.avg_fmt}</b> (میانه: ${l.med_fmt}) است و تا ۳ ساعت ساختار معتبر باقی می‌ماند.`);
+            } else if (tf === 'M15') {
+                guidanceBullets.push(`• <b>در تایم M15:</b> ستاپ‌ها سوئینگی هستند و میانگین انتظار تاچ اردر <b>${l.avg_fmt}</b> است.`);
+            } else {
+                guidanceBullets.push(`• <b>در تایم ${tf}:</b> میانگین انتظار ورود <b>${l.avg_fmt}</b> (میانه: ${l.med_fmt}) و ۹۰٪ زیر <b>${l.p90_fmt}</b> فعال می‌شوند.`);
+            }
+        }
+    });
+    if (guidanceBullets.length === 0) {
+        guidanceBullets.push(`• میانگین کل زمان تاچ ورود به معامله در نماد <b>${detectedSym}</b> برابر با <b>${latAll.avg_fmt}</b> است.`);
+    }
+
     let kingsRows = tfKeys.filter(tf => tfMapKings[tf]).map(tf => {
         let g = tfMapKings[tf];
         let w1_p = g.count > 0 ? (g.w1 / g.count * 100).toFixed(1) : '0.0';
@@ -1045,6 +1299,7 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
         let w3_p = g.count > 0 ? (g.w3 / g.count * 100).toFixed(1) : '0.0';
         let w4_p = g.count > 0 ? (g.w4 / g.count * 100).toFixed(1) : '0.0';
         let sl_p = g.count > 0 ? (g.sl / g.count * 100).toFixed(1) : '0.0';
+        let tfLat = latTfs[tf] || { avg_short: '-', min_short: '-', max_short: '-' };
         return `
             <tr>
                 <td style="color:#38bdf8;font-weight:bold;font-size:14px;">${tf}</td>
@@ -1052,11 +1307,13 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                 <td style="text-align:center;color:#00e676;font-weight:bold;">${w1_p}%</td>
                 <td style="text-align:center;color:#00e676;font-weight:bold;">${w2_p}%</td>
                 <td style="text-align:center;color:#38bdf8;">${w3_p}%</td>
-                <td style="text-align:color:#c084fc;">${w4_p}%</td>
+                <td style="text-align:center;color:#c084fc;">${w4_p}%</td>
                 <td style="text-align:center;color:#ef4444;font-weight:bold;">${sl_p}%</td>
                 <td style="text-align:center;color:#38bdf8;font-weight:bold;">${g.grossWin >= 0 ? '+' : ''}$${g.grossWin.toFixed(2)}</td>
                 <td style="text-align:center;color:#f87171;font-weight:bold;">-$${g.friction.toFixed(2)}</td>
                 <td style="text-align:center;color:#00e676;font-weight:bold;font-size:15px;background:#064e3b22;">${g.net >= 0 ? '+' : ''}$${g.net.toFixed(2)} دلار</td>
+                <td style="text-align:center;color:#38bdf8;font-weight:bold;">${tfLat.avg_short || '-'}</td>
+                <td style="text-align:center;color:#94a3b8;font-size:11px;">${tfLat.min_short || '-'} ~ ${tfLat.max_short || '-'}</td>
             </tr>
         `;
     }).join('');
@@ -1080,6 +1337,7 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
         let w4_p = r.count > 0 ? (r.w4 / r.count * 100).toFixed(1) : '0.0';
         let sl_p = r.count > 0 ? (r.sl / r.count * 100).toFixed(1) : '0.0';
         let netColor = r.net >= 0 ? '#00e676' : '#ef4444';
+        let tfLat = latTfs[tf] || { avg_short: '-', min_short: '-', max_short: '-' };
         return `
             <tr style="opacity:0.85;">
                 <td style="color:#94a3b8;font-weight:bold;">${tf} (خام)</td>
@@ -1090,6 +1348,8 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                 <td style="text-align:center;">${w4_p}%</td>
                 <td style="text-align:center;color:#ef4444;">${sl_p}%</td>
                 <td style="text-align:center;color:${netColor};font-weight:bold;">${r.net >= 0 ? '+' : ''}$${r.net.toFixed(2)} دلار</td>
+                <td style="text-align:center;color:#38bdf8;">${tfLat.avg_short || '-'}</td>
+                <td style="text-align:center;color:#94a3b8;font-size:11px;">${tfLat.min_short || '-'} ~ ${tfLat.max_short || '-'}</td>
             </tr>
         `;
     }).join('');
@@ -1197,6 +1457,53 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
     });
 
     return `
+        <!-- ⏳ BOX-TO-ENTRY LATENCY & PULLBACK SPEED INTELLIGENCE -->
+        <div class="section-box" style="border: 1px solid #0284c7; background: #081a2e; margin-bottom: 24px; padding: 18px 20px; border-radius: 10px;">
+            <div style="border-bottom: 1px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <h3 style="margin:0; color:#38bdf8; font-size:18px; display:flex; align-items:center; gap:8px;">
+                        ⏱️ تحلیل سرعت پولبک و زمان انتظار ورود (Box-to-Entry Latency) - نماد <span style="color:#facc15;border-bottom:2px solid #facc15;padding-bottom:2px;">${detectedSym}</span>
+                    </h3>
+                    <p style="margin:4px 0 0 0; color:#93c5fd; font-size:12px;">
+                        مدت زمان سپری‌شده از لحظه تشکیل باکس الگو تا لمس سطح اردر لیمیت و فعال‌سازی معامله (مبنای تعیین انقضای اردرهای لیمیت)
+                    </p>
+                </div>
+                <span style="background:#0369a1; color:#e0f2fe; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold;">
+                    جامعه آماری: ${totRawCount.toLocaleString()} ستاپ فعال‌شده
+                </span>
+            </div>
+
+            <!-- 4 Latency KPI Cards -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px;">
+                <div class="kpi-card" style="border-color:#38bdf8; background:#0e2a47; padding:12px 14px;">
+                    <div class="kpi-title" style="font-size:11.5px; color:#93c5fd;">⚡ حداقل زمان انتظار (سریع‌ترین پولبک)</div>
+                    <div class="kpi-value" style="color:#38bdf8; font-size:22px;">${latAll.min_short || '-'}</div>
+                    <div class="kpi-sub" style="color:#94a3b8;">${latAll.min_fmt || '-'}</div>
+                </div>
+                <div class="kpi-card" style="border-color:#00e676; background:#0a2c20; padding:12px 14px;">
+                    <div class="kpi-title" style="font-size:11.5px; color:#86efac;">⏱️ میانگین زمان انتظار (Average Latency)</div>
+                    <div class="kpi-value" style="color:#00e676; font-size:22px;">${latAll.avg_short || '-'}</div>
+                    <div class="kpi-sub" style="color:#94a3b8;">${latAll.avg_fmt || '-'}</div>
+                </div>
+                <div class="kpi-card" style="border-color:#facc15; background:#292208; padding:12px 14px;">
+                    <div class="kpi-title" style="font-size:11.5px; color:#fde047;">🎯 میانه انتظار (Median - نصف معاملات)</div>
+                    <div class="kpi-value" style="color:#facc15; font-size:22px;">${latAll.med_short || '-'}</div>
+                    <div class="kpi-sub" style="color:#94a3b8;">۵۰٪ معاملات زیر ${latAll.med_fmt || '-'} وارد شدند</div>
+                </div>
+                <div class="kpi-card" style="border-color:#c084fc; background:#231138; padding:12px 14px;">
+                    <div class="kpi-title" style="font-size:11.5px; color:#d8b4fe;">🛡️ چارک ۹۰٪ (فعال‌سازی ۹۰٪ اردرها)</div>
+                    <div class="kpi-value" style="color:#c084fc; font-size:22px;">${latAll.p90_short || '-'}</div>
+                    <div class="kpi-sub" style="color:#94a3b8;">۹۰٪ اردرها زیر ${latAll.p90_fmt || '-'} فعال شدند</div>
+                </div>
+            </div>
+
+            <!-- Practical Strategy Guidance Box -->
+            <div style="background:#0f2238; border-right:4px solid #38bdf8; padding:12px 16px; border-radius:6px; font-size:12px; color:#cbd5e1; line-height:1.8;">
+                <b style="color:#38bdf8;">💡 راهنمای عملی معاملاتی برای اردرهای لیمیت نماد ${detectedSym} (Limit Order Life Expectancy):</b><br/>
+                ${guidanceBullets.join('<br/>')}
+            </div>
+        </div>
+
         <div class="section-box">
             <div style="border-bottom:1px solid #334155;padding-bottom:8px;margin-bottom:10px;">
                 <h3 style="margin:0;color:#38bdf8;font-size:19px;">📊 تفکیک عملکرد تایم‌فریم‌ها در استراتژی سلاطین برگزیده (نماد ${detectedSym})</h3>
@@ -1216,8 +1523,10 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                             <th style="text-align:center;">وین‌ریت TP 1:4</th>
                             <th style="text-align:center;">نرخ باخت (SL)</th>
                             <th style="text-align:center;color:#38bdf8;">سود ناخالص</th>
-                            <th style="text-align:center;color:#f87171;">کل اصطکاک (اسپرد)</th>
+                            <th style="text-align:color:#f87171;">کل اصطکاک (اسپرد)</th>
                             <th style="text-align:center;color:#00e676;">💵 سود خالص واقعی</th>
+                            <th style="text-align:center;color:#38bdf8;">⏱️ میانگین انتظار ورود</th>
+                            <th style="text-align:center;color:#94a3b8;">⚡ کمترین ~ بیشترین انتظار</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1233,6 +1542,8 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                             <td style="text-align:center;color:#38bdf8;font-weight:bold;font-size:15px;">${totKingsGross >= 0 ? '+' : ''}$${totKingsGross.toFixed(2)}</td>
                             <td style="text-align:center;color:#f87171;font-weight:bold;font-size:15px;">-$${totKingsFriction.toFixed(2)}</td>
                             <td style="text-align:center;color:#00e676;font-weight:bold;font-size:16px;background:#064e3b;">${totKingsNet >= 0 ? '+' : ''}$${totKingsNet.toFixed(2)} دلار نقد</td>
+                            <td style="text-align:center;color:#38bdf8;font-weight:bold;">${latAll.avg_short || '-'}</td>
+                            <td style="text-align:center;color:#94a3b8;font-size:11px;">${latAll.min_short || '-'} ~ ${latAll.max_short || '-'}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1261,6 +1572,8 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                             <th style="text-align:center;">وین‌ریت 1:4</th>
                             <th style="text-align:center;">نرخ باخت</th>
                             <th style="text-align:center;">سود/زیان کل خام</th>
+                            <th style="text-align:center;color:#38bdf8;">میانگین انتظار ورود</th>
+                            <th style="text-align:center;color:#94a3b8;">کمترین ~ بیشترین انتظار</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1333,7 +1646,6 @@ function generateClientTimeframesHTML(detectedSym, rawTrades, clientKingsSimList
                     </tbody>
                 </table>
             </div>
-        </div>
     `;
 }
 

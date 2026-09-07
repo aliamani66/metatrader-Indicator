@@ -1,3 +1,5 @@
+window.sortDirections = window.sortDirections || { 'data-score': true };
+
 function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
             let table = document.getElementById(tableId);
             if (!table) return;
@@ -5,9 +7,11 @@ function sortTableByAttr(tableId, attrName, isNumeric, defaultDesc, btnElem) {
             if (!tbody) return;
             let rows = Array.from(tbody.querySelectorAll('tr.tf-row, tr.tf-role-row'));
 
-            let isCurrentDesc = sortDirections[attrName];
+            let sortDirs = window.sortDirections || {};
+            let isCurrentDesc = sortDirs[attrName];
             let newDesc = (isCurrentDesc === undefined) ? defaultDesc : !isCurrentDesc;
-            sortDirections[attrName] = newDesc;
+            sortDirs[attrName] = newDesc;
+            window.sortDirections = sortDirs;
 
             let headers = table.querySelectorAll('th');
             headers.forEach(h => {

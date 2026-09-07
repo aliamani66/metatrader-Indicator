@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "FlagPro Quantitative Trading Systems"
 #property link        "https://github.com/aliamani66/metatrader-Indicator"
-#property version     "2.13"
+#property version     "2.15"
 #property description "ربات معامله‌گر مستقل FlagPro - سیستم خروج چندمرحله‌ای (Scale-Out) و بریک‌ایون خودکار"
 
 #include <Trade\Trade.mqh>
