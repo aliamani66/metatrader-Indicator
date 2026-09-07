@@ -10,8 +10,25 @@ def bundle():
 
     print(f"Bundling FlagPro Modular App from: {base_dir}")
     
-    with open(index_file, "r", encoding="utf-8") as f:
-        html = f.read()
+    template_file = os.path.join(base_dir, "template.html")
+    if os.path.exists(template_file):
+        with open(template_file, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        def replace_include(match):
+            comp_rel = match.group(1).strip()
+            comp_path = os.path.join(base_dir, comp_rel)
+            if os.path.exists(comp_path):
+                with open(comp_path, "r", encoding="utf-8") as cf:
+                    return cf.read()
+            return match.group(0)
+
+        html = re.sub(r'<!--\s*include:\s*([^\s]+)\s*-->', replace_include, html)
+        with open(index_file, "w", encoding="utf-8") as f:
+            f.write(html)
+    else:
+        with open(index_file, "r", encoding="utf-8") as f:
+            html = f.read()
 
     # 1. Inline CSS
     def replace_css(match):

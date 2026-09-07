@@ -1,0 +1,398 @@
+            <div id="tab-tester-compare" class="tab-content">
+                <div id="tab-tester-compare-container">
+                    <div style="padding: 4px 6px;">
+                        <!-- 🎛️ TOP CONTROL BAR & RUN SELECTOR -->
+                        <div class="section-box" style="margin-bottom:12px;background:linear-gradient(135deg,#0d1527,#0a101d);border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+                                <div>
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <span style="font-size:24px;">🔬</span>
+                                        <div>
+                                            <h2 style="margin:0;font-size:16px;color:#38bdf8;font-weight:bold;">کالبدشکافی و مقایسه جامع تست متاتریدر ۵ با نتایج استراتژی</h2>
+                                            <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">مقایسه رو در روی عملکرد واقعی ربات در تستر MT5 با شبیه‌ساز استراتژی، شناسایی انحراف پارامترها و ریشه‌یابی باخت‌ها</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <select id="testerRunSelector" onchange="switchTesterReport(this.value)" style="background:#1e293b;border:1px solid #38bdf8;color:#f8fafc;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:280px;font-family:inherit;">
+                                        <option value="FlagPro_Test_GBPUSD_M1_2026-08-26_to_2026-09-03_64Trades.json" selected>تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: از 2026.08.26 تا 2026.09.03 | 42 معامله | ⏱️ انجام تست: 2026.09.07 01:01</option>
+                                        <option value="FlagPro_Test_GBPUSD_M1_2026-09-01_to_2026-09-03_24Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: از 2026.09.01 تا 2026.09.03 | 18 معامله | ⏱️ انجام تست: 2026.09.07 00:39</option>
+                                        <option value="FlagPro_Test_GBPUSD_M1_2026-09-01_to_2026-09-03_31Trades.json">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1 | بازه: از 2026.09.01 تا 2026.09.03 | 23 معامله | ⏱️ انجام تست: 2026.09.06 13:41</option>
+                                    </select>
+                                    <select id="testerScenarioSelector" onchange="switchTesterScenario(this.value)" style="background:#0f172a;border:1px solid #10b981;color:#a7f3d0;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;min-width:240px;font-family:inherit;font-weight:600;" title="انتخاب سناریوی بهینه جهت مقایسه انحراف پارامترها و بازده تئوریک">
+                                        <option value="equity_active" selected>📈 سناریوی انتخابی نمودار اکوئیتی (همگام‌سازی زنده)</option>
+                                        <option value="raw">📊 نتیجه تست خام (کل معاملات چارت - بدون هیچ فیلتری)</option>
+                                        <option value="auto">🔍 تشخیص خودکار سناریو از فایل تستر</option>
+                                        <option value="golden">⚖️ تعادل طلایی حجم و سود (Golden Balance)</option>
+                                        <option value="champion">💎 سلاطین برتر و اسنایپر (Champion Sniper)</option>
+                                        <option value="day">☀️ سشن لندن و نیویورک (London & NY)</option>
+                                        <option value="shield">🛡️ سپر حداقل دروداون (Stop Loss Shield)</option>
+                                        <option value="base">🌐 تمام سلاطین ۲۴ ساعته (All Kings Base)</option>
+                                    </select>
+                                    <input type="file" id="testerReportFileInput" accept=".json,.csv" style="display:none;" onchange="handleTesterReportUpload(event)">
+                                    <button class="action-btn" onclick="copyTesterReportsFolder()" style="background:linear-gradient(135deg, #1e1b4b, #312e81);color:#c7d2fe;border:1px solid #6366f1;padding:6px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="کپی آدرس پوشه گزارشات متاتریدر ۵ در کلیپ‌بورد برای پیست در پنجره انتخاب فایل">
+                                        <span>📋</span> کپی مسیر فایل‌های تستر
+                                    </button>
+                                    <button class="action-btn" onclick="document.getElementById('testerReportFileInput').click()" style="background:#0284c7;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;">
+                                        <span>📁</span> بارگذاری فایل تست جدید (JSON/CSV)
+                                    </button>
+                                    <button class="action-btn" onclick="resetToInitialTesterReport()" style="background:#334155;color:#e2e8f0;border:1px solid #475569;padding:6px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;font-weight:600;">
+                                        🔄 بازنشانی به تست اخیر
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Meta Info Badges -->
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#090d16;padding:8px 12px;border-radius:6px;border:1px solid #1e293b;font-size:11.5px;">
+                                <span style="color:#94a3b8;">گزارش فعال:</span>
+                                <span id="tcBadgeReportTitle" style="color:#38bdf8;font-weight:bold;">تست استراتژی تستر متاتریدر ۵ - نماد GBPUSD! تایم M1</span>
+                                <span style="color:#475569;">|</span>
+                                <span style="color:#94a3b8;">نماد:</span>
+                                <span id="tcBadgeSymbol" style="color:#f59e0b;font-weight:bold;background:#78350f33;padding:2px 6px;border-radius:4px;border:1px solid #b45309;">GBPUSD!</span>
+                                <span style="color:#475569;">|</span>
+                                <span style="color:#94a3b8;">بازه زمانی تست:</span>
+                                <span id="tcBadgeDateRange" style="color:#a7f3d0;font-weight:bold;">2026.08.26 - 2026.09.03 (تست ۱۰ روزه)</span>
+                                <span style="color:#475569;">|</span>
+                                <span style="color:#94a3b8;">تعداد ستاپ‌ها:</span>
+                                <span id="tcBadgeTradesCount" style="color:#e0e7ff;font-weight:bold;">42 ستاپ (168 پوزیشن)</span>
+                                <span style="color:#475569;">|</span>
+                                <span style="color:#94a3b8;">تاریخ استخراج:</span>
+                                <span id="tcBadgeExportTime" style="color:#cbd5e1;">2026.09.07 01:01</span>
+                            </div>
+                        </div>
+
+                        <!-- 🚨 ROOT CAUSE ANALYSIS CALLOUT BOX -->
+                        <div id="tcForensicCalloutBox" class="section-box" style="margin-bottom:12px;background:#18111c;border:1px solid #ef4444;padding:12px 16px;border-radius:8px;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                <span style="font-size:20px;">🔬</span>
+                                <span style="font-size:13.5px;font-weight:bold;color:#38bdf8;">کالبدشکافی تست ۱۰ روزه استراتژی تستر متاتریدر ۵ (۲۶ اوت تا ۳ سپتامبر)</span>
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px;font-size:11.5px;line-height:1.5;">
+                                <div style="background:#221524;border:1px solid #7f1d1d;padding:9px 12px;border-radius:6px;">
+                                    <div style="color:#f87171;font-weight:bold;margin-bottom:3px;">۱. نتیجه کل و نرخ برد (Win Rate: 45.2%)</div>
+                                    <div style="color:#cbd5e1;">در این تست ۱۰ روزه، ۴۲ ستاپ معاملاتی کامل با اجرای اردر لیمیت دقیق توسط اکسپرت در تستر متاتریدر ثبت شد (۱۹ برد و ۲۳ باخت).</div>
+                                </div>
+                                <div style="background:#221524;border:1px solid #7f1d1d;padding:9px 12px;border-radius:6px;">
+                                    <div style="color:#f87171;font-weight:bold;margin-bottom:3px;">۲. تفکیک بازه زمانی دیتای تستر vs چارت زنده</div>
+                                    <div style="color:#cbd5e1;">۱۲ ستاپ اول (۲۶ و ۲۷ اوت) در روزهای قبل از تاریخ شروع چارت زنده بوده‌اند و ۳۰ ستاپ بعدی (۲۸ اوت الی ۳ سپتامبر) به طور ۱:۱ با ساختارهای اندیکاتور تطابق دارند.</div>
+                                </div>
+                                <div style="background:#221524;border:1px solid #7f1d1d;padding:9px 12px;border-radius:6px;">
+                                    <div style="color:#f87171;font-weight:bold;margin-bottom:3px;">۳. تایم‌فریم معاملات (۴۱ معامله M1 و ۱ معامله M15)</div>
+                                    <div style="color:#cbd5e1;">اکسپرت با InpEnableKingsM1=true اجرا شده و ۹۷٪ معاملات در تایم ۱ دقیقه بوده است. برای بازدهی بالاتر می‌توان سناریوی بدون M1 را لود کرد.</div>
+                                </div>
+                                <div style="background:#221524;border:1px solid #7f1d1d;padding:9px 12px;border-radius:6px;">
+                                    <div style="color:#f87171;font-weight:bold;margin-bottom:3px;">۴. اجرای دقیق اردرهای لیمیت بدون ریجکت</div>
+                                    <div style="color:#cbd5e1;">تمامی اردرهای مجاز لیمیت در لبه باکس‌ها کاشته شده و با موفقیت توسط موتور تستر متاتریدر پر شده‌اند.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 📊 6 COMPREHENSIVE FORENSIC KPI CARDS -->
+                        <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;margin-bottom:12px;">
+                            <!-- Card 1: Total Profit / PnL & Gap (مجموع سود اندیکاتور vs تستر و اختلاف کل) -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e3a5f;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#38bdf8;font-size:11px;font-weight:600;margin-bottom:4px;">💰 مجموع سود کل (تستر vs اندیکاتور)</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">تستر MT5 (واقعی)</div>
+                                        <div id="tcValNetActual" style="font-size:17px;font-weight:bold;color:#f87171;">-$28.96</div>
+                                    </div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
+                                    <div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">اندیکاتور (تئوریک)</div>
+                                        <div id="tcValNetInd" style="font-size:17px;font-weight:bold;color:#34d399;">-$49.90</div>
+                                    </div>
+                                </div>
+                                <div id="tcDiffTotalPnL" class="kpi-sub" style="color:#facc15;font-weight:bold;font-size:10px;direction:rtl;">اختلاف کل: +$20.94 (-327.9p) به نفع تستر</div>
+                            </div>
+
+                            <!-- Card 2: Win Rate (Win Rate تستر vs اندیکاتور) -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">🎯 نرخ برد ستاپ‌ها (Win Rate)</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">تستر MT5 (واقعی)</div>
+                                        <div id="tcValWinRateActual" style="font-size:18px;font-weight:bold;color:#f87171;">45.2%</div>
+                                    </div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
+                                    <div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">اندیکاتور (تئوریک)</div>
+                                        <div id="tcValWinRateSim" style="font-size:18px;font-weight:bold;color:#34d399;">42.9%</div>
+                                    </div>
+                                </div>
+                                <div id="tcDiffWinRate" class="kpi-sub" style="color:#34d399;font-weight:bold;font-size:10px;direction:rtl;">اختلاف: +2.3% به نفع تستر</div>
+                            </div>
+
+                            <!-- Card 3: Profit Factor -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">⚖️ پروفیت فکتور (Profit Factor)</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9.5px;color:#38bdf8;font-weight:600;">تستر MT5 (واقعی)</div>
+                                        <div id="tcValPfActual" style="font-size:18px;font-weight:bold;color:#f87171;">0.77</div>
+                                    </div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
+                                    <div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">اندیکاتور (تئوریک)</div>
+                                        <div id="tcValPfSim" style="font-size:18px;font-weight:bold;color:#34d399;">0.65</div>
+                                    </div>
+                                </div>
+                                <div id="tcDiffPf" class="kpi-sub" style="color:#34d399;font-weight:bold;font-size:10px;direction:rtl;">ضریب سود واقعی تستر vs اندیکاتور</div>
+                            </div>
+
+                            <!-- Card 4: Outcome Discrepancies (چند تا پوزیشن تو هر دو هستند ولی در یکی برده و در یکی باخته) -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">⚡ مغایرت نتیجه (برد در یکی / باخت در دیگری)</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9.5px;color:#f87171;font-weight:600;">مغایرت نتیجه</div>
+                                        <div id="tcValOutcomeDiff" style="font-size:18px;font-weight:bold;color:#f87171;">۱ ستاپ</div>
+                                    </div>
+                                    <div style="color:#64748b;font-size:13px;">vs</div>
+                                    <div>
+                                        <div style="font-size:9.5px;color:#34d399;font-weight:600;">همگام و منطبق</div>
+                                        <div id="tcValOutcomeAgreed" style="font-size:18px;font-weight:bold;color:#34d399;">۱۴ ستاپ</div>
+                                    </div>
+                                </div>
+                                <div id="tcOutcomeDiffSub" class="kpi-sub" style="color:#cbd5e1;font-size:10px;direction:rtl;">تغییر برنده/بازنده به علت لغزش مارکت یا تریل</div>
+                            </div>
+
+                            <!-- Card 5: Platform Presence (چند تا تو یکی هست و تو اون یکی نیست) -->
+                            <div class="kpi-card" style="background:#0c121e;border:1px solid #1e293b;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#94a3b8;font-size:11px;margin-bottom:4px;">🧩 حضور پوزیشن‌ها در پلتفرم‌ها</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9px;color:#34d399;font-weight:600;">مشترک در هر دو</div>
+                                        <div id="tcValBothPlatforms" style="font-size:16px;font-weight:bold;color:#34d399;">۱۵</div>
+                                    </div>
+                                    <div style="color:#334155;font-size:12px;">|</div>
+                                    <div>
+                                        <div style="font-size:9px;color:#38bdf8;font-weight:600;">فقط تستر</div>
+                                        <div id="tcValOnlyTester" style="font-size:16px;font-weight:bold;color:#38bdf8;">۲۷</div>
+                                    </div>
+                                    <div style="color:#334155;font-size:12px;">|</div>
+                                    <div>
+                                        <div style="font-size:9px;color:#f59e0b;font-weight:600;">فقط اندیکاتور</div>
+                                        <div id="tcValOnlyIndicator" style="font-size:16px;font-weight:bold;color:#f59e0b;">۳۵</div>
+                                    </div>
+                                </div>
+                                <div id="tcPlatformPresenceSub" class="kpi-sub" style="color:#94a3b8;font-size:10px;direction:rtl;">پوزیشن‌های خارج از لیمیت یا فیلترشده</div>
+                            </div>
+
+                            <!-- ⏱️ Box-to-Entry Latency & Pullback Speed Card -->
+                            <div class="kpi-card" style="background:#081b2f;border:1px solid #0284c7;padding:10px 14px;border-radius:8px;text-align:center;">
+                                <div class="kpi-title" style="color:#7dd3fc;font-size:11px;margin-bottom:4px;">⏱️ میانگین انتظار تا ورود (پولبک)</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0;">
+                                    <div>
+                                        <div style="font-size:9px;color:#38bdf8;font-weight:600;">سریع‌ترین</div>
+                                        <div id="tcValWaitMin" style="font-size:17px;font-weight:bold;color:#38bdf8;">-</div>
+                                    </div>
+                                    <div style="color:#334155;font-size:13px;">|</div>
+                                    <div>
+                                        <div style="font-size:9px;color:#00e676;font-weight:600;">میانگین</div>
+                                        <div id="tcValWaitAvg" style="font-size:17px;font-weight:bold;color:#00e676;">-</div>
+                                    </div>
+                                    <div style="color:#334155;font-size:13px;">|</div>
+                                    <div>
+                                        <div style="font-size:9px;color:#f59e0b;font-weight:600;">میانه</div>
+                                        <div id="tcValWaitMed" style="font-size:17px;font-weight:bold;color:#f59e0b;">-</div>
+                                    </div>
+                                </div>
+                                <div id="tcDiffWait" class="kpi-sub" style="color:#93c5fd;font-size:10px;">از تشکیل باکس تا لمس لیمیت</div>
+                            </div>
+                        </div>
+
+                        <!-- 🎛️ PARAMETER DRIFT COMPARISON TABLE -->
+                        <div class="section-box" style="margin-bottom:12px;background:#0d131f;border:1px solid #1e293b;padding:12px 16px;border-radius:8px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                                <div style="font-size:13.5px;font-weight:bold;color:#38bdf8;display:flex;align-items:center;gap:6px;">
+                                    <span>🎛️</span> جدول کالبدشکافی انحراف پارامترها (MT5 Test Inputs vs Strategy Scenario)
+                                </div>
+                                <span id="tcDriftSummaryBadge" style="font-size:11px;color:#fca5a5;background:#450a0a;padding:3px 8px;border-radius:4px;border:1px solid #991b1b;">⚠️ وضعیت انحراف پارامترها</span>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table class="data-table" style="width:100%;font-size:11.5px;border-collapse:collapse;">
+                                    <thead>
+                                        <tr style="background:#131c2e;color:#94a3b8;text-align:right;">
+                                            <th style="padding:7px 10px;">نام پارامتر اکسپرت</th>
+                                            <th style="padding:7px 10px;">مقدار در تست متاتریدر ۵</th>
+                                            <th id="tcColExpectedScenario" style="padding:7px 10px;">مقدار در سناریوی انتخابی</th>
+                                            <th style="padding:7px 10px;">وضعیت تطابق</th>
+                                            <th style="padding:7px 10px;">تأثیر بر عملکرد و راهکار اصلاح</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tcParamDriftBody">
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 📈 DUAL EQUITY CURVE COMPARISON CANVAS -->
+                        <div class="section-box" style="margin-bottom:12px;background:#0b111c;border:1px solid #1e293b;padding:12px 16px;border-radius:8px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                                <div style="font-size:13.5px;font-weight:bold;color:#38bdf8;display:flex;align-items:center;gap:6px;">
+                                    <span>📈</span> نمودار مقایسه‌ای رشد سرمایه: عملکرد واقعی اکسپرت در تستر متاتریدر ۵ vs شبیه‌ساز استراتژی
+                                </div>
+                                <div style="display:flex;align-items:center;gap:14px;font-size:11px;">
+                                    <span id="tcLegendTester" style="display:flex;align-items:center;gap:6px;color:#f87171;font-weight:600;">
+                                        <span style="width:14px;height:4px;background:#ef4444;display:inline-block;border-radius:2px;"></span> تستر MT5 (واقعی)
+                                    </span>
+                                    <span id="tcLegendStrategy" style="display:flex;align-items:center;gap:6px;color:#38bdf8;font-weight:600;">
+                                        <span style="width:14px;height:4px;background:#0284c7;display:inline-block;border-radius:2px;"></span> شبیه‌ساز استراتژی
+                                    </span>
+                                </div>
+                            </div>
+                            <div style="position:relative;width:100%;height:320px;background:#070b14;border:1px solid #1e293b;border-radius:6px;overflow:hidden;">
+                                <!-- ⚡ Live & Peak Concurrent Trades Corner Badge -->
+                                <div style="position:absolute;top:10px;left:10px;background:rgba(15,23,42,0.92);backdrop-filter:blur(6px);border:1px solid #0284c7;border-radius:6px;padding:4px 10px;z-index:10;display:flex;align-items:center;gap:8px;direction:rtl;pointer-events:none;">
+                                    <span style="font-size:12px;">⚡</span>
+                                    <span style="font-size:11px;color:#94a3b8;">حداکثر معامله باز همزمان تستر: <b style="color:#38bdf8;">۵ پوزیشن</b></span>
+                                </div>
+                                <canvas id="testerCompareCanvas" style="width:100%;height:100%;display:block;"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 🔍 DEAL-BY-DEAL FORENSIC AUDIT TABLE -->
+                        <div class="section-box" style="background:#0b111c;border:1px solid #1e293b;padding:12px 16px;border-radius:8px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                    <div style="font-size:13.5px;font-weight:bold;color:#38bdf8;display:flex;align-items:center;gap:6px;">
+                                        <span>🔍</span> <span id="tcTradesTableTitle">جدول بازرسی و کالبدشکافی معاملات تستر متاتریدر ۵</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:4px;background:#090d16;padding:2px 4px;border-radius:6px;border:1px solid #1e3a5f;">
+                                        <button id="btnSelectAllTrades" class="eq-subtab-btn active" onclick="quickSelectTesterReport('full', event)" style="font-weight:bold;color:#38bdf8;font-size:11px;">🌟 کل معاملات (۴۲ ستاپ)</button>
+                                        <button id="btnSelectKingsTrades" class="eq-subtab-btn" onclick="quickSelectTesterReport('kings', event)" style="font-weight:600;color:#cbd5e1;font-size:11px;">🎯 فقط سلاطین (۶ معامله)</button>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                    <button id="tcFilterAll" class="eq-subtab-btn active" onclick="filterTesterTradesTable('all', event)">همه (۴۲)</button>
+                                    <button id="tcFilterWin" class="eq-subtab-btn" onclick="filterTesterTradesTable('win', event)">بردها</button>
+                                    <button id="tcFilterLoss" class="eq-subtab-btn" onclick="filterTesterTradesTable('loss', event)">باخت‌ها</button>
+                                    <button id="tcFilterM1" class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">نویز تایم M1</button>
+                                    <button id="tcFilterSlip" class="eq-subtab-btn" onclick="filterTesterTradesTable('slip', event)">اسلیپیج بالا</button>
+                                    <button id="tcFilterBe" class="eq-subtab-btn" onclick="filterTesterTradesTable('be', event)">خروج در BE</button>
+                                    <button id="tcFilterDisc" class="eq-subtab-btn" onclick="filterTesterTradesTable('disc', event)" style="color:#fca5a5;border-color:#7f1d1d;">⚠️ مغایرت‌ها</button>
+                                    <input type="text" id="tcSearchInput" placeholder="جستجوی الگو یا تاریخ..." oninput="onTesterTradeSearch(this.value)" style="background:#1e293b;border:1px solid #334155;color:#fff;padding:5px 10px;border-radius:4px;font-size:11.5px;font-family:inherit;">
+                                </div>
+                            </div>
+                            <div style="overflow-x:auto;max-height:480px;overflow-y:auto;border:1px solid #1e293b;border-radius:6px;">
+                                <table id="testerTradesTable" class="data-table" style="width:100%;font-size:11px;border-collapse:collapse;text-align:right;">
+                                    <thead style="position:sticky;top:0;background:#0d1627;z-index:2;">
+                                        <tr style="color:#94a3b8;border-bottom:1px solid #334155;">
+                                            <th style="padding:7px 8px;width:35px;text-align:center;">#</th>
+                                            <th style="padding:7px 8px;text-align:right;">الگو (Pattern)</th>
+                                            <th style="padding:7px 8px;text-align:center;">تایم</th>
+                                            <th style="padding:7px 8px;text-align:center;">جهت</th>
+                                            <th style="padding:7px 8px;text-align:right;">زمان ورود</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">ورود تستر (Fill)</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">ورود اندیکاتور (Limit)</th>
+                                            <th style="padding:7px 8px;text-align:center;">لغزش (Slippage)</th>
+                                            <th style="padding:7px 8px;text-align:center;">حد ضرر (SL)</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">تارگت/خروج تستر</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">تارگت اندیکاتور</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">سود تستر ($)</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">سود اندیکاتور ($)</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">سود تستر (پیپ)</th>
+                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">سود اندیکاتور (پیپ)</th>
+                                            <th style="padding:7px 10px;text-align:right;">کالبدشکافی علت مغایرت</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="testerTradesBody">
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 🤖 MT5 EXPORT & SCENARIO GUIDE MODAL -->
+    <div id="mt5ExportModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;align-items:center;justify-content:center;backdrop-filter:blur(6px);direction:rtl;">
+        <div style="background:#0f172a;border:2px solid #10b981;border-radius:14px;padding:24px;width:90%;max-width:640px;box-shadow:0 20px 40px rgba(0,0,0,0.9);color:#f1f5f9;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
+                <h3 style="margin:0;color:#34d399;font-size:17px;display:flex;align-items:center;gap:8px;">
+                    <span>🤖 خروجی مستقیم استراتژی تستر متاتریدر ۵ (.ini)</span>
+                </h3>
+                <button onclick="closeMT5ExportModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">✖</button>
+            </div>
+
+            <div style="background:#064e3b22;border:1px solid #059669;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+                <div style="font-weight:bold;color:#facc15;font-size:13.5px;margin-bottom:6px;">🏷️ سناریوی انتخابی: <span id="mt5ModalTitle" style="color:#6ee7b7;">-</span></div>
+                <div style="font-size:11.5px;color:#38bdf8;font-family:monospace;direction:ltr;text-align:left;background:#030712;padding:6px 10px;border-radius:6px;border:1px solid #1e3a5f;margin-bottom:8px;display:flex;align-items:center;gap:6px;word-break:break-all;">
+                    <span>📁</span>
+                    <span id="mt5ModalFilename" style="font-weight:bold;">FlagPro_Tester.ini</span>
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;line-height:1.7;">
+                    این کانفیگ شامل بخش‌های استاندارد <code>[Tester]</code> و <code>[TesterInputs]</code> متاتریدر ۵ است و تمام فیلترهای بهینه‌شده، کف سود، ساعات، فیوز استاپ و سلاطین فعال را به استراتژی تستر تزریق می‌کند.
+                </div>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div style="background:#080d1a;border:1px solid #1e293b;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;">
+                <div style="font-weight:bold;color:#38bdf8;margin-bottom:8px;border-bottom:1px solid #1e293b;padding-bottom:5px;">📋 متغیرهای تنظیمی تستر (MT5 Inputs):</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;color:#cbd5e1;">
+                    <div>💰 کف سود دلاری (<code style="color:#facc15;">InpMinTradePotential</code>): <b id="mt5ParamMinPot" style="color:#34d399;">-</b></div>
+                    <div>⏰ ساعات معامله (<code style="color:#facc15;">InpAllowedTradingHours</code>): <b id="mt5ParamHours" style="color:#38bdf8;">-</b></div>
+                    <div>🚨 فیوز استاپ (<code style="color:#facc15;">InpConsecLossTrigger</code>): <b id="mt5ParamConsec" style="color:#fca5a5;">-</b></div>
+                    <div>⚡ اکشن فیوز (<code style="color:#facc15;">InpConsecLossAction</code>): <b id="mt5ParamConsecAct" style="color:#c084fc;">-</b></div>
+                    <div style="grid-column:span 2;">👑 سلاطین مجاز این سناریو (<code style="color:#facc15;">InpAllowedKingsList</code>): <span id="mt5ParamAllowed" style="color:#34d399;font-size:11px;direction:ltr;display:inline-block;font-weight:bold;">-</span></div>
+                    <div style="grid-column:span 2;">🚫 سلاطین غیرمجاز (<code style="color:#facc15;">InpDisabledKingsList</code>): <span id="mt5ParamDisabled" style="color:#94a3b8;font-size:11px;direction:ltr;display:inline-block;">-</span></div>
+                </div>
+            </div>
+
+            <!-- 3 Step Quick Guide -->
+            <div style="background:#1e1b4b22;border:1px solid #6366f1;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;">
+                <div style="font-weight:bold;color:#a5b4fc;margin-bottom:6px;">🚀 نحوه اعمال مستقیم در استراتژی تستر متاتریدر ۵ (Drag & Drop):</div>
+                <ol style="margin:0;padding-right:20px;color:#e2e8f0;line-height:1.8;">
+                    <li>روی دکمه سبز و درخشان <b>«📥 دانلود فایل تستر (.ini)»</b> کلیک کنید.</li>
+                    <li>پنجره <b>Strategy Tester</b> متاتریدر ۵ را باز کنید (کلید <b>Ctrl + R</b>).</li>
+                    <li>فایل <b>.ini</b> دانلود شده را با ماوس بکشید و داخل پنجره استراتژی تستر رها کنید (<b>Drag & Drop</b>). اکسپرت، نماد، تایم‌فریم و تمام ورودی‌ها فوراً لود می‌شوند! ✅</li>
+                </ol>
+            </div>
+
+            <!-- Destination Info Box -->
+            <div style="background:#042f2e;border:1px solid #0d9488;border-radius:6px;padding:8px 12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:#ccfbf1;flex-wrap:wrap;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span>📁 پوشه ذخیره پروفایل‌های تستر متاتریدر:</span>
+                    <span style="font-family:Consolas, monospace;color:#facc15;direction:ltr;display:inline-block;font-weight:bold;">MQL5\Profiles\Tester\</span>
+                </div>
+                <span id="saveStatusIndicator" style="color:#5eead4;font-size:11px;">آماده ذخیره‌سازی و درگ‌اند‌دراپ</span>
+            </div>
+
+            <!-- Preview Code Box (Collapsible) -->
+            <details style="margin-bottom:18px;background:#050811;border:1px solid #1e293b;border-radius:6px;padding:8px 12px;font-size:11px;">
+                <summary style="cursor:pointer;color:#94a3b8;font-weight:bold;">👁️ مشاهده متن فایل کانفیگ استراتژی تستر (.ini content)</summary>
+                <pre id="mt5ConfigCodeBox" style="margin-top:8px;direction:ltr;text-align:left;color:#4ade80;font-family:Consolas, monospace;white-space:pre-wrap;font-size:11px;user-select:all;max-height:220px;overflow-y:auto;"></pre>
+            </details>
+
+            <!-- Modal Action Buttons -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button onclick="copyMT5ConfigText()" style="background:#1e293b;border:1px solid #64748b;color:#f1f5f9;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                        <span>📋 کپی متن</span>
+                    </button>
+                    <button onclick="openTesterFolder()" id="btnOpenTesterFolder" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="باز کردن مستقیم پوشه تستر متاتریدر در ویندوز">
+                        <span>📂 پوشه تستر</span>
+                    </button>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button onclick="closeMT5ExportModal()" style="background:#1e293b;border:1px solid #475569;color:#cbd5e1;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;">بستن</button>
+                    <button onclick="downloadCurrentMT5SetFile()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="دانلود فایل ست معمولی (.set)">
+                        <span>📥 فایل (.set)</span>
+                    </button>
+                    <button onclick="saveCurrentMT5IniFileToTesterFolder()" id="btnSaveToTesterFolder" style="background:#047857;border:1px solid #10b981;color:#ecfdf5;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;" title="ذخیره خودکار مستقیم در پوشه Profiles/Tester متاتریدر">
+                        <span>💾 ذخیره تو تستر (.ini)</span>
+                    </button>
+                    <button onclick="downloadCurrentMT5IniFile()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;gap:6px;" title="دانلود فایل .ini جهت Drag & Drop به تستر">
+                        <span>📥 دانلود فایل تستر (.ini) - برای Drag & Drop</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💾 SAVE PRESET MODAL DIALOG -->

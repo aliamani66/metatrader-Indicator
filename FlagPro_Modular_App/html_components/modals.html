@@ -1,0 +1,128 @@
+    <div id="savePresetModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999999;align-items:center;justify-content:center;backdrop-filter:blur(5px);direction:rtl;">
+        <div style="background:#0f172a;border:2px solid #38bdf8;border-radius:14px;padding:22px;width:90%;max-width:540px;box-shadow:0 15px 35px rgba(0,0,0,0.9);color:#f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
+                <h3 style="margin:0;color:#38bdf8;font-size:18px;display:flex;align-items:center;gap:8px;">
+                    <span>💾 ذخیره ترکیب فعلی فیلترها به عنوان سناریو</span>
+                </h3>
+                <button onclick="closeSavePresetModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✖</button>
+            </div>
+            
+            <div style="background:#081420;border:1px solid #1e3a5f;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;">
+                <div style="font-weight:bold;color:#facc15;margin-bottom:8px;">📊 پیش‌نمایش عملکرد فیلترهای فعلی شما:</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;color:#cbd5e1;">
+                    <div>💰 کف سود: <b id="modalPreviewMinProfit" style="color:#34d399;">-</b></div>
+                    <div>⏰ ساعات معاملاتی: <b id="modalPreviewHours" style="color:#38bdf8;">-</b></div>
+                    <div>👑 سلاطین فعال: <b id="modalPreviewKings" style="color:#facc15;">-</b></div>
+                    <div>📊 تعداد معامله: <b id="modalPreviewTrades" style="color:#f1f5f9;">-</b></div>
+                    <div>🎯 وین‌ریت: <b id="modalPreviewWR" style="color:#34d399;">-</b></div>
+                    <div>⚖️ پرافیت فاکتور: <b id="modalPreviewPF" style="color:#38bdf8;">-</b></div>
+                    <div>⚡ میانگین سود هر ترید: <b id="modalPreviewAvg" style="color:#c084fc;">-</b></div>
+                    <div>🛡️ حداکثر افت سرمایه: <b id="modalPreviewDD" style="color:#fca5a5;">-</b></div>
+                    <div style="grid-column:span 2;background:#064e3b22;padding:6px 10px;border-radius:6px;border:1px solid #065f46;">
+                        💵 سود خالص کل: <b id="modalPreviewNet" style="color:#00e676;font-size:14px;">-</b>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;">نام سناریو (الزامی):</label>
+                <input id="modalPresetTitle" type="text" placeholder="مثال: استراتژی الماس من (PF 4.04 & WR 78%)" style="width:100%;box-sizing:border-box;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:6px;font-size:13px;font-family:inherit;" />
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;">توضیحات و خلاصه استراتژی:</label>
+                <input id="modalPresetDesc" type="text" placeholder="مثال: تارگت سود بالای ۳ دلار، بدون سلاطین پر استاپ، سشن نیویورک" style="width:100%;box-sizing:border-box;background:#1e293b;border:1px solid #334155;color:#fff;padding:9px 12px;border-radius:6px;font-size:12.5px;font-family:inherit;" />
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="closeSavePresetModal()" style="background:#1e293b;border:1px solid #475569;color:#cbd5e1;padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer;">انصراف</button>
+                <button onclick="confirmSaveCurrentPreset()" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(2,132,199,0.4);">✅ ذخیره سناریو</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔍 DATA VALIDATION & INTEGRITY AUDIT MODAL -->
+    <div id="dataValidationModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:99999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+        <div style="background:#0f172a;border:2px solid #6366f1;border-radius:12px;width:95%;max-width:760px;max-height:90vh;overflow-y:auto;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.8);position:relative;color:#f1f5f9;direction:rtl;font-family:inherit;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
+                <h3 style="margin:0;color:#c7d2fe;font-size:17px;display:flex;align-items:center;gap:8px;">
+                    <span>🔍</span>
+                    <span>سیستم اعتبارسنجی و تطابق داده‌های داشبورد (Data Integrity Audit)</span>
+                </h3>
+                <button onclick="closeDataValidationModal()" style="background:#1e293b;border:1px solid #475569;color:#94a3b8;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">✕</button>
+            </div>
+
+            <!-- Active File Dossier -->
+            <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:8px;padding:14px;margin-bottom:16px;">
+                <div style="font-weight:bold;color:#facc15;margin-bottom:10px;font-size:13px;display:flex;align-items:center;justify-content:space-between;">
+                    <span>📋 شناسنامه داده‌های فعال در حافظه داشبورد:</span>
+                    <span id="valSourceBadge"></span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:#cbd5e1;">
+                    <div>🌍 نماد معاملاتی: <b id="valActiveSymbol" style="color:#38bdf8;">-</b></div>
+                    <div>📁 نام فایل سورس: <b id="valFileName" style="color:#facc15;font-family:monospace;">-</b></div>
+                    <div>📅 بازه تاریخی معاملات: <b id="valDateSpan" style="color:#34d399;">-</b></div>
+                    <div>📊 تعداد معاملات: <b id="valTotalTrades" style="color:#f1f5f9;">-</b></div>
+                    <div>👑 سلاطین فعال نماد: <b id="valKingsCount" style="color:#facc15;">-</b></div>
+                    <div>🗓️ تعداد هفته‌های تحت پوشش: <b id="valWeeklyWeeks" style="color:#38bdf8;">-</b></div>
+                    <div style="grid-column:span 2;color:#94a3b8;font-size:11px;margin-top:4px;">
+                        ⏰ آخرین زمان تطبیق و اعتبارسنجی: <b id="valSyncTimestamp" style="color:#cbd5e1;">-</b>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab-by-Tab Checklist -->
+            <div style="background:#0b1320;border:1px solid #1e3a5f;border-radius:8px;padding:14px;margin-bottom:16px;">
+                <div style="font-weight:bold;color:#38bdf8;margin-bottom:10px;font-size:13px;">
+                    ✅ وضعیت همگام‌سازی و اعتبارسنجی تب‌های ۹ گانه:
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11.5px;">
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">📈 رشد سرمایه و شبیه‌ساز:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ ۱۰۰٪ همگام با معاملات فایل فعال</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">👑 سلاطین برگزیده و رتبه‌بندی:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ فرمول ۷ ستونه بازسازی شد</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">📑 ژورنال تفصیلی معاملات:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ کل پوزیشن‌ها با جزئیات آماده است</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">💎 کالبدشکافی خروج پلکانی:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ سود ۴ پله‌ای با حجم 0.04 محاسبه شد</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">📊 تفکیک عملکرد تایم‌فریم‌ها:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ جداول M1, M5, M15 و اسپرد همگام شد</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">📅 کارنامه هفته به هفته و ثبات:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ هفته‌های سبز/قرمز و چارت آپدیت شد</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">⚡ پیشنهادات استراتژیک سیستم:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ سناریوهای الماس و اسنایپر آماده اعمال</div>
+                    </div>
+                    <div style="background:#0f1d2e;padding:8px;border-radius:6px;border-right:3px solid #00e676;">
+                        <b style="color:#f1f5f9;">🤖 خروجی اکسپرت متاتریدر ۵:</b>
+                        <div style="color:#34d399;margin-top:2px;">✅ تولید مستقیم تنظیمات استاندارد .ini و .set</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How to Update Guide -->
+            <div style="background:#13201a;border:1px solid #059669;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#d1fae5;">
+                <div style="font-weight:bold;color:#34d399;margin-bottom:6px;">💡 راهنمای نحوه به‌روزرسانی اطلاعات (۱۰۰٪ خودکار):</div>
+                <div style="margin-bottom:6px;">
+                    <b>✅ بارگذاری مستقیم و آنی در مرورگر:</b> کافیست فایل CSV اکسپورت متاتریدر ۵ را مستقیماً داخل مرورگر بکشید و رها کنید (Drag & Drop) یا روی دکمه سبز «بارگذاری CSV نماد جدید...» در بالای صفحه کلیک نمایید. تمام تب‌ها، سلاطین، چارت اکوئیتی و ژورنال معاملات در کسری از ثانیه به‌صورت کاملاً خودکار و بدون نیاز به هیچ برنامه جانبی اجرا و به‌روزرسانی می‌شوند.
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;">
+                <button onclick="closeDataValidationModal()" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:7px 20px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;">متوجه شدم</button>
+            </div>
+        </div>
+    </div>
+

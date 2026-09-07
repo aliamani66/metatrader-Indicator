@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد جامع و هوشمند FlagPro (سیستم ماژولار تفکیک‌شده)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+<div class="app-layout">
+        <!-- 📌 COMPACT SIDEBAR NAVIGATION (RIGHT SIDE IN RTL) -->
+<!-- include: html_components/sidebar.html -->
+
+        <!-- Main Workspace -->
+        <main class="main-workspace">
+<!-- include: html_components/header.html -->
+
+<!-- include: html_components/tab_equity.html -->
+
+<!-- include: html_components/tab_kings.html -->
+
+<!-- include: html_components/tab_trades.html -->
+
+<!-- include: html_components/tabs_other.html -->
+
+<!-- include: html_components/tab_tester_compare.html -->
+        </main>
+</div>
+
+<!-- include: html_components/modals.html -->
+
+    <!-- Scripts (Modular Architecture) -->
+    <script src="data/initial_data.js"></script>
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/presets_engine.js"></script>
+    <script src="js/tabs/tab_kings.js"></script>
+    <script src="js/tabs/tab_timeframes.js"></script>
+    <script src="js/tabs/tab_weekly.js"></script>
+    <script src="js/core/csv_loader.js"></script>
+    <script src="js/core/data_store.js"></script>
+    <script src="js/core/exporter.js"></script>
+    <script src="js/tester_compare/tester_scenarios.js"></script>
+    <script src="js/tester_compare/tester_matcher.js"></script>
+    <script src="js/tester_compare/tester_renderer.js"></script>
+    <script src="js/tester_compare/tester_parser.js"></script>
+    <script src="js/tabs/tab_tester_compare.js"></script>
+    <script src="js/tabs/tab_journal.js"></script>
+    <script src="js/equity/equity_presets.js"></script>
+    <script src="js/equity/equity_controls.js"></script>
+    <script src="js/equity/equity_engine.js"></script>
+    <script src="js/equity/equity_canvas.js"></script>
+    <script src="js/tabs/tab_equity.js"></script>
+    <script src="js/core/app.js"></script>
+</body>
+</html>

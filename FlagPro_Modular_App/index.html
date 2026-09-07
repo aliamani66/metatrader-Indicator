@@ -73,9 +73,9 @@
             </div>
         </aside>
 
-        <!-- 🖥️ MAIN WORKSPACE CONTENT -->
+
+        <!-- Main Workspace -->
         <main class="main-workspace">
-            <!-- Workspace Top Bar -->
             <div class="workspace-header">
                 <div style="display:flex;align-items:center;gap:12px;">
                     <button id="btnToggleSidebarHeader" onclick="toggleSidebar()" style="background:#0f172a;border:1px solid #334155;color:#38bdf8;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="تغییر وضعیت منوی کناری (تمام‌صفحه / منو)" onmouseover="this.style.borderColor='#38bdf8';this.style.background='#1e293b'" onmouseout="this.style.borderColor='#334155';this.style.background='#0f172a'">
@@ -120,6 +120,8 @@
             </div>
 
             <!-- ==================== TAB: 📈 EQUITY & BALANCE CURVE ==================== -->
+
+
             <div id="tab-equity" class="tab-content active">
                 <div id="tab-equity-container">
 <!-- Equity Metrics Banner (Dynamically updated by simulation) -->
@@ -987,6 +989,8 @@
             </div>
 
             <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->
+
+
             <div id="tab-kings" class="tab-content">
                 <div id="tab-kings-container">
                     <div style="text-align:center;padding:50px;color:#94a3b8;font-size:14px;">در حال بارگذاری سلاطین برگزیده...</div>
@@ -994,6 +998,8 @@
             </div>
 
             <!-- ==================== TAB: 📑 TRADES JOURNAL & EXIT POINTS ==================== -->
+
+
             <div id="tab-trades" class="tab-content">
                 <div class="section-box" style="border: 1px solid #38bdf8; background: #081a2e;">
                     <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
@@ -1135,6 +1141,8 @@
             </div>
 
             <!-- ==================== TAB 2: 💎 SCALE-OUT & BREAK-EVEN ==================== -->
+
+
             <div id="tab-scaleout" class="tab-content">
                 <div id="tab-scaleout-container">
                     <div style="text-align:center;padding:50px;color:#94a3b8;font-size:14px;">در حال بارگذاری کالبدشکافی خروج پلکانی...</div>
@@ -1170,6 +1178,8 @@
             </div>
 
             <!-- ==================== TAB 9: 🔬 TESTER VS STRATEGY FORENSIC COMPARISON ==================== -->
+
+
             <div id="tab-tester-compare" class="tab-content">
                 <div id="tab-tester-compare-container">
                     <div style="padding: 4px 6px;">
@@ -1568,6 +1578,10 @@
     </div>
 
     <!-- 💾 SAVE PRESET MODAL DIALOG -->
+
+        </main>
+</div>
+
     <div id="savePresetModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999999;align-items:center;justify-content:center;backdrop-filter:blur(5px);direction:rtl;">
         <div style="background:#0f172a;border:2px solid #38bdf8;border-radius:14px;padding:22px;width:90%;max-width:540px;box-shadow:0 15px 35px rgba(0,0,0,0.9);color:#f1f5f9;">
             <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:12px;margin-bottom:16px;">
@@ -1696,6 +1710,8 @@
         </div>
     </div>
 
+
+
     <!-- Scripts (Modular Architecture) -->
     <script src="data/initial_data.js"></script>
     <script src="js/core/utils.js"></script>
@@ -1706,8 +1722,16 @@
     <script src="js/core/csv_loader.js"></script>
     <script src="js/core/data_store.js"></script>
     <script src="js/core/exporter.js"></script>
+    <script src="js/tester_compare/tester_scenarios.js"></script>
+    <script src="js/tester_compare/tester_matcher.js"></script>
+    <script src="js/tester_compare/tester_renderer.js"></script>
+    <script src="js/tester_compare/tester_parser.js"></script>
     <script src="js/tabs/tab_tester_compare.js"></script>
     <script src="js/tabs/tab_journal.js"></script>
+    <script src="js/equity/equity_presets.js"></script>
+    <script src="js/equity/equity_controls.js"></script>
+    <script src="js/equity/equity_engine.js"></script>
+    <script src="js/equity/equity_canvas.js"></script>
     <script src="js/tabs/tab_equity.js"></script>
     <script src="js/core/app.js"></script>
 </body>

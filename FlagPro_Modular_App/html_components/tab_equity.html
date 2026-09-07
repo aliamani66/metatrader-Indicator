@@ -1,0 +1,867 @@
+            <div id="tab-equity" class="tab-content active">
+                <div id="tab-equity-container">
+<!-- Equity Metrics Banner (Dynamically updated by simulation) -->
+            <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:8px;margin-bottom:10px;">
+                <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">💵 بالانس شروع حساب</div>
+                    <div class="kpi-value" style="color:#f1f5f9;font-size:16px;">$100</div>
+                    <div class="kpi-sub" style="font-size:9.5px;">شروع از 2026.08.26</div>
+                </div>
+                <div class="kpi-card" style="border-color:#00e676;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">📈 سود خالص کل</div>
+                    <div class="kpi-value" id="eqKpiNetVal" style="color:#00e676;font-size:16px;">+$24</div>
+                    <div class="kpi-sub" id="eqKpiNetSub" style="font-size:9.5px;">نرخ رشد حساب: +24.0٪</div>
+                </div>
+                <div class="kpi-card" style="border-color:#facc15;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">🏁 بالانس نهایی حساب</div>
+                    <div class="kpi-value" id="eqKpiFinalBal" style="color:#facc15;font-size:16px;">$124</div>
+                    <div class="kpi-sub" id="eqKpiPeakSub" style="font-size:9.5px;">سقف سرمایه: $133</div>
+                </div>
+                <div class="kpi-card" style="border-color:#ef4444;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">🛡️ حداکثر افت (Max DD)</div>
+                    <div class="kpi-value" id="eqKpiMaxDD" style="color:#fca5a5;font-size:16px;">$17 (13.1٪)</div>
+                    <div class="kpi-sub" id="eqKpiMaxDDSub" style="font-size:9.5px;">مدیریت ریسک کنترل‌شده</div>
+                </div>
+                <div class="kpi-card" style="border-color:#38bdf8;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">⚖️ پرافیت فاکتور (PF)</div>
+                    <div class="kpi-value" id="eqKpiPF" style="color:#38bdf8;font-size:16px;">2.95</div>
+                    <div class="kpi-sub" id="eqKpiPFSub" style="font-size:9.5px;">نسبت سود ناخالص به ضرر</div>
+                </div>
+                <div class="kpi-card" style="border-color:#10b981;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">🎯 وین‌ریت پله ۱ (WinRate)</div>
+                    <div class="kpi-value" id="eqKpiWR" style="color:#34d399;font-size:16px;">55.0%</div>
+                    <div class="kpi-sub" id="eqKpiWRSub" style="font-size:9.5px;">نرخ موفقیت حداقل ۱R</div>
+                </div>
+                <div class="kpi-card" style="border-color:#eab308;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">📊 تعداد معاملات فعال</div>
+                    <div class="kpi-value" id="eqKpiCnt" style="color:#facc15;font-size:16px;">20 معامله</div>
+                    <div class="kpi-sub" id="eqKpiCntSub" style="font-size:9.5px;">معاملات منطبق با فیلتر</div>
+                </div>
+                <div class="kpi-card" style="border-color:#a855f7;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">⚡ متوسط سود هر ترید</div>
+                    <div class="kpi-value" id="eqKpiAvgTrade" style="color:#c084fc;font-size:16px;">+$1.20</div>
+                    <div class="kpi-sub" id="eqKpiAvgTradeSub" style="font-size:9.5px;">میانگین خروجی هر ترید</div>
+                </div>
+                <div class="kpi-card" style="border-color:#0284c7;padding:6px 10px;">
+                    <div class="kpi-title" style="font-size:9.5px;">⚡ معامله باز همزمان</div>
+                    <div class="kpi-value" id="eqKpiConcVal" style="color:#38bdf8;font-size:16px;">4 معامله</div>
+                    <div class="kpi-sub" id="eqKpiConcSub" style="font-size:9.5px;">میانگین: 2.0 همزمان</div>
+                </div>
+            </div>
+
+                                    <!-- 🌟 2-COLUMN MAIN WORKSPACE GRID -->
+            <div class="equity-two-col-container" id="eqTwoColContainer">
+
+                <!-- 🔹 COLUMN 1: CHART SECTION (HALF-WIDTH) -->
+                <div class="equity-col-chart" id="eqColChart">
+                    <!-- 📈 INTERACTIVE EQUITY CANVAS GRAPH (AT THE VERY TOP) -->
+            <!-- Interactive Canvas Graph Container -->
+            <div class="section-box" style="border:1px solid #38bdf8;background:#0b0f19;padding:10px 14px;border-radius:8px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;margin-bottom:0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <h3 style="margin:0;color:#38bdf8;font-size:14px;display:flex;align-items:center;gap:6px;">
+                                <span>📈 منحنی تعاملی رشد بالانس و اکوئیتی</span>
+                            </h3>
+                            <span id="lblActiveEquityScenario" style="background:#0f2942;color:#38bdf8;padding:3px 9px;border-radius:5px;font-size:11px;border:1px solid #0284c7;font-weight:600;display:inline-flex;align-items:center;gap:4px;">📊 نتیجه تست خام (کل معاملات چارت)</span>
+                        </div>
+                        <p style="margin:3px 0 0 0;color:#94a3b8;font-size:11px;">رسم دقیق معامله به معامله با حرکت موس روی نقاط</p>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <div style="display:flex;background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:2px;gap:2px;">
+                            <button id="btnEqAll" onclick="switchEquityMode('all')" style="background:#0284c7;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;" title="نمایش نتیجه تست خام (همه معاملات بدون فیلتر)">
+                                🌐 تست خام
+                            </button>
+                            <button id="btnEqKings" onclick="switchEquityMode('kings')" style="background:transparent;color:#94a3b8;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;" title="نمایش سناریوی فیلترشده استراتژی">
+                                👑 سناریوی فیلترشده
+                            </button>
+                        </div>
+                        <button onclick="toggleDrawdownOverlay()" id="btnToggleDrawdown" style="background:#1e1b4b;border:1px solid #6366f1;color:#c7d2fe;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="نمایش یا پنهان‌سازی افت سرمایه (Drawdown) و خط سقف روی نمودار">
+                            <span>🛡️ افت سرمایه (DD): <b id="lblToggleDrawdownState" style="color:#4ade80;">روشن</b></span>
+                        </button>
+                        <button onclick="toggleTwoColLayout()" id="btnToggleTwoCol" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="تغییر حالت بین دو ستونی و تمام‌صفحه">
+                            <span>⛶</span><span>تمام‌صفحه / ستونی</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas Box -->
+                <div style="position:relative;width:100%;height:400px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                    <!-- ⚡ Live & Peak Concurrent Trades Corner Badge -->
+                    <div id="eqConcurrentBadge" style="position:absolute;top:12px;left:12px;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid #0284c7;border-radius:8px;padding:6px 12px;z-index:15;box-shadow:0 6px 20px rgba(0,0,0,0.6);display:flex;align-items:center;gap:10px;direction:rtl;pointer-events:none;">
+                        <div style="width:26px;height:26px;border-radius:6px;background:#0369a1;border:1px solid #38bdf8;display:flex;align-items:center;justify-content:center;font-size:13px;">
+                            ⚡
+                        </div>
+                        <div>
+                            <div style="font-size:9.5px;color:#94a3b8;font-weight:600;display:flex;align-items:center;gap:4px;">
+                                <span>تعداد معامله باز همزمان</span>
+                                <span id="lblLiveConcurrentTag" style="display:none;background:#22c55e;color:#052e16;padding:1px 5px;border-radius:3px;font-size:8.5px;font-weight:bold;">روی نقطه</span>
+                            </div>
+                            <div style="font-size:13.5px;color:#f8fafc;font-weight:bold;display:flex;align-items:baseline;gap:6px;margin-top:1px;">
+                                <span>حداکثر: <b id="lblMaxConcurrentTrades" style="color:#38bdf8;font-size:15px;">4</b></span>
+                                <span style="color:#475569;font-size:10px;">|</span>
+                                <span style="font-size:11px;color:#94a3b8;">میانگین: <b id="lblAvgConcurrentTrades" style="color:#facc15;">2.0</b></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <canvas id="equityCanvas" style="width:100%;height:100%;display:block;cursor:crosshair;"></canvas>
+                    <div id="equityTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #38bdf8;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:210px;"></div>
+                </div>
+
+                <!-- Graph Legend & Stats Bar -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#38bdf8;border-radius:2px;"></span> رشد بالانس</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#facc15;border-radius:2px;border-top:1px dashed #facc15;"></span> سقف سرمایه (HWM)</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:10px;background:#ef4444;border-radius:2px;"></span> میله‌های افت (Underwater DD)</span>
+                        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:3px;background:#475569;border-radius:2px;"></span> تراز پایه ($100)</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span>نقاط: <b id="lblEqPts" style="color:#facc15;">20</b></span>
+                        <span>|</span>
+                        <span>2026.08.26 تا 2026.09.04</span>
+                    </div>
+                </div>
+            </div>
+                </div>
+
+                <!-- 🔹 COLUMN 2: SUBTABS & CONTROLS (PRESETS / FILTERS / RISK) -->
+                <div class="equity-col-controls" id="eqColControls">
+                    <div style="background:#080d1a;border:1px solid #1e3a5f;border-radius:10px;padding:10px 12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                        <!-- Subtabs Navigation Bar -->
+                        <!-- 📑 SUB-NAVIGATION FOR CONTROLS & PRESETS -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:10px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button class="eq-subtab-btn active" onclick="openEqSubtab(event, 'eq-sub-presets')">
+                        ⚡ سناریوهای استراتژی
+                    </button>
+                    <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-filters')">
+                        🎛️ شبیه‌ساز فیلترها
+                    </button>
+                    <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-risk')">
+                        🚨 کالبدشکافی استاپ‌ها
+                    </button>
+                    <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-weekly')">
+                        📊 کارنامه هفتگی
+                    </button>
+                    <button class="eq-subtab-btn" onclick="openEqSubtab(event, 'eq-sub-compare')">
+                        ⚖️ مقایسه با کل چارت
+                    </button>
+                </div>
+                <div style="display:flex;gap:5px;align-items:center;">
+                    <button onclick="runClientAutoOptimizer()" style="background:linear-gradient(135deg, #7c3aed, #a855f7);border:1px solid #c084fc;color:#fff;font-size:11.5px;padding:5px 11px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 10px rgba(168,85,247,0.4);display:flex;align-items:center;gap:5px;">
+                        <span>🤖 بهینه‌ساز خودکار (AI)</span>
+                    </button>
+                    <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;">💾 ذخیره چیدمان</button>
+                    <button onclick="exportCurrentStateToMT5()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:4px;" title="خروجی مستقیم تنظیمات برای Strategy Tester متاتریدر (.ini) و اکسپرت (.set)">
+                        <span>🤖 تنظیمات تستر (.ini)</span>
+                    </button>
+                    <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:bold;">🔄 بازنشانی</button>
+                </div>
+            </div>
+
+                        <!-- Subpanels Scrollable Wrapper -->
+                        <div class="eq-subpanels-wrapper">
+                            <!-- SUBPANEL 1: PRESETS -->
+            <div id="eq-sub-presets" class="eq-subpanel active">
+                <!-- ⚡ SMART PRESETS & CUSTOM STRATEGY PORTFOLIOS -->
+            <div class="section-box" style="border: 2px solid #facc15; background: #0b1528; padding: 12px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 10px; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0;color:#facc15;font-size:16px;display:flex;align-items:center;gap:6px;">
+                            <span>⚡ پیشنهادات استراتژیک سیستم و سناریوهای شخصی شما</span>
+                        </h3>
+                        <p style="margin:3px 0 0 0;color:#94a3b8;font-size:11.5px;">با زدن دکمه «اعمال»، فیلترها روی چارت اعمال می‌شوند. با دکمه سبز می‌توانید هر چیدمانی را ذخیره کنید:</p>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                        <button onclick="openSavePresetModal()" style="background:linear-gradient(135deg, #059669, #10b981);border:1px solid #34d399;color:#fff;font-size:11.5px;padding:5px 11px;border-radius:5px;cursor:pointer;font-weight:bold;box-shadow:0 2px 8px rgba(16,185,129,0.3);display:flex;align-items:center;gap:4px;">
+                            <span>💾 ذخیره چیدمان فعلی</span>
+                        </button>
+                        <button onclick="exportCustomPresets()" style="background:#1e293b;border:1px solid #38bdf8;color:#7dd3fc;font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;" title="خروجی فایل پشتیبان JSON">
+                            📥 بکاپ (JSON)
+                        </button>
+                        <button onclick="document.getElementById('importPresetsInput').click()" style="background:#1e293b;border:1px solid #ca8a04;color:#fef08a;font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;" title="بارگذاری سناریوهای ذخیره‌شده">
+                            📤 بارگذاری
+                        </button>
+                        <input type="file" id="importPresetsInput" accept=".json" style="display:none;" onchange="importCustomPresets(event)" />
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:right;">
+                        <thead>
+                            <tr style="background:#1e293b;color:#94a3b8;border-bottom:2px solid #334155;font-size:11.5px;">
+                                <th style="padding:7px 5px;text-align:center;">#</th>
+                                <th style="padding:7px 8px;">نام و سناریو</th>
+                                <th style="padding:7px 6px;text-align:center;">تنظیمات کلیدی</th>
+                                <th style="padding:7px 4px;text-align:center;">تعداد</th>
+                                <th style="padding:7px 4px;text-align:center;">وین‌ریت</th>
+                                <th style="padding:7px 4px;text-align:center;">PF</th>
+                                <th style="padding:7px 4px;text-align:center;">متوسط سود</th>
+                                <th style="padding:7px 4px;text-align:center;">افت DD</th>
+                                <th style="padding:7px 6px;text-align:center;">سود خالص</th>
+                                <th style="padding:7px 6px;text-align:center;">عملیات</th>
+                            </tr>
+                        </thead>
+                        <!-- 1. SYSTEM BUILT-IN PRESETS -->
+                        <tbody id="systemPresetsTbody">
+                            
+        <tr id="presetRow0" style="border: 2px solid #facc15; background: #1c1806;transition:all 0.2s;" class="preset-table-row featured-preset">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;font-size:12px;color:#facc15;">#1</td>
+            <td style="padding:8px 8px;">
+                <div style="font-weight:700;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>🎯 اسنایپر هوشمند</span>
+                     <span style='background:#831843;color:#fbcfe8;font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:bold;'>🏆 منتخب (PF 3.94)</span>
+                </div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">بالاترین پرافیت فاکتور و بیشترین بازدهی با کنترل دقیق ریسک</div>
+            </td>
+            <td style="padding:8px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+                <div>حذف شب (۰۴ تا ۲۲)</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10px;margin-top:2px;">👑 3 سلطان فعال</div>
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;font-size:12px;color:#e2e8f0;">
+                15
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#34d399;font-size:12px;">
+                66.7٪
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
+                3.94
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#facc15;font-size:12px;">
+                $+3.11
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#fca5a5;font-size:11.5px;">
+                $6
+            </td>
+            <td style="text-align:center;padding:8px 6px;font-weight:800;color:#00e676;font-size:13px;background:#064e3b22;white-space:nowrap;">
+                +$47
+            </td>
+            <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                    <button id="btnApplyPreset0" class="apply-preset-btn" onclick="applySmartPreset(0)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 6px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی">
+                        ⚡ اعمال
+                    </button>
+                    <button onclick="exportPresetToMT5(0)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;" title="خروجی فایل تنظیمات تستر متاتریدر ۵ (.ini)">
+                        🤖 تستر
+                    </button>
+                </div>
+            </td>
+        </tr>
+        
+        <tr id="presetRow1" style="border-bottom: 1px solid #1e293b;transition:all 0.2s;" class="preset-table-row ">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;font-size:12px;color:#facc15;">#2</td>
+            <td style="padding:8px 8px;">
+                <div style="font-weight:700;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>⚖️ تعادل طلایی</span>
+                     <span style='background:#854d0e;color:#fef08a;font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:bold;'>⭐ سود متوازن</span>
+                </div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">بیشترین سود دلاری پایدار با حجم ترید بالا و پرافیت فاکتور مطلوب</div>
+            </td>
+            <td style="padding:8px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+                <div>حذف شب (۰۴ تا ۲۲) | کف: $1.0</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10px;margin-top:2px;">👑 3 سلطان فعال</div>
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;font-size:12px;color:#e2e8f0;">
+                15
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#34d399;font-size:12px;">
+                66.7٪
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
+                3.94
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#facc15;font-size:12px;">
+                $+3.11
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#fca5a5;font-size:11.5px;">
+                $6
+            </td>
+            <td style="text-align:center;padding:8px 6px;font-weight:800;color:#00e676;font-size:13px;background:#064e3b22;white-space:nowrap;">
+                +$47
+            </td>
+            <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                    <button id="btnApplyPreset1" class="apply-preset-btn" onclick="applySmartPreset(1)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 6px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی">
+                        ⚡ اعمال
+                    </button>
+                    <button onclick="exportPresetToMT5(1)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;" title="خروجی فایل تنظیمات تستر متاتریدر ۵ (.ini)">
+                        🤖 تستر
+                    </button>
+                </div>
+            </td>
+        </tr>
+        
+        <tr id="presetRow2" style="border-bottom: 1px solid #1e293b;transition:all 0.2s;" class="preset-table-row ">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;font-size:12px;color:#facc15;">#3</td>
+            <td style="padding:8px 8px;">
+                <div style="font-weight:700;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>☀️ سشن روزانه</span>
+                     <span style='background:#0c4a6e;color:#7dd3fc;font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:bold;'>☀️ اوج بازار</span>
+                </div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">معاملات پرقدرت روز در ساعات اوج نقدینگی و کمترین اسپرد</div>
+            </td>
+            <td style="padding:8px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+                <div>حذف شب (۰۴ تا ۲۲)</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10px;margin-top:2px;">👑 3 سلطان فعال</div>
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;font-size:12px;color:#e2e8f0;">
+                15
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#34d399;font-size:12px;">
+                66.7٪
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
+                3.94
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#facc15;font-size:12px;">
+                $+3.11
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#fca5a5;font-size:11.5px;">
+                $6
+            </td>
+            <td style="text-align:center;padding:8px 6px;font-weight:800;color:#00e676;font-size:13px;background:#064e3b22;white-space:nowrap;">
+                +$47
+            </td>
+            <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                    <button id="btnApplyPreset2" class="apply-preset-btn" onclick="applySmartPreset(2)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 6px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی">
+                        ⚡ اعمال
+                    </button>
+                    <button onclick="exportPresetToMT5(2)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;" title="خروجی فایل تنظیمات تستر متاتریدر ۵ (.ini)">
+                        🤖 تستر
+                    </button>
+                </div>
+            </td>
+        </tr>
+        
+        <tr id="presetRow3" style="border-bottom: 1px solid #1e293b;transition:all 0.2s;" class="preset-table-row ">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;font-size:12px;color:#facc15;">#4</td>
+            <td style="padding:8px 8px;">
+                <div style="font-weight:700;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>🛡️ سپر حداقل افت</span>
+                     <span style='background:#064e3b;color:#34d399;font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:bold;'>🛡️ حداقل افت ($9)</span>
+                </div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">محافظه‌کارانه‌ترین استراتژی با حذف گره‌های پرریسک و حفظ سرمایه</div>
+            </td>
+            <td style="padding:8px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+                <div>۲۴ ساعته | کف: $2.0</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10px;margin-top:2px;">👑 3 سلطان فعال</div>
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;font-size:12px;color:#e2e8f0;">
+                17
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#34d399;font-size:12px;">
+                64.7٪
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
+                3.59
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#facc15;font-size:12px;">
+                $+2.86
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#fca5a5;font-size:11.5px;">
+                $9
+            </td>
+            <td style="text-align:center;padding:8px 6px;font-weight:800;color:#00e676;font-size:13px;background:#064e3b22;white-space:nowrap;">
+                +$49
+            </td>
+            <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                    <button id="btnApplyPreset3" class="apply-preset-btn" onclick="applySmartPreset(3)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 6px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی">
+                        ⚡ اعمال
+                    </button>
+                    <button onclick="exportPresetToMT5(3)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;" title="خروجی فایل تنظیمات تستر متاتریدر ۵ (.ini)">
+                        🤖 تستر
+                    </button>
+                </div>
+            </td>
+        </tr>
+        
+        <tr id="presetRow4" style="border-bottom: 1px solid #1e293b;transition:all 0.2s;" class="preset-table-row ">
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;font-size:12px;color:#facc15;">#5</td>
+            <td style="padding:8px 8px;">
+                <div style="font-weight:700;color:#f1f5f9;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>🌐 سبد پایه ۲۴ ساعته</span>
+                     <span style='background:#1e293b;color:#94a3b8;font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:bold;'>🌐 کل چارت</span>
+                </div>
+                <div style="color:#94a3b8;font-size:10.5px;margin-top:2px;">شبیه‌سازی کامل تمام سلاطین در ۲۴ ساعت بدون فیلتر</div>
+            </td>
+            <td style="padding:8px 6px;font-size:11px;color:#cbd5e1;text-align:center;white-space:nowrap;">
+                <div>۲۴ ساعته کامل | بدون محدودیت کف</div>
+                <div style="font-weight:bold;color:#38bdf8;font-size:10px;margin-top:2px;">👑 3 سلطان فعال</div>
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;font-size:12px;color:#e2e8f0;">
+                20
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#34d399;font-size:12px;">
+                55.0٪
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:bold;color:#38bdf8;font-size:12.5px;">
+                2.32
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#facc15;font-size:12px;">
+                $+1.92
+            </td>
+            <td style="text-align:center;padding:8px 4px;font-weight:600;color:#fca5a5;font-size:11.5px;">
+                $17
+            </td>
+            <td style="text-align:center;padding:8px 6px;font-weight:800;color:#00e676;font-size:13px;background:#064e3b22;white-space:nowrap;">
+                +$38
+            </td>
+            <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
+                    <button id="btnApplyPreset4" class="apply-preset-btn" onclick="applySmartPreset(4)" style="background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;color:#fff;padding:4px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;box-shadow:0 2px 6px rgba(2,132,199,0.3);" title="اعمال این سناریو روی نمودار اکوئیتی">
+                        ⚡ اعمال
+                    </button>
+                    <button onclick="exportPresetToMT5(4)" style="background:linear-gradient(135deg, #065f46, #047857);border:1px solid #34d399;color:#ecfdf5;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-weight:bold;transition:all 0.2s;white-space:nowrap;" title="خروجی فایل تنظیمات تستر متاتریدر ۵ (.ini)">
+                        🤖 تستر
+                    </button>
+                </div>
+            </td>
+        </tr>
+        
+                        </tbody>
+                        <!-- 2. USER SAVED CUSTOM PRESETS HEADER -->
+                        <tbody id="customPresetsHeaderTbody">
+                            <tr style="background:#131d2e;border-top:2px solid #38bdf8;border-bottom:1px solid #1e3a5f;">
+                                <td colspan="10" style="padding:7px 10px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                        <div style="font-weight:bold;color:#38bdf8;font-size:12px;display:flex;align-items:center;gap:6px;">
+                                            <span>⭐ سناریوهای شخصی ذخیره‌شده شما:</span>
+                                            <span id="customPresetsCountBadge" style="background:#0c4a6e;color:#7dd3fc;font-size:10.5px;padding:1px 6px;border-radius:8px;">0 سناریو</span>
+                                        </div>
+                                        <div style="font-size:10.5px;color:#94a3b8;">
+                                            این سناریوها در مرورگر شما پایدارند و با هر دیتای جدید فوراً با همان شرایط بازمحاسبه می‌شوند.
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <!-- 3. USER SAVED CUSTOM PRESETS ROWS -->
+                        <tbody id="customPresetsTbody">
+                            <!-- Populated dynamically by loadCustomPresets() -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            </div>
+
+            <!-- SUBPANEL 2: FILTERS (SLIDER, HOURS, KINGS) -->
+            <div id="eq-sub-filters" class="eq-subpanel" style="display:none;">
+                <!-- 🎛️ REAL-TIME FILTER SIMULATOR CONTROL PANEL -->
+            <div class="section-box" style="border: 2px solid #0284c7; background: #081a2e; padding: 18px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e4976; padding-bottom: 12px; margin-bottom: 16px; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="margin:0;color:#38bdf8;font-size:18px;display:flex;align-items:center;gap:8px;">
+                            <span>🎛️ شبیه‌ساز تعاملی فیلترها و بهینه‌ساز نمودار رشد (Real-time Strategy Optimizer)</span>
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">با حذف/اضافه هر سلطان، تغییر ساعات معاملاتی یا حداقل سود، نمودار و تمام شاخص‌های بالا به صورت آنی بازرسم می‌شوند:</p>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button onclick="openSavePresetModal()" style="background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;display:flex;align-items:center;gap:5px;">
+                            <span>💾 ذخیره این ترکیب (Save Preset)</span>
+                        </button>
+                        <button onclick="resetAllSimFilters()" style="background:#1e293b;border:1px solid #ef4444;color:#fca5a5;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;transition:all 0.2s;">🔄 بازنشانی تمام فیلترها (Reset)</button>
+                    </div>
+                </div>
+
+                <!-- 1. KINGS SELECTOR SECTION -->
+                <div style="margin-bottom:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                        <div style="font-weight:bold;color:#facc15;font-size:13px;display:flex;align-items:center;gap:6px;">
+                            <span>👑 فیلتر سلاطین منتخب (انتخاب تک‌تک یا گروهی 3 گره برتر):</span>
+                            <span id="simKingsCountLabel" style="background:#854d0e;color:#fef08a;font-size:11px;padding:2px 8px;border-radius:10px;">3 از 3 سلطان فعال</span>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button onclick="selectAllKings(true)" style="background:#064e3b;border:1px solid #059669;color:#34d399;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:bold;">🟢 انتخاب همه</button>
+                            <button onclick="selectAllKings(false)" style="background:#450a0a;border:1px solid #dc2626;color:#fca5a5;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:bold;">🔴 لغو همه</button>
+                            <button onclick="selectOnlyPerfectKings()" style="background:#1e3a8a;border:1px solid #3b82f6;color:#93c5fd;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;">💎 فقط ۱۰۰٪ وین‌ریت</button>
+                            <button onclick="selectOnlyRunnerKings()" style="background:#3b0764;border:1px solid #a855f7;color:#e9d5ff;font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;">🚀 فقط الگوهای دونده</button>
+                        </div>
+                    </div>
+                    <!-- Kings Chips Grid -->
+                    <div id="simKingsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));gap:8px;max-height:220px;overflow-y:auto;padding-right:4px;">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+                </div>
+
+                <!-- 2. TRADING HOURS & PROFIT FILTER ROW -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;background:#061424;padding:14px;border-radius:10px;border:1px solid #133352;">
+                    
+                    <!-- 2A. TRADING HOURS -->
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <div style="color:#38bdf8;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                                <span>⏰ فیلتر ساعات معاملاتی و سشن‌ها:</span>
+                            </div>
+                            <span id="simHoursActiveBadge" style="font-size:11px;color:#7dd3fc;background:#0c4a6e;padding:2px 8px;border-radius:6px;">۲۴ ساعت فعال</span>
+                        </div>
+                        
+                        <!-- Hour Presets -->
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                            <button id="btnHAll" class="hour-preset-btn active" onclick="applyHourPreset('all', this)">🌍 ۲۴ ساعته</button>
+                            <button id="btnHNoNight" class="hour-preset-btn" onclick="applyHourPreset('no_night', this)" title="بسته شدن معاملات از ۲۲:۰۰ شب تا ۰۴:۰۰ صبح (دقیقاً سناریوی درخواستی)">🛡️ بستن شب (۲۲ تا ۰۴)</button>
+                            <button id="btnHLonNy" class="hour-preset-btn" onclick="applyHourPreset('lon_ny', this)">☀️ سشن لندن/نیویورک (۰۷ تا ۲۰)</button>
+                            <button id="btnHAsia" class="hour-preset-btn" onclick="applyHourPreset('asia', this)">🌙 سشن آسیا (۰۰ تا ۰۸)</button>
+                        </div>
+
+                        <!-- 24-Hour Visual Buttons Bar -->
+                        <div style="font-size:11px;color:#64748b;margin-bottom:4px;">کلیک روی هر ساعت برای فعال/غیرفعال کردن تکی:</div>
+                        <div id="simHoursBar" style="display:grid;grid-template-columns:repeat(12, 1fr);gap:4px;">
+                            <!-- 24 buttons 00 to 23 -->
+                        </div>
+                    </div>
+
+                    <!-- 2B. MINIMUM TARGET PROFIT FILTER -->
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <div style="color:#34d399;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                                <span>💰 فیلتر حداقل سود پتانسیل معامله (Min 1R Target $):</span>
+                            </div>
+                            <span id="simProfitBadge" style="font-size:11px;color:#6ee7b7;background:#064e3b;padding:2px 8px;border-radius:6px;">بدون فیلتر ($0)</span>
+                        </div>
+
+                        <!-- Presets -->
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                            <button class="profit-preset-btn active" data-val="0" onclick="applyProfitPreset(0.0, this)">همه ($0)</button>
+                            <button class="profit-preset-btn" data-val="1.5" onclick="applyProfitPreset(1.5, this)">$1.50+</button>
+                            <button class="profit-preset-btn" data-val="2" onclick="applyProfitPreset(2.0, this)" title="اگر سود تارگت زیر ۲ دلار بود معامله نشود">$2.00+ ⭐</button>
+                            <button class="profit-preset-btn" data-val="2.5" onclick="applyProfitPreset(2.5, this)">$2.50+</button>
+                            <button class="profit-preset-btn" data-val="3" onclick="applyProfitPreset(3.0, this)">$3.00+</button>
+                        </div>
+
+                        <!-- Slider / Number Input -->
+                        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
+                            <span style="font-size:12px;color:#94a3b8;">حداقل سود ۱R معامله (0.04 لات):</span>
+                            <input type="range" id="simProfitSlider" min="0" max="6" step="0.25" value="0" oninput="onProfitSliderInput(this.value)" style="flex:1;cursor:pointer;accent-color:#10b981;" />
+                            <span id="simProfitSliderVal" style="color:#34d399;font-family:monospace;font-weight:bold;font-size:14px;min-width:50px;text-align:left;">$0.00</span>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;margin-top:6px;">
+                            💡 در حجم 0.04 لات، سود تارگت اول معامله (1R) باید حداقل برابر این مبلغ باشد تا هزینه اسپرد/کمیسیون ($0.48) توجیه‌پذیر باشد.
+                        </div>
+                    </div>
+
+                </div>
+
+                                <!-- 2C. CONSECUTIVE LOSS FILTER ROW -->
+                <div style="margin-top:12px;background:#061424;padding:12px 14px;border-radius:10px;border:1px solid #133352;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                        <div style="color:#ef4444;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                            <span>🛡️ فیلتر وقفه بعد از استاپ‌های متوالی (Consecutive Loss Breaker):</span>
+                        </div>
+                        <span id="simConsecBadge2" style="font-size:11px;color:#cbd5e1;background:#1e293b;padding:2px 8px;border-radius:6px;">بدون وقفه (خاموش)</span>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        <button class="consec-btn-filter active" data-trig="0" data-sk="0" data-day="0" onclick="applyConsecFromFilterTab(0, 0, false, this)">همه معاملات (عادی)</button>
+                        <button class="consec-btn-filter" data-trig="2" data-sk="1" data-day="0" onclick="applyConsecFromFilterTab(2, 1, false, this)" title="دقیقاً سناریوی درخواستی: اگر ۲ استاپ متوالی خورد، معامله سوم گرفته نمی‌شود">🎯 بعد از ۲ استاپ 👈 رد معامله سوم</button>
+                        <button class="consec-btn-filter" data-trig="2" data-sk="2" data-day="0" onclick="applyConsecFromFilterTab(2, 2, false, this)">🛑 بعد از ۲ استاپ 👈 رد ۲ معامله</button>
+                        <button class="consec-btn-filter" data-trig="3" data-sk="1" data-day="0" onclick="applyConsecFromFilterTab(3, 1, false, this)">⚠️ بعد از ۳ استاپ 👈 رد ۱ معامله</button>
+                        <button class="consec-btn-filter" data-trig="2" data-sk="0" data-day="1" onclick="applyConsecFromFilterTab(2, 0, true, this)">🌙 بعد از ۲ استاپ 👈 توقف تا فردا</button>
+                    </div>
+                </div>
+
+                <!-- 2D. MT5 SMART ANTI-STOP & STRUCTURAL PATTERN FILTERS (FILTERS 1 TO 5) -->
+                <div style="margin-top:12px;background:#061424;padding:12px 14px;border-radius:10px;border:1px solid #1e3a5f;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                        <div style="color:#38bdf8;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                            <span>🛡️ فیلترهای هوشمند ضد استاپ و ساختاری متاتریدر (فیلترهای ۱ تا ۵):</span>
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="setAllMT5Filters(true)">فعال‌سازی همه ☑️</button>
+                            <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="setAllMT5Filters(false)">غیرفعال‌سازی همه ⬜</button>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:8px;">
+                        <!-- Filter 1: Night Hours -->
+                        <label id="lblFilterNight" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterNight" onchange="toggleMT5Filter('filterNightHours', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">🌙 فیلتر ۱: شبانه (۲۱ تا ۰۱)</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterNightHours (فرار از اسپرد شب)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 2: Pre-London Hunt -->
+                        <label id="lblFilterPreLondon" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterPreLondon" onchange="toggleMT5Filter('filterPreLondonHunt', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">⚡ فیلتر ۲: قبل لندن ۰۷:۰۰</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterPreLondonHunt (شکار آسیا)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 3: Toxic Patterns -->
+                        <label id="lblFilterToxic" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterToxic" onchange="toggleMT5Filter('filterToxicPatterns', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">☣️ فیلتر ۳: زنجیره‌های سمی</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterToxicPatterns (اشباع فرسایشی)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 4: Single LS -->
+                        <label id="lblFilterSingleLS" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterSingleLS" onchange="toggleMT5Filter('filterSingleLS', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">🛡️ فیلتر ۴: تک‌باکس‌های LS</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterSingleLS (باکس‌های منفرد)</span>
+                            </div>
+                        </label>
+                        <!-- Filter 5: Pure Flags -->
+                        <label id="lblFilterPureFlags" style="display:flex;align-items:center;gap:8px;background:#091422;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;cursor:pointer;user-select:none;transition:all 0.2s;">
+                            <input type="checkbox" id="chkFilterPureFlags" onchange="toggleMT5Filter('filterPureFlags', this.checked)" style="accent-color:#0284c7;cursor:pointer;width:15px;height:15px;" />
+                            <div style="display:flex;flex-direction:column;">
+                                <span style="font-size:11.5px;color:#f1f5f9;font-weight:bold;">🚩 فیلتر ۵: فلگ‌های بدون تلاقی</span>
+                                <span style="font-size:10px;color:#64748b;">InpFilterPureFlags (فلگ‌های نویز خالص)</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Status Footer -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid #133352;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        وضعیت فیلتر جاری: <b id="simActiveTradesCount" style="color:#facc15;">20</b> معامله فعال از مجموع <span id="simTotalBaseCount">20</span> معامله (<span id="simFilteredOutCount" style="color:#f87171;">0 معامله حذف شده</span>)
+                    </div>
+                    <div style="display:flex;gap:14px;color:#cbd5e1;">
+                        <span>وین‌ریت فیلترشده: <b id="simWinRateVal" style="color:#34d399;">66.5%</b></span>
+                        <span>پرافیت فاکتور فیلترشده: <b id="simPfVal" style="color:#38bdf8;">2.44</b></span>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- SUBPANEL 3: STOP LOSS RISK -->
+            <div id="eq-sub-risk" class="eq-subpanel" style="display:none;">
+                <!-- 🚨 STOP LOSS CONTROLLER & RISK ANALYZER -->
+                    <!-- 🛡️ CONSECUTIVE LOSSES ANALYZER & COOLDOWN CIRCUIT BREAKER -->
+                <div style="background: linear-gradient(135deg, #131b2e, #0c1222); border: 2px solid #38bdf8; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.15);">
+                    <!-- Header -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px; margin-bottom: 12px; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:20px;">🛡️</span>
+                            <div>
+                                <span style="font-weight:bold; color:#38bdf8; font-size:14px;">تحلیل تخصصی استاپ‌های پشت سر هم و فیلتر وقفه هوشمند (Consecutive Loss Breaker):</span>
+                                <div style="font-size:11px; color:#94a3b8; margin-top:2px;">بررسی آماری طول رگه‌های باخت و شبیه‌سازی زنده قانون «توقف بعد از استاپ‌های متوالی»</div>
+                            </div>
+                        </div>
+                        <!-- Quick Badge -->
+                        <div id="consecLossSummaryBadge" style="background:#0f2d4a; border:1px solid #0284c7; color:#7dd3fc; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold;">
+                            وضعیت: فیلتر خاموش (ترید عادی)
+                        </div>
+                    </div>
+
+                    <!-- Row 1: KPI Stats for Streaks -->
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-bottom:12px;">
+                        <div class="kpi-card" style="border-color:#ef4444; padding:8px 10px; background:#1e1420;">
+                            <div class="kpi-title" style="color:#fca5a5; font-size:10.5px;">🚨 سقف استاپ پشت هم</div>
+                            <div class="kpi-value" id="kpiMaxConsecLoss" style="color:#ef4444; font-size:18px;">۶ معامله</div>
+                            <div class="kpi-sub" id="kpiMaxLossSub" style="color:#cbd5e1; font-size:9.5px;">در کل بازه ۶ ماهه</div>
+                        </div>
+                        <div class="kpi-card" style="border-color:#10b981; padding:8px 10px; background:#0f241d;">
+                            <div class="kpi-title" style="color:#86efac; font-size:10.5px;">🏆 سقف برد پشت هم</div>
+                            <div class="kpi-value" id="kpiMaxConsecWin" style="color:#34d399; font-size:18px;">۱۳ معامله</div>
+                            <div class="kpi-sub" style="color:#cbd5e1; font-size:9.5px;">طولانی‌ترین رگه سود</div>
+                        </div>
+                        <div class="kpi-card" style="border-color:#f59e0b; padding:8px 10px; background:#241c0e;">
+                            <div class="kpi-title" style="color:#fcd34d; font-size:10.5px;">📊 تعداد رگه‌های باخت</div>
+                            <div class="kpi-value" id="kpiTotalLossStreaks" style="color:#facc15; font-size:18px;">۲۵۷ رگه</div>
+                            <div class="kpi-sub" style="color:#cbd5e1; font-size:9.5px;">توالی‌های منتهی به برد</div>
+                        </div>
+                        <div class="kpi-card" style="border-color:#a855f7; padding:8px 10px; background:#1c1328;">
+                            <div class="kpi-title" style="color:#d8b4fe; font-size:10.5px;">⚡ میانگین طول باخت‌ها</div>
+                            <div class="kpi-value" id="kpiAvgLossStreak" style="color:#c084fc; font-size:18px;">۱.۸ معامله</div>
+                            <div class="kpi-sub" style="color:#cbd5e1; font-size:9.5px;">اکثراً تک‌استاپ برمی‌گردد</div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Distribution Bars (1 SL, 2 SL, 3 SL, 4 SL, 5 SL, 6+ SL) -->
+                    <div style="background:#090e1a; border:1px solid #1e293b; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+                        <div style="font-size:11.5px; font-weight:bold; color:#cbd5e1; margin-bottom:8px; display:flex; justify-content:space-between;">
+                            <span>📊 فراوانی و توزیع رگه‌های استاپ متوالی در چیدمان فعال:</span>
+                            <span style="color:#64748b; font-size:10.5px;">(بررسی احتمال وقوع استاپ سوم بعد از خوردن ۲ استاپ)</span>
+                        </div>
+                        <div id="consecLossBarsGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:6px;">
+                            <!-- Filled dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Interactive Filter Controller -->
+                    <div style="background:#090e1a; border:1px solid #1e293b; border-radius:8px; padding:12px 14px;">
+                        <div style="font-size:12px; font-weight:bold; color:#38bdf8; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                            <span>🎛️ انتخاب سناریوی فیلتر استاپ متوالی (شبیه‌ساز آنی روی چارت):</span>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;">
+                            <button class="consec-btn active" id="btnConsecNone" onclick="setConsecLossFilter(0, 0, false, this)">
+                                ⚪ بدون فیلتر (ترید عادی)
+                            </button>
+                            <button class="consec-btn" id="btnConsec2Skip1" onclick="setConsecLossFilter(2, 1, false, this)" title="دقیقاً سناریوی درخواستی: اگر ۲ استاپ متوالی خورد، معامله سوم گرفته نمی‌شود">
+                                🎯 ۲ استاپ پشت‌هم 👈 معامله سوم رد شود (Skip 1)
+                            </button>
+                            <button class="consec-btn" id="btnConsec2Skip2" onclick="setConsecLossFilter(2, 2, false, this)">
+                                🛑 ۲ استاپ پشت‌هم 👈 ۲ معامله بعدی رد شود (Skip 2)
+                            </button>
+                            <button class="consec-btn" id="btnConsec3Skip1" onclick="setConsecLossFilter(3, 1, false, this)">
+                                ⚠️ ۳ استاپ پشت‌هم 👈 ۱ معامله بعدی رد شود
+                            </button>
+                            <button class="consec-btn" id="btnConsec2Daily" onclick="setConsecLossFilter(2, 0, true, this)" title="قانون شرکت‌های پراپ: اگر امروز ۲ استاپ خورد، کل باقی معاملات همان روز بسته شود">
+                                🌙 ۲ استاپ پشت‌هم 👈 توقف معاملات تا روز بعد
+                            </button>
+                        </div>
+
+                        <!-- Custom Controls Toggle / Inputs -->
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#070b14; padding:8px 12px; border-radius:6px; border:1px solid #1e293b; font-size:11.5px;">
+                            <span style="color:#94a3b8;">تنظیم دستی دلخواه:</span>
+                            <span>اگر</span>
+                            <select id="selConsecTrigger" onchange="onCustomConsecChange()" style="background:#0f172a; color:#f1f5f9; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:11px;">
+                                <option value="0">خاموش</option>
+                                <option value="1">۱ استاپ</option>
+                                <option value="2">۲ استاپ</option>
+                                <option value="3">۳ استاپ</option>
+                                <option value="4">۴ استاپ</option>
+                            </select>
+                            <span>پشت‌هم خورد،</span>
+                            <select id="selConsecAction" onchange="onCustomConsecChange()" style="background:#0f172a; color:#f1f5f9; border:1px solid #334155; border-radius:4px; padding:3px 6px; font-size:11px;">
+                                <option value="skip_1">۱ معامله بعدی رد شود</option>
+                                <option value="skip_2">۲ معامله بعدی رد شود</option>
+                                <option value="skip_3">۳ معامله بعدی رد شود</option>
+                                <option value="skip_day">تا روز بعد ترید متوقف شود</option>
+                            </select>
+                        </div>
+
+                        <!-- Impact Result Box -->
+                        <div id="consecFilterImpactBox" style="margin-top:10px; padding:8px 12px; border-radius:6px; background:#0d1829; border:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:11px;">
+                            <div style="color:#cbd5e1;">
+                                📌 تأثیر فیلتر روی چارت: <b id="consecSkippedTradesVal" style="color:#facc15;">0</b> معامله اسکیپ شد (<span id="consecSavedLossesVal" style="color:#00e676; font-weight:bold;">0 استاپ نجات یافت</span> | <span id="consecMissedWinsVal" style="color:#f87171;">0 برد از دست رفت</span>)
+                            </div>
+                            <div style="color:#38bdf8;">
+                                🛡️ وضعیت دراودان: <b id="consecDDImpactVal">افت سرمایه فعلی: $42.75</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="slRiskPanel" style="background: linear-gradient(135deg, #1c0808, #110505); border: 2px solid #ef4444; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #450a0a; padding-bottom: 8px; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px;">🚨</span>
+                                <div>
+                                    <span style="font-weight:bold; color:#fca5a5; font-size:13.5px;">کالبدشکافی پرریسک‌ترین سلاطین (بیشترین تعداد استاپ و زیان دلاری):</span>
+                                    <span style="font-size:11px; color:#cbd5e1; margin-right:6px;">سلاطین قرمز رنگ زیر بیشترین حجم ضرر را تولید می‌کنند؛ با یک کلیک می‌توانید آنها را حذف کنید:</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button id="btnRemoveTop3Cnt" onclick="toggleTop3SL('cnt')" style="background:#7f1d1d; border:1px solid #ef4444; color:#fff; font-size:11px; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition:all 0.2s;">
+                                    🚫 حذف ۳ سلطان با بیشترین استاپ (تعداد)
+                                </button>
+                                <button id="btnRemoveTop3Usd" onclick="toggleTop3SL('usd')" style="background:#450a0a; border:1px solid #dc2626; color:#fca5a5; font-size:11px; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition:all 0.2s;">
+                                    💸 حذف ۳ سلطان با بیشترین زیان دلاری
+                                </button>
+                                <button id="btnRemoveWorstRate" onclick="toggleWorstRateKings()" style="background:#3b0764; border:1px solid #a855f7; color:#e9d5ff; font-size:11px; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition:all 0.2s;" title="حذف الگوهایی با نرخ باخت نزدیک به ۵۰٪ مثل S-RS و RS-BE">
+                                    🛡️ حذف سلاطین کم‌دقت (باخت > ۴۵٪)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Top Stop Loss Cards Grid -->
+                        <div id="slTop3CardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px;">
+                            <!-- Dynamically generated by JS -->
+                        </div>
+                    </div>
+            </div>
+
+            <!-- SUBPANEL 4: WEEKLY P&L BARS -->
+            <div id="eq-sub-weekly" class="eq-subpanel" style="display:none;">
+                <!-- Interactive Weekly P&L Bar Chart Container -->
+            <div class="section-box" style="border:1px solid #10b981;background:#0b0f19;padding:10px 14px;margin-bottom:10px;border-radius:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:10px;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h3 style="margin:0;color:#10b981;font-size:15px;display:flex;align-items:center;gap:6px;">
+                            <span>📊 نمودار میله‌ای سود و زیان هفته به هفته (Weekly Net Profit & Loss)</span>
+                        </h3>
+                        <p style="margin:4px 0 0 0;color:#94a3b8;font-size:12px;">توزیع عملکرد دلاری 2 هفته متوالی - میله‌های سبز نشان‌دهنده سوددهی هفتگی و میله‌های قرمز نشان‌دهنده هفته‌های اصلاحی هستند:</p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="btnEqWkKings" class="sort-btn btn-wk-kings active" onclick="switchWeeklyBarMode('kings')">👑 سلاطین 3 گانه</button>
+                        <button id="btnEqWkAll" class="sort-btn btn-wk-all" onclick="switchWeeklyBarMode('all')">🌐 کل معاملات چارت</button>
+                    </div>
+                </div>
+
+                <!-- Canvas Box -->
+                <div style="position:relative;width:100%;height:340px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;overflow:hidden;">
+                    <canvas id="eqWeeklyBarCanvas" class="weekly-bar-canvas" style="width:100%;height:100%;display:block;cursor:pointer;"></canvas>
+                    <div id="eqWeeklyBarTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,23,42,0.95);border:1px solid #10b981;padding:10px 14px;border-radius:8px;font-size:12px;color:#f1f5f9;box-shadow:0 8px 24px rgba(0,0,0,0.7);z-index:20;direction:rtl;min-width:220px;"></div>
+                </div>
+
+                <!-- Legend & Summary -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:#94a3b8;flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:12px;background:#00e676;border-radius:2px;"></span> هفته سودده (Green Week)</span>
+                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;"></span> هفته زیان‌ده (Red Week)</span>
+                        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:14px;height:2px;background:#64748b;"></span> خط تراز صفر ($0)</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span>تعداد کل هفته‌ها: <b style="color:#f1f5f9;">2 هفته</b></span>
+                        <span>|</span>
+                        <span>هفته‌های سودده: <b style="color:#00e676;">2 هفته (100.0٪)</b></span>
+                        <span>|</span>
+                        <span>هفته‌های زیان‌ده: <b style="color:#ef4444;">0 هفته (0.0٪)</b></span>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- SUBPANEL 5: COMPARISON TABLE -->
+            <div id="eq-sub-compare" class="eq-subpanel" style="display:none;">
+                <!-- Comparison Table: Kings vs All -->
+            <div class="section-box" style="border:1px solid #475569;background:#1e293b;">
+                <div style="border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:14px;">
+                    <h4 style="margin:0;color:#e2e8f0;font-size:16px;">⚖️ مقایسه شاخص‌های کلیدی منحنی رشد: سلاطین منتخب در برابر کل معاملات خام چارت</h4>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#0f172a;color:#94a3b8;">
+                                <th>استراتژی و دامنه ساختارها</th>
+                                <th style="text-align:center;">تعداد کل معامله</th>
+                                <th style="text-align:center;">بالانس اولیه</th>
+                                <th style="text-align:center;">بالانس نهایی</th>
+                                <th style="text-align:center;">سود خالص دلاری ($)</th>
+                                <th style="text-align:center;">درصد رشد حساب</th>
+                                <th style="text-align:center;">حداکثر افت (Max Drawdown)</th>
+                                <th style="text-align:center;">قضاوت عملکرد</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eqCompareTableBody">
+                            <tr style="border-bottom:1px solid #334155;">
+                                <td style="font-weight:bold;color:#facc15;">👑 سبد سلاطین 3 گانه (گزینش هوشمند)</td>
+                                <td style="text-align:center;font-weight:bold;">20</td>
+                                <td style="text-align:center;">$100</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">$124</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">+$24</td>
+                                <td style="text-align:center;font-weight:bold;color:#00e676;">+24.0٪</td>
+                                <td style="text-align:center;color:#34d399;font-weight:bold;">$17 (13.1٪)</td>
+                                <td style="text-align:center;"><span style="background:#064e3b;color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">💎 رشد مستمر و اکوئیتی صعودی</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:bold;color:#94a3b8;">🌐 کل ساختارهای خام چارت (بدون فیلتر)</td>
+                                <td style="text-align:center;font-weight:bold;">175</td>
+                                <td style="text-align:center;">$100</td>
+                                <td style="text-align:center;font-weight:bold;color:#ef4444;">$-96</td>
+                                <td style="text-align:center;font-weight:bold;color:#ef4444;">-$196</td>
+                                <td style="text-align:center;font-weight:bold;color:#ef4444;">-195.8٪</td>
+                                <td style="text-align:center;color:#ef4444;font-weight:bold;">$231 (214.6٪)</td>
+                                <td style="text-align:center;"><span style="background:#451a03;color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;">⚠️ فرسایش ناشی از نویزها</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+                </div>
+            </div>
+
+            <!-- ==================== TAB 1: 👑 GOLDEN KINGS ==================== -->

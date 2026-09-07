@@ -1,0 +1,141 @@
+            <div id="tab-trades" class="tab-content">
+                <div class="section-box" style="border: 1px solid #38bdf8; background: #081a2e;">
+                    <div style="border-bottom: 1px solid #0284c7; padding-bottom: 14px; margin-bottom: 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <h3 style="margin:0;color:#38bdf8;font-size:20px;">📑 ژورنال جامع معاملات، استراتژی‌ها و نقاط خروج (Exit Targets)</h3>
+                                <p style="margin:6px 0 0 0;color:#bae6fd;font-size:13px;">نمایش زنده تمامی معاملات، نقاط ورود، استاپ، تارگت‌های ۴ گانه TP1..TP4، وضعیت تاچ خروج‌ها و سود/زیان خالص بر مبنای خروج پلکانی 0.04 لات:</p>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <span style="background:#0c4a6e;border:1px solid #0284c7;padding:6px 12px;border-radius:6px;font-size:12px;color:#7dd3fc;">حجم پایه: <b>0.04 لات</b></span>
+                                <span style="background:#1e293b;border:1px solid #475569;padding:6px 12px;border-radius:6px;font-size:12px;color:#e2e8f0;">اسپرد+کمیسیون: <b>$0.48</b></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI Summary Cards for Filtered Trades -->
+                    <div class="kpi-grid journal-kpi-grid" style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px;margin-bottom:10px;">
+                        <div class="kpi-card" style="padding:10px 14px;border-color:#38bdf8;background:#0c2d48;">
+                            <div class="kpi-title" style="font-size:11px;">تعداد کل معاملات فیلترشده</div>
+                            <div class="kpi-value" id="trKpiCount" style="font-size:20px;color:#38bdf8;">-</div>
+                            <div class="kpi-sub" id="trKpiCountSub">در این نمایش</div>
+                        </div>
+                        <div class="kpi-card" style="padding:10px 14px;border-color:#10b981;background:#063a2a;">
+                            <div class="kpi-title" style="font-size:11px;">سود خالص نهایی (Net PnL)</div>
+                            <div class="kpi-value" id="trKpiNet" style="font-size:20px;color:#34d399;">-</div>
+                            <div class="kpi-sub" id="trKpiNetSub">پس از کسر اسپرد</div>
+                        </div>
+                        <div class="kpi-card" style="padding:10px 14px;border-color:#facc15;background:#2a2408;">
+                            <div class="kpi-title" style="font-size:11px;">وین‌ریت حداقل TP1 (ریسک‌فری+)</div>
+                            <div class="kpi-value" id="trKpiWin1" style="font-size:20px;color:#facc15;">-</div>
+                            <div class="kpi-sub">تارگت اول و بدون ضرر</div>
+                        </div>
+                        <div class="kpi-card" style="padding:10px 14px;border-color:#a855f7;background:#24123a;">
+                            <div class="kpi-title" style="font-size:11px;">معاملات فول تارگت (TP4)</div>
+                            <div class="kpi-value" id="trKpiWin4" style="font-size:20px;color:#c084fc;">-</div>
+                            <div class="kpi-sub">پرتاب کامل ۱ به ۴</div>
+                        </div>
+                        <div class="kpi-card" style="padding:10px 14px;border-color:#ef4444;background:#351015;">
+                            <div class="kpi-title" style="font-size:11px;">معاملات استاپ خورده (SL)</div>
+                            <div class="kpi-value" id="trKpiLoss" style="font-size:20px;color:#f87171;">-</div>
+                            <div class="kpi-sub">حد زیان اولیه</div>
+                        </div>
+                        <div class="kpi-card" style="padding:10px 14px;border-color:#38bdf8;background:#0c2d48;">
+                            <div class="kpi-title" style="font-size:11px;">⏱️ میانگین انتظار تا ورود</div>
+                            <div class="kpi-value" id="trKpiAvgWait" style="font-size:20px;color:#38bdf8;">-</div>
+                            <div class="kpi-sub" id="trKpiAvgWaitSub">از تشکیل باکس تا لمس ورود</div>
+                        </div>
+                    </div>
+
+                    <!-- Filters & Controls Bar -->
+                    <div style="background:#0c253d;border:1px solid #1e4976;padding:12px 16px;border-radius:10px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                            <!-- Basket switch -->
+                            <span style="color:#94a3b8;font-size:12px;font-weight:bold;">سبد:</span>
+                            <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #0284c7;">
+                                <button id="btnTrBasketKings" class="active" onclick="setTrFilter('basket', 'kings', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 12px;font-size:11.5px;cursor:pointer;font-weight:bold;">👑 سلاطین برگزیده</button>
+                                <button id="btnTrBasketAll" onclick="setTrFilter('basket', 'all', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 12px;font-size:11.5px;cursor:pointer;font-weight:bold;">🌐 تمامی معاملات</button>
+                            </div>
+
+                            <!-- Timeframe switch -->
+                            <span style="color:#94a3b8;font-size:12px;font-weight:bold;margin-right:8px;">تایم‌فریم:</span>
+                            <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+                                <button class="active" onclick="setTrFilter('tf', 'ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">همه</button>
+                                <button onclick="setTrFilter('tf', 'M1', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">M1</button>
+                                <button onclick="setTrFilter('tf', 'M5', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">M5</button>
+                                <button onclick="setTrFilter('tf', 'M15', this)" style="background:#1e293b;color:#94a3b8;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">M15</button>
+                            </div>
+
+                            <!-- Direction switch -->
+                            <span style="color:#94a3b8;font-size:12px;font-weight:bold;margin-right:8px;">جهت:</span>
+                            <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+                                <button class="active" onclick="setTrFilter('dir', 'ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">همه</button>
+                                <button onclick="setTrFilter('dir', 'BUY', this)" style="background:#1e293b;color:#34d399;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🟢 خرید (BUY)</button>
+                                <button onclick="setTrFilter('dir', 'SELL', this)" style="background:#1e293b;color:#f87171;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🔴 فروش (SELL)</button>
+                            </div>
+
+                            <!-- Outcome switch -->
+                            <span style="color:#94a3b8;font-size:12px;font-weight:bold;margin-right:8px;">نتیجه:</span>
+                            <div style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+                                <button class="active" onclick="setTrFilter('outcome', 'ALL', this)" style="background:#0284c7;color:#fff;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">همه</button>
+                                <button onclick="setTrFilter('outcome', 'TP4', this)" style="background:#1e293b;color:#c084fc;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🎯 TP4</button>
+                                <button onclick="setTrFilter('outcome', 'TP2_PLUS', this)" style="background:#1e293b;color:#60a5fa;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🎯 TP2+</button>
+                                <button onclick="setTrFilter('outcome', 'TP1_PLUS', this)" style="background:#1e293b;color:#facc15;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🎯 TP1+</button>
+                                <button onclick="setTrFilter('outcome', 'LOSS', this)" style="background:#1e293b;color:#f87171;border:none;padding:5px 10px;font-size:11px;cursor:pointer;">🛑 SL</button>
+                            </div>
+                        </div>
+
+                        <!-- Search Input -->
+                        <div style="position:relative;">
+                            <input id="trSearchInput" type="text" placeholder="جستجو در استراتژی یا تاریخ..." oninput="onTrSearch(this.value)" style="background:#1e293b;border:1px solid #475569;border-radius:6px;color:#fff;padding:6px 12px;font-size:12px;width:210px;outline:none;" />
+                        </div>
+                    </div>
+
+                    <!-- Trades Table -->
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                            <thead>
+                                <tr style="background:#0e3355;color:#93c5fd;border-bottom:2px solid #0284c7;">
+                                    <th style="text-align:center;padding:10px 6px;">#</th>
+                                    <th style="text-align:center;padding:10px 8px;">زمان ورود / خروج</th>
+                                    <th style="text-align:center;padding:10px 6px;">تایم</th>
+                                    <th style="text-align:right;padding:10px 10px;">استراتژی / نقش ساختار</th>
+                                    <th style="text-align:center;padding:10px 8px;">جهت</th>
+                                    <th style="text-align:center;padding:10px 8px;">قیمت ورود</th>
+                                    <th style="text-align:center;padding:10px 8px;color:#f87171;">حد ضرر (SL)</th>
+                                    <th style="text-align:center;padding:10px 8px;color:#fbbf24;">تارگت ۱ (TP 1:1)</th>
+                                    <th style="text-align:center;padding:10px 8px;color:#60a5fa;">تارگت ۲ (TP 1:2)</th>
+                                    <th style="text-align:center;padding:10px 8px;color:#38bdf8;">تارگت ۳ (TP 1:3)</th>
+                                    <th style="text-align:center;padding:10px 8px;color:#c084fc;">تارگت ۴ (TP 1:4)</th>
+                                    <th style="text-align:center;padding:10px 8px;">نقطه و نوع خروج</th>
+                                    <th style="text-align:center;padding:10px 10px;color:#34d399;">سود خالص دلاری</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tradesTableBody">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Footer -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:10px 14px;background:#0c253d;border:1px solid #1e4976;border-radius:8px;flex-wrap:wrap;gap:10px;">
+                        <div id="trPaginationInfo" style="color:#94a3b8;font-size:12px;">نمایش ۱ تا ۵۰ از - معامله</div>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <button id="trBtnPrev" onclick="prevTrPage()" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;">◀ صفحه قبل</button>
+                            <span id="trPageCurrent" style="color:#facc15;font-weight:bold;font-size:13px;padding:0 8px;">صفحه ۱ از ۱</span>
+                            <button id="trBtnNext" onclick="nextTrPage()" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;">صفحه بعد ▶</button>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="color:#94a3b8;font-size:12px;">تعداد در صفحه:</span>
+                            <select id="trPageSize" onchange="changeTrPageSize(this.value)" style="background:#1e293b;border:1px solid #475569;color:#fff;padding:4px 8px;border-radius:5px;font-size:12px;outline:none;">
+                                <option value="25">۲۵</option>
+                                <option value="50" selected>۵۰</option>
+                                <option value="100">۱۰۰</option>
+                                <option value="250">۲۵۰</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== TAB 2: 💎 SCALE-OUT & BREAK-EVEN ==================== -->
