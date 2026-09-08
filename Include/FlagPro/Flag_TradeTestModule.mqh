@@ -49,14 +49,24 @@ void EnterFocusMode(int boxIdx, bool toggle = true)
    string boxName = g_drawnBoxes[boxIdx].boxName;
 
    // اگر قبلاً روی همین باکس کلیک شده بود، در صورت فعال بودن toggle خروج از حالت تمرکز
+   static ulong lastToggleTick = 0;
    if(g_focusModeActive && g_focusBoxIdx == boxIdx)
    {
       if(toggle)
       {
-         ExitFocusMode();
-         return;
+         if(GetTickCount64() - lastToggleTick > 400)
+         {
+            lastToggleTick = GetTickCount64();
+            ExitFocusMode();
+            return;
+         }
+         else
+         {
+            return; // نادیده گرفتن کلیک‌های دوبل و لرزش ماوس
+         }
       }
    }
+   lastToggleTick = GetTickCount64();
 
    // اگر روی باکس دیگری بودیم ابتدا پاکسازی شود
    if(g_focusModeActive)
@@ -202,6 +212,22 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, bgName, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, bgName, OBJPROP_BACK, false);
    ObjectSetInteger(0, bgName, OBJPROP_SELECTABLE, false);
+
+   // دکمه خروج اختصاصی در گوشه بالای پنل HUD
+   string btnClose = pfx + "CLOSE";
+   ObjectCreate(0, btnClose, OBJ_BUTTON, 0, 0, 0);
+   ObjectSetInteger(0, btnClose, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 485);
+   ObjectSetInteger(0, btnClose, OBJPROP_YDISTANCE, 35);
+   ObjectSetInteger(0, btnClose, OBJPROP_XSIZE, 26);
+   ObjectSetInteger(0, btnClose, OBJPROP_YSIZE, 20);
+   ObjectSetString(0, btnClose, OBJPROP_TEXT, "✕");
+   ObjectSetString(0, btnClose, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, btnClose, OBJPROP_FONTSIZE, 9);
+   ObjectSetInteger(0, btnClose, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, btnClose, OBJPROP_BGCOLOR, C'160,35,35');
+   ObjectSetInteger(0, btnClose, OBJPROP_BORDER_COLOR, clrRed);
+   ObjectSetInteger(0, btnClose, OBJPROP_SELECTABLE, false);
 
    // ۲. ردیف ۰: عنوان پنل و نام باکس
    string l0 = pfx + "TITLE";

@@ -432,15 +432,39 @@ void OnChartEvent(const int id,
                   const double &dparam,
                   const string &sparam)
 {
+   static ulong lastFocusActionTime = 0;
+
    if(id == CHARTEVENT_OBJECT_CLICK)
    {
+      // ۱. کلیک روی دکمه خروج [✕] در گوشه بالای پنل HUD
+      if(sparam == FP_PREFIX + "FOCUS_HUD_CLOSE")
+      {
+         ExitFocusMode();
+         ChartRedraw(0);
+         return;
+      }
+
+      // ۲. کلیک روی کادر یا برچسب متنی باکس
+      string targetBoxName = "";
       if(StringFind(sparam, FP_PREFIX + "BOX_") >= 0)
+      {
+         targetBoxName = sparam;
+      }
+      else if(StringFind(sparam, FP_PREFIX + "LBL_") >= 0)
+      {
+         targetBoxName = sparam;
+         StringReplace(targetBoxName, FP_PREFIX + "LBL_", "");
+      }
+
+      if(targetBoxName != "")
       {
          for(int b = 0; b < g_boxCount; b++)
          {
-            if(g_drawnBoxes[b].boxName == sparam)
+            if(g_drawnBoxes[b].boxName == targetBoxName)
             {
+               lastFocusActionTime = GetTickCount64();
                HighlightBox(b, true);
+               ChartRedraw(0);
                break;
             }
          }
@@ -448,6 +472,54 @@ void OnChartEvent(const int id,
    }
    else if(id == CHARTEVENT_CLICK)
    {
+      // اگر این رویداد کلیک بلافاصله (کمتر از ۵۰۰ میلی‌ثانیه) پس از کلیک روی آبجکت ارسال شده باشد،
+      // متعلق به همان کلیک اولیه ماوس است و هرگز نباید حالت تمرکز را ببندد!
+      if(GetTickCount64() - lastFocusActionTime < 500)
+      {
+         return;
+      }
+
+      // تبدیل مختصات پیکسلی کلیک به زمان و قیمت چارت جهت بررسی کلیک درون فضای باکس
+      int subWindow = 0;
+      datetime clickTime = 0;
+      double   clickPrice = 0.0;
+      if(ChartXYToTimePrice(0, (int)lparam, (int)dparam, subWindow, clickTime, clickPrice))
+      {
+         int clickedBoxIdx = -1;
+         for(int b = 0; b < g_boxCount; b++)
+         {
+            if(clickTime >= g_drawnBoxes[b].t1 && clickTime <= g_drawnBoxes[b].t2)
+            {
+               double top = MathMax(g_drawnBoxes[b].top, g_drawnBoxes[b].bottom);
+               double btm = MathMin(g_drawnBoxes[b].top, g_drawnBoxes[b].bottom);
+               if(clickPrice >= btm && clickPrice <= top)
+               {
+                  clickedBoxIdx = b;
+                  break;
+               }
+            }
+         }
+
+         if(clickedBoxIdx >= 0)
+         {
+            lastFocusActionTime = GetTickCount64();
+            HighlightBox(clickedBoxIdx, true);
+            ChartRedraw(0);
+            return;
+         }
+      }
+
+      // اگر کاربر داخل کادر پنل HUD در گوشه بالا-چپ کلیک کرده باشد، خارج نشو
+      if(IsFocusModeActive())
+      {
+         int x = (int)lparam;
+         int y = (int)dparam;
+         if(x >= 20 && x <= 530 && y >= 30 && y <= 195)
+         {
+            return; // کلیک درون پنل اطلاعاتی HUD
+         }
+      }
+
       // با کلیک روی فضای خالی چارت، حالت تمرکز بسته می‌شود
       if(IsFocusModeActive() || g_selectedBoxName != "")
       {
