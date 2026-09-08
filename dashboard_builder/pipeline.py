@@ -211,6 +211,8 @@ def build_dashboard(custom_csv=None):
     clean_sym_name = default_data.get('clean_symbol', default_sym)
     out_paths = [
         os.path.join(files_dir, "flagpro_performance_dashboard.html"),
+        os.path.join(files_dir, "eurusd_performance_report.html"),
+        os.path.join(files_dir, "gbpusd_performance_report.html"),
         os.path.join(files_dir, f"{clean_sym_name.lower()}_performance_report.html"),
         os.path.join(repo_root, "FlagPro_Master_Dashboard.html"),
         r"C:\Users\USER\Desktop\FlagPro_Dashboard.html"

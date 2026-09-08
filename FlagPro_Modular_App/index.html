@@ -1388,7 +1388,7 @@
                         <!-- 🔍 DEAL-BY-DEAL FORENSIC AUDIT TABLE -->
                         <div class="section-box" style="background:#0b111c;border:1px solid #1e293b;padding:12px 16px;border-radius:8px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                                     <div style="font-size:13.5px;font-weight:bold;color:#38bdf8;display:flex;align-items:center;gap:6px;">
                                         <span>🔍</span> <span id="tcTradesTableTitle">جدول بازرسی و کالبدشکافی معاملات تستر متاتریدر ۵</span>
                                     </div>
@@ -1396,6 +1396,9 @@
                                         <button id="btnSelectAllTrades" class="eq-subtab-btn active" onclick="quickSelectTesterReport('full', event)" style="font-weight:bold;color:#38bdf8;font-size:11px;">🌟 کل معاملات (<span id="tcTotalTradesBtnCount">--</span> ستاپ)</button>
                                         <button id="btnSelectKingsTrades" class="eq-subtab-btn" onclick="quickSelectTesterReport('kings', event)" style="font-weight:600;color:#cbd5e1;font-size:11px;">🎯 فقط سلاطین (<span id="tcKingsTradesBtnCount">--</span> معامله)</button>
                                     </div>
+                                    <button id="tcToggleExpandBtn" onclick="toggleTesterTableExpand()" class="eq-subtab-btn" style="color:#38bdf8;font-size:11px;padding:3px 8px;border-color:#0284c7;display:flex;align-items:center;gap:4px;" title="تغییر ارتفاع جدول بین حالت جمع‌وجور و تمام‌صفحه">
+                                        <span id="tcExpandIcon">⤢</span> <span id="tcExpandText">ارتفاع کامل جدول</span>
+                                    </button>
                                 </div>
                                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                                     <button id="tcFilterAll" class="eq-subtab-btn active" onclick="filterTesterTradesTable('all', event)">همه</button>
@@ -1403,32 +1406,32 @@
                                     <button id="tcFilterSimOnly" class="eq-subtab-btn" onclick="filterTesterTradesTable('sim_only', event)" style="color:#facc15;">🔮 فقط شبیه‌ساز</button>
                                     <button id="tcFilterWin" class="eq-subtab-btn" onclick="filterTesterTradesTable('win', event)">بردها</button>
                                     <button id="tcFilterLoss" class="eq-subtab-btn" onclick="filterTesterTradesTable('loss', event)">باخت‌ها</button>
-                                    <button id="tcFilterM1" class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">نویز M1</button>
-                                    <button id="tcFilterSlip" class="eq-subtab-btn" onclick="filterTesterTradesTable('slip', event)">اسلیپیج بالا</button>
-                                    <button id="tcFilterBe" class="eq-subtab-btn" onclick="filterTesterTradesTable('be', event)">خروج در BE</button>
+                                    <button id="tcFilterM1" class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">نویز <bdi>M1</bdi></button>
+                                    <button id="tcFilterSlip" class="eq-subtab-btn" onclick="filterTesterTradesTable('slip', event)">اسلیپیج بالا &gt; <bdi>2p</bdi></button>
+                                    <button id="tcFilterBe" class="eq-subtab-btn" onclick="filterTesterTradesTable('be', event)">خروج در <bdi>BE</bdi></button>
                                     <button id="tcFilterDisc" class="eq-subtab-btn" onclick="filterTesterTradesTable('disc', event)" style="color:#fca5a5;border-color:#7f1d1d;">⚠️ مغایرت‌ها</button>
                                     <input type="text" id="tcSearchInput" placeholder="جستجوی الگو یا تاریخ..." oninput="onTesterTradeSearch(this.value)" style="background:#1e293b;border:1px solid #334155;color:#fff;padding:5px 10px;border-radius:4px;font-size:11.5px;font-family:inherit;">
                                 </div>
                             </div>
-                            <div style="overflow-x:auto;max-height:480px;overflow-y:auto;border:1px solid #1e293b;border-radius:6px;">
+                            <div id="testerTradesContainer" style="overflow-x:auto;max-height:480px;overflow-y:auto;border:1px solid #1e293b;border-radius:6px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#38bdf8 #0f172a;transition:max-height 0.25s ease;">
                                 <table id="testerTradesTable" class="data-table" style="width:100%;font-size:11px;border-collapse:collapse;text-align:right;">
-                                    <thead style="position:sticky;top:0;background:#0d1627;z-index:2;">
+                                    <thead style="position:sticky;top:0;background:#0d1627;z-index:2;user-select:none;">
                                         <tr style="color:#94a3b8;border-bottom:1px solid #334155;">
-                                            <th style="padding:7px 8px;width:35px;text-align:center;">#</th>
-                                            <th style="padding:7px 8px;text-align:right;">الگو (Pattern)</th>
-                                            <th style="padding:7px 8px;text-align:center;">تایم</th>
-                                            <th style="padding:7px 8px;text-align:center;">جهت</th>
-                                            <th style="padding:7px 8px;text-align:right;">زمان ورود</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">ورود تستر (Fill)</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">ورود اندیکاتور (Limit)</th>
-                                            <th style="padding:7px 8px;text-align:center;">لغزش (Slippage)</th>
-                                            <th style="padding:7px 8px;text-align:center;">حد ضرر (SL)</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">تارگت/خروج تستر</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">تارگت اندیکاتور</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">سود تستر ($)</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">سود اندیکاتور ($)</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;">سود تستر (پیپ)</th>
-                                            <th style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;">سود اندیکاتور (پیپ)</th>
+                                            <th onclick="sortTesterTradesTable('id')" style="padding:7px 8px;width:35px;text-align:center;cursor:pointer;" title="مرتب‌سازی بر اساس شناسه"># <span id="tcSort_id">▲</span></th>
+                                            <th onclick="sortTesterTradesTable('pattern')" style="padding:7px 8px;text-align:right;cursor:pointer;" title="مرتب‌سازی بر اساس الگو">الگو (Pattern) <span id="tcSort_pattern"></span></th>
+                                            <th onclick="sortTesterTradesTable('tf')" style="padding:7px 8px;text-align:center;cursor:pointer;" title="مرتب‌سازی بر اساس تایم‌فریم">تایم <span id="tcSort_tf"></span></th>
+                                            <th onclick="sortTesterTradesTable('dir')" style="padding:7px 8px;text-align:center;cursor:pointer;" title="مرتب‌سازی بر اساس جهت">جهت <span id="tcSort_dir"></span></th>
+                                            <th onclick="sortTesterTradesTable('time')" style="padding:7px 8px;text-align:right;cursor:pointer;" title="مرتب‌سازی بر اساس زمان ورود">زمان ورود <span id="tcSort_time"></span></th>
+                                            <th onclick="sortTesterTradesTable('fill')" style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;cursor:pointer;" title="مرتب‌سازی بر اساس قیمت ورود تستر">ورود تستر (Fill) <span id="tcSort_fill"></span></th>
+                                            <th onclick="sortTesterTradesTable('limit')" style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;cursor:pointer;" title="مرتب‌سازی بر اساس قیمت ورود اندیکاتور">ورود اندیکاتور (Limit) <span id="tcSort_limit"></span></th>
+                                            <th onclick="sortTesterTradesTable('slip')" style="padding:7px 8px;text-align:center;cursor:pointer;" title="مرتب‌سازی بر اساس لغزش">لغزش (Slippage) <span id="tcSort_slip"></span></th>
+                                            <th onclick="sortTesterTradesTable('sl')" style="padding:7px 8px;text-align:center;cursor:pointer;" title="مرتب‌سازی بر اساس حد ضرر">حد ضرر (SL) <span id="tcSort_sl"></span></th>
+                                            <th onclick="sortTesterTradesTable('tExit')" style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;cursor:pointer;" title="مرتب‌سازی بر اساس خروج تستر">تارگت/خروج تستر <span id="tcSort_tExit"></span></th>
+                                            <th onclick="sortTesterTradesTable('indTgt')" style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;cursor:pointer;" title="مرتب‌سازی بر اساس تارگت اندیکاتور">تارگت اندیکاتور <span id="tcSort_indTgt"></span></th>
+                                            <th onclick="sortTesterTradesTable('pnlUSD')" style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;cursor:pointer;" title="مرتب‌سازی بر اساس سود دلاری تستر">سود تستر ($) <span id="tcSort_pnlUSD"></span></th>
+                                            <th onclick="sortTesterTradesTable('indNet')" style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;cursor:pointer;" title="مرتب‌سازی بر اساس سود دلاری اندیکاتور">سود اندیکاتور ($) <span id="tcSort_indNet"></span></th>
+                                            <th onclick="sortTesterTradesTable('pnlPips')" style="padding:7px 8px;text-align:center;color:#38bdf8;background:#0f2438;border-right:1px solid #1e3a5f;cursor:pointer;" title="مرتب‌سازی بر اساس سود پیپ تستر">سود تستر (پیپ) <span id="tcSort_pnlPips"></span></th>
+                                            <th onclick="sortTesterTradesTable('indPips')" style="padding:7px 8px;text-align:center;color:#34d399;background:#0d2e24;border-right:1px solid #064e3b;cursor:pointer;" title="مرتب‌سازی بر اساس سود پیپ اندیکاتور">سود اندیکاتور (پیپ) <span id="tcSort_indPips"></span></th>
                                             <th style="padding:7px 10px;text-align:right;">کالبدشکافی علت مغایرت</th>
                                         </tr>
                                     </thead>

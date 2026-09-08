@@ -432,11 +432,12 @@ function renderParameterDriftTable(report, scenarioKey) {
     tbody.innerHTML = html;
 }
 
-function drawTesterCompareChart(report, scenarioKey) {
+function drawTesterCompareChart(report, scenarioKey, hoverIdx) {
     let canvas = document.getElementById('testerCompareCanvas');
     if (!canvas) return;
     let ctx = canvas.getContext('2d');
     if (!ctx) return;
+    hoverIdx = (typeof hoverIdx !== 'undefined' && hoverIdx !== null) ? hoverIdx : -1;
 
     let scenario = resolveActiveScenario(scenarioKey, report);
 
@@ -668,7 +669,7 @@ function drawTesterCompareChart(report, scenarioKey) {
     }
 
     // Hover Tooltip / Crosshair
-    if (hoverIdx !== undefined && hoverIdx >= 0 && hoverIdx < n) {
+    if (typeof hoverIdx !== 'undefined' && hoverIdx !== null && hoverIdx >= 0 && hoverIdx < n) {
         let hX = getX(hoverIdx);
         let hYAct = getY(actPoints[hoverIdx].val);
         let hYSim = getY(simPoints[hoverIdx].val);
@@ -783,15 +784,30 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
     let cntMatched = processed.filter(x => x.matchType === 'matched').length;
     let cntSimOnly = processed.filter(x => x.matchType === 'sim_only').length;
 
-    let bAll = document.getElementById('tcFilterAll'); if (bAll) bAll.textContent = 'همه (' + cntAll + ')';
-    let bWin = document.getElementById('tcFilterWin'); if (bWin) bWin.textContent = 'بردها (' + cntWin + ')';
-    let bLoss = document.getElementById('tcFilterLoss'); if (bLoss) bLoss.textContent = 'باخت‌ها (' + cntLoss + ')';
-    let bM1 = document.getElementById('tcFilterM1'); if (bM1) bM1.textContent = 'نویز M1 (' + cntM1 + ')';
-    let bSlip = document.getElementById('tcFilterSlip'); if (bSlip) bSlip.textContent = 'اسلیپیج بالا > 2p (' + cntSlip + ')';
-    let bBe = document.getElementById('tcFilterBe'); if (bBe) bBe.textContent = 'خروج در BE (' + cntBe + ')';
-    let bDisc = document.getElementById('tcFilterDisc'); if (bDisc) bDisc.textContent = '⚠️ مغایرت‌ها (' + cntDisc + ')';
-    let bMatched = document.getElementById('tcFilterMatched'); if (bMatched) bMatched.textContent = '🤝 منطبق (' + cntMatched + ')';
-    let bSimOnly = document.getElementById('tcFilterSimOnly'); if (bSimOnly) bSimOnly.textContent = '🔮 فقط شبیه‌ساز (' + cntSimOnly + ')';
+    let bAll = document.getElementById('tcFilterAll'); if (bAll) bAll.innerHTML = 'همه <span style="unicode-bidi:isolate;">(' + cntAll + ')</span>';
+    let bWin = document.getElementById('tcFilterWin'); if (bWin) bWin.innerHTML = 'بردها <span style="unicode-bidi:isolate;">(' + cntWin + ')</span>';
+    let bLoss = document.getElementById('tcFilterLoss'); if (bLoss) bLoss.innerHTML = 'باخت‌ها <span style="unicode-bidi:isolate;">(' + cntLoss + ')</span>';
+    let bM1 = document.getElementById('tcFilterM1'); if (bM1) bM1.innerHTML = 'نویز <bdi>M1</bdi> <span style="unicode-bidi:isolate;">(' + cntM1 + ')</span>';
+    let bSlip = document.getElementById('tcFilterSlip'); if (bSlip) bSlip.innerHTML = 'اسلیپیج بالا &gt; <bdi>2p</bdi> <span style="unicode-bidi:isolate;">(' + cntSlip + ')</span>';
+    let bBe = document.getElementById('tcFilterBe'); if (bBe) bBe.innerHTML = 'خروج در <bdi>BE</bdi> <span style="unicode-bidi:isolate;">(' + cntBe + ')</span>';
+    let bDisc = document.getElementById('tcFilterDisc'); if (bDisc) bDisc.innerHTML = '⚠️ مغایرت‌ها <span style="unicode-bidi:isolate;">(' + cntDisc + ')</span>';
+    let bMatched = document.getElementById('tcFilterMatched'); if (bMatched) bMatched.innerHTML = '🤝 منطبق <span style="unicode-bidi:isolate;">(' + cntMatched + ')</span>';
+    let bSimOnly = document.getElementById('tcFilterSimOnly'); if (bSimOnly) bSimOnly.innerHTML = '🔮 فقط شبیه‌ساز <span style="unicode-bidi:isolate;">(' + cntSimOnly + ')</span>';
+
+    // Update sort indicators in table thead
+    let sortCols = ['id', 'pattern', 'tf', 'dir', 'time', 'fill', 'limit', 'slip', 'sl', 'tExit', 'indTgt', 'pnlUSD', 'indNet', 'pnlPips', 'indPips'];
+    sortCols.forEach(c => {
+        let el = document.getElementById('tcSort_' + c);
+        if (el) {
+            if ((window.testerTableSortCol || 'id') === c) {
+                el.textContent = (window.testerTableSortDir === 'desc') ? ' ▼' : ' ▲';
+                el.style.color = '#38bdf8';
+                el.style.fontWeight = 'bold';
+            } else {
+                el.textContent = '';
+            }
+        }
+    });
 
     let tblTitle = document.getElementById('tcTradesTableTitle');
     if (tblTitle) {
@@ -815,6 +831,29 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             if (!hay.includes(q)) return false;
         }
         return true;
+    });
+
+    // Apply sorting
+    let sCol = window.testerTableSortCol || 'id';
+    let sDir = window.testerTableSortDir || 'asc';
+    filtered.sort((a, b) => {
+        let vA = 0, vB = 0;
+        if (sCol === 'id') { vA = a.raw.setupId || 0; vB = b.raw.setupId || 0; }
+        else if (sCol === 'pattern') { return sDir === 'asc' ? (a.pattern || '').localeCompare(b.pattern || '') : (b.pattern || '').localeCompare(a.pattern || ''); }
+        else if (sCol === 'tf') { return sDir === 'asc' ? (a.tTF || '').localeCompare(b.tTF || '') : (b.tTF || '').localeCompare(a.tTF || ''); }
+        else if (sCol === 'dir') { return sDir === 'asc' ? (a.tDir || '').localeCompare(b.tDir || '') : (b.tDir || '').localeCompare(a.tDir || ''); }
+        else if (sCol === 'time') { return sDir === 'asc' ? (a.tEntryTime || '').localeCompare(b.tEntryTime || '') : (b.tEntryTime || '').localeCompare(a.tEntryTime || ''); }
+        else if (sCol === 'fill') { vA = a.marketFill || 0; vB = b.marketFill || 0; }
+        else if (sCol === 'limit') { vA = a.boxEntry || 0; vB = b.boxEntry || 0; }
+        else if (sCol === 'slip') { vA = a.slippagePips || 0; vB = b.slippagePips || 0; }
+        else if (sCol === 'sl') { vA = a.slPrice || 0; vB = b.slPrice || 0; }
+        else if (sCol === 'tExit') { return sDir === 'asc' ? (a.exitClass || '').localeCompare(b.exitClass || '') : (b.exitClass || '').localeCompare(a.exitClass || ''); }
+        else if (sCol === 'indTgt') { return sDir === 'asc' ? (a.indTgt || '').localeCompare(b.indTgt || '') : (b.indTgt || '').localeCompare(a.indTgt || ''); }
+        else if (sCol === 'pnlUSD') { vA = a.matchType !== 'sim_only' ? a.profitUSD : a.indNet; vB = b.matchType !== 'sim_only' ? b.profitUSD : b.indNet; }
+        else if (sCol === 'indNet') { vA = a.indNet || 0; vB = b.indNet || 0; }
+        else if (sCol === 'pnlPips') { vA = a.matchType !== 'sim_only' ? a.profitPips : a.indPips; vB = b.matchType !== 'sim_only' ? b.profitPips : b.indPips; }
+        else if (sCol === 'indPips') { vA = a.indPips || 0; vB = b.indPips || 0; }
+        return sDir === 'asc' ? (vA - vB) : (vB - vA);
     });
 
     let html = '';
@@ -898,7 +937,7 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
 
         // 16 Columns strictly aligned with table thead:
         // 1:# | 2:الگو | 3:تایم | 4:جهت | 5:زمان ورود | 6:ورود تستر | 7:ورود اندیکاتور | 8:لغزش | 9:حد ضرر | 10:تارگت تستر | 11:تارگت اندیکاتور | 12:سود تستر $ | 13:سود اندیکاتور $ | 14:سود تستر p | 15:سود اندیکاتور p | 16:کالبدشکافی
-        html += `<tr style="border-bottom:1px solid #1e293b;${rowBg}">
+        html += `<tr onclick="onTesterTableRowClick(this)" style="cursor:pointer;border-bottom:1px solid #1e293b;transition:background 0.15s, outline 0.15s;${rowBg}" onmouseover="if(!this.classList.contains('tc-row-selected')) this.style.background='#1e293b55'" onmouseout="if(!this.classList.contains('tc-row-selected')) this.style.background='${rowBg ? rowBg.replace('background:', '').replace(';', '') : 'transparent'}';">
             <td style="padding:7px 8px;text-align:center;color:#64748b;font-size:10px;">${pt.raw.setupId || ''}</td>
             <td style="padding:7px 8px;font-weight:600;color:#f8fafc;white-space:nowrap;text-align:right;">${pt.pattern} ${matchTag}</td>
             <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
@@ -921,20 +960,64 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
     tbody.innerHTML = html;
 }
 
-        function filterTesterTradesTable(mode, event) {
-            currentTesterFilter = mode;
-            if (event && event.currentTarget) {
-                let parent = event.currentTarget.parentElement;
-                parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                event.currentTarget.classList.add('active');
-            }
-            let report = window.TESTER_REPORTS[currentTesterReportKey];
-            if (report) renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
-        }
+function filterTesterTradesTable(mode, event) {
+    currentTesterFilter = mode;
+    if (event && event.currentTarget) {
+        let parent = event.currentTarget.parentElement;
+        parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+    let report = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey]);
+    if (report) renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
+}
 
-        function onTesterTradeSearch(query) {
-            currentTesterSearch = query;
-            let report = window.TESTER_REPORTS[currentTesterReportKey];
-            if (report) renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
+function onTesterTradeSearch(query) {
+    currentTesterSearch = query;
+    let report = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey]);
+    if (report) renderTesterTradesTable(report, currentTesterFilter, currentTesterSearch);
+}
+
+function sortTesterTradesTable(colKey) {
+    if ((window.testerTableSortCol || 'id') === colKey) {
+        window.testerTableSortDir = (window.testerTableSortDir === 'asc') ? 'desc' : 'asc';
+    } else {
+        window.testerTableSortCol = colKey;
+        window.testerTableSortDir = 'asc';
+    }
+    let report = (window.TESTER_REPORTS && window.TESTER_REPORTS[window.currentTesterReportKey]);
+    if (report) renderTesterTradesTable(report, window.currentTesterFilter, window.currentTesterSearch);
+}
+
+function toggleTesterTableExpand() {
+    window.testerTableIsExpanded = !window.testerTableIsExpanded;
+    let c = document.getElementById('testerTradesContainer');
+    let icon = document.getElementById('tcExpandIcon');
+    let text = document.getElementById('tcExpandText');
+    if (c) {
+        if (window.testerTableIsExpanded) {
+            c.style.maxHeight = 'none';
+            if (icon) icon.textContent = '⤡';
+            if (text) text.textContent = 'حالت جمع‌وجور (۴۸۰px)';
+        } else {
+            c.style.maxHeight = '480px';
+            if (icon) icon.textContent = '⤢';
+            if (text) text.textContent = 'ارتفاع کامل جدول';
         }
+    }
+}
+
+function onTesterTableRowClick(tr) {
+    let tbody = tr.parentElement;
+    if (tbody) {
+        let isAlreadySelected = tr.classList.contains('tc-row-selected');
+        tbody.querySelectorAll('tr').forEach(r => {
+            r.classList.remove('tc-row-selected');
+            r.style.outline = 'none';
+        });
+        if (!isAlreadySelected) {
+            tr.classList.add('tc-row-selected');
+            tr.style.outline = '2px solid #38bdf8';
+        }
+    }
+}
 
