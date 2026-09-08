@@ -126,3 +126,127 @@
         </div>
     </div>
 
+    <!-- 🤖 COMPACT & MODERN MT5 EXPORT MODAL (TASK 9) -->
+    <div id="mt5ExportModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closeMT5ExportModal();">
+        <div class="modal-compact-dialog">
+            <!-- Modal Header -->
+            <div class="modal-compact-header">
+                <div class="modal-compact-title">
+                    <span>🤖 خروجی کانفیگ استراتژی تستر متاتریدر ۵</span>
+                    <span class="mt5-badge-format">.ini</span>
+                </div>
+                <button onclick="closeMT5ExportModal()" class="modal-compact-close" title="بستن پنجره">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-compact-body">
+                <!-- Active Scenario Banner -->
+                <div class="mt5-scenario-banner">
+                    <div class="mt5-scenario-name">
+                        <span>🏷️ سناریوی فعال:</span>
+                        <span id="mt5ModalTitle" style="color:#34d399;font-weight:bold;">-</span>
+                    </div>
+                    <div class="mt5-filename-badge" title="نام فایل کانفیگ تستر">
+                        <span>📁</span>
+                        <span id="mt5ModalFilename">FlagPro_Tester.ini</span>
+                    </div>
+                </div>
+
+                <!-- Parameters 2x2 Grid -->
+                <div class="mt5-params-grid">
+                    <!-- Min Profit -->
+                    <div class="mt5-param-box">
+                        <div class="mt5-param-label-row">
+                            <span>💰 کف سود دلاری</span>
+                            <span class="mt5-param-code" dir="ltr">InpMinTradePotential</span>
+                        </div>
+                        <div class="mt5-param-val" style="color:#34d399;" id="mt5ParamMinPot" dir="ltr">$0.00</div>
+                    </div>
+
+                    <!-- Trading Hours -->
+                    <div class="mt5-param-box">
+                        <div class="mt5-param-label-row">
+                            <span>⏰ ساعات معامله</span>
+                            <span class="mt5-param-code" dir="ltr">InpAllowedTradingHours</span>
+                        </div>
+                        <div class="mt5-param-val" style="color:#38bdf8;" id="mt5ParamHours" dir="ltr">-</div>
+                    </div>
+
+                    <!-- Fuse Stop -->
+                    <div class="mt5-param-box">
+                        <div class="mt5-param-label-row">
+                            <span>🚨 فیوز استاپ</span>
+                            <span class="mt5-param-code" dir="ltr">InpConsecLossTrigger</span>
+                        </div>
+                        <div class="mt5-param-val" style="color:#fca5a5;" id="mt5ParamConsec">خاموش</div>
+                    </div>
+
+                    <!-- Fuse Action -->
+                    <div class="mt5-param-box">
+                        <div class="mt5-param-label-row">
+                            <span>⚡ اکشن فیوز</span>
+                            <span class="mt5-param-code" dir="ltr">InpConsecLossAction</span>
+                        </div>
+                        <div class="mt5-param-val" style="color:#c084fc;" id="mt5ParamConsecAct">بدون اقدام</div>
+                    </div>
+
+                    <!-- Allowed Kings -->
+                    <div class="mt5-param-box full-span">
+                        <div class="mt5-param-label-row">
+                            <span>👑 سلاطین مجاز این سناریو</span>
+                            <span class="mt5-param-code" dir="ltr">InpAllowedKingsList</span>
+                        </div>
+                        <div class="mt5-chips-container" id="mt5ParamAllowed" dir="ltr">-</div>
+                    </div>
+
+                    <!-- Disabled Kings (hidden if empty) -->
+                    <div class="mt5-param-box full-span" id="mt5DisabledCard" style="display:none;">
+                        <div class="mt5-param-label-row">
+                            <span>🚫 سلاطین غیرمجاز (فیلترشده)</span>
+                            <span class="mt5-param-code" dir="ltr">InpDisabledKingsList</span>
+                        </div>
+                        <div class="mt5-chips-container" id="mt5ParamDisabled" dir="ltr">-</div>
+                    </div>
+                </div>
+
+                <!-- Primary Action Buttons Row -->
+                <div class="mt5-actions-row">
+                    <button onclick="downloadCurrentMT5IniFile()" class="mt5-btn-primary" title="دانلود فایل .ini برای Drag & Drop مستقیم به Strategy Tester">
+                        <span>📥 دانلود کانفیگ تستر (.ini)</span>
+                        <span class="mt5-btn-sub">آماده Drag & Drop به متاتریدر</span>
+                    </button>
+                    <button onclick="downloadCurrentMT5SetFile()" class="mt5-btn-secondary" title="دانلود فایل تنظیمات استاندارد (.set) برای اکسپرت و اندیکاتور چارت">
+                        <span>📋 تنظیمات اندیکاتور (.set)</span>
+                        <span class="mt5-btn-sub">برای چارت زنده و اکسپرت</span>
+                    </button>
+                    <button onclick="saveCurrentMT5IniFileToTesterFolder()" id="btnSaveToTesterFolder" class="mt5-btn-auto" title="ذخیره خودکار مستقیم در پوشه Profiles/Tester متاتریدر">
+                        <span>💾 ذخیره تو تستر</span>
+                        <span class="mt5-btn-sub" id="saveStatusIndicator">Profiles/Tester</span>
+                    </button>
+                </div>
+
+                <!-- Collapsible INI Preview -->
+                <details id="mt5DetailsBox" class="mt5-details-box">
+                    <summary class="mt5-details-summary">
+                        <span>👁️ مشاهده متن فایل کانفیگ تستر (.ini content)</span>
+                        <button onclick="copyMT5ConfigText(event)" class="mt5-copy-btn" title="کپی متن کامل کانفیگ به کلیپ‌بورد">📋 کپی متن</button>
+                    </summary>
+                    <pre id="mt5ConfigCodeBox" class="mt5-pre-box"></pre>
+                </details>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-compact-footer">
+                <div style="display:flex;align-items:center;gap:6px;color:#94a3b8;">
+                    <span>💡</span>
+                    <span><b>راهنما:</b> فایل <code style="color:#34d399;direction:ltr;display:inline-block;">.ini</code> را با ماوس بکشید و داخل پنجره <b>Strategy Tester</b> رها کنید (Drag & Drop).</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button onclick="openTesterFolder()" class="mt5-link-btn" title="باز کردن یا کپی آدرس پوشه Profiles/Tester متاتریدر ۵">📂 مسیر تستر</button>
+                    <button onclick="closeMT5ExportModal()" class="mt5-close-btn">بستن</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+

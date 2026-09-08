@@ -721,7 +721,7 @@ function openMT5ExportModal(cfg) {
 
         let filenameIni = buildMT5IniFilename(cfg);
         let elTitle = document.getElementById('mt5ModalTitle');
-        if (elTitle) elTitle.textContent = cfg.title;
+        if (elTitle) elTitle.textContent = cfg.title || 'سناریوی انتخابی';
         let fileBadge = document.getElementById('mt5ModalFilename');
         if (fileBadge) fileBadge.textContent = filenameIni;
 
@@ -742,17 +742,41 @@ function openMT5ExportModal(cfg) {
         if (elConsecAct) elConsecAct.textContent = actName;
 
         let elAllowed = document.getElementById('mt5ParamAllowed');
-        if (elAllowed) elAllowed.textContent = cfg.allowed_kings_str ? cfg.allowed_kings_str : 'تمام سلاطین پیش‌فرض';
+        if (elAllowed) {
+            if (cfg.allowed_kings_str) {
+                let kings = cfg.allowed_kings_str.split(',').map(s => s.trim()).filter(Boolean);
+                elAllowed.innerHTML = kings.map(k => `<span class="mt5-chip">${k}</span>`).join(' ');
+            } else {
+                elAllowed.innerHTML = '<span class="mt5-chip">تمام سلاطین پیش‌فرض</span>';
+            }
+        }
 
+        let cardDisabled = document.getElementById('mt5DisabledCard');
         let elDisabled = document.getElementById('mt5ParamDisabled');
-        if (elDisabled) elDisabled.textContent = cfg.disabled_kings_str ? cfg.disabled_kings_str : 'هیچ‌کدام (تمام سلاطین فعال)';
+        if (elDisabled) {
+            if (cfg.disabled_kings_str && cfg.disabled_kings_str !== 'هیچ‌کدام (تمام سلاطین فعال)' && cfg.disabled_kings_str.trim().length > 0) {
+                let dKings = cfg.disabled_kings_str.split(',').map(s => s.trim()).filter(Boolean);
+                elDisabled.innerHTML = dKings.map(k => `<span class="mt5-chip disabled">${k}</span>`).join(' ');
+                if (cardDisabled) cardDisabled.style.display = 'flex';
+            } else {
+                if (cardDisabled) cardDisabled.style.display = 'none';
+            }
+        }
 
         let fullIniText = generateIniFileText(cfg);
         let codeBox = document.getElementById('mt5ConfigCodeBox');
         if (codeBox) codeBox.textContent = fullIniText;
 
+        // Reset details toggle
+        let details = document.getElementById('mt5DetailsBox');
+        if (details) details.removeAttribute('open');
+
+        // Reset auto-save button
+        let btn = document.getElementById('btnSaveToTesterFolder');
+        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تستر</span><span class="mt5-btn-sub" id="saveStatusIndicator">Profiles/Tester</span>';
+
         if (typeof showSaveNotification === 'function') {
-            showSaveNotification('🤖 پنجره کانفیگ استراتژی تستر متاتریدر ۵ (.ini) برای «' + (cfg.title || 'سناریو') + '» باز شد.');
+            showSaveNotification('🤖 پنجره کانفیگ تستر (.ini) برای «' + (cfg.title || 'سناریو') + '» باز شد.');
         }
     } catch(err) {
         console.error('Error in openMT5ExportModal:', err);
@@ -875,12 +899,20 @@ function showSaveNotification(msg) {
     }, 5000);
 }
 
-function copyMT5ConfigText() {
+function copyMT5ConfigText(e) {
+    if (e) {
+        if (e.stopPropagation) e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+    }
     if (!currentExportConfig) return;
     let text = generateIniFileText(currentExportConfig);
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
-            alert('📋 تمام کانفیگ Strategy Tester (.ini) با موفقیت کپی شد!');
+            if (typeof showSaveNotification === 'function') {
+                showSaveNotification('📋 تمام کانفیگ Strategy Tester (.ini) در کلیپ‌بورد کپی شد.');
+            } else {
+                alert('📋 تمام کانفیگ Strategy Tester (.ini) با موفقیت کپی شد!');
+            }
         }).catch(() => {
             fallbackCopy();
         });
