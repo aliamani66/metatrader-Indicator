@@ -24,81 +24,26 @@ bool   g_askLineVisible = true;
 //| INPUT PARAMETERS                                                 |
 //+------------------------------------------------------------------+
 //+------------------------------------------------------------------+
-//| ۰. 🔄 همگام‌سازی خودکار با استراتژی تستر (تستر ⇄ اندیکاتور)        |
 //+------------------------------------------------------------------+
-input group "=== 🔄 همگام‌سازی خودکار با استراتژی تستر (تستر ⇄ اندیکاتور) ==="
+//| ۱. 👑 استراتژی، سلاطین طلایی و سناریو (STRATEGY & KINGS)          |
+//+------------------------------------------------------------------+
+input group "=== 👑 ۱. استراتژی، سلاطین طلایی و سناریو (STRATEGY & KINGS) ==="
 input bool              InpAutoSyncWithTester = true;                   // 🔄 همگام‌سازی زنده و لحظه‌ای با تست‌های استراتژی تستر (تستر ⇄ چارت)
+input bool              InpOnlyTradeKings     = false;                  // 👑 فقط معامله سلاطین برگزیده (Kings Only)
+input bool              InpTradeOnlyGoldenKings = false;                // 👑 قفل انحصاری فقط سلاطین طلایی برنده
+input bool              InpEnableKingsM15     = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M15 (۲ ساختار برتر)
+input bool              InpEnableKingsM5      = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M5 (۷ ساختار برتر)
+input bool              InpEnableKingsM1      = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M1 (۹ ساختار برتر)
+input string            InpAllowedKingsList   = "";                     // 👑 لیست انحصاری سلاطین مجاز (جدا با کاما، مثلاً S-RS|M1)
+input string            InpDisabledKingsList  = "";                     // 🚫 لیست سیاه سلاطین غیرمجاز (جدا با کاما)
 
 //+------------------------------------------------------------------+
-//| ۱. 🎯 بازه زمانی تحلیل و عمق تاریخچه                             |
+//| ۲. ⏱️ تایم‌فریم‌های فعال معامله (ACTIVE TIMEFRAMES)               |
 //+------------------------------------------------------------------+
-input group "=== 🎯 ۱. بازه زمانی تحلیل و عمق تاریخچه ==="
-input ENUM_HISTORY_MODE InpHistoryMode        = HIST_DAYS_BACK;         // ⚙️ مبنای محاسبه بازه تاریخی (تعداد روز گذشته / تاریخ دلخواه / کل دیتای متاتریدر)
-input int               InpHistoryDays        = 10;                     // ⏳ تعداد روزهای گذشته جهت بررسی (پیش‌فرض: ۱۰ روز برای پوشش کامل)
-input datetime          InpHistoryStartDate   = D'2026.09.01 00:00';    // 📅 تاریخ شروع دلخواه (فقط در حالت انتخاب تاریخ دلخواه)
-input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار گزارش معاملات CSV (جهت آنالیز در داشبورد وب)
-
-//+------------------------------------------------------------------+
-//| ۲. 👁️ فیلتر نمایش باکس‌ها و گرافیک چارت                          |
-//+------------------------------------------------------------------+
-input group "=== 👁️ ۲. فیلتر نمایش باکس‌ها و گرافیک چارت ==="
-input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = BOX_FILTER_TRADED_ONLY; // 🎛️ نحوه نمایش باکس‌ها (معامله‌شده / فقط ستاپ‌ها / همه باکس‌ها / مخفی)
-input bool              InpShowBoxes          = true;                   // 👁️ فعال‌سازی رسم باکس‌ها روی چارت (کلید B برای سوئیچ سریع)
-input bool              InpShowLabel          = true;                   // 🏷️ نمایش برچسب نام الگو و تایم‌فریم روی باکس‌ها
-input ENUM_LABEL_FORMAT InpLabelFormat        = LABEL_CONCISE;          // 🔤 فرمت متن برچسب الگو (کوتاه و تمیز / زنجیره کامل ساختار)
-input int               InpLineWidth          = 1;                      // ✏️ ضخامت خطوط حاشیه باکس‌ها
-input bool              InpRemoveOverlapping  = true;                   // 🧹 حذف هوشمند باکس‌های هم‌پوشان و تکراری هم‌جهت
-input bool              InpShowAskLine        = true;                   // 🔴 رسم خط قیمت اسک Ask روی چارت زنده (مشابه استراتژی تستر)
-input color             InpAskLineColor       = C'220,75,75';           // 🎨 رنگ خط قیمت اسک Ask
-input ENUM_LINE_STYLE   InpAskLineStyle       = STYLE_SOLID;            // 📏 استایل خط قیمت اسک (پیوسته / خط‌چین)
-input int               InpAskLineWidth       = 1;                      // ✏️ ضخامت خط قیمت اسک
-input bool              InpApplyProTheme      = true;                   // 🌓 تم تاریک اختصاصی و چشم‌نواز برای پس‌زمینه چارت
-
-//+------------------------------------------------------------------+
-//| ۳. 🏹 شبیه‌ساز معاملات و ترسیم خطوط ترید                         |
-//+------------------------------------------------------------------+
-input group "=== 🏹 ۳. شبیه‌ساز معاملات و ترسیم خطوط ترید ==="
-input bool              InpAutoDrawTrades     = false;                  // 🎯 رسم خودکار معاملات روی چارت (پیش‌فرض: خاموش جهت چارت خلوت و تمیز)
-input bool              InpEnableTradeSetup   = true;                   // ⚡ فعال‌سازی محاسبه و تشخیص ستاپ‌های معاملاتی روی باکس‌ها
-input bool              InpUniqueTradeColors  = true;                   // 🎨 رنگ‌های مجزا برای هر معامله (تفکیک آسان معاملات همزمان چارت)
-input bool              InpShowTradeShading   = false;                  // 🌈 نمایش پس‌زمینه رنگی معاملات (محدوده سود و زیان)
-input color             InpTradeEntryColor    = clrWhite;               // ⚪ رنگ پیش‌فرض خط ورود به معامله (Entry)
-input color             InpTradeSLColor       = clrDarkOrange;          // 🟠 رنگ پیش‌فرض خط حد ضرر معامله (Stop Loss)
-input color             InpTradeTPColor       = clrDodgerBlue;          // 🔵 رنگ پیش‌فرض خطوط اهداف سود معامله (Take Profit)
-
-//+------------------------------------------------------------------+
-//| ۴. 🛑 تنظیمات جامع حد ضرر (STOP LOSS ENGINE)                     |
-//+------------------------------------------------------------------+
-input group "=== 🛑 ۴. تنظیمات جامع حد ضرر (STOP LOSS) ==="
-input ENUM_SL_MODE       InpSLMode                = SL_MODE_ATR_BUFFER;  // ⚙️ مدل محاسبه حد ضرر
-input double             InpSLFixedPips           = 3.0;                 // 📏 بافر ثابت پیپ (در صورت انتخاب مدل ۱)
-input ENUM_TIMEFRAMES    InpSLATRTimeframe        = PERIOD_CURRENT;      // ⏱ تایم‌فریم محاسبه ATR (CURRENT = تایم باکس)
-input int                InpSLATRPeriod           = 14;                  // 📊 دوره اندیکاتور ATR
-input double             InpSLATRMultiplier       = 0.5;                 // ✖️ ضریب ATR (برای بافر یا استاپ خالص)
-input double             InpSLBoxPercent          = 0.30;                // 📐 درصد بافر از ضخامت گره (در مدل ۴)
-input double             InpSLMinPips             = 2.5;                 // 🛡️ کف مجاز حد ضرر (حداقل فاصله به پیپ)
-input double             InpSLMaxPips             = 40.0;                // 🚨 سقف مجاز حد ضرر (حداکثر فاصله به پیپ)
-#define InpSLOffsetPips  InpSLFixedPips
-#define InpRSPipBuffer   InpSLFixedPips
-
-//+------------------------------------------------------------------+
-//| ۵. 🛡️ قوانین ورود و مدیریت ریسک                                  |
-//+------------------------------------------------------------------+
-input group "=== 🛡️ ۵. قوانین ورود و مدیریت ریسک ==="
-input double             InpMaxEntryDeviationPips = 2.5;                 // 🎯 حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیر)
-input int                InpLimitExpirationBars   = 40;                  // ⏳ حداکثر طول عمر اردر لیمیت به تعداد کندل (انقضای اردر دست‌نخورده)
-input bool               InpAllowOverlappingTrades = true;               // 🔓 اجازه معاملات همزمان (ورود روی ستاپ‌های هم‌پوشان)
-
-//+------------------------------------------------------------------+
-//| ۶. ⏱️ تایم‌فریم‌های فعال معامله                                  |
-//+------------------------------------------------------------------+
-input group "=== ⏱️ ۶. تایم‌فریم‌های فعال معامله ==="
+input group "=== ⏱️ ۲. تایم‌فریم‌های فعال معامله (ACTIVE TIMEFRAMES) ==="
 input bool              InpUseTF7             = true;                   // ⚡ تایم‌فریم ۱ دقیقه (M1) فعال باشد
-input color             InpColorTF7           = clrYellow;              // 🎨 رنگ باکس‌های تایم‌فریم ۱ دقیقه (M1)
 input bool              InpUseTF6             = true;                   // ⚡ تایم‌فریم ۵ دقیقه (M5) فعال باشد
-input color             InpColorTF6           = clrAqua;                // 🎨 رنگ باکس‌های تایم‌فریم ۵ دقیقه (M5)
 input bool              InpUseTF5             = true;                   // ⚡ تایم‌فریم ۱۵ دقیقه (M15) فعال باشد
-input color             InpColorTF5           = clrLime;                // 🎨 رنگ باکس‌های تایم‌فریم ۱۵ دقیقه (M15)
 input bool              InpTradeMacroTFs      = false;                  // 🌐 معامله در تایم‌های ماکرو H1, H4, D1, W1 (پیش‌فرض: خاموش)
 
 #define InpTF7 PERIOD_M1
@@ -112,27 +57,34 @@ input bool              InpTradeMacroTFs      = false;                  // 🌐 
 #define InpUseTF3 false
 #define InpUseTF2 false
 #define InpUseTF1 false
-#define InpColorTF4 clrYellow
-#define InpColorTF3 clrWhite
-#define InpColorTF2 clrDodgerBlue
-#define InpColorTF1 clrMagenta
 
 //+------------------------------------------------------------------+
-//| ۷. 👑 سلاطین برگزیده و پریست‌های استراتژی (هماهنگ با اکسپرت)      |
+//| ۳. 🛑 مدیریت جامع حد ضرر (STOP LOSS ENGINE)                      |
 //+------------------------------------------------------------------+
-input group "=== 👑 ۷. سلاطین برگزیده و پریست‌های استراتژی (هماهنگ با اکسپرت) ==="
-input bool              InpOnlyTradeKings     = false;                  // 👑 فقط معامله سلاطین برگزیده (Kings Only)
-input bool              InpTradeOnlyGoldenKings = false;                // 👑 قفل انحصاری فقط سلاطین طلایی برنده
-input bool              InpEnableKingsM15     = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M15 (۲ ساختار برتر)
-input bool              InpEnableKingsM5      = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M5 (۷ ساختار برتر)
-input bool              InpEnableKingsM1      = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M1 (۹ ساختار برتر)
-input string            InpAllowedKingsList   = "";                     // 👑 لیست انحصاری سلاطین مجاز (جدا با کاما، مثلاً S-RS|M1)
-input string            InpDisabledKingsList  = "";                     // 🚫 لیست سیاه سلاطین غیرمجاز (جدا با کاما)
+input group "=== 🛑 ۳. مدیریت جامع حد ضرر (STOP LOSS ENGINE) ==="
+input ENUM_SL_MODE       InpSLMode                = SL_MODE_ATR_BUFFER;  // ⚙️ مدل محاسبه حد ضرر
+input double             InpSLFixedPips           = 3.0;                 // 📏 بافر ثابت پیپ (در صورت انتخاب مدل ۱)
+input ENUM_TIMEFRAMES    InpSLATRTimeframe        = PERIOD_CURRENT;      // ⏱ تایم‌فریم محاسبه ATR (CURRENT = تایم باکس)
+input int                InpSLATRPeriod           = 14;                  // 📊 دوره اندیکاتور ATR
+input double             InpSLATRMultiplier       = 0.5;                 // ✖️ ضریب ATR (برای بافر یا استاپ خالص)
+input double             InpSLBoxPercent          = 0.30;                // 📐 درصد بافر از ضخامت گره (در مدل ۴)
+input double             InpSLMinPips             = 2.5;                 // 🛡️ کف مجاز حد ضرر (حداقل فاصله به پیپ)
+input double             InpSLMaxPips             = 40.0;                // 🚨 سقف مجاز حد ضرر (حداکثر فاصله به پیپ)
+#define InpSLOffsetPips  InpSLFixedPips
+#define InpRSPipBuffer   InpSLFixedPips
 
 //+------------------------------------------------------------------+
-//| ۸. 🚫 فیلترهای هوشمند ضد استاپ و اصطکاک                          |
+//| ۴. 🎯 قوانین ورود، اردرها و مدیریت ریسک (ENTRY & ORDERS)         |
 //+------------------------------------------------------------------+
-input group "=== 🚫 ۸. فیلترهای هوشمند ضد استاپ و اصطکاک ==="
+input group "=== 🎯 ۴. قوانین ورود، اردرها و مدیریت ریسک (ENTRY & ORDERS) ==="
+input double             InpMaxEntryDeviationPips = 2.5;                 // 🎯 حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیر)
+input int                InpLimitExpirationBars   = 40;                  // ⏳ حداکثر طول عمر اردر لیمیت به تعداد کندل (انقضای اردر دست‌نخورده)
+input bool               InpAllowOverlappingTrades = true;               // 🔓 اجازه معاملات همزمان (ورود روی ستاپ‌های هم‌پوشان)
+
+//+------------------------------------------------------------------+
+//| ۵. 🛡️ فیلترهای ضد استاپ، ساعات و کف سود (SMART FILTERS)          |
+//+------------------------------------------------------------------+
+input group "=== 🛡️ ۵. فیلترهای ضد استاپ، ساعات و کف سود (SMART FILTERS) ==="
 input bool              InpFilterNightHours   = false;                  // 🌙 فیلتر ۱: مسدودسازی بازه شبانه ۲۱:۰۰ تا ۰۱:۰۰
 input bool              InpFilterPreLondonHunt= false;                  // ⏰ فیلتر ۲: مسدودسازی ساعت هانت قبل از لندن ۰۷:۰۰
 input bool              InpFilterToxicPatterns= false;                  // ⚠️ فیلتر ۳: حذف زنجیره‌های فرسایشی سمی
@@ -146,34 +98,69 @@ input string            InpAllowedTradingHours       = "";              // ⏰ �
 input double            InpMinTradePotential         = 0.0;             // 💰 حداقل کف سود دلاری معامله (اسلایدر داشبورد)
 
 //+------------------------------------------------------------------+
-//| ۹. 🎨 استایل و رنگ‌بندی تفکیکی الگوهای ساختاری                    |
+//| ۶. 🏹 شبیه‌ساز معاملات و نمایش روی چارت (SIMULATION & DISPLAY)   |
 //+------------------------------------------------------------------+
-input group "=== 🎨 ۹. استایل و رنگ‌بندی تفکیکی الگوهای ساختاری ==="
+input group "=== 🏹 ۶. شبیه‌ساز معاملات و نمایش روی چارت (SIMULATION & DISPLAY) ==="
+input bool              InpEnableTradeSetup   = true;                   // ⚡ فعال‌سازی محاسبه و تشخیص ستاپ‌های معاملاتی روی باکس‌ها
+input bool              InpAutoDrawTrades     = false;                  // 🎯 رسم خودکار معاملات روی چارت (پیش‌فرض: خاموش جهت چارت خلوت)
+input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = BOX_FILTER_TRADED_ONLY; // 🎛️ نحوه نمایش باکس‌ها (معامله‌شده / فقط ستاپ‌ها / همه باکس‌ها / مخفی)
+input bool              InpShowBoxes          = true;                   // 👁️ فعال‌سازی رسم باکس‌ها روی چارت (کلید B برای سوئیچ سریع)
+input bool              InpShowLabel          = true;                   // 🏷️ نمایش برچسب نام الگو و تایم‌فریم روی باکس‌ها
+input ENUM_LABEL_FORMAT InpLabelFormat        = LABEL_CONCISE;          // 🔤 فرمت متن برچسب الگو (کوتاه و تمیز / زنجیره کامل ساختار)
+input bool              InpRemoveOverlapping  = true;                   // 🧹 حذف هوشمند باکس‌های هم‌پوشان و تکراری هم‌جهت
+input bool              InpShowAskLine        = true;                   // 🔴 رسم خط قیمت اسک Ask روی چارت زنده (مشابه استراتژی تستر)
+input bool              InpApplyProTheme      = true;                   // 🌓 تم تاریک اختصاصی و چشم‌نواز برای پس‌زمینه چارت
+
+//+------------------------------------------------------------------+
+//| ۷. 📅 بازه زمانی تحلیل و استخراج گزارش (HISTORY & EXPORT)        |
+//+------------------------------------------------------------------+
+input group "=== 📅 ۷. بازه زمانی تحلیل و استخراج گزارش (HISTORY & EXPORT) ==="
+input ENUM_HISTORY_MODE InpHistoryMode        = HIST_DAYS_BACK;         // ⚙️ مبنای محاسبه بازه تاریخی (تعداد روز گذشته / تاریخ دلخواه / کل دیتای متاتریدر)
+input int               InpHistoryDays        = 10;                     // ⏳ تعداد روزهای گذشته جهت بررسی (پیش‌فرض: ۱۰ روز برای پوشش کامل)
+input datetime          InpHistoryStartDate   = D'2026.09.01 00:00';    // 📅 تاریخ شروع دلخواه (فقط در حالت انتخاب تاریخ دلخواه)
+input bool              InpExportCSV          = true;                   // 📁 استخراج خودکار گزارش معاملات CSV (جهت آنالیز در داشبورد وب)
+
+//+------------------------------------------------------------------+
+//| ۸. 🎨 پالت متمرکز رنگ‌ها و استایل ظاهری (COLORS & APPEARANCE)     |
+//+------------------------------------------------------------------+
+input group "=== 🎨 ۸. پالت متمرکز رنگ‌ها و استایل ظاهری (COLORS & APPEARANCE) ==="
+input bool              InpUniqueTradeColors  = true;                   // 🎨 رنگ‌های مجزا برای هر معامله (تفکیک آسان معاملات همزمان چارت)
+input bool              InpShowTradeShading   = false;                  // 🌈 نمایش پس‌زمینه رنگی معاملات (محدوده سود و زیان)
+input color             InpTradeEntryColor    = clrWhite;               // ⚪ رنگ پیش‌فرض خط ورود به معامله (Entry)
+input color             InpTradeSLColor       = clrDarkOrange;          // 🟠 رنگ پیش‌فرض خط حد ضرر معامله (Stop Loss)
+input color             InpTradeTPColor       = clrDodgerBlue;          // 🔵 رنگ پیش‌فرض خطوط اهداف سود معامله (Take Profit)
+input color             InpColorTF7           = clrYellow;              // 🎨 رنگ باکس‌های تایم‌فریم ۱ دقیقه (M1)
+input color             InpColorTF6           = clrAqua;                // 🎨 رنگ باکس‌های تایم‌فریم ۵ دقیقه (M5)
+input color             InpColorTF5           = clrLime;                // 🎨 رنگ باکس‌های تایم‌فریم ۱۵ دقیقه (M15)
+#define InpColorTF4 clrYellow
+#define InpColorTF3 clrWhite
+#define InpColorTF2 clrDodgerBlue
+#define InpColorTF1 clrMagenta
+input color             InpAskLineColor       = C'220,75,75';           // 🎨 رنگ خط قیمت اسک Ask
+input ENUM_LINE_STYLE   InpAskLineStyle       = STYLE_SOLID;            // 📏 استایل خط قیمت اسک (پیوسته / خط‌چین)
+input int               InpAskLineWidth       = 1;                      // ✏️ ضخامت خط قیمت اسک
+input int               InpLineWidth          = 1;                      // ✏️ ضخامت خطوط حاشیه باکس‌ها
 input int               InpSwingBars          = 6;                      // 📐 عمق کندلی محاسبه سویینگ‌ها (Swing Bars)
 input bool              InpHighlightPreIP     = true;                   // 🟢 شناسایی و هایلایت باکس‌های ساختاری ماقبل پیووت (LS)
 input color             InpLSColorBull        = clrLimeGreen;           // 🎨 رنگ باکس‌های LS صعودی
 input color             InpLSColorBear        = clrCrimson;             // 🎨 رنگ باکس‌های LS نزولی
 input int               InpPreIPWidth         = 2;                      // ✏️ ضخامت خط باکس‌های LS
-
 input bool              InpHighlightOInner    = true;                   // 🟣 شناسایی و هایلایت باکس‌های اولین گره بعد از پیووت (OInner)
 input color             InpOInnerColorBull    = clrSpringGreen;         // 🎨 رنگ باکس‌های OInner صعودی
 input color             InpOInnerColorBear    = clrHotPink;             // 🎨 رنگ باکس‌های OInner نزولی
 input int               InpOInnerWidth        = 3;                      // ✏️ ضخامت خط باکس‌های OInner
-
 input bool              InpHighlightBreakoutFlags = true;               // 🔵 شناسایی و هایلایت فلگ‌های شکست و تلاقی (RS)
 input color             InpRSColorBull        = clrDodgerBlue;          // 🎨 رنگ باکس‌های RS صعودی
 input color             InpRSColorBear        = clrOrangeRed;           // 🎨 رنگ باکس‌های RS نزولی
 input color             InpComboColorBull     = clrYellow;              // 🎨 رنگ باکس‌های ترکیبی (LS+RS) صعودی
 input color             InpComboColorBear     = clrMagenta;             // 🎨 رنگ باکس‌های ترکیبی (LS+RS) نزولی
 input int               InpBreakoutFlagWidth  = 3;                      // ✏️ ضخامت خط باکس‌های RS
-
 input bool              InpEnableSwapLines    = true;                   // 🔄 شناسایی و هایلایت سطوح و باکس‌های سواپ معکوس (Swap)
 input color             InpSwapColorBull      = clrCyan;                // 🎨 رنگ باکس‌های سواپ صعودی
 input color             InpSwapColorBear      = clrOrange;              // 🎨 رنگ باکس‌های سواپ نزولی
 input int               InpSwapBoxWidth       = 2;                      // ✏️ ضخامت خط باکس‌های سواپ
 input int               InpSwapLineWidth      = 1;                      // ✏️ ضخامت خطوط افقی امتداد یافته سواپ
 input ENUM_LINE_STYLE   InpSwapLineStyle      = STYLE_DOT;              // 📏 استایل خطوط افقی سواپ (خط‌چین / نقطه)
-
 input bool              InpHighlightIndepPivots = false;                // 📍 نمایش نشانگر پیووت‌های مستقل روی چارت
 input bool              InpOnlyPureIndependent = false;                 // 🎯 فقط نمایش پیووت‌های کاملاً خالص و بدون هم‌پوشانی
 input color             InpIndepColorHigh     = clrOrangeRed;           // 🎨 رنگ نشانگر سقف‌های مستقل (High Pivots)
@@ -181,7 +168,6 @@ input color             InpIndepColorLow      = clrLime;                // 🎨 
 input int               InpIndepMarkCode      = 159;                    // 🔢 کد آیکون پیووت‌های مستقل (۱۵۹ = دایره پر)
 input int               InpIndepMarkWidth     = 1;                      // ✏️ اندازه آیکون نشانگر پیووت‌های مستقل
 input bool              InpIndepShowLabel     = false;                  // 🏷️ نمایش نام متنی پیووت روی آیکون
-
 input bool              InpEnableOriginLines  = false;                  // 📏 رسم خطوط افقی منشأ شکست ساختار (RS Origin Lines)
 input color             InpOriginColorLow     = clrAqua;                // 🎨 رنگ خطوط منشأ کف (Origin Low)
 input color             InpOriginColorHigh    = clrMagenta;             // 🎨 رنگ خطوط منشأ سقف (Origin High)
