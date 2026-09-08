@@ -67,19 +67,32 @@ input color             InpTradeSLColor       = clrDarkOrange;          // 🟠 
 input color             InpTradeTPColor       = clrDodgerBlue;          // 🔵 رنگ پیش‌فرض خطوط اهداف سود معامله (Take Profit)
 
 //+------------------------------------------------------------------+
-//| ۴. 🛡️ قوانین ورود، حد ضرر و مدیریت ریسک                         |
+//| ۴. 🛑 تنظیمات جامع حد ضرر (STOP LOSS ENGINE)                     |
 //+------------------------------------------------------------------+
-input group "=== 🛡️ ۴. قوانین ورود، حد ضرر و مدیریت ریسک ==="
-input double            InpSLOffsetPips       = 8.0;                    // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
-#define InpRSPipBuffer InpSLOffsetPips
-input double            InpMaxEntryDeviationPips = 2.5;                 // 🎯 حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیر)
-input int               InpLimitExpirationBars   = 40;                  // ⏳ حداکثر طول عمر اردر لیمیت به تعداد کندل (انقضای اردر دست‌نخورده)
-input bool              InpAllowOverlappingTrades = true;               // 🔓 اجازه معاملات همزمان (ورود روی ستاپ‌های هم‌پوشان)
+input group "=== 🛑 ۴. تنظیمات جامع حد ضرر (STOP LOSS) ==="
+input ENUM_SL_MODE       InpSLMode                = SL_MODE_ATR_BUFFER;  // ⚙️ مدل محاسبه حد ضرر
+input double             InpSLFixedPips           = 3.0;                 // 📏 بافر ثابت پیپ (در صورت انتخاب مدل ۱)
+input ENUM_TIMEFRAMES    InpSLATRTimeframe        = PERIOD_CURRENT;      // ⏱ تایم‌فریم محاسبه ATR (CURRENT = تایم باکس)
+input int                InpSLATRPeriod           = 14;                  // 📊 دوره اندیکاتور ATR
+input double             InpSLATRMultiplier       = 0.5;                 // ✖️ ضریب ATR (برای بافر یا استاپ خالص)
+input double             InpSLBoxPercent          = 0.30;                // 📐 درصد بافر از ضخامت گره (در مدل ۴)
+input double             InpSLMinPips             = 2.5;                 // 🛡️ کف مجاز حد ضرر (حداقل فاصله به پیپ)
+input double             InpSLMaxPips             = 40.0;                // 🚨 سقف مجاز حد ضرر (حداکثر فاصله به پیپ)
+#define InpSLOffsetPips  InpSLFixedPips
+#define InpRSPipBuffer   InpSLFixedPips
 
 //+------------------------------------------------------------------+
-//| ۵. ⏱️ تایم‌فریم‌های فعال معامله                                  |
+//| ۵. 🛡️ قوانین ورود و مدیریت ریسک                                  |
 //+------------------------------------------------------------------+
-input group "=== ⏱️ ۵. تایم‌فریم‌های فعال معامله ==="
+input group "=== 🛡️ ۵. قوانین ورود و مدیریت ریسک ==="
+input double             InpMaxEntryDeviationPips = 2.5;                 // 🎯 حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیر)
+input int                InpLimitExpirationBars   = 40;                  // ⏳ حداکثر طول عمر اردر لیمیت به تعداد کندل (انقضای اردر دست‌نخورده)
+input bool               InpAllowOverlappingTrades = true;               // 🔓 اجازه معاملات همزمان (ورود روی ستاپ‌های هم‌پوشان)
+
+//+------------------------------------------------------------------+
+//| ۶. ⏱️ تایم‌فریم‌های فعال معامله                                  |
+//+------------------------------------------------------------------+
+input group "=== ⏱️ ۶. تایم‌فریم‌های فعال معامله ==="
 input bool              InpUseTF7             = true;                   // ⚡ تایم‌فریم ۱ دقیقه (M1) فعال باشد
 input color             InpColorTF7           = clrYellow;              // 🎨 رنگ باکس‌های تایم‌فریم ۱ دقیقه (M1)
 input bool              InpUseTF6             = true;                   // ⚡ تایم‌فریم ۵ دقیقه (M5) فعال باشد
@@ -105,9 +118,9 @@ input bool              InpTradeMacroTFs      = false;                  // 🌐 
 #define InpColorTF1 clrMagenta
 
 //+------------------------------------------------------------------+
-//| ۶. 👑 سلاطین برگزیده و پریست‌های استراتژی (هماهنگ با اکسپرت)      |
+//| ۷. 👑 سلاطین برگزیده و پریست‌های استراتژی (هماهنگ با اکسپرت)      |
 //+------------------------------------------------------------------+
-input group "=== 👑 ۶. سلاطین برگزیده و پریست‌های استراتژی (هماهنگ با اکسپرت) ==="
+input group "=== 👑 ۷. سلاطین برگزیده و پریست‌های استراتژی (هماهنگ با اکسپرت) ==="
 input bool              InpOnlyTradeKings     = false;                  // 👑 فقط معامله سلاطین برگزیده (Kings Only)
 input bool              InpTradeOnlyGoldenKings = false;                // 👑 قفل انحصاری فقط سلاطین طلایی برنده
 input bool              InpEnableKingsM15     = true;                   // 👑 فعال‌سازی سلاطین طلایی تایم M15 (۲ ساختار برتر)
@@ -117,9 +130,9 @@ input string            InpAllowedKingsList   = "";                     // 👑 
 input string            InpDisabledKingsList  = "";                     // 🚫 لیست سیاه سلاطین غیرمجاز (جدا با کاما)
 
 //+------------------------------------------------------------------+
-//| ۷. 🚫 فیلترهای هوشمند ضد استاپ و اصطکاک                          |
+//| ۸. 🚫 فیلترهای هوشمند ضد استاپ و اصطکاک                          |
 //+------------------------------------------------------------------+
-input group "=== 🚫 ۷. فیلترهای هوشمند ضد استاپ و اصطکاک ==="
+input group "=== 🚫 ۸. فیلترهای هوشمند ضد استاپ و اصطکاک ==="
 input bool              InpFilterNightHours   = false;                  // 🌙 فیلتر ۱: مسدودسازی بازه شبانه ۲۱:۰۰ تا ۰۱:۰۰
 input bool              InpFilterPreLondonHunt= false;                  // ⏰ فیلتر ۲: مسدودسازی ساعت هانت قبل از لندن ۰۷:۰۰
 input bool              InpFilterToxicPatterns= false;                  // ⚠️ فیلتر ۳: حذف زنجیره‌های فرسایشی سمی
@@ -133,9 +146,9 @@ input string            InpAllowedTradingHours       = "";              // ⏰ �
 input double            InpMinTradePotential         = 0.0;             // 💰 حداقل کف سود دلاری معامله (اسلایدر داشبورد)
 
 //+------------------------------------------------------------------+
-//| ۸. 🎨 استایل و رنگ‌بندی تفکیکی الگوهای ساختاری                    |
+//| ۹. 🎨 استایل و رنگ‌بندی تفکیکی الگوهای ساختاری                    |
 //+------------------------------------------------------------------+
-input group "=== 🎨 ۸. استایل و رنگ‌بندی تفکیکی الگوهای ساختاری ==="
+input group "=== 🎨 ۹. استایل و رنگ‌بندی تفکیکی الگوهای ساختاری ==="
 input int               InpSwingBars          = 6;                      // 📐 عمق کندلی محاسبه سویینگ‌ها (Swing Bars)
 input bool              InpHighlightPreIP     = true;                   // 🟢 شناسایی و هایلایت باکس‌های ساختاری ماقبل پیووت (LS)
 input color             InpLSColorBull        = clrLimeGreen;           // 🎨 رنگ باکس‌های LS صعودی

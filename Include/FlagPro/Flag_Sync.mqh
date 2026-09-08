@@ -23,7 +23,15 @@ bool     g_syncFilterToxicPatterns    = false;
 bool     g_syncFilterSingleLS         = false;
 bool     g_syncFilterPureFlags        = false;
 bool     g_syncFilterLowRewardVsFriction = false;
-double   g_syncSLOffsetPips           = 8.0;
+ENUM_SL_MODE    g_syncSLMode                 = SL_MODE_ATR_BUFFER;
+double          g_syncSLFixedPips            = 3.0;
+ENUM_TIMEFRAMES g_syncSLATRTimeframe         = PERIOD_CURRENT;
+int             g_syncSLATRPeriod            = 14;
+double          g_syncSLATRMultiplier        = 0.5;
+double          g_syncSLBoxPercent           = 0.30;
+double          g_syncSLMinPips              = 2.5;
+double          g_syncSLMaxPips              = 40.0;
+double          g_syncSLOffsetPips           = 3.0;
 double   g_syncMaxEntryDeviationPips  = 2.5;
 int      g_syncLimitExpirationBars    = 40;
 bool     g_syncUseTF7                 = true;
@@ -52,7 +60,16 @@ bool ActiveFilterToxicPatterns()  { return (g_syncActive ? g_syncFilterToxicPatt
 bool ActiveFilterSingleLS()       { return (g_syncActive ? g_syncFilterSingleLS : InpFilterSingleLS); }
 bool ActiveFilterPureFlags()      { return (g_syncActive ? g_syncFilterPureFlags : InpFilterPureFlags); }
 bool ActiveFilterLowReward()      { return (g_syncActive ? g_syncFilterLowRewardVsFriction : InpFilterLowRewardVsFriction); }
-double ActiveSLOffsetPips()       { return (g_syncActive ? g_syncSLOffsetPips : InpSLOffsetPips); }
+
+ENUM_SL_MODE    ActiveSLMode()             { return (g_syncActive ? g_syncSLMode : InpSLMode); }
+double          ActiveSLFixedPips()        { return (g_syncActive ? g_syncSLFixedPips : InpSLFixedPips); }
+double          ActiveSLOffsetPips()       { return ActiveSLFixedPips(); }
+ENUM_TIMEFRAMES ActiveSLATRTimeframe()     { return (g_syncActive ? g_syncSLATRTimeframe : InpSLATRTimeframe); }
+int             ActiveSLATRPeriod()        { return (g_syncActive ? g_syncSLATRPeriod : InpSLATRPeriod); }
+double          ActiveSLATRMultiplier()    { return (g_syncActive ? g_syncSLATRMultiplier : InpSLATRMultiplier); }
+double          ActiveSLBoxPercent()       { return (g_syncActive ? g_syncSLBoxPercent : InpSLBoxPercent); }
+double          ActiveSLMinPips()          { return (g_syncActive ? g_syncSLMinPips : InpSLMinPips); }
+double          ActiveSLMaxPips()          { return (g_syncActive ? g_syncSLMaxPips : InpSLMaxPips); }
 double ActiveMaxEntryDeviationPips(){ return (g_syncActive ? g_syncMaxEntryDeviationPips : InpMaxEntryDeviationPips); }
 int  ActiveLimitExpirationBars()  { return (g_syncActive ? g_syncLimitExpirationBars : InpLimitExpirationBars); }
 bool ActiveUseTF7()               { return (g_syncActive ? g_syncUseTF7 : InpUseTF7); }
@@ -89,7 +106,15 @@ void SaveActiveScenarioToCommon(const string scenarioName,
                                 bool allowOverlap = true,
                                 bool tradeMacro = false,
                                 const string allowedHours = "",
-                                double minPot = 0.0)
+                                double minPot = 0.0,
+                                ENUM_SL_MODE slMode = SL_MODE_ATR_BUFFER,
+                                double slFixed = 3.0,
+                                ENUM_TIMEFRAMES slAtrTf = PERIOD_CURRENT,
+                                int slAtrPer = 14,
+                                double slAtrMul = 0.5,
+                                double slBoxPct = 0.30,
+                                double slMin = 2.5,
+                                double slMax = 40.0)
 {
    int hFile = FileOpen(SYNC_SCENARIO_FILENAME, FILE_WRITE | FILE_TXT | FILE_UNICODE | FILE_COMMON);
    if(hFile == INVALID_HANDLE)
@@ -115,6 +140,14 @@ void SaveActiveScenarioToCommon(const string scenarioName,
       FileWriteString(hFile, "InpFilterPureFlags=" + (fPureFlags ? "true" : "false") + "\r\n");
       FileWriteString(hFile, "InpFilterLowRewardVsFriction=" + (fLowReward ? "true" : "false") + "\r\n");
       FileWriteString(hFile, "InpSLOffsetPips=" + DoubleToString(slOffset, 1) + "\r\n");
+      FileWriteString(hFile, "InpSLMode=" + IntegerToString((int)slMode) + "\r\n");
+      FileWriteString(hFile, "InpSLFixedPips=" + DoubleToString(slFixed, 1) + "\r\n");
+      FileWriteString(hFile, "InpSLATRTimeframe=" + IntegerToString((int)slAtrTf) + "\r\n");
+      FileWriteString(hFile, "InpSLATRPeriod=" + IntegerToString(slAtrPer) + "\r\n");
+      FileWriteString(hFile, "InpSLATRMultiplier=" + DoubleToString(slAtrMul, 2) + "\r\n");
+      FileWriteString(hFile, "InpSLBoxPercent=" + DoubleToString(slBoxPct, 2) + "\r\n");
+      FileWriteString(hFile, "InpSLMinPips=" + DoubleToString(slMin, 1) + "\r\n");
+      FileWriteString(hFile, "InpSLMaxPips=" + DoubleToString(slMax, 1) + "\r\n");
       FileWriteString(hFile, "InpMaxEntryDeviationPips=" + DoubleToString(maxDev, 1) + "\r\n");
       FileWriteString(hFile, "InpLimitExpirationBars=" + IntegerToString(limitExpBars) + "\r\n");
       FileWriteString(hFile, "InpUseTF7=" + (useTF7 ? "true" : "false") + "\r\n");
@@ -151,12 +184,20 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
    string aList = "", dList = "";
    bool kM15 = true, kM5 = true, kM1 = true;
    bool fNight = false, fPreLon = false, fToxic = false, fSingleLS = false, fPure = false, fLow = false;
-   double slOff = 8.0, maxDev = 2.5;
+   double slOff = 3.0, maxDev = 2.5;
    int lBars = 40;
    bool uTF7 = true, uTF6 = true, uTF5 = true;
    bool aOverlap = true, tMacro = false;
    string aHours = "";
    double mPot = 0.0;
+   ENUM_SL_MODE slM = InpSLMode;
+   double slFixedVal = InpSLFixedPips;
+   ENUM_TIMEFRAMES slAtrTfVal = InpSLATRTimeframe;
+   int slAtrPerVal = InpSLATRPeriod;
+   double slAtrMulVal = InpSLATRMultiplier;
+   double slBoxPctVal = InpSLBoxPercent;
+   double slMinVal = InpSLMinPips;
+   double slMaxVal = InpSLMaxPips;
 
    while(!FileIsEnding(hFile))
    {
@@ -189,7 +230,14 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
       else if(key == "InpFilterSingleLS")           fSingleLS = (val == "true" || val == "1");
       else if(key == "InpFilterPureFlags")          fPure = (val == "true" || val == "1");
       else if(key == "InpFilterLowRewardVsFriction") fLow = (val == "true" || val == "1");
-      else if(key == "InpSLOffsetPips")             slOff = StringToDouble(val);
+      else if(key == "InpSLOffsetPips" || key == "InpSLFixedPips") { slOff = StringToDouble(val); slFixedVal = slOff; }
+      else if(key == "InpSLMode")                   slM = (ENUM_SL_MODE)StringToInteger(val);
+      else if(key == "InpSLATRTimeframe")          slAtrTfVal = (ENUM_TIMEFRAMES)StringToInteger(val);
+      else if(key == "InpSLATRPeriod")             slAtrPerVal = (int)StringToInteger(val);
+      else if(key == "InpSLATRMultiplier")         slAtrMulVal = StringToDouble(val);
+      else if(key == "InpSLBoxPercent")            slBoxPctVal = StringToDouble(val);
+      else if(key == "InpSLMinPips")               slMinVal = StringToDouble(val);
+      else if(key == "InpSLMaxPips")               slMaxVal = StringToDouble(val);
       else if(key == "InpMaxEntryDeviationPips")    maxDev = StringToDouble(val);
       else if(key == "InpLimitExpirationBars")      lBars = (int)StringToInteger(val);
       else if(key == "InpUseTF7")                   uTF7 = (val == "true" || val == "1");
@@ -221,7 +269,15 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
    g_syncFilterSingleLS         = fSingleLS;
    g_syncFilterPureFlags        = fPure;
    g_syncFilterLowRewardVsFriction = fLow;
-   g_syncSLOffsetPips           = slOff;
+   g_syncSLMode                 = slM;
+   g_syncSLFixedPips            = slFixedVal;
+   g_syncSLOffsetPips           = slFixedVal;
+   g_syncSLATRTimeframe         = slAtrTfVal;
+   g_syncSLATRPeriod            = slAtrPerVal;
+   g_syncSLATRMultiplier        = slAtrMulVal;
+   g_syncSLBoxPercent           = slBoxPctVal;
+   g_syncSLMinPips              = slMinVal;
+   g_syncSLMaxPips              = slMaxVal;
    g_syncMaxEntryDeviationPips  = maxDev;
    g_syncLimitExpirationBars    = lBars;
    g_syncUseTF7                 = uTF7;
@@ -232,8 +288,8 @@ bool CheckAndLoadActiveScenario(bool forceReload = false)
    g_syncAllowedTradingHours    = aHours;
    g_syncMinTradePotential      = mPot;
 
-   PrintFormat("⚡ [FlagPro Auto-Sync] اندیکاتور چارت با سناریوی تستر «%s» همگام شد! (سلاطین: %s | M1: %s | ساعات: %s | کف سود: $%.1f)",
+   PrintFormat("⚡ [FlagPro Auto-Sync] اندیکاتور چارت با سناریوی تستر «%s» همگام شد! (سلاطین: %s | M1: %s | استاپ: مدل %d | کف سود: $%.1f)",
                g_syncScenarioName, (g_syncOnlyTradeKings ? "فعال" : "غیرفعال"), (g_syncUseTF7 ? "فعال" : "غیرفعال"),
-               (g_syncAllowedTradingHours == "" ? "۲۴ ساعته" : g_syncAllowedTradingHours), g_syncMinTradePotential);
+               (int)g_syncSLMode, g_syncMinTradePotential);
    return true;
 }

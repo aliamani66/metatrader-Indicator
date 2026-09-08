@@ -192,16 +192,18 @@ void ExportAllTradesToCSV()
          if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
       }
 
+      double boxHeight = g_drawnBoxes[b].top - g_drawnBoxes[b].bottom;
+      datetime evalTime = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
+
       if(isBull)
       {
          entryPrice = g_drawnBoxes[b].top;
-         slPrice    = patternLow - bufferPips;
       }
       else
       {
          entryPrice = g_drawnBoxes[b].bottom;
-         slPrice    = patternHigh + bufferPips;
       }
+      slPrice = CalculateSetupStopLoss(isBull, entryPrice, patternHigh, patternLow, boxHeight, evalTime, g_drawnBoxes[b].tf, pipSize);
 
       double risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
@@ -228,7 +230,7 @@ void ExportAllTradesToCSV()
       if(confirmIdx < 0) confirmIdx = FindBarIndex(chartTime, copied, baseTime);
       if(confirmIdx < 0) confirmIdx = 0;
 
-      double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
+      boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
       double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
       bool isEntered = false;

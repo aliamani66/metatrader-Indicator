@@ -43,6 +43,14 @@ enum ENUM_HISTORY_MODE
    HIST_ALL_AVAILABLE  // 🌐 تمام تاریخچه موجود در متاتریدر (All Available)
 };
 
+enum ENUM_SL_MODE
+{
+   SL_MODE_FIXED_PIPS     = 0, // ۱. ساختار باکس + بافر ثابت پیپی (روش کلاسیک)
+   SL_MODE_ATR_BUFFER     = 1, // ۲. ساختار باکس + بافر داینامیک ATR (پیشنهاد طلایی 🌟)
+   SL_MODE_PURE_ATR       = 2, // ۳. استاپ‌لاس خالص ولاتیلیتی (ضریب ATR از نقطه ورود)
+   SL_MODE_BOX_PERCENT    = 3  // ۴. ساختار باکس + بافر درصدی از ضخامت گره (Adaptive)
+};
+
 // متغیرهای سراسری و یکپارچه بازه زمانی تحلیل
 datetime g_effectiveStartDate  = 0;
 int      g_effectiveDaysBack   = 1000;

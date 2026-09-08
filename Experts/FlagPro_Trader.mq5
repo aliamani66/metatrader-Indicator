@@ -62,30 +62,43 @@ input bool               InpEnableKingsM1         = true;        // 👑 فعا�
 input bool               InpAllowOverlappingTrades= true;        // 🔓 اجازه معاملات همزمان (ستاپ‌های هم‌پوشان)
 
 //+------------------------------------------------------------------+
-//| ۳. ⚡ مدیریت ریسک، حد ضرر، اسلیپیج و مجیک نامبر                |
+//| ۳. 🛑 تنظیمات جامع حد ضرر (STOP LOSS ENGINE)                     |
 //+------------------------------------------------------------------+
-input group "=== ⚡ ۳. مدیریت ریسک، حد ضرر، لغزش و مجیک نامبر ==="
+input group "=== 🛑 ۳. تنظیمات جامع حد ضرر (STOP LOSS) ==="
+input ENUM_SL_MODE       InpSLMode                = SL_MODE_ATR_BUFFER;  // ⚙️ مدل محاسبه حد ضرر
+input double             InpSLFixedPips           = 3.0;                 // 📏 بافر ثابت پیپ (در صورت انتخاب مدل ۱)
+input ENUM_TIMEFRAMES    InpSLATRTimeframe        = PERIOD_CURRENT;      // ⏱ تایم‌فریم محاسبه ATR (CURRENT = تایم باکس)
+input int                InpSLATRPeriod           = 14;                  // 📊 دوره اندیکاتور ATR
+input double             InpSLATRMultiplier       = 0.5;                 // ✖️ ضریب ATR (برای بافر یا استاپ خالص)
+input double             InpSLBoxPercent          = 0.30;                // 📐 درصد بافر از ضخامت گره (در مدل ۴)
+input double             InpSLMinPips             = 2.5;                 // 🛡️ کف مجاز حد ضرر (حداقل فاصله به پیپ)
+input double             InpSLMaxPips             = 40.0;                // 🚨 سقف مجاز حد ضرر (حداکثر فاصله به پیپ)
+#define InpSLOffsetPips  InpSLFixedPips
+#define InpRSPipBuffer   InpSLFixedPips
+#define InpMaxSLPips     InpSLMaxPips
+
+//+------------------------------------------------------------------+
+//| ۴. ⚡ اجرای اردر، لغزش، انحراف و مجیک نامبر                      |
+//+------------------------------------------------------------------+
+input group "=== ⚡ ۴. اجرای اردر، لغزش، انحراف و مجیک نامبر ==="
 input ulong              InpMagicNumber           = 777123;      // شناسه جادویی اکسپرت (Magic Number)
-input double             InpSLOffsetPips          = 8.0;         // 🛡️ فاصله اطمینان حد ضرر جهت فرار از شدوها (افست استاپ به پیپ)
-#define InpRSPipBuffer InpSLOffsetPips
-input double             InpMaxSLPips             = 0.0;         // حداکثر حد ضرر مجاز به پیپ (0 = منطبق بر خط استاپ چارت)
 input int                InpSlippagePoints        = 20;          // ⚡ حداکثر اسلیپیج مجاز (لغزش قیمت به پوینت - 20 = 2 پیپ)
 input double             InpMaxEntryDeviationPips = 2.5;         // 🛡️ حداکثر انحراف مجاز ورود از لبه باکس به پیپ (جلوگیری از ورود دیرهنگام)
 input int                InpMaxOpenGroups         = 20;          // حداکثر تعداد ستاپ‌های همزمان فعال
 
 //+------------------------------------------------------------------+
-//| ۴. ⏰ ساعات مجاز، کف سود ستاپ و فیوز ایمنی                     |
+//| ۵. ⏰ ساعات مجاز، کف سود ستاپ و فیوز ایمنی                     |
 //+------------------------------------------------------------------+
-input group "=== ⏰ ۴. ساعات معاملاتی، کف سود و فیوز ایمنی ==="
+input group "=== ⏰ ۵. ساعات معاملاتی، کف سود و فیوز ایمنی ==="
 input string             InpAllowedTradingHours   = "";          // ⏰ ساعات مجاز معامله (مثلاً "10,11,12,13,14,15,16,17,18,19" - خالی = ۲۴ ساعته)
 input double             InpMinTradePotential     = 0.0;         // 💰 حداقل کف سود دلاری معامله (اسلایدر داشبورد)
 input int                InpConsecLossTrigger     = 0;           // 🚨 فیوز استاپ‌های متوالی (۰ = خاموش، ۲ = توقف بعد از ۲ استاپ)
 input ENUM_CONSEC_ACTION InpConsecLossAction      = CONSEC_ACTION_SKIP_1; // ⚡ اقدام فیوز پس از حد ضررهای متوالی
 
 //+------------------------------------------------------------------+
-//| ۵. 🛡️ فیلترهای ضد استاپ و اصطکاک کمیسیون بروکر                  |
+//| ۶. 🛡️ فیلترهای ضد استاپ و اصطکاک کمیسیون بروکر                  |
 //+------------------------------------------------------------------+
-input group "=== 🛡️ ۵. فیلترهای هوشمند ضد استاپ و هزینه بروکر ==="
+input group "=== 🛡️ ۶. فیلترهای هوشمند ضد استاپ و هزینه بروکر ==="
 input bool               InpFilterNightHours      = true;        // 🛡️ فیلتر ۱: مسدودسازی بازه شب ۲۱ تا ۰۱ (اسپرد شبانه)
 input bool               InpFilterPreLondonHunt   = true;        // 🛡️ فیلتر ۲: مسدودسازی ساعت ۰۷:۰۰ قبل لندن (استاپ هانت)
 input bool               InpFilterToxicPatterns   = true;        // 🛡️ فیلتر ۳: حذف زنجیره‌های سمی و بازگشتی
@@ -97,9 +110,9 @@ input double             InpEstimatedSpreadPips   = 0.8;         // اسپرد �
 input double             InpMinNetProfitRatioTP1 = 1.0;         // حداقل نسبت سود TP1 به کل اصطکاک
 
 //+------------------------------------------------------------------+
-//| ۶. ⏱️ تایم‌فریم‌های فعال معامله و عمق پردازش چارت                |
+//| ۷. ⏱️ تایم‌فریم‌های فعال معامله و عمق پردازش چارت                |
 //+------------------------------------------------------------------+
-input group "=== ⏱️ ۶. تایم‌فریم‌های فعال معامله و سرعت پردازش ==="
+input group "=== ⏱️ ۷. تایم‌فریم‌های فعال معامله و سرعت پردازش ==="
 input bool               InpUseTF7                = true;        // معامله در تایم‌فریم ۱ دقیقه (PERIOD_M1)
 input bool               InpUseTF6                = true;        // معامله در تایم‌فریم ۵ دقیقه (PERIOD_M5)
 input bool               InpUseTF5                = true;        // معامله در تایم‌فریم ۱۵ دقیقه (PERIOD_M15)
@@ -110,9 +123,9 @@ input datetime           InpHistoryStartDate      = D'2026.09.01 00:00'; // 📅
 input int                InpHistoryDays           = 10;          // ⏳ بازه روز گذشته (پیش‌فرض: ۱۰ روز برای پوشش کامل هفته و تست‌ها)
 
 //+------------------------------------------------------------------+
-//| ۷. 🎯 گرافیک و رنگ خطوط معامله روی چارت (پایین فرم - متمایز از تستر) |
+//| ۸. 🎯 گرافیک و رنگ خطوط معامله روی چارت (پایین فرم - متمایز از تستر) |
 //+------------------------------------------------------------------+
-input group "=== 🎯 ۷. خطوط معامله روی چارت (متمایز از خطوط تستر) ==="
+input group "=== 🎯 ۸. خطوط معامله روی چارت (متمایز از خطوط تستر) ==="
 input bool               InpAutoDrawTrades        = true;        // 🎯 رسم خودکار گرافیک معاملات فعال‌شده روی چارت
 input bool               InpEnableTradeSetup      = true;        // ⚡ فعال‌سازی محاسبه و تشخیص ستاپ‌های معاملاتی روی باکس‌ها
 input bool               InpUniqueTradeColors     = true;        // 🎨 رنگ مجزا برای هر معامله (تفکیک آسان معاملات همزمان)
@@ -123,9 +136,9 @@ input bool               InpShowTradeShading      = false;       // 🎨 پس‌
 input bool               InpExportCSV             = false;       // 📁 استخراج خودکار فایل CSV
 
 //+------------------------------------------------------------------+
-//| ۸. 🎨 رنگ‌ها، تنظیمات ظاهری باکس‌ها و تم چارت (پایین‌ترین بخش)   |
+//| ۹. 🎨 رنگ‌ها، تنظیمات ظاهری باکس‌ها و تم چارت (پایین‌ترین بخش)   |
 //+------------------------------------------------------------------+
-input group "=== 🎨 ۸. رنگ‌ها و تنظیمات ظاهری باکس‌های چارت ==="
+input group "=== 🎨 ۹. رنگ‌ها و تنظیمات ظاهری باکس‌های چارت ==="
 input bool               InpShowBoxes             = false;       // 👁️ رسم باکس‌های قیمتی روی چارت
 input ENUM_BOX_DISPLAY_FILTER InpBoxDisplayFilter = BOX_FILTER_TRADED_ONLY; // فیلتر نمایش باکس‌ها روی چارت
 input bool               InpHideFilteredBoxes     = true;        // مخفی‌سازی باکس‌های فیلترشده از چارت
@@ -284,7 +297,7 @@ int OnInit()
                               InpFilterSingleLS,
                               InpFilterPureFlags,
                               InpFilterLowRewardVsFriction,
-                              InpSLOffsetPips,
+                              InpSLFixedPips,
                               InpMaxEntryDeviationPips,
                               InpLimitExpirationBars,
                               InpUseTF7,
@@ -293,7 +306,15 @@ int OnInit()
                               InpAllowOverlappingTrades,
                               InpTradeMacroTFs,
                               InpAllowedTradingHours,
-                              InpMinTradePotential);
+                              InpMinTradePotential,
+                              InpSLMode,
+                              InpSLFixedPips,
+                              InpSLATRTimeframe,
+                              InpSLATRPeriod,
+                              InpSLATRMultiplier,
+                              InpSLBoxPercent,
+                              InpSLMinPips,
+                              InpSLMaxPips);
 
    InitMasterHistory(InpHistoryMode, InpHistoryStartDate, InpHistoryDays);
    g_boxesVisible = InpShowBoxes;
@@ -1267,9 +1288,10 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
          if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
       }
 
-      double bufferPips = InpRSPipBuffer * pipSize;
+      double boxHeight = g_drawnBoxes[b].top - g_drawnBoxes[b].bottom;
+      datetime evalTime = (g_drawnBoxes[b].formationTime > 0) ? g_drawnBoxes[b].formationTime : g_drawnBoxes[b].t1;
       double entryPrice = isBull ? g_drawnBoxes[b].top : g_drawnBoxes[b].bottom;
-      double slPrice    = isBull ? (patternLow - bufferPips) : (patternHigh + bufferPips);
+      double slPrice    = CalculateSetupStopLoss(isBull, entryPrice, patternHigh, patternLow, boxHeight, evalTime, g_drawnBoxes[b].tf, pipSize);
       double risk       = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
 
@@ -1300,7 +1322,7 @@ void ScanAndPlaceLimitOrders(const datetime &chartTime[], const double &chartHig
       if(confirmIdx < 0) confirmIdx = FindBarIndex(chartTime, ratesTotal, baseTime);
       if(confirmIdx < 0) confirmIdx = 0;
 
-      double boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
+      boxHeight = MathAbs(g_drawnBoxes[b].top - g_drawnBoxes[b].bottom);
       double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
 
       int departedBar = -1;

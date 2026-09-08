@@ -527,16 +527,21 @@ void ShowTradeSetupForBox(int boxIdx)
          else isBull = g_drawnBoxes[boxIdx].isBullish;
       }
 
+      double patternHigh = g_drawnBoxes[boxIdx].top;
+      double patternLow  = g_drawnBoxes[boxIdx].bottom;
+      double boxHeight   = patternHigh - patternLow;
+      datetime evalTime  = (g_drawnBoxes[boxIdx].formationTime > 0) ? g_drawnBoxes[boxIdx].formationTime : g_drawnBoxes[boxIdx].t1;
+      ENUM_TIMEFRAMES boxTf = g_drawnBoxes[boxIdx].tf;
+
       if(isBull)
       {
          entryPrice = g_drawnBoxes[boxIdx].top;
-         slPrice    = g_drawnBoxes[boxIdx].bottom - bufferPips;
       }
       else
       {
          entryPrice = g_drawnBoxes[boxIdx].bottom;
-         slPrice    = g_drawnBoxes[boxIdx].top + bufferPips;
       }
+      slPrice = CalculateSetupStopLoss(isBull, entryPrice, patternHigh, patternLow, boxHeight, evalTime, boxTf, pipSize);
 
       risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
