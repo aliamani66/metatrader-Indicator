@@ -862,6 +862,54 @@ void ShowTradeSetupForBox(int boxIdx)
       ObjectSetInteger(0, resLbl, OBJPROP_COLOR, (isFiltered && isClosed) ? clrSalmon : resColor);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 9);
       ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+   }
+   else
+   {
+      // رسم خطوط راهنمای ورود و استاپ برای ستاپ‌هایی که وارد نشده یا نقض شده‌اند
+      datetime t1 = confirmTime;
+      datetime t2 = t1 + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 35;
+
+      // خط نقطه ورود (خاکستری نقطه‌چین)
+      string entryLine = pfx + "ENTRY";
+      ObjectCreate(0, entryLine, OBJ_TREND, 0, t1, entryPrice, t2, entryPrice);
+      ObjectSetInteger(0, entryLine, OBJPROP_COLOR, clrDarkGray);
+      ObjectSetInteger(0, entryLine, OBJPROP_WIDTH, 1);
+      ObjectSetInteger(0, entryLine, OBJPROP_STYLE, STYLE_DOT);
+      ObjectSetInteger(0, entryLine, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, entryLine, OBJPROP_SELECTABLE, false);
+
+      string entryLbl = pfx + "ENTRY_LBL";
+      ObjectCreate(0, entryLbl, OBJ_TEXT, 0, t1, entryPrice);
+      ObjectSetString(0, entryLbl, OBJPROP_TEXT, " ENTRY: " + DoubleToString(entryPrice, _Digits));
+      ObjectSetInteger(0, entryLbl, OBJPROP_COLOR, clrDarkGray);
+      ObjectSetInteger(0, entryLbl, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, entryLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+      ObjectSetInteger(0, entryLbl, OBJPROP_SELECTABLE, false);
+
+      // خط حد ضرر (قرمز ملایم نقطه‌چین)
+      string slLine = pfx + "SL";
+      ObjectCreate(0, slLine, OBJ_TREND, 0, t1, slPrice, t2, slPrice);
+      ObjectSetInteger(0, slLine, OBJPROP_COLOR, clrIndianRed);
+      ObjectSetInteger(0, slLine, OBJPROP_WIDTH, 1);
+      ObjectSetInteger(0, slLine, OBJPROP_STYLE, STYLE_DOT);
+      ObjectSetInteger(0, slLine, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(0, slLine, OBJPROP_SELECTABLE, false);
+
+      string slLbl = pfx + "SL_LBL";
+      ObjectCreate(0, slLbl, OBJ_TEXT, 0, t2, slPrice);
+      ObjectSetString(0, slLbl, OBJPROP_TEXT, " SL: " + DoubleToString(slPrice, _Digits));
+      ObjectSetInteger(0, slLbl, OBJPROP_COLOR, clrIndianRed);
+      ObjectSetInteger(0, slLbl, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, slLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
+      ObjectSetInteger(0, slLbl, OBJPROP_SELECTABLE, false);
+
+      // برچسب نتیجه روی خط ورود
+      string resLbl = pfx + "RESULT_LBL";
+      ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, entryPrice);
+      ObjectSetString(0, resLbl, OBJPROP_TEXT, " " + (isBull ? "BUY" : "SELL") + " -> " + resText);
+      ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resColor);
+      ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 9);
+      ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
       ObjectSetInteger(0, resLbl, OBJPROP_SELECTABLE, false);
    }
 
