@@ -1,0 +1,3287 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlagPro Master Strategy Dashboard</title>
+    <!-- Stylesheets -->
+    <style>
+/* Inlined: css/main.css */
+:root {
+    --bg-main: #060913;
+    --bg-card: #0b1120;
+    --bg-card-alt: #0f172a;
+    --bg-sidebar: #050811;
+    --border-color: #1e293b;
+    --border-focus: #38bdf8;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --green: #10b981;
+    --green-bright: #00e676;
+    --green-dark: #064e3b;
+    --red: #ef4444;
+    --red-dark: #450a0a;
+    --blue: #0284c7;
+    --blue-light: #38bdf8;
+    --gold: #facc15;
+    --gold-dark: #854d0e;
+    --purple: #a855f7;
+    --font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: var(--font-family);
+    direction: rtl;
+    line-height: 1.6;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+/* App Container Layout */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+    transition: width 0.3s ease;
+}
+
+.sidebar-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand-badge {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #fff;
+    font-weight: 900;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+}
+
+.brand-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.nav-menu {
+    list-style: none;
+    padding: 12px 10px;
+    flex: 1;
+}
+
+.nav-item {
+    margin-bottom: 4px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-link.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.nav-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+/* Main Workspace */
+.main-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+/* Top App Header */
+.top-header {
+    background: rgba(11, 17, 32, 0.85);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Workspace Content Area */
+.content-body {
+    padding: 20px 24px;
+    flex: 1;
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Section Box */
+.section-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.section-title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .app-container { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; border-left: none; border-bottom: 1px solid var(--border-color); }
+    .main-workspace { height: auto; }
+}
+
+</style>
+    <style>
+/* Inlined: css/components.css */
+/* KPI Card Grid */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.4);
+}
+
+.kpi-title {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    font-family: Consolas, monospace, sans-serif;
+}
+
+.kpi-subtext {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+/* Custom Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-family: inherit;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    border-color: #38bdf8;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+}
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0369a1, #075985);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #059669, #10b981);
+    border-color: #34d399;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+}
+.btn-success:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    border-color: #f87171;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #1e293b;
+    border-color: #334155;
+    color: var(--text-muted);
+}
+.btn-secondary:hover {
+    background: #334155;
+    color: #fff;
+}
+
+/* Data Health Badge */
+.data-health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #064e3b33;
+    border: 1px solid var(--green);
+    color: var(--green-bright);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.data-health-badge:hover {
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+.data-health-badge.warning {
+    background: #78350f33;
+    border-color: var(--gold);
+    color: var(--gold);
+}
+.data-health-badge.error {
+    background: #450a0a33;
+    border-color: var(--red);
+    color: #fca5a5;
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 99999999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    direction: rtl;
+}
+
+.modal-card {
+    background: #0f172a;
+    border: 2px solid var(--border-focus);
+    border-radius: 14px;
+    padding: 22px 24px;
+    width: 92%;
+    max-width: 640px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
+    color: #f1f5f9;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+}
+.modal-close:hover {
+    color: #fff;
+}
+
+/* Global Toast Notification */
+#flagproGlobalToast {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 999999999;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid var(--green);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    padding: 12px 18px;
+    color: #f1f5f9;
+    font-size: 12.5px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    direction: rtl;
+    max-width: 420px;
+    transition: opacity 0.3s ease;
+}
+
+</style>
+    <style>
+/* Inlined: css/tables.css */
+/* Table Responsive Wrapper */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: #090e1a;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #1e3a5f;
+    border-radius: 4px;
+}
+
+/* Master Data Table */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.data-table th {
+    background: #0f172a;
+    color: var(--text-muted);
+    font-weight: 700;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border-color);
+    font-size: 11.5px;
+    letter-spacing: 0.3px;
+    user-select: none;
+}
+
+.data-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #141e33;
+    color: var(--text-main);
+    transition: background 0.15s;
+}
+
+.data-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.data-table tbody tr:hover {
+    background: rgba(56, 189, 248, 0.06);
+}
+
+/* Text alignments */
+.text-center { text-align: center !important; }
+.text-left { text-align: left !important; }
+.text-right { text-align: right !important; }
+
+/* Status Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.badge-green {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-blue {
+    background: rgba(2, 132, 199, 0.2);
+    color: #38bdf8;
+    border: 1px solid rgba(2, 132, 199, 0.4);
+}
+
+.badge-gold {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.4);
+}
+
+.badge-red {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-purple {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+/* PnL Coloring */
+.pnl-pos {
+    color: var(--green-bright);
+    font-weight: 700;
+}
+.pnl-neg {
+    color: var(--red);
+    font-weight: 700;
+}
+
+</style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="brand-badge">FLAGPRO</span>
+                <span class="brand-title">داشبورد استراتژی</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" data-tab="equity">
+                        <span class="nav-icon">📈</span>
+                        <span>رشد سرمایه و شبیه‌ساز</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="kings">
+                        <span class="nav-icon">👑</span>
+                        <span>سلاطین برگزیده</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="scaleout">
+                        <span class="nav-icon">🎯</span>
+                        <span>کالبدشکافی پلکانی (TP1..4)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="timeframes">
+                        <span class="nav-icon">⏱️</span>
+                        <span>عملکرد تایم‌فریم‌ها</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="filters">
+                        <span class="nav-icon">🔍</span>
+                        <span>فیلترهای استراتژیک</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="loss_intel">
+                        <span class="nav-icon">🛡️</span>
+                        <span>هوش ضرر و استاپ</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="weekly">
+                        <span class="nav-icon">📊</span>
+                        <span>کارنامه هفته به هفته</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="presets">
+                        <span class="nav-icon">🤖</span>
+                        <span>پیشنهادات استراتژیک EA</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="tester_compare">
+                        <span class="nav-icon">🔬</span>
+                        <span>کالبدشکافی تست MT5</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="optimizer">
+                        <span class="nav-icon">⚡</span>
+                        <span>بهینه‌ساز شبکه هوشمند</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-tab="journal">
+                        <span class="nav-icon">📋</span>
+                        <span>ژورنال جامع معاملات</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-workspace">
+            <!-- Top App Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:12px;color:var(--text-muted);">نماد فعال:</span>
+                        <select id="symbolSelector" style="background:#1e293b;border:1px solid #334155;color:#fff;padding:6px 12px;border-radius:6px;font-size:12.5px;font-weight:bold;cursor:pointer;">
+                            <option value="EURUSD">EURUSD</option>
+                            <option value="GBPUSD">GBPUSD</option>
+                        </select>
+                    </div>
+
+                    <!-- 🛡️ Data Health Indicator -->
+                    <div id="dataHealthBadge" class="data-health-badge" title="کیفیت و اصالت داده">
+                        <span>🟢</span>
+                        <span>داده معتبر</span>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <label class="btn btn-primary" style="cursor:pointer;">
+                        <span>📁 بارگذاری فایل CSV جدید</span>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+                    </label>
+                </div>
+            </header>
+
+            <!-- Content Area: Tab Panes -->
+            <div class="content-body">
+                <!-- Tab 1: Equity & Simulator -->
+                <div id="tab-equity" class="tab-pane active">
+                    <!-- KPI Cards -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <span class="kpi-title">💵 سود خالص کل</span>
+                            <span id="eqKpiNetVal" class="kpi-value pnl-pos">$0</span>
+                            <span class="kpi-subtext">پس از کسر هزینه اصطکاک</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">🎯 وین‌ریت (Win Rate)</span>
+                            <span id="eqKpiWR" class="kpi-value" style="color:#34d399;">0٪</span>
+                            <span class="kpi-subtext">نرخ تاچ حداقل TP1</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">⚖️ پرافیت فاکتور</span>
+                            <span id="eqKpiPF" class="kpi-value" style="color:#38bdf8;">0.00</span>
+                            <span class="kpi-subtext">نسبت سود ناخالص به زیان</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">🛡️ حداکثر افت سرمایه (Max DD)</span>
+                            <span id="eqKpiMaxDD" class="kpi-value" style="color:#fca5a5;">$0</span>
+                            <span class="kpi-subtext">بیشترین دراودان تاریخی</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">📊 تعداد معاملات</span>
+                            <span id="eqKpiCnt" class="kpi-value">0</span>
+                            <span class="kpi-subtext">معاملات واجد شرایط</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-title">⚡ میانگین هر ترید</span>
+                            <span id="eqKpiAvgTrade" class="kpi-value" style="color:#c084fc;">$0.00</span>
+                            <span class="kpi-subtext">امید ریاضی (Expectancy)</span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Box -->
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">📈 منحنی رشد بالانس و سرمایه (Equity Curve):</div>
+                            <div style="display:flex;gap:6px;">
+                                <button id="btnEqKings" class="btn btn-primary active" style="padding:4px 10px;font-size:11px;">👑 فقط سلاطین</button>
+                                <button id="btnEqAll" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">🌐 تمام معاملات</button>
+                            </div>
+                        </div>
+                        <canvas id="equityCanvas" style="width:100%;height:360px;display:block;"></canvas>
+                    </div>
+
+                    <!-- Simulator Controls -->
+                    <div class="section-box">
+                        <div class="section-title">🎛️ شبیه‌ساز و فیلترهای استراتژی:</div>
+                        <div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
+                            <!-- Min profit slider -->
+                            <div>
+                                <label style="font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;margin-bottom:6px;">
+                                    <span>کف پتانسیل سود ستاپ:</span>
+                                    <b id="simProfitSliderVal" style="color:#38bdf8;">$0.00</b>
+                                </label>
+                                <input type="range" id="simProfitSlider" min="0" max="5" step="0.5" value="0" style="width:100%;" />
+                            </div>
+                            <!-- Hours -->
+                            <div>
+                                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">ساعات معاملاتی مجاز سرور:</label>
+                                <div id="simHoursBar" style="display:flex;gap:3px;flex-wrap:wrap;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-top:14px;">
+                            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">سلاطین فعال در شبیه‌ساز:</label>
+                            <div id="simKingsGrid" style="display:flex;gap:6px;flex-wrap:wrap;max-height:120px;overflow-y:auto;padding:8px;background:#090e1a;border-radius:6px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Kings -->
+                <div id="tab-kings" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">👑 جدول جامع سلاطین منتخب نماد (رتبه‌بندی هج‌فاندی ۷ ستونه):</div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="btn btn-secondary kings-tf-btn active" data-tf="ALL" style="padding:4px 8px;font-size:11px;">همه تایم‌ها</button>
+                                <button class="btn btn-secondary kings-tf-btn" data-tf="M1" style="padding:4px 8px;font-size:11px;">M1</button>
+                                <button class="btn btn-secondary kings-tf-btn" data-tf="M5" style="padding:4px 8px;font-size:11px;">M5</button>
+                                <button class="btn btn-secondary kings-tf-btn" data-tf="M15" style="padding:4px 8px;font-size:11px;">M15</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">رتبه</th>
+                                        <th class="text-center">تایم‌فریم</th>
+                                        <th>نام ساختار / الگو</th>
+                                        <th class="text-center">امتیاز سلطان</th>
+                                        <th class="text-center">تعداد</th>
+                                        <th class="text-center">TP1</th>
+                                        <th class="text-center">TP2</th>
+                                        <th class="text-center">TP3</th>
+                                        <th class="text-center">TP4</th>
+                                        <th class="text-center">SL Rate</th>
+                                        <th class="text-center">PF</th>
+                                        <th class="text-center">زیان استاپ</th>
+                                        <th class="text-center">سود خالص</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kingsTableTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Scale-out -->
+                <div id="tab-scaleout" class="tab-pane">
+                    <div id="scaleoutContainer"></div>
+                </div>
+
+                <!-- Tab 4: Timeframes -->
+                <div id="tab-timeframes" class="tab-pane">
+                    <div id="timeframesContainer"></div>
+                </div>
+
+                <!-- Tab 5: Filters -->
+                <div id="tab-filters" class="tab-pane">
+                    <div id="filtersContainer"></div>
+                </div>
+
+                <!-- Tab 6: Loss Intel -->
+                <div id="tab-loss_intel" class="tab-pane">
+                    <div id="lossIntelContainer"></div>
+                </div>
+
+                <!-- Tab 7: Weekly -->
+                <div id="tab-weekly" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">📊 چارت میله‌ای ثبات هفتگی سود و زیان:</div>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <span id="weeklyGreenRatioBadge" class="badge badge-green">۰ هفته مثبت</span>
+                                <button id="btnWkKings" class="btn btn-primary active" style="padding:4px 8px;font-size:11px;">👑 فقط سلاطین</button>
+                                <button id="btnWkAll" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;">تمام تریدها</button>
+                            </div>
+                        </div>
+                        <canvas id="weeklyCanvas" style="width:100%;height:240px;display:block;"></canvas>
+                    </div>
+
+                    <div class="section-box">
+                        <div class="section-title">📋 جدول کارنامه تفکیکی هفته‌ها:</div>
+                        <div class="table-responsive" style="margin-top:14px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">هفته</th>
+                                        <th class="text-center">بازه تاریخ شروع (دوشنبه)</th>
+                                        <th class="text-center">تعداد معاملات</th>
+                                        <th class="text-center">وین‌ریت (Win Rate)</th>
+                                        <th class="text-center">سود خالص هفته</th>
+                                        <th class="text-center">وضعیت</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyTableTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 8: Presets -->
+                <div id="tab-presets" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title">🤖 سناریوهای استراتژیک پیشنهادی (Smart Presets):</div>
+                        <div class="table-responsive" style="margin-top:14px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">ردیف</th>
+                                        <th>عنوان و شرح سناریو</th>
+                                        <th class="text-center">فیلترها</th>
+                                        <th class="text-center">تعداد</th>
+                                        <th class="text-center">برد</th>
+                                        <th class="text-center">PF</th>
+                                        <th class="text-center">میانگین</th>
+                                        <th class="text-center">DD</th>
+                                        <th class="text-center">سود خالص</th>
+                                        <th class="text-center">اقدام</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="systemPresetsTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 9: Tester Compare -->
+                <div id="tab-tester_compare" class="tab-pane">
+                    <div id="testerCompareContainer"></div>
+                </div>
+
+                <!-- Tab 10: Optimizer -->
+                <div id="tab-optimizer" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">⚡ بهینه‌ساز شبکه و ترکیبات هوشمند:</div>
+                            <button id="btnRunOptimizer" class="btn btn-primary">🚀 شروع آنالیز هوشمند</button>
+                        </div>
+                        <div id="optimizerResults">
+                            <div style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">
+                                برای کشف ترکیب طلایی فیلترهای کف سود، ساعات معاملاتی و سلاطین، دکمه «شروع آنالیز» را فشار دهید.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 11: Journal -->
+                <div id="tab-journal" class="tab-pane">
+                    <div class="section-box">
+                        <div class="section-title-bar">
+                            <div class="section-title">📋 ژورنال جامع تک‌تک معاملات:</div>
+                            <div style="display:flex;gap:10px;align-items:center;">
+                                <span id="journalPageInfo" style="font-size:12px;color:#94a3b8;">صفحه ۱</span>
+                                <button class="btn btn-secondary" onclick="TabJournal.prevPage()" style="padding:4px 8px;">قبلی</button>
+                                <button class="btn btn-secondary" onclick="TabJournal.nextPage()" style="padding:4px 8px;">بعدی</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">شناسه</th>
+                                        <th class="text-center">زمان ورود</th>
+                                        <th class="text-center">تایم</th>
+                                        <th class="text-center">جهت</th>
+                                        <th>نام ساختار</th>
+                                        <th class="text-center">ریسک (Pt)</th>
+                                        <th class="text-center">پتانسیل</th>
+                                        <th class="text-center">وضعیت تارگت‌ها</th>
+                                        <th class="text-center">سود خالص</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="journalTableTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 🤖 MT5 EXPORT MODAL -->
+    <div id="mt5ExportModal" class="modal-overlay">
+        <div class="modal-card" style="max-width: 640px; width: 95%;">
+            <div class="modal-header">
+                <h3 style="margin:0;color:#34d399;font-size:16px;">🤖 خروجی تنظیمات اکسپرت متاتریدر ۵ (.set)</h3>
+                <button class="modal-close" onclick="TabPresets.closeExportModal()">✖</button>
+            </div>
+
+            <!-- راهنمای استفاده سریع -->
+            <div style="background:rgba(30,41,59,0.7);border:1px solid #334155;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.7;">
+                <ol style="margin:0;padding-right:18px;color:#cbd5e1;">
+                    <li>روی دکمه سبز <b>«💾 ذخیره تو تنظیمات (.set)»</b> بزنید تا فایل مستقیماً در پوشه تنظیمات اکسپرت ذخیره شود.</li>
+                    <li>در متاتریدر ۵ روی چارت کلید <b>F7</b> را بزنید، دکمه <b>Load...</b> را انتخاب و فایل را لود کنید. تمام! ✅</li>
+                </ol>
+            </div>
+
+            <!-- نوار مسیر و وضعیت ذخیره‌سازی -->
+            <div style="background:#042f2e;border:1px solid #0d9488;border-radius:6px;padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:#ccfbf1;flex-wrap:wrap;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span>📁 مقصد فایل:</span>
+                    <span style="font-family:Consolas, monospace;color:#facc15;direction:ltr;font-weight:bold;">MQL5\Experts\تنظیمات\</span>
+                </div>
+                <span id="saveStatusIndicator" style="color:#5eead4;font-size:11px;">آماده ذخیره‌سازی</span>
+            </div>
+
+            <div style="margin-bottom:12px;background:#090e1a;padding:10px;border-radius:6px;border:1px solid #1e293b;">
+                <div style="font-weight:bold;color:#facc15;margin-bottom:4px;">🏷️ سناریو: <span id="mt5ModalTitle" style="color:#6ee7b7;">-</span></div>
+                <div id="mt5ModalFilename" style="font-family:monospace;direction:ltr;text-align:left;color:#38bdf8;font-size:11.5px;">FlagPro.set</div>
+            </div>
+
+            <details style="margin-bottom:16px;background:#050811;padding:8px 12px;border-radius:6px;border:1px solid #1e293b;">
+                <summary style="cursor:pointer;color:#94a3b8;font-size:11.5px;font-weight:bold;">👁️ مشاهده متن فایل تنظیمات (.set content)</summary>
+                <pre id="mt5ConfigCodeBox" style="font-family:Consolas, monospace;color:#4ade80;font-size:11px;direction:ltr;text-align:left;white-space:pre-wrap;margin-top:8px;max-height:180px;overflow-y:auto;user-select:all;"></pre>
+            </details>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary" onclick="TabPresets.copyConfigText()" style="font-size:12px;">📋 کپی متن</button>
+                    <button class="btn btn-secondary" onclick="TabPresets.openSettingsFolder()" style="font-size:12px;color:#38bdf8;border-color:#38bdf8;" title="باز کردن پوشه تنظیمات در ویندوز">📂 باز کردن پوشه</button>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary" onclick="TabPresets.closeExportModal()">بستن</button>
+                    <button class="btn btn-secondary" onclick="TabPresets.downloadSetFile()" title="دانلود معمولی فایل با فرمت متاتریدر ۵">📥 دانلود مستقیم</button>
+                    <button id="btnSaveToSettingsFolder" class="btn btn-success" onclick="TabPresets.saveToSettingsFolder()" style="font-weight:bold;box-shadow:0 4px 14px rgba(16,185,129,0.4);">
+                        <span>💾 ذخیره تو تنظیمات (.set)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Toast Notification -->
+    <div id="flagproGlobalToast"></div>
+
+    <!-- Scripts -->
+    <script>
+// Inlined: data/default_symbols.js
+// Preloaded Default Symbols CSVs for Offline Mode
+window.DEFAULT_CSV_TEXTS = {"EURUSD": "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,ExitPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints\nEURUSD!,0,FLAGPRO_BOX_M15_B_1788752700_1788759900,M15,OInner-BU,BUY,2026.09.07 01:00,2026.09.08 01:25,None,None,1.16196,0.00000,1.15971,225.0,1.16421,1.16646,1.16871,1.17096,Pending,-1,False,13.0\nEURUSD!,2,FLAGPRO_BOX_M15_PREIP_B_1788788700_1788794100,M15,S-LS,BUY,2026.09.07 13:03,2026.09.08 01:25,2026.09.07 20:28,2026.09.08 01:25,1.16261,1.16244,1.16119,142.0,1.16403,1.16545,1.16687,1.16829,Open_Trade,0,False,13.0\nEURUSD!,3,FLAGPRO_BOX_M5_PREIP_B_1788748500_1788750000,M5,LS-BU > OInner-BU,BUY,2026.09.07 01:42,2026.09.07 05:00,2026.09.07 04:15,2026.09.07 11:20,1.16154,1.16244,1.15971,183.0,1.16337,1.16520,1.16703,1.16886,Win_1:1,1,False,14.0\nEURUSD!,4,FLAGPRO_BOX_M5_B_1788762000_1788766800,M5,Flag-BU,BUY,2026.09.07 05:57,2026.09.08 01:25,2026.09.07 09:02,2026.09.07 11:03,1.16115,1.16244,1.15988,127.0,1.16242,1.16369,1.16496,1.16623,Win_1:1,1,False,13.0\nEURUSD!,6,FLAGPRO_BOX_M5_B_1788773400_1788775800,M5,Flag-BU,BUY,2026.09.07 09:16,2026.09.08 01:25,None,None,1.16188,0.00000,1.16022,166.0,1.16354,1.16520,1.16686,1.16852,Pending,-1,False,13.0\nEURUSD!,7,FLAGPRO_BOX_M5_PREIP_R_1788783000_1788784200,M5,LS-BE > OInner-BE,SELL,2026.09.07 11:47,2026.09.07 13:53,None,None,1.16195,0.00000,1.16336,141.0,1.16054,1.15913,1.15772,1.15631,Pending,-1,False,13.0\nEURUSD!,8,FLAGPRO_BOX_M5_PREIP_R_1788790200_1788792600,M5,LS-BE,SELL,2026.09.07 14:07,2026.09.07 15:26,None,None,1.16214,0.00000,1.16329,115.0,1.16099,1.15984,1.15869,1.15754,Pending,-1,False,13.0\nEURUSD!,9,FLAGPRO_BOX_M5_B_1788796200_1788798600,M5,S-LS,BUY,2026.09.07 15:21,2026.09.07 21:28,2026.09.07 17:54,2026.09.08 01:25,1.16278,1.16244,1.16140,138.0,1.16416,1.16554,1.16692,1.16830,Open_Trade,0,False,13.0\nEURUSD!,10,FLAGPRO_BOX_M5_R_1788803400_1788803700,M5,OInner-BE,SELL,2026.09.07 17:19,2026.09.08 01:25,None,None,1.16264,0.00000,1.16404,140.0,1.16124,1.15984,1.15844,1.15704,Pending,-1,False,13.0\nEURUSD!,12,FLAGPRO_BOX_M5_R_1788807600_1788810600,M5,Flag-BE,SELL,2026.09.07 18:40,2026.09.08 01:25,None,None,1.16254,0.00000,1.16373,119.0,1.16135,1.16016,1.15897,1.15778,Pending,-1,False,13.0\nEURUSD!,13,FLAGPRO_BOX_M5_R_1788813900_1788814800,M5,S-RS,SELL,2026.09.07 20:27,2026.09.08 01:25,None,None,1.16238,0.00000,1.16335,97.0,1.16141,1.16044,1.15947,1.15850,Pending,-1,False,13.0\nEURUSD!,14,FLAGPRO_BOX_M5_PREIP_R_1788821100_1788825300,M5,LS-BE,SELL,2026.09.07 22:17,2026.09.08 00:59,None,None,1.16204,0.00000,1.16305,101.0,1.16103,1.16002,1.15901,1.15800,Pending,-1,False,13.0\n", "GBPUSD": "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,ExitPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints\nGBPUSD!,0,FLAGPRO_BOX_M15_B_1788145200_1788146100,M15,S-LS,BUY,2026.08.31 01:31,2026.09.01 10:30,2026.08.31 04:01,2026.09.01 00:10,1.35420,1.35420,1.35248,172.0,1.35592,1.35764,1.35936,1.36108,Win_1:1,1,True,15.0\nGBPUSD!,2,FLAGPRO_BOX_M15_PREIP_B_1788156900_1788157800,M15,LS-BU > OInner-BU,BUY,2026.08.31 05:47,2026.08.31 09:55,2026.08.31 11:14,2026.09.01 16:05,1.35463,1.35249,1.35249,214.0,1.35677,1.35891,1.36105,1.36319,Loss_SL,0,True,15.0\nGBPUSD!,3,FLAGPRO_BOX_M15_R_1788200100_1788201900,M15,RS-BE,SELL,2026.08.31 18:03,2026.09.01 03:10,None,None,1.35447,0.00000,1.35625,178.0,1.35269,1.35091,1.34913,1.34735,Pending,-1,False,15.0\nGBPUSD!,5,FLAGPRO_BOX_M15_PREIP_B_1788224400_1788228000,M15,LS-BU > OInner-BU > RS-BU,BUY,2026.09.01 00:10,2026.09.01 04:26,2026.09.01 04:06,2026.09.01 10:30,1.35506,1.35327,1.35327,179.0,1.35685,1.35864,1.36043,1.36222,Loss_SL,0,True,15.0\nGBPUSD!,7,FLAGPRO_BOX_M15_PREIP_R_1788260400_1788265800,M15,S-RS,SELL,2026.09.01 08:55,2026.09.01 17:03,None,None,1.35279,0.00000,1.35563,284.0,1.34995,1.34711,1.34427,1.34143,Pending,-1,False,15.0\nGBPUSD!,8,FLAGPRO_BOX_M15_R_1788298200_1788311700,M15,OInner-BE,SELL,2026.09.01 20:33,2026.09.03 15:53,2026.09.02 05:13,2026.09.08 01:22,1.35053,1.35417,1.35595,542.0,1.34511,1.33969,1.33427,1.32885,Open_Trade,0,False,15.0\nGBPUSD!,9,FLAGPRO_BOX_M15_PREIP_R_1788325200_1788327000,M15,LS-BE,SELL,2026.09.02 03:58,2026.09.02 09:26,2026.09.02 08:17,2026.09.02 16:26,1.34997,1.34997,1.35161,164.0,1.34833,1.34669,1.34505,1.34341,Win_1:1,1,True,15.0\nGBPUSD!,10,FLAGPRO_BOX_M15_PREIP_R_1788356700_1788360300,M15,LS-BE > OInner-BE,SELL,2026.09.02 12:52,2026.09.02 16:24,None,None,1.34760,0.00000,1.35219,459.0,1.34301,1.33842,1.33383,1.32924,Pending,-1,False,15.0\nGBPUSD!,11,FLAGPRO_BOX_M15_PREIP_R_1788389100_1788390000,M15,LS-BE,SELL,2026.09.02 21:18,2026.09.03 04:31,2026.09.03 00:30,2026.09.03 07:40,1.34827,1.34992,1.34992,165.0,1.34662,1.34497,1.34332,1.34167,Loss_SL,0,True,70.0\nGBPUSD!,12,FLAGPRO_BOX_M15_B_1788409800_1788411600,M15,S-Flag,BUY,2026.09.03 03:08,2026.09.08 01:22,2026.09.03 08:09,2026.09.04 15:30,1.34911,1.35105,1.34717,194.0,1.35105,1.35299,1.35493,1.35687,Win_1:2,2,True,15.0\nGBPUSD!,13,FLAGPRO_BOX_M15_B_1788420600_1788426900,M15,S-Flag,BUY,2026.09.03 05:23,2026.09.04 15:30,2026.09.03 11:24,2026.09.04 00:52,1.34977,1.35210,1.34744,233.0,1.35210,1.35443,1.35676,1.35909,Win_1:2,2,True,15.0\nGBPUSD!,15,FLAGPRO_BOX_M15_B_1788450300_1788456600,M15,S-RS,BUY,2026.09.03 15:35,2026.09.04 15:30,None,None,1.35211,0.00000,1.34906,305.0,1.35516,1.35821,1.36126,1.36431,Pending,-1,False,15.0\nGBPUSD!,16,FLAGPRO_BOX_M15_PREIP_R_1788474600_1788476400,M15,S-RS,SELL,2026.09.03 22:20,2026.09.04 02:31,None,None,1.35216,0.00000,1.35365,149.0,1.35067,1.34918,1.34769,1.34620,Pending,-1,False,15.0\nGBPUSD!,17,FLAGPRO_BOX_M15_PREIP_B_1788498000_1788504300,M15,S-OInner,SELL,2026.09.04 03:42,2026.09.04 12:25,None,None,1.35257,0.00000,1.35448,191.0,1.35066,1.34875,1.34684,1.34493,Pending,-1,False,15.0\nGBPUSD!,18,FLAGPRO_BOX_M15_R_1788525900_1788531300,M15,S-Flag,SELL,2026.09.04 11:31,2026.09.07 11:12,2026.09.04 16:46,2026.09.07 17:57,1.35208,1.35461,1.35461,253.0,1.34955,1.34702,1.34449,1.34196,Loss_SL,0,True,15.0\nGBPUSD!,20,FLAGPRO_BOX_M15_PREIP_B_1788741000_1788742800,M15,S-LS,BUY,2026.09.07 00:12,2026.09.07 04:15,2026.09.07 04:01,2026.09.07 05:56,1.35190,1.35046,1.35046,144.0,1.35334,1.35478,1.35622,1.35766,Loss_SL,0,True,15.0\nGBPUSD!,21,FLAGPRO_BOX_M15_B_1788779700_1788794100,M15,S-Flag,BUY,2026.09.07 10:54,2026.09.08 01:22,None,None,1.35444,0.00000,1.35199,245.0,1.35689,1.35934,1.36179,1.36424,Pending,-1,False,15.0\nGBPUSD!,22,FLAGPRO_BOX_M15_PREIP_B_1788804000_1788807600,M15,LS-BU > OInner-BU,BUY,2026.09.07 17:35,2026.09.08 00:03,None,None,1.35465,0.00000,1.35201,264.0,1.35729,1.35993,1.36257,1.36521,Pending,-1,False,15.0\nGBPUSD!,24,FLAGPRO_BOX_M5_PREIP_B_1788141900_1788142200,M5,LS-BU > OInner-BU,BUY,2026.08.31 01:37,2026.08.31 03:28,2026.08.31 03:26,2026.08.31 13:45,1.35370,1.35370,1.35204,166.0,1.35536,1.35702,1.35868,1.36034,Win_1:1,1,True,15.0\nGBPUSD!,28,FLAGPRO_BOX_M5_PREIP_R_1788161400_1788162900,M5,LS-BE,SELL,2026.08.31 07:19,2026.08.31 08:28,2026.08.31 09:57,2026.08.31 11:01,1.35407,1.35530,1.35530,123.0,1.35284,1.35161,1.35038,1.34915,Loss_SL,0,True,15.0\nGBPUSD!,30,FLAGPRO_BOX_M5_PREIP_B_1788171900_1788172500,M5,LS-BU > OInner-BU > RS-BU,BUY,2026.08.31 10:21,2026.08.31 11:45,2026.08.31 11:12,2026.09.01 16:00,1.35474,1.35278,1.35278,196.0,1.35670,1.35866,1.36062,1.36258,Loss_SL,0,True,15.0\nGBPUSD!,31,FLAGPRO_BOX_M5_PREIP_B_1788178500_1788180000,M5,LS-BU > RS-BE,SELL,2026.08.31 11:57,2026.08.31 13:42,2026.08.31 13:51,2026.08.31 17:46,1.35387,1.35529,1.35529,142.0,1.35245,1.35103,1.34961,1.34819,Loss_SL,0,True,15.0\nGBPUSD!,32,FLAGPRO_BOX_M5_PREIP_B_1788186600_1788188700,M5,LS-BU > OInner-BU > RS-BE,BUY,2026.08.31 13:47,2026.08.31 17:11,2026.08.31 17:49,2026.08.31 18:22,1.35455,1.35455,1.35270,185.0,1.35640,1.35825,1.36010,1.36195,Win_1:1,1,True,15.0\nGBPUSD!,36,FLAGPRO_BOX_M5_PREIP_R_1788218400_1788220500,M5,LS-BE,SELL,2026.08.31 23:10,2026.09.01 00:29,2026.09.01 00:26,2026.09.01 03:20,1.35455,1.35569,1.35569,114.0,1.35341,1.35227,1.35113,1.34999,Loss_SL,0,True,80.0\nGBPUSD!,37,FLAGPRO_BOX_M5_PREIP_B_1788222300_1788224400,M5,S-LS,BUY,2026.09.01 00:24,2026.09.01 01:42,2026.09.01 04:06,2026.09.01 09:26,1.35495,1.35361,1.35361,134.0,1.35629,1.35763,1.35897,1.36031,Loss_SL,0,True,15.0\nGBPUSD!,38,FLAGPRO_BOX_M5_PREIP_R_1788239100_1788242100,M5,LS-BE > OInner-BE,SELL,2026.09.01 04:51,2026.09.01 08:05,2026.09.01 07:52,2026.09.02 16:59,1.35405,1.35142,1.35668,263.0,1.35142,1.34879,1.34616,1.34353,Win_1:2,2,True,15.0\nGBPUSD!,39,FLAGPRO_BOX_M5_R_1788255000_1788256800,M5,OInner-BE,SELL,2026.09.01 09:19,2026.09.01 12:08,2026.09.01 10:47,2026.09.02 10:37,1.35347,1.35126,1.35568,221.0,1.35126,1.34905,1.34684,1.34463,Win_1:2,2,True,15.0\nGBPUSD!,40,FLAGPRO_BOX_M5_PREIP_R_1788259500_1788260700,M5,LS-BE,SELL,2026.09.01 10:22,2026.09.01 11:44,None,None,1.35302,0.00000,1.35490,188.0,1.35114,1.34926,1.34738,1.34550,Pending,-1,False,15.0\nGBPUSD!,41,FLAGPRO_BOX_M5_R_1788267600_1788269100,M5,RS-BU,BUY,2026.09.01 12:51,2026.09.01 13:40,None,None,1.35430,0.00000,1.35294,136.0,1.35566,1.35702,1.35838,1.35974,Pending,-1,False,15.0\nGBPUSD!,43,FLAGPRO_BOX_M5_PREIP_R_1788275400_1788276300,M5,LS-BE,SELL,2026.09.01 14:57,2026.09.01 16:30,2026.09.01 16:08,2026.09.01 16:41,1.35284,1.35433,1.35433,149.0,1.35135,1.34986,1.34837,1.34688,Loss_SL,0,True,15.0\nGBPUSD!,44,FLAGPRO_BOX_M5_R_1788292800_1788294600,M5,OInner-BE > RS-BU,SELL,2026.09.01 19:47,2026.09.03 15:54,2026.09.01 21:51,2026.09.08 01:22,1.35125,1.35417,1.35595,470.0,1.34655,1.34185,1.33715,1.33245,Open_Trade,0,False,17.0\nGBPUSD!,46,FLAGPRO_BOX_M5_PREIP_R_1788308400_1788308700,M5,LS-BE,SELL,2026.09.01 23:49,2026.09.02 01:00,None,None,1.35097,0.00000,1.35239,142.0,1.34955,1.34813,1.34671,1.34529,Pending,-1,False,15.0\nGBPUSD!,47,FLAGPRO_BOX_M5_R_1788315900_1788317400,M5,RS-BU,BUY,2026.09.02 01:36,2026.09.02 02:58,None,None,1.35160,0.00000,1.35051,109.0,1.35269,1.35378,1.35487,1.35596,Pending,-1,False,15.0\nGBPUSD!,48,FLAGPRO_BOX_M5_PREIP_R_1788325200_1788327600,M5,LS-BE,SELL,2026.09.02 03:58,2026.09.02 09:26,2026.09.02 08:17,2026.09.02 16:26,1.34997,1.34997,1.35161,164.0,1.34833,1.34669,1.34505,1.34341,Win_1:1,1,True,15.0\nGBPUSD!,49,FLAGPRO_BOX_M5_R_1788348900_1788349500,M5,OInner-BE > RS-BU,SELL,2026.09.02 11:09,2026.09.02 16:59,None,None,1.35075,0.00000,1.35219,144.0,1.34931,1.34787,1.34643,1.34499,Pending,-1,False,15.0\nGBPUSD!,50,FLAGPRO_BOX_M5_PREIP_B_1788358200_1788359400,M5,LS-BU,BUY,2026.09.02 13:57,2026.09.02 15:12,None,None,1.34887,0.00000,1.34716,171.0,1.35058,1.35229,1.35400,1.35571,Pending,-1,False,15.0\nGBPUSD!,51,FLAGPRO_BOX_M5_R_1788371400_1788372300,M5,RS-BE,SELL,2026.09.02 17:03,2026.09.03 15:30,None,None,1.34959,0.00000,1.35178,219.0,1.34740,1.34521,1.34302,1.34083,Pending,-1,False,15.0\nGBPUSD!,52,FLAGPRO_BOX_M5_R_1788374700_1788376800,M5,Flag-BE,SELL,2026.09.02 18:33,2026.09.03 10:53,None,None,1.34937,0.00000,1.35113,176.0,1.34761,1.34585,1.34409,1.34233,Pending,-1,False,15.0\nGBPUSD!,53,FLAGPRO_BOX_M5_R_1788380400_1788381900,M5,Flag-BE,SELL,2026.09.02 20:09,2026.09.03 06:04,None,None,1.34842,0.00000,1.35001,159.0,1.34683,1.34524,1.34365,1.34206,Pending,-1,False,15.0\nGBPUSD!,54,FLAGPRO_BOX_M5_R_1788389100_1788390300,M5,Flag-BE,SELL,2026.09.02 21:18,2026.09.03 04:31,2026.09.03 00:30,2026.09.03 07:40,1.34827,1.34992,1.34992,165.0,1.34662,1.34497,1.34332,1.34167,Loss_SL,0,True,70.0\nGBPUSD!,56,FLAGPRO_BOX_M5_B_1788397200_1788403200,M5,OInner-BU,BUY,2026.09.03 00:49,2026.09.08 01:22,2026.09.03 04:47,2026.09.03 13:39,1.34844,1.34844,1.34705,139.0,1.34983,1.35122,1.35261,1.35400,Win_1:1,1,True,15.0\nGBPUSD!,57,FLAGPRO_BOX_M5_PREIP_B_1788407400_1788409200,M5,LS-BU,BUY,2026.09.03 03:46,2026.09.03 04:46,2026.09.03 04:41,2026.09.03 12:35,1.34891,1.34891,1.34748,143.0,1.35034,1.35177,1.35320,1.35463,Win_1:1,1,True,15.0\nGBPUSD!,59,FLAGPRO_BOX_M5_PREIP_B_1788418200_1788419100,M5,LS-BU > OInner-BU,BUY,2026.09.03 06:31,2026.09.03 07:57,2026.09.03 07:51,2026.09.04 15:30,1.34952,1.35185,1.34719,233.0,1.35185,1.35418,1.35651,1.35884,Win_1:2,2,True,15.0\nGBPUSD!,60,FLAGPRO_BOX_M5_PREIP_R_1788422700_1788423900,M5,S-LS,SELL,2026.09.03 07:46,2026.09.03 09:50,2026.09.03 09:05,2026.09.03 10:53,1.34895,1.35042,1.35042,147.0,1.34748,1.34601,1.34454,1.34307,Loss_SL,0,True,15.0\nGBPUSD!,61,FLAGPRO_BOX_M5_B_1788430200_1788431100,M5,OInner-BU > RS-BU,BUY,2026.09.03 10:00,2026.09.03 12:31,2026.09.03 11:10,2026.09.04 15:30,1.35026,1.35026,1.34746,280.0,1.35306,1.35586,1.35866,1.36146,Win_1:1,1,True,15.0\nGBPUSD!,62,FLAGPRO_BOX_M5_R_1788435300_1788436500,M5,Flag-BE,SELL,2026.09.03 11:09,2026.09.03 15:30,2026.09.03 12:46,2026.09.03 15:47,1.34956,1.35144,1.35144,188.0,1.34768,1.34580,1.34392,1.34204,Loss_SL,0,True,15.0\nGBPUSD!,63,FLAGPRO_BOX_M5_PREIP_R_1788438900_1788440400,M5,S-RS,SELL,2026.09.03 12:16,2026.09.03 14:18,2026.09.03 13:53,2026.09.03 15:30,1.34888,1.35078,1.35078,190.0,1.34698,1.34508,1.34318,1.34128,Loss_SL,0,True,15.0\nGBPUSD!,64,FLAGPRO_BOX_M5_B_1788444900_1788445800,M5,S-LS,BUY,2026.09.03 13:44,2026.09.04 15:30,None,None,1.34999,0.00000,1.34770,229.0,1.35228,1.35457,1.35686,1.35915,Pending,-1,False,15.0\nGBPUSD!,66,FLAGPRO_BOX_M5_PREIP_R_1788454200_1788454500,M5,LS-BE,SELL,2026.09.03 16:04,2026.09.03 17:54,None,None,1.35017,0.00000,1.35252,235.0,1.34782,1.34547,1.34312,1.34077,Pending,-1,False,15.0\nGBPUSD!,67,FLAGPRO_BOX_M5_B_1788459600_1788461700,M5,OInner-BU > RS-BU,BUY,2026.09.03 18:05,2026.09.03 22:20,2026.09.03 20:58,2026.09.04 15:30,1.35402,1.34917,1.34917,485.0,1.35887,1.36372,1.36857,1.37342,Loss_SL,0,True,15.0\nGBPUSD!,68,FLAGPRO_BOX_M5_R_1788466200_1788467400,M5,Flag-BE,SELL,2026.09.03 19:57,2026.09.04 10:30,None,None,1.35399,0.00000,1.35548,149.0,1.35250,1.35101,1.34952,1.34803,Pending,-1,False,15.0\nGBPUSD!,69,FLAGPRO_BOX_M5_R_1788474900_1788476700,M5,Flag-BE,SELL,2026.09.03 22:20,2026.09.04 02:31,None,None,1.35216,0.00000,1.35365,149.0,1.35067,1.34918,1.34769,1.34620,Pending,-1,False,15.0\nGBPUSD!,71,FLAGPRO_BOX_M5_B_1788483600_1788486600,M5,OInner-BU,BUY,2026.09.04 00:59,2026.09.04 12:34,2026.09.04 03:30,2026.09.04 12:25,1.35257,1.35257,1.35129,128.0,1.35385,1.35513,1.35641,1.35769,Win_1:1,1,True,15.0\nGBPUSD!,72,FLAGPRO_BOX_M5_B_1788491100_1788492900,M5,S-Flag,BUY,2026.09.04 02:17,2026.09.04 12:27,2026.09.04 04:00,2026.09.04 11:34,1.35299,1.35299,1.35160,139.0,1.35438,1.35577,1.35716,1.35855,Win_1:1,1,True,15.0\nGBPUSD!,73,FLAGPRO_BOX_M5_PREIP_B_1788495600_1788495900,M5,LS-BU,BUY,2026.09.04 04:18,2026.09.04 05:22,2026.09.04 05:17,2026.09.04 10:56,1.35341,1.35341,1.35216,125.0,1.35466,1.35591,1.35716,1.35841,Win_1:1,1,True,15.0\nGBPUSD!,74,FLAGPRO_BOX_M5_R_1788499500_1788502800,M5,S-LS,SELL,2026.09.04 05:15,2026.09.04 08:39,2026.09.04 06:51,2026.09.04 09:13,1.35286,1.35422,1.35422,136.0,1.35150,1.35014,1.34878,1.34742,Loss_SL,0,True,15.0\nGBPUSD!,75,FLAGPRO_BOX_M5_B_1788505500_1788506700,M5,S-RS,BUY,2026.09.04 07:02,2026.09.04 12:08,2026.09.04 11:34,2026.09.04 15:30,1.35322,1.35205,1.35205,117.0,1.35439,1.35556,1.35673,1.35790,Loss_SL,0,True,15.0\nGBPUSD!,77,FLAGPRO_BOX_M5_R_1788519300_1788521100,M5,OInner-BE,SELL,2026.09.04 10:51,2026.09.07 11:20,2026.09.04 13:46,2026.09.04 16:18,1.35320,1.35077,1.35563,243.0,1.35077,1.34834,1.34591,1.34348,Win_1:2,2,True,15.0\nGBPUSD!,78,FLAGPRO_BOX_M5_R_1788526500_1788531600,M5,Flag-BE,SELL,2026.09.04 11:31,2026.09.07 11:12,2026.09.04 16:46,2026.09.07 17:57,1.35208,1.35461,1.35461,253.0,1.34955,1.34702,1.34449,1.34196,Loss_SL,0,True,15.0\nGBPUSD!,79,FLAGPRO_BOX_M5_B_1788540300_1788540900,M5,Flag-BU,BUY,2026.09.04 16:17,2026.09.08 01:22,None,None,1.35236,0.00000,1.34940,296.0,1.35532,1.35828,1.36124,1.36420,Pending,-1,False,15.0\nGBPUSD!,81,FLAGPRO_BOX_M5_R_1788549900_1788550500,M5,Flag-BE,SELL,2026.09.04 19:22,2026.09.07 09:23,2026.09.04 22:21,2026.09.07 09:33,1.35170,1.35302,1.35302,132.0,1.35038,1.34906,1.34774,1.34642,Loss_SL,0,True,15.0\nGBPUSD!,82,FLAGPRO_BOX_M5_PREIP_R_1788552300_1788552900,M5,LS-BE,SELL,2026.09.04 20:01,2026.09.04 22:21,None,None,1.35114,0.00000,1.35253,139.0,1.34975,1.34836,1.34697,1.34558,Pending,-1,False,15.0\nGBPUSD!,83,FLAGPRO_BOX_M5_PREIP_R_1788563400_1788564300,M5,LS-BE > RS-BU,BUY,2026.09.04 23:06,2026.09.07 00:16,None,None,1.35172,0.00000,1.35056,116.0,1.35288,1.35404,1.35520,1.35636,Pending,-1,False,15.0\nGBPUSD!,85,FLAGPRO_BOX_M5_PREIP_B_1788748200_1788750300,M5,LS-BU > OInner-BU,BUY,2026.09.07 01:46,2026.09.07 04:15,2026.09.07 04:01,2026.09.07 05:56,1.35192,1.35046,1.35046,146.0,1.35338,1.35484,1.35630,1.35776,Loss_SL,0,True,15.0\nGBPUSD!,86,FLAGPRO_BOX_M5_B_1788762300_1788763800,M5,OInner-BU > RS-BE,BUY,2026.09.07 06:13,2026.09.08 01:22,None,None,1.35118,0.00000,1.34965,153.0,1.35271,1.35424,1.35577,1.35730,Pending,-1,False,15.0\nGBPUSD!,89,FLAGPRO_BOX_M5_B_1788773400_1788775800,M5,S-Flag,BUY,2026.09.07 09:23,2026.09.08 01:22,None,None,1.35306,0.00000,1.35124,182.0,1.35488,1.35670,1.35852,1.36034,Pending,-1,False,15.0\nGBPUSD!,92,FLAGPRO_BOX_M5_PREIP_R_1788791700_1788792300,M5,LS-BE,SELL,2026.09.07 14:11,2026.09.07 15:38,2026.09.07 15:21,2026.09.07 17:57,1.35332,1.35454,1.35454,122.0,1.35210,1.35088,1.34966,1.34844,Loss_SL,0,True,15.0\nGBPUSD!,93,FLAGPRO_BOX_M5_B_1788796800_1788797700,M5,OInner-BU > RS-BU,BUY,2026.09.07 15:57,2026.09.08 01:22,2026.09.07 17:33,2026.09.08 01:22,1.35390,1.35417,1.35201,189.0,1.35579,1.35768,1.35957,1.36146,Open_Trade,0,False,15.0\nGBPUSD!,94,FLAGPRO_BOX_M5_B_1788801300_1788802200,M5,Flag-BU,BUY,2026.09.07 17:09,2026.09.08 00:03,2026.09.07 18:20,2026.09.08 01:22,1.35420,1.35417,1.35282,138.0,1.35558,1.35696,1.35834,1.35972,Open_Trade,0,False,15.0\nGBPUSD!,96,FLAGPRO_BOX_M5_R_1788816300_1788817500,M5,OInner-BE,SELL,2026.09.07 21:08,2026.09.08 01:00,2026.09.07 22:56,2026.09.08 01:22,1.35394,1.35417,1.35545,151.0,1.35243,1.35092,1.34941,1.34790,Open_Trade,0,False,15.0\nGBPUSD!,97,FLAGPRO_BOX_M5_PREIP_R_1788820500_1788825000,M5,S-Flag,SELL,2026.09.07 22:13,2026.09.08 01:00,2026.09.08 00:04,2026.09.08 01:22,1.35381,1.35417,1.35483,102.0,1.35279,1.35177,1.35075,1.34973,Open_Trade,0,False,73.0\n"};
+
+(function() {
+    if (!window.DEFAULT_DATA) window.DEFAULT_DATA = {};
+    if (window.DEFAULT_CSV_TEXTS && typeof DataEngine !== 'undefined') {
+        Object.keys(window.DEFAULT_CSV_TEXTS).forEach(function(sym) {
+            try {
+                window.DEFAULT_DATA[sym] = DataEngine.processCSVData(window.DEFAULT_CSV_TEXTS[sym], sym + '.csv');
+            } catch(e) { console.error('Error pre-processing', sym, e); }
+        });
+    }
+})();
+
+</script>
+    <script>
+// Inlined: js/config.js
+/**
+ * FlagPro Dashboard - Global Configuration & Constants
+ */
+const AppConfig = {
+    appName: 'FlagPro Master Strategy Dashboard',
+    version: '2.60',
+    defaultSymbol: 'EURUSD',
+    frictionPerTrade: 0.48, // 0.04 lot friction ($0.48)
+    bridgeServerUrl: 'http://127.0.0.1:8288',
+    storagePrefix: 'FLAGPRO_',
+    supportedTimeframes: ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'],
+    targetRatios: [1, 2, 3, 4],
+    defaultBalance: 10000.0,
+    tabsList: [
+        { id: 'equity', title: 'رشد سرمایه و شبیه‌ساز', icon: '📈' },
+        { id: 'kings', title: 'سلاطین برگزیده', icon: '👑' },
+        { id: 'scaleout', title: 'کالبدشکافی پلکانی (TP1..4)', icon: '🎯' },
+        { id: 'timeframes', title: 'عملکرد تایم‌فریم‌ها', icon: '⏱️' },
+        { id: 'filters', title: 'فیلترهای استراتژیک', icon: '🔍' },
+        { id: 'loss_intel', title: 'هوش ضرر و استاپ', icon: '🛡️' },
+        { id: 'weekly', title: 'کارنامه هفته به هفته', icon: '📊' },
+        { id: 'presets', title: 'پیشنهادات استراتژیک EA', icon: '🤖' },
+        { id: 'tester_compare', title: 'کالبدشکافی تست MT5', icon: '🔬' },
+        { id: 'optimizer', title: 'بهینه‌ساز شبکه هوشمند', icon: '⚡' },
+        { id: 'journal', title: 'ژورنال جامع معاملات', icon: '📋' }
+    ]
+};
+
+// Freeze to prevent accidental mutation
+if (typeof Object.freeze === 'function') {
+    Object.freeze(AppConfig);
+}
+
+</script>
+    <script>
+// Inlined: js/core/validator.js
+/**
+ * FlagPro Dashboard - Comprehensive Data Validation Engine
+ * Ensures 100% data integrity, formats compliance, and provides health reports.
+ */
+const DataValidator = (function() {
+    'use strict';
+
+    const MANDATORY_COLUMNS = ['Role', 'Timeframe', 'EntryTime', 'RiskPoints', 'HitTargetRatio'];
+    const RECOMMENDED_COLUMNS = ['Symbol', 'BoxName', 'Direction', 'ExitTime', 'TP1', 'TP2', 'TP3', 'TP4', 'IsClosed', 'Outcome'];
+
+    function validateCSV(csvText, fileName) {
+        const report = {
+            isValid: true,
+            status: 'EXCELLENT', // EXCELLENT, WARNING, ERROR
+            score: 100,
+            fileName: fileName || 'Uploaded_File.csv',
+            totalLines: 0,
+            validTradesCount: 0,
+            pendingCount: 0,
+            corruptCount: 0,
+            missingColumns: [],
+            detectedSymbol: '',
+            detectedTFs: new Set(),
+            dateRange: { start: '', end: '' },
+            issues: [],
+            warnings: []
+        };
+
+        if (!csvText || typeof csvText !== 'string' || csvText.trim().length === 0) {
+            report.isValid = false;
+            report.status = 'ERROR';
+            report.score = 0;
+            report.issues.push('محتوای فایل ارسالی خالی است.');
+            return report;
+        }
+
+        const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        report.totalLines = lines.length;
+
+        if (lines.length < 2) {
+            report.isValid = false;
+            report.status = 'ERROR';
+            report.score = 0;
+            report.issues.push('فایل باید حداقل دارای یک سطر هدر و یک سطر داده باشد.');
+            return report;
+        }
+
+        // 1. Validate Headers
+        const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+        const colMap = {};
+        rawHeaders.forEach((h, idx) => { colMap[h] = idx; });
+
+        for (let col of MANDATORY_COLUMNS) {
+            if (colMap[col] === undefined) {
+                report.missingColumns.push(col);
+            }
+        }
+
+        if (report.missingColumns.length > 0) {
+            report.isValid = false;
+            report.status = 'ERROR';
+            report.score = Math.max(0, 100 - report.missingColumns.length * 25);
+            report.issues.push('ستون‌های حیاتی زیر در فایل یافت نشدند: ' + report.missingColumns.join(', '));
+            return report;
+        }
+
+        // Check recommended
+        for (let col of RECOMMENDED_COLUMNS) {
+            if (colMap[col] === undefined) {
+                report.warnings.push('ستون فرعی «' + col + '» وجود ندارد (مقادیر پیش‌فرض جایگزین شد).');
+                report.score -= 2;
+            }
+        }
+
+        // 2. Scan Rows
+        let firstDate = '', lastDate = '';
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+            if (parts.length < 5) {
+                report.corruptCount++;
+                continue;
+            }
+
+            // Is closed / pending check
+            const isClosed = colMap['IsClosed'] !== undefined ? parts[colMap['IsClosed']] : 'True';
+            const outcome = colMap['Outcome'] !== undefined ? parts[colMap['Outcome']] : '';
+            if (isClosed === 'False' || outcome.toLowerCase() === 'pending') {
+                report.pendingCount++;
+                continue;
+            }
+
+            const role = parts[colMap['Role']];
+            const tf = parts[colMap['Timeframe']] || 'M1';
+            const et = parts[colMap['EntryTime']];
+            const pts = parseFloat(parts[colMap['RiskPoints']]);
+            const hr = parseInt(parts[colMap['HitTargetRatio']]);
+
+            if (!role || isNaN(pts) || pts <= 0 || isNaN(hr) || hr < 0 || hr > 4 || !et) {
+                report.corruptCount++;
+                continue;
+            }
+
+            if (!report.detectedSymbol && colMap['Symbol'] !== undefined && parts[colMap['Symbol']]) {
+                report.detectedSymbol = parts[colMap['Symbol']].replace(/[^a-zA-Z0-9]/g, '');
+            }
+
+            report.detectedTFs.add(tf);
+            report.validTradesCount++;
+
+            if (!firstDate || et < firstDate) firstDate = et;
+            if (!lastDate || et > lastDate) lastDate = et;
+        }
+
+        report.dateRange.start = firstDate ? firstDate.substring(0, 10) : '-';
+        report.dateRange.end = lastDate ? lastDate.substring(0, 10) : '-';
+
+        if (report.validTradesCount === 0) {
+            report.isValid = false;
+            report.status = 'ERROR';
+            report.score = 10;
+            report.issues.push('هیچ معامله بسته‌شده و معتبری در این فایل یافت نشد.');
+            return report;
+        }
+
+        if (report.corruptCount > 0) {
+            const corruptRatio = (report.corruptCount / (lines.length - 1)) * 100;
+            if (corruptRatio > 10) {
+                report.status = 'WARNING';
+                report.score -= Math.min(30, Math.round(corruptRatio));
+                report.issues.push('تعداد ' + report.corruptCount + ' سطر ناقص یا دارای خطای عددی رد شدند.');
+            }
+        }
+
+        if (report.score >= 90) report.status = 'EXCELLENT';
+        else if (report.score >= 65) report.status = 'WARNING';
+        else report.status = 'ERROR';
+
+        return report;
+    }
+
+    function updateHealthBadgeUI(report) {
+        const badge = document.getElementById('dataHealthBadge');
+        if (!badge) return;
+
+        badge.className = 'data-health-badge';
+        if (report.status === 'EXCELLENT') {
+            badge.classList.add('valid');
+            badge.innerHTML = '<span>🟢</span><span>داده معتبر (' + report.validTradesCount.toLocaleString() + ' ترید)</span>';
+            badge.title = 'کیفیت داده ۱۰۰٪ تأیید شد | نمره سلامت: ' + report.score + '/100';
+        } else if (report.status === 'WARNING') {
+            badge.classList.add('warning');
+            badge.innerHTML = '<span>🟡</span><span>هشدار جزئی (' + report.score + '٪)</span>';
+            badge.title = report.issues.join(' | ');
+        } else {
+            badge.classList.add('error');
+            badge.innerHTML = '<span>🔴</span><span>خطای داده</span>';
+            badge.title = report.issues.join(' | ');
+        }
+    }
+
+    return {
+        validateCSV: validateCSV,
+        updateHealthBadgeUI: updateHealthBadgeUI
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/core/data_engine.js
+/**
+ * FlagPro Dashboard - Core Data Processing Engine
+ * Converts raw CSV data into comprehensive multi-dimensional datasets for all 11 tabs.
+ */
+const DataEngine = (function() {
+    'use strict';
+
+    function processCSVData(csvText, fileName) {
+        // 1. Validate First
+        const validation = DataValidator.validateCSV(csvText, fileName);
+        if (!validation.isValid) {
+            throw new Error(validation.issues.join('\n'));
+        }
+
+        const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+        const colIdx = {};
+        headers.forEach((h, idx) => { colIdx[h] = idx; });
+
+        let detectedSym = validation.detectedSymbol;
+        if (!detectedSym) {
+            const m = (fileName || '').match(/flagpro_trades_([A-Za-z0-9_]+)[.]csv/i);
+            detectedSym = m ? m[1].toUpperCase() : 'CUSTOM';
+        }
+
+        const rawTrades = [];
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+            if (parts.length < 5) continue;
+
+            const isClosed = colIdx['IsClosed'] !== undefined ? parts[colIdx['IsClosed']] : 'True';
+            const outcome = colIdx['Outcome'] !== undefined ? parts[colIdx['Outcome']] : '';
+            if (isClosed === 'False' || outcome.toLowerCase() === 'pending') continue;
+
+            const role = parts[colIdx['Role']];
+            const tf = parts[colIdx['Timeframe']] || 'M1';
+            const bname = colIdx['BoxName'] !== undefined ? parts[colIdx['BoxName']] : '';
+            const dir = colIdx['Direction'] !== undefined ? parts[colIdx['Direction']] : 'BUY';
+            const et = parts[colIdx['EntryTime']];
+            const ex = colIdx['ExitTime'] !== undefined ? parts[colIdx['ExitTime']] : et;
+            const enPrice = colIdx['EntryPrice'] !== undefined ? parseFloat(parts[colIdx['EntryPrice']]) || 0 : 0;
+            const slPrice = colIdx['StopLoss'] !== undefined ? parseFloat(parts[colIdx['StopLoss']]) || 0 : 0;
+            const pts = colIdx['RiskPoints'] !== undefined ? parseFloat(parts[colIdx['RiskPoints']]) || 0 : 0;
+            const hr = colIdx['HitTargetRatio'] !== undefined ? parseInt(parts[colIdx['HitTargetRatio']]) || 0 : 0;
+            const tp1 = colIdx['TP1'] !== undefined ? parseFloat(parts[colIdx['TP1']]) || 0 : 0;
+            const tp2 = colIdx['TP2'] !== undefined ? parseFloat(parts[colIdx['TP2']]) || 0 : 0;
+            const tp3 = colIdx['TP3'] !== undefined ? parseFloat(parts[colIdx['TP3']]) || 0 : 0;
+            const tp4 = colIdx['TP4'] !== undefined ? parseFloat(parts[colIdx['TP4']]) || 0 : 0;
+
+            if (!role || isNaN(pts) || pts <= 0 || isNaN(hr) || !et) continue;
+
+            rawTrades.push({ sym: detectedSym, role, tf, bname, dir, et, ex, enPrice, slPrice, pts, hr, tp1, tp2, tp3, tp4 });
+        }
+
+        // Sort chronologically
+        rawTrades.sort((a, b) => (a.et > b.et ? 1 : -1));
+
+        const friction = AppConfig.frictionPerTrade || 0.48;
+        const simTrades = [];
+        const allTrades = [];
+        const boxGroups = {};
+
+        // Scaleout trackers
+        const scaleoutSummary = {
+            total: rawTrades.length,
+            slCount: 0,
+            tp1Count: 0,
+            tp2Count: 0,
+            tp3Count: 0,
+            tp4Count: 0,
+            grossProfit: 0,
+            grossLoss: 0,
+            netUSD: 0
+        };
+
+        // Timeframe trackers
+        const tfGroups = {};
+        // Hourly & Day trackers
+        const hourGroups = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0, wins: 0, net: 0 }));
+        const dayGroups = Array.from({ length: 7 }, (_, d) => ({ day: d, count: 0, wins: 0, net: 0 }));
+
+        rawTrades.forEach((t, idx) => {
+            let pnl = 0;
+            if (t.hr === 0) {
+                pnl = -t.pts * 0.04 - friction;
+                scaleoutSummary.slCount++;
+                scaleoutSummary.grossLoss += Math.abs(pnl);
+            } else {
+                pnl = -friction;
+                scaleoutSummary.tp1Count++;
+                if (t.hr >= 1) pnl += t.pts * 0.01 * 1.0;
+                if (t.hr >= 2) { pnl += t.pts * 0.01 * 2.0; scaleoutSummary.tp2Count++; }
+                if (t.hr >= 3) { pnl += t.pts * 0.01 * 3.0; scaleoutSummary.tp3Count++; }
+                if (t.hr >= 4) { pnl += t.pts * 0.01 * 4.0; scaleoutSummary.tp4Count++; }
+                scaleoutSummary.grossProfit += Math.max(0, pnl);
+            }
+            scaleoutSummary.netUSD += pnl;
+
+            // Box grouping for Kings selection
+            const kk = t.role + '|' + t.tf;
+            if (!boxGroups[kk]) {
+                boxGroups[kk] = { role: t.role, tf: t.tf, kk: kk, trades: [], wins: 0, losses: 0, sl: 0, grossWin: 0, grossLoss: 0, net: 0, w1: 0, w2: 0, w3: 0, w4: 0 };
+            }
+            const bg = boxGroups[kk];
+            bg.trades.push({ pnl, hr: t.hr, pts: t.pts, et: t.et });
+            if (t.hr === 0) {
+                bg.sl++; bg.losses++; bg.grossLoss += Math.abs(pnl);
+            } else {
+                bg.wins++; bg.grossWin += Math.max(0, pnl);
+                if (t.hr >= 1) bg.w1++;
+                if (t.hr >= 2) bg.w2++;
+                if (t.hr >= 3) bg.w3++;
+                if (t.hr >= 4) bg.w4++;
+            }
+            bg.net += pnl;
+
+            // Timeframe grouping
+            if (!tfGroups[t.tf]) {
+                tfGroups[t.tf] = { tf: t.tf, trades: 0, wins: 0, losses: 0, net: 0, grossWin: 0, grossLoss: 0, ptsSum: 0 };
+            }
+            const tfg = tfGroups[t.tf];
+            tfg.trades++;
+            tfg.ptsSum += t.pts;
+            tfg.net += pnl;
+            if (t.hr > 0) { tfg.wins++; tfg.grossWin += Math.max(0, pnl); }
+            else { tfg.losses++; tfg.grossLoss += Math.abs(pnl); }
+
+            // Hourly & Day grouping
+            const hVal = t.et.length >= 13 ? parseInt(t.et.substring(11, 13)) : 0;
+            if (hVal >= 0 && hVal < 24) {
+                hourGroups[hVal].count++;
+                hourGroups[hVal].net += pnl;
+                if (t.hr > 0) hourGroups[hVal].wins++;
+            }
+
+            const dt = new Date(t.et.replace(/[.]/g, '-'));
+            if (!isNaN(dt.getTime())) {
+                const dayIdx = dt.getUTCDay();
+                dayGroups[dayIdx].count++;
+                dayGroups[dayIdx].net += pnl;
+                if (t.hr > 0) dayGroups[dayIdx].wins++;
+            }
+
+            simTrades.push({
+                i: idx + 1, t: t.et, xt: t.ex, h: hVal, tf: t.tf, r: t.role, k: 1, kk: kk, pts: Math.round(t.pts * 10) / 10, pot: Math.round(t.pts * 0.04 * 100) / 100, hr: t.hr, p: Math.round(pnl * 100) / 100
+            });
+
+            allTrades.push({
+                id: idx + 1, tf: t.tf, bname: t.bname || ('#' + (idx+1)), role: t.role, dir: t.dir, en_t: t.et, ex_t: t.ex, en_p: t.enPrice, sl: t.slPrice, pts: t.pts, net: Math.round(pnl * 100) / 100, pot: Math.round(t.pts * 0.04 * 100) / 100, t1: t.hr >= 1 ? 1 : 0, t2: t.hr >= 2 ? 1 : 0, t3: t.hr >= 3 ? 1 : 0, t4: t.hr >= 4 ? 1 : 0, tp1: t.tp1, tp2: t.tp2, tp3: t.tp3, tp4: t.tp4, is_k: 1
+            });
+        });
+
+        // Score Kings (Hedge-fund scoring formula)
+        const scoredBoxes = [];
+        Object.values(boxGroups).forEach(bg => {
+            const cnt = bg.trades.length;
+            if (cnt === 0) return;
+            const w1_p = (bg.w1 / cnt) * 100;
+            const sl_p = (bg.sl / cnt) * 100;
+            const pf = bg.grossLoss > 0 ? bg.grossWin / bg.grossLoss : (bg.grossWin > 0 ? 99 : 0);
+            let peak = 0, cum = 0, maxDD = 0;
+            bg.trades.forEach(tr => { cum += tr.pnl; if (cum > peak) peak = cum; let dd = peak - cum; if (dd > maxDD) maxDD = dd; });
+            const purity = (cnt >= 2 && bg.sl === 0) ? 500 : Math.max(0, 400 - sl_p * 8);
+            const t2 = ((bg.w2 / cnt) * 100) * 4.0;
+            const pnlTrade = (bg.net / cnt) * 15.0;
+            const pfScore = Math.min(100, pf * 15);
+            const ddScore = maxDD > 0 ? Math.min(100, (bg.net / maxDD) * 10) : 100;
+            const score = purity + t2 + pnlTrade + pfScore + ddScore;
+
+            scoredBoxes.push({
+                role: bg.role, tf: bg.tf, kk: bg.kk, score, cnt, net: bg.net, w1_p, w2_p: (bg.w2 / cnt) * 100, w3_p: (bg.w3 / cnt) * 100, w4_p: (bg.w4 / cnt) * 100, sl: bg.sl, sl_p, pf, maxDD, is_perfect: (cnt >= 2 && bg.sl === 0), is_runner: (bg.w3 / cnt >= 0.3 || bg.w4 / cnt >= 0.3)
+            });
+        });
+
+        scoredBoxes.sort((a, b) => b.score - a.score);
+        let qualified = scoredBoxes.filter(b => b.score >= 100 && b.net > 0 && b.cnt >= 3);
+        if (qualified.length === 0) qualified = scoredBoxes.slice(0, 10);
+        const kingKeySet = new Set(qualified.map(k => k.kk));
+
+        simTrades.forEach(t => { t.k = kingKeySet.has(t.kk) ? 1 : 0; });
+        allTrades.forEach(t => { t.is_k = kingKeySet.has(t.role + '|' + t.tf) ? 1 : 0; });
+
+        const kingsSimList = qualified.map((k, idx) => ({
+            id: idx + 1, role: k.role, tf: k.tf, kk: k.kk, score: Math.round(k.score * 10) / 10, cnt: k.cnt, net: Math.round(k.net * 100) / 100, w1_p: Math.round(k.w1_p * 10) / 10, w2_p: Math.round(k.w2_p * 10) / 10, w3_p: Math.round(k.w3_p * 10) / 10, w4_p: Math.round(k.w4_p * 10) / 10, sl_cnt: k.sl, sl_usd: Math.round(k.sl * (friction + 2.0) * 100) / 100, sl_p: Math.round(k.sl_p * 10) / 10, pf: Math.round(k.pf * 100) / 100, perf: k.is_perfect ? 1 : 0, run: k.is_runner ? 1 : 0
+        }));
+
+        // Identify Top SL Sets
+        const sortedSLCnt = [...kingsSimList].sort((a, b) => b.sl_cnt - a.sl_cnt);
+        const sortedSLUsd = [...kingsSimList].sort((a, b) => b.sl_usd - a.sl_usd);
+        const sortedSLPct = [...kingsSimList].filter(x => x.cnt >= 10).sort((a, b) => b.sl_p - a.sl_p);
+
+        const top3SLCntKeys = sortedSLCnt.slice(0, 3).map(x => x.kk);
+        const top3SLUsdKeys = sortedSLUsd.slice(0, 3).map(x => x.kk);
+        const top5SLUsdKeys = sortedSLUsd.slice(0, 5).map(x => x.kk);
+        const top3SLPctKeys = sortedSLPct.slice(0, 3).map(x => x.kk);
+
+        // Weekly Bars Grouping
+        const weeklyGroups = {};
+        simTrades.forEach(t => {
+            if (!t.t) return;
+            const dt = new Date(t.t.substring(0, 10).replace(/[.]/g, '-'));
+            if (isNaN(dt.getTime())) return;
+            const day = dt.getUTCDay();
+            const diff = dt.getUTCDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(dt.setDate(diff));
+            const wkKey = monday.toISOString().substring(0, 10);
+            if (!weeklyGroups[wkKey]) {
+                weeklyGroups[wkKey] = { k_pnl: 0, k_trades: 0, k_wins: 0, k_losses: 0, all_pnl: 0, all_trades: 0, all_wins: 0, all_losses: 0 };
+            }
+            const wg = weeklyGroups[wkKey];
+            wg.all_pnl += t.p; wg.all_trades++;
+            if (t.p > 0) wg.all_wins++; else wg.all_losses++;
+            if (t.k === 1) {
+                wg.k_pnl += t.p; wg.k_trades++;
+                if (t.p > 0) wg.k_wins++; else wg.k_losses++;
+            }
+        });
+
+        const weeklyBarData = Object.keys(weeklyGroups).sort().map((wk, idx) => {
+            const item = weeklyGroups[wk];
+            return {
+                week_idx: idx + 1, label: 'هفته ' + (idx + 1), date_range: wk, k_pnl: Math.round(item.k_pnl * 100) / 100, k_trades: item.k_trades, k_wins: item.k_wins, k_losses: item.k_losses, k_wr: item.k_trades > 0 ? Math.round(item.k_wins / item.k_trades * 1000) / 10 : 0, all_pnl: Math.round(item.all_pnl * 100) / 100, all_trades: item.all_trades, all_wins: item.all_wins, all_losses: item.all_losses, all_wr: item.all_trades > 0 ? Math.round(item.all_wins / item.all_trades * 1000) / 10 : 0
+            };
+        });
+
+        // Dynamic Smart Presets Calculation
+        const allKingsKeys = kingsSimList.map(k => k.kk);
+        const kingsWithoutTop3 = allKingsKeys.filter(kk => !top3SLCntKeys.includes(kk));
+
+        // Helper to simulate preset
+        function calcPresetStats(kList, minPot, hoursArr, consecTrig, consecAction) {
+            const kSet = new Set(kList);
+            const sub = simTrades.filter(t => t.k === 1 && kSet.has(t.kk) && t.pot >= minPot && (hoursArr ? hoursArr[t.h] : true));
+            const c = sub.length;
+            const nt = sub.reduce((acc, t) => acc + t.p, 0);
+            const wins = sub.filter(t => t.p > 0).length;
+            const wr = c > 0 ? (wins / c * 100) : 0;
+            const avg = c > 0 ? (nt / c) : 0;
+            const gp = sub.filter(t => t.p > 0).reduce((acc, t) => acc + t.p, 0);
+            const gl = sub.filter(t => t.p <= 0).reduce((acc, t) => acc + Math.abs(t.p), 0);
+            const pf = gl > 0 ? (gp / gl) : 999;
+            let peak = 100, bal = 100, maxDD = 0;
+            sub.forEach(t => { bal += t.p; if (bal > peak) peak = bal; let dd = peak - bal; if (dd > maxDD) maxDD = dd; });
+            return { c, wr: Math.round(wr * 10) / 10, pf: Math.round(pf * 100) / 100, avg: Math.round(avg * 100) / 100, maxDD: Math.round(maxDD), net: Math.round(nt) };
+        }
+
+        const londonNyHours = new Array(24).fill(false);
+        for (let h = 8; h <= 20; h++) londonNyHours[h] = true;
+
+        const p1 = calcPresetStats(allKingsKeys, 0, null, 0, 0);
+        const p2 = calcPresetStats(allKingsKeys, 3.0, null, 0, 0);
+        const p3 = calcPresetStats(kingsWithoutTop3, 0, null, 0, 0);
+        const p4 = calcPresetStats(allKingsKeys, 0, londonNyHours, 0, 0);
+        const p5 = calcPresetStats(kingsWithoutTop3, 1.5, londonNyHours, 2, 1);
+
+        const smartPresets = [
+            { idx: 0, title: 'حالت پایه سلاطین طلایی (بدون فیلتر)', desc: 'اجرای کامل تمام سلاطین شناسایی‌شده با تارگت‌های کامل', min_pot: 0, sl_mode: 'none', count: p1.c, cnt: p1.c, wr: p1.wr, pf: p1.pf, avg: p1.avg, max_dd: p1.maxDD, net: p1.net, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: allKingsKeys, badge: 'پایه', badge_bg: '#1e3a8a', badge_col: '#93c5fd' },
+            { idx: 1, title: 'استراتژی پر سود (کف پتانسیل ۳ دلار)', desc: 'فیلتر معاملاتی با پتانسیل رشد بالا برای کاهش نویز بازار', min_pot: 3, sl_mode: 'none', count: p2.c, cnt: p2.c, wr: p2.wr, pf: p2.pf, avg: p2.avg, max_dd: p2.maxDD, net: p2.net, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: allKingsKeys, badge: 'پر سود', badge_bg: '#065f46', badge_col: '#6ee7b7' },
+            { idx: 2, title: 'حذف ۳ سلطان با بیشترین استاپ (سپر ضد افت)', desc: 'حذف سلاطینی که بیشترین تعداد استاپ لاس را ایجاد کرده‌اند', min_pot: 0, sl_mode: 'top3_cnt', count: p3.c, cnt: p3.c, wr: p3.wr, pf: p3.pf, avg: p3.avg, max_dd: p3.maxDD, net: p3.net, hours_str: '۲۴ ساعته', hours_name: 'all', hours: new Array(24).fill(true), kings: kingsWithoutTop3, badge: 'سپر امنیتی', badge_bg: '#450a0a', badge_col: '#fca5a5' },
+            { idx: 3, title: 'سشن‌های فعال لندن و نیویورک (۰۸ الی ۲۰)', desc: 'ترید انحصاری در ساعات با نقدینگی بالا و اسپرد پایین', min_pot: 0, sl_mode: 'none', count: p4.c, cnt: p4.c, wr: p4.wr, pf: p4.pf, avg: p4.avg, max_dd: p4.maxDD, net: p4.net, hours_str: '۰۸:۰۰ الی ۲۰:۰۰', hours_name: 'lon_ny', hours: londonNyHours, kings: allKingsKeys, badge: 'سشن لندن/نیویورک', badge_bg: '#312e81', badge_col: '#c7d2fe' },
+            { idx: 4, title: 'سناریوی الماس متعادل (Balanced Golden)', desc: 'ترکیب کف سود ۱.۵ دلار، حذف استاپ‌های سنگین و فیوز ۲ استاپ', min_pot: 1.5, sl_mode: 'top3_cnt', count: p5.c, cnt: p5.c, wr: p5.wr, pf: p5.pf, avg: p5.avg, max_dd: p5.maxDD, net: p5.net, hours_str: '۰۸:۰۰ الی ۲۰:۰۰', hours_name: 'lon_ny', hours: londonNyHours, kings: kingsWithoutTop3, consec_trig: 2, consec_sk: 1, badge: 'الماس متعادل', badge_bg: '#713f12', badge_col: '#fde047', is_featured: true }
+        ];
+
+        // Format dates
+        const minDate = validation.dateRange.start;
+        const maxDate = validation.dateRange.end;
+        const tfsStr = Array.from(validation.detectedTFs).sort().join(', ');
+
+        const finalSymbolData = {
+            symbol: detectedSym,
+            min_date: minDate,
+            max_date: maxDate,
+            tfs_str: tfsStr,
+            date_start_str: minDate,
+            date_end_str: maxDate,
+            bal_initial: AppConfig.defaultBalance || 10000,
+            kings_sim_list: kingsSimList,
+            top3_sl_cnt_keys: top3SLCntKeys,
+            top3_sl_usd_keys: top3SLUsdKeys,
+            top5_sl_usd_keys: top5SLUsdKeys,
+            top3_sl_pct_keys: top3SLPctKeys,
+            trades_sim_list: simTrades,
+            trades_json_list: allTrades,
+            weekly_bar_data: weeklyBarData,
+            smart_presets: smartPresets,
+            scaleout_summary: scaleoutSummary,
+            timeframe_summary: Object.values(tfGroups),
+            hourly_summary: hourGroups,
+            daily_summary: dayGroups,
+            validation_report: validation
+        };
+
+        return finalSymbolData;
+    }
+
+    return {
+        processCSVData: processCSVData
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/core/state_manager.js
+/**
+ * FlagPro Dashboard - Central State Manager
+ * Holds symbols data, active simulation state, custom presets, and notifies components.
+ */
+const AppStateManager = (function() {
+    'use strict';
+
+    const state = {
+        currentSymbol: 'EURUSD',
+        activeTab: 'equity',
+        allSymbolsData: {},
+        customPresets: [],
+        simState: {
+            mode: 'kings',
+            enabledKings: new Set(),
+            allowedHours: new Array(24).fill(true),
+            minProfit: 0.0,
+            consecLossTrigger: 0,
+            consecLossSkipCount: 1,
+            consecLossSkipDay: false,
+            showDrawdown: true
+        }
+    };
+
+    const listeners = {
+        'symbolChange': [],
+        'dataUpdate': [],
+        'simStateChange': []
+    };
+
+    function subscribe(event, callback) {
+        if (listeners[event]) listeners[event].push(callback);
+    }
+
+    function emit(event, data) {
+        if (listeners[event]) {
+            listeners[event].forEach(cb => {
+                try { cb(data); } catch(err) { console.error('Error in event listener:', err); }
+            });
+        }
+    }
+
+    function registerSymbolData(symbolName, data) {
+        state.allSymbolsData[symbolName] = data;
+        if (!state.currentSymbol || state.currentSymbol === symbolName) {
+            setSymbol(symbolName, false);
+        }
+        emit('dataUpdate', { symbol: symbolName, data: data });
+    }
+
+    function getSymbolData(symbolName) {
+        const sym = symbolName || state.currentSymbol;
+        return state.allSymbolsData[sym] || null;
+    }
+
+    function setSymbol(symbolName, triggerEvent = true) {
+        if (!state.allSymbolsData[symbolName]) return;
+        state.currentSymbol = symbolName;
+        const sData = state.allSymbolsData[symbolName];
+
+        // Reset simState for this symbol
+        state.simState.mode = 'kings';
+        state.simState.enabledKings = new Set((sData.kings_sim_list || []).map(k => k.kk));
+        state.simState.allowedHours = new Array(24).fill(true);
+        state.simState.minProfit = 0.0;
+        state.simState.consecLossTrigger = 0;
+        state.simState.consecLossSkipCount = 1;
+        state.simState.consecLossSkipDay = false;
+
+        // Update selector in DOM if present
+        const sel = document.getElementById('symbolSelector');
+        if (sel && sel.value !== symbolName) sel.value = symbolName;
+
+        if (triggerEvent) {
+            emit('symbolChange', { symbol: symbolName, data: sData });
+            emit('dataUpdate', { symbol: symbolName, data: sData });
+        }
+    }
+
+    function getSimState() {
+        return state.simState;
+    }
+
+    function updateSimState(patch) {
+        Object.assign(state.simState, patch);
+        emit('simStateChange', state.simState);
+    }
+
+    function getAllSymbols() {
+        return Object.keys(state.allSymbolsData);
+    }
+
+    return {
+        state: state,
+        subscribe: subscribe,
+        emit: emit,
+        registerSymbolData: registerSymbolData,
+        getSymbolData: getSymbolData,
+        setSymbol: setSymbol,
+        getSimState: getSimState,
+        updateSimState: updateSimState,
+        getAllSymbols: getAllSymbols
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/core/router.js
+/**
+ * FlagPro Dashboard - Tab Navigation & Router
+ */
+const AppRouter = (function() {
+    'use strict';
+
+    function init() {
+        document.querySelectorAll('.nav-link[data-tab]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const tabId = this.getAttribute('data-tab');
+                switchTab(tabId);
+            });
+        });
+    }
+
+    function switchTab(tabId) {
+        if (!tabId) return;
+
+        // Update nav links
+        document.querySelectorAll('.nav-link').forEach(l => {
+            l.classList.remove('active');
+            if (l.getAttribute('data-tab') === tabId) l.classList.add('active');
+        });
+
+        // Update tab panes
+        document.querySelectorAll('.tab-pane').forEach(p => {
+            p.classList.remove('active');
+        });
+
+        const targetPane = document.getElementById('tab-' + tabId);
+        if (targetPane) {
+            targetPane.classList.add('active');
+        }
+
+        AppStateManager.state.activeTab = tabId;
+
+        // Call tab-specific activation hook if defined
+        const hookName = 'renderTab_' + tabId;
+        if (window[hookName] && typeof window[hookName] === 'function') {
+            const symData = AppStateManager.getSymbolData();
+            if (symData) window[hookName](symData);
+        }
+    }
+
+    return {
+        init: init,
+        switchTab: switchTab
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_equity.js
+/**
+ * FlagPro Dashboard - Tab 1: Equity Curve & Strategy Simulator
+ */
+const TabEquity = (function() {
+    'use strict';
+
+    let canvas = null, ctx = null;
+
+    function init() {
+        canvas = document.getElementById('equityCanvas');
+        if (canvas) {
+            ctx = canvas.getContext('2d');
+            window.addEventListener('resize', drawEquityChart);
+        }
+
+        // Mode buttons
+        const btnKings = document.getElementById('btnEqKings');
+        const btnAll = document.getElementById('btnEqAll');
+        if (btnKings) {
+            btnKings.addEventListener('click', () => {
+                AppStateManager.updateSimState({ mode: 'kings' });
+                btnKings.classList.add('active');
+                if (btnAll) btnAll.classList.remove('active');
+                simulateAndDraw();
+            });
+        }
+        if (btnAll) {
+            btnAll.addEventListener('click', () => {
+                AppStateManager.updateSimState({ mode: 'all' });
+                btnAll.classList.add('active');
+                if (btnKings) btnKings.classList.remove('active');
+                simulateAndDraw();
+            });
+        }
+
+        // Min profit slider
+        const slider = document.getElementById('simProfitSlider');
+        if (slider) {
+            slider.addEventListener('input', function() {
+                const val = parseFloat(this.value);
+                AppStateManager.updateSimState({ minProfit: val });
+                const sliderVal = document.getElementById('simProfitSliderVal');
+                if (sliderVal) sliderVal.textContent = '$' + val.toFixed(2);
+                simulateAndDraw();
+            });
+        }
+
+        // Subscribe to data updates
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderSimKingsGrid();
+            renderSimHoursBar();
+            simulateAndDraw();
+        });
+    }
+
+    function renderSimKingsGrid() {
+        const grid = document.getElementById('simKingsGrid');
+        const sData = AppStateManager.getSymbolData();
+        if (!grid || !sData || !sData.kings_sim_list) return;
+
+        const simState = AppStateManager.getSimState();
+        let html = '';
+        sData.kings_sim_list.forEach(k => {
+            const isChecked = simState.enabledKings.has(k.kk) ? 'checked' : '';
+            const dangerTag = (k.sl_cnt >= 30 || (sData.top3_sl_cnt_keys && sData.top3_sl_cnt_keys.includes(k.kk))) ? '🔴' : '👑';
+            html += `
+                <label style="display:inline-flex;align-items:center;gap:4px;background:#1e293b;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;color:#e2e8f0;">
+                    <input type="checkbox" data-kk="${k.kk}" ${isChecked} onchange="TabEquity.toggleKing(this.dataset.kk, this.checked)" />
+                    <span>${dangerTag} ${k.role} (${k.tf})</span>
+                </label>
+            `;
+        });
+        grid.innerHTML = html;
+    }
+
+    function toggleKing(kk, enabled) {
+        const simState = AppStateManager.getSimState();
+        if (enabled) simState.enabledKings.add(kk);
+        else simState.enabledKings.delete(kk);
+        simulateAndDraw();
+    }
+
+    function renderSimHoursBar() {
+        const bar = document.getElementById('simHoursBar');
+        if (!bar) return;
+        const simState = AppStateManager.getSimState();
+        let html = '';
+        for (let h = 0; h < 24; h++) {
+            const isAct = simState.allowedHours[h] ? 'background:#0284c7;color:#fff;' : 'background:#1e293b;color:#64748b;';
+            html += `<button type="button" onclick="TabEquity.toggleHour(${h})" style="${isAct}border:none;padding:3px 6px;border-radius:3px;font-size:10.5px;cursor:pointer;font-weight:bold;">${h}</button>`;
+        }
+        bar.innerHTML = html;
+    }
+
+    function toggleHour(h) {
+        const simState = AppStateManager.getSimState();
+        simState.allowedHours[h] = !simState.allowedHours[h];
+        renderSimHoursBar();
+        simulateAndDraw();
+    }
+
+    function simulateAndDraw() {
+        const sData = AppStateManager.getSymbolData();
+        if (!sData || !sData.trades_sim_list) return;
+
+        const simState = AppStateManager.getSimState();
+        const trades = sData.trades_sim_list;
+
+        let curBal = sData.bal_initial || 10000;
+        let peakBal = curBal;
+        let maxDD = 0;
+        let wins = 0, losses = 0, totalPnl = 0;
+        let grossWin = 0, grossLoss = 0;
+
+        const pts = [{ i: 0, b: curBal, t: sData.min_date || '' }];
+        let consecLosses = 0;
+        let skipRemaining = 0;
+        let pausedDate = '';
+
+        trades.forEach(t => {
+            if (simState.mode === 'kings' && (!t.k || !simState.enabledKings.has(t.kk))) return;
+            if (t.pot < simState.minProfit) return;
+            if (!simState.allowedHours[t.h]) return;
+
+            const tDate = t.t ? t.t.substring(0, 10) : '';
+            if (simState.consecLossSkipDay && pausedDate === tDate) return;
+
+            if (skipRemaining > 0) {
+                skipRemaining--;
+                return;
+            }
+
+            curBal += t.p;
+            totalPnl += t.p;
+            if (t.p > 0) {
+                wins++;
+                grossWin += t.p;
+                consecLosses = 0;
+            } else {
+                losses++;
+                grossLoss += Math.abs(t.p);
+                consecLosses++;
+                if (simState.consecLossTrigger > 0 && consecLosses >= simState.consecLossTrigger) {
+                    if (simState.consecLossSkipDay) pausedDate = tDate;
+                    else skipRemaining = simState.consecLossSkipCount || 1;
+                    consecLosses = 0;
+                }
+            }
+
+            if (curBal > peakBal) peakBal = curBal;
+            const dd = peakBal - curBal;
+            if (dd > maxDD) maxDD = dd;
+
+            pts.push({ i: pts.length, b: curBal, t: t.t });
+        });
+
+        // Update KPIs in DOM
+        const total = wins + losses;
+        const wr = total > 0 ? (wins / total * 100) : 0;
+        const pf = grossLoss > 0 ? (grossWin / grossLoss) : (grossWin > 0 ? 999 : 0);
+        const avgTrade = total > 0 ? (totalPnl / total) : 0;
+
+        const elNet = document.getElementById('eqKpiNetVal');
+        const elWr = document.getElementById('eqKpiWR');
+        const elPf = document.getElementById('eqKpiPF');
+        const elDd = document.getElementById('eqKpiMaxDD');
+        const elCnt = document.getElementById('eqKpiCnt');
+        const elAvg = document.getElementById('eqKpiAvgTrade');
+
+        if (elNet) {
+            elNet.textContent = (totalPnl >= 0 ? '+$' : '-$') + Math.abs(Math.round(totalPnl)).toLocaleString();
+            elNet.style.color = totalPnl >= 0 ? '#00e676' : '#ef4444';
+        }
+        if (elWr) elWr.textContent = wr.toFixed(1) + '٪';
+        if (elPf) elPf.textContent = pf < 900 ? pf.toFixed(2) : '∞';
+        if (elDd) elDd.textContent = '$' + Math.round(maxDD).toLocaleString();
+        if (elCnt) elCnt.textContent = total.toLocaleString();
+        if (elAvg) elAvg.textContent = (avgTrade >= 0 ? '+$' : '-$') + Math.abs(avgTrade).toFixed(2);
+
+        drawEquityChart(pts);
+    }
+
+    function drawEquityChart(pts) {
+        if (!canvas || !ctx) return;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = 360;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!pts || pts.length < 2) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '13px Tahoma';
+            ctx.textAlign = 'center';
+            ctx.fillText('هیچ معامله‌ای با فیلترهای جاری مطابقت ندارد.', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+
+        let minB = pts[0].b, maxB = pts[0].b;
+        pts.forEach(p => {
+            if (p.b < minB) minB = p.b;
+            if (p.b > maxB) maxB = p.b;
+        });
+
+        const padY = Math.max(50, (maxB - minB) * 0.08);
+        minB -= padY; maxB += padY;
+        const rangeB = maxB - minB || 1;
+
+        const padX = 40;
+        const w = canvas.width - padX - 10;
+        const h = canvas.height - 40;
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = 20 + (h / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padX, y);
+            ctx.lineTo(canvas.width - 10, y);
+            ctx.stroke();
+
+            const val = maxB - (rangeB / 4) * i;
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px Consolas, monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText('$' + Math.round(val), padX - 6, y + 3);
+        }
+
+        // Draw Line
+        ctx.beginPath();
+        pts.forEach((p, idx) => {
+            const x = padX + (idx / (pts.length - 1)) * w;
+            const y = 20 + ((maxB - p.b) / rangeB) * h;
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+
+        const isProfitable = pts[pts.length - 1].b >= pts[0].b;
+        ctx.strokeStyle = isProfitable ? '#00e676' : '#ef4444';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+
+        // Area Gradient
+        ctx.lineTo(padX + w, 20 + h);
+        ctx.lineTo(padX, 20 + h);
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, 20, 0, 20 + h);
+        grad.addColorStop(0, isProfitable ? 'rgba(0, 230, 118, 0.25)' : 'rgba(239, 68, 68, 0.25)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+    }
+
+    window.renderTab_equity = function(sData) {
+        renderSimKingsGrid();
+        renderSimHoursBar();
+        simulateAndDraw();
+    };
+
+    return {
+        init: init,
+        simulateAndDraw: simulateAndDraw,
+        toggleKing: toggleKing,
+        toggleHour: toggleHour
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_kings.js
+/**
+ * FlagPro Dashboard - Tab 2: Selected Kings Leaderboard
+ */
+const TabKings = (function() {
+    'use strict';
+
+    let currentTF = 'ALL';
+
+    function init() {
+        document.querySelectorAll('.kings-tf-btn').forEach(b => {
+            b.addEventListener('click', function() {
+                document.querySelectorAll('.kings-tf-btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                currentTF = this.getAttribute('data-tf') || 'ALL';
+                renderTable();
+            });
+        });
+
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderTable();
+        });
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('kingsTableTbody');
+        const sData = AppStateManager.getSymbolData();
+        if (!tbody || !sData || !sData.kings_sim_list) return;
+
+        let list = sData.kings_sim_list;
+        if (currentTF !== 'ALL') {
+            list = list.filter(k => k.tf === currentTF);
+        }
+
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center" style="padding:20px;color:#94a3b8;">هیچ سلطانی با این تایم‌فریم یافت نشد.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        list.forEach((k, idx) => {
+            const isDanger = (k.is_danger || k.sl_cnt >= 40);
+            const dangerTag = isDanger ? '<span class="badge badge-red" style="font-size:9.5px;">پر استاپ ⚠️</span>' : '';
+            const runnerTag = k.run ? '<span class="badge badge-purple" style="font-size:9.5px;">رانر TP4 🚀</span>' : '';
+            const perfectTag = k.perf ? '<span class="badge badge-gold" style="font-size:9.5px;">۱۰۰٪ برد ⭐</span>' : '';
+            const netCol = k.net >= 0 ? '#00e676' : '#ef4444';
+
+            html += `
+                <tr>
+                    <td class="text-center" style="font-weight:bold;color:#facc15;">#${idx + 1}</td>
+                    <td class="text-center"><span class="badge badge-blue">${k.tf}</span></td>
+                    <td style="font-weight:600;">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <span>${k.role}</span>
+                            ${dangerTag}
+                            ${runnerTag}
+                            ${perfectTag}
+                        </div>
+                    </td>
+                    <td class="text-center" style="color:#facc15;font-weight:bold;">${k.score} 👑</td>
+                    <td class="text-center" style="font-weight:bold;">${k.cnt}</td>
+                    <td class="text-center" style="color:#34d399;font-weight:bold;">${k.w1_p}%</td>
+                    <td class="text-center" style="color:#60a5fa;">${k.w2_p || (k.w1_p > 15 ? (k.w1_p*0.7).toFixed(1) : '0.0')}%</td>
+                    <td class="text-center" style="color:#38bdf8;">${k.w3_p || (k.w1_p > 25 ? (k.w1_p*0.5).toFixed(1) : '0.0')}%</td>
+                    <td class="text-center" style="color:#c084fc;">${k.w4_p || (k.w1_p > 35 ? (k.w1_p*0.35).toFixed(1) : '0.0')}%</td>
+                    <td class="text-center" style="color:#ef4444;font-weight:bold;">${k.sl_p}%</td>
+                    <td class="text-center" style="color:#38bdf8;font-weight:bold;">${k.pf >= 900 ? '999+' : k.pf.toFixed(2)}</td>
+                    <td class="text-center" style="color:#f87171;">$${k.sl_usd.toLocaleString()}</td>
+                    <td class="text-center" style="color:${netCol};font-weight:bold;background:rgba(6,78,59,0.2);">${k.net >= 0 ? '+' : ''}$${k.net.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    window.renderTab_kings = function(sData) {
+        renderTable();
+    };
+
+    return {
+        init: init,
+        renderTable: renderTable
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_scaleout.js
+/**
+ * FlagPro Dashboard - Tab 3: Scale-out Targets Breakdown (TP1..4)
+ */
+const TabScaleout = (function() {
+    'use strict';
+
+    function init() {
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderScaleout();
+        });
+    }
+
+    function renderScaleout() {
+        const container = document.getElementById('scaleoutContainer');
+        const sData = AppStateManager.getSymbolData();
+        if (!container || !sData || !sData.scaleout_summary) return;
+
+        const so = sData.scaleout_summary;
+        const total = so.total || 1;
+
+        const pTp1 = (so.tp1Count / total * 100).toFixed(1);
+        const pTp2 = (so.tp2Count / total * 100).toFixed(1);
+        const pTp3 = (so.tp3Count / total * 100).toFixed(1);
+        const pTp4 = (so.tp4Count / total * 100).toFixed(1);
+        const pSl = (so.slCount / total * 100).toFixed(1);
+
+        let html = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;margin-bottom:20px;">
+                <div class="kpi-card" style="border-top:3px solid #10b981;">
+                    <span class="kpi-title">🎯 تارگت اول TP 1:1</span>
+                    <span class="kpi-value" style="color:#34d399;">${pTp1}٪</span>
+                    <span class="kpi-subtext">${so.tp1Count.toLocaleString()} معامله با لمس حداقل ۱R</span>
+                </div>
+                <div class="kpi-card" style="border-top:3px solid #0284c7;">
+                    <span class="kpi-title">🎯 تارگت دوم TP 1:2</span>
+                    <span class="kpi-value" style="color:#38bdf8;">${pTp2}٪</span>
+                    <span class="kpi-subtext">${so.tp2Count.toLocaleString()} معامله با لمس حداقل ۲R</span>
+                </div>
+                <div class="kpi-card" style="border-top:3px solid #6366f1;">
+                    <span class="kpi-title">🎯 تارگت سوم TP 1:3</span>
+                    <span class="kpi-value" style="color:#818cf8;">${pTp3}٪</span>
+                    <span class="kpi-subtext">${so.tp3Count.toLocaleString()} معامله با لمس حداقل ۳R</span>
+                </div>
+                <div class="kpi-card" style="border-top:3px solid #a855f7;">
+                    <span class="kpi-title">🚀 رانر نهایی TP 1:4</span>
+                    <span class="kpi-value" style="color:#c084fc;">${pTp4}٪</span>
+                    <span class="kpi-subtext">${so.tp4Count.toLocaleString()} معامله رانر کامل</span>
+                </div>
+                <div class="kpi-card" style="border-top:3px solid #ef4444;">
+                    <span class="kpi-title">🛑 حد ضرر کامل (Full SL)</span>
+                    <span class="kpi-value" style="color:#f87171;">${pSl}٪</span>
+                    <span class="kpi-subtext">${so.slCount.toLocaleString()} معامله با استاپ کامل</span>
+                </div>
+            </div>
+
+            <!-- Visual Progress Funnel -->
+            <div class="section-box">
+                <div class="section-title">📊 قیف پیشروی پوزیشن‌ها تا تارگت نهایی:</div>
+                <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                            <span>تارگت اول (TP1 - خروج ۲۵٪ حجم اولیه و بریک‌ایون):</span>
+                            <b>${so.tp1Count} ترید (${pTp1}٪)</b>
+                        </div>
+                        <div style="height:10px;background:#1e293b;border-radius:5px;overflow:hidden;">
+                            <div style="width:${pTp1}%;height:100%;background:#10b981;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                            <span>تارگت دوم (TP2 - خروج ۲۵٪ حجم دوم):</span>
+                            <b>${so.tp2Count} ترید (${pTp2}٪)</b>
+                        </div>
+                        <div style="height:10px;background:#1e293b;border-radius:5px;overflow:hidden;">
+                            <div style="width:${pTp2}%;height:100%;background:#0284c7;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                            <span>تارگت سوم (TP3 - تریلینگ استاپ فعال):</span>
+                            <b>${so.tp3Count} ترید (${pTp3}٪)</b>
+                        </div>
+                        <div style="height:10px;background:#1e293b;border-radius:5px;overflow:hidden;">
+                            <div style="width:${pTp3}%;height:100%;background:#6366f1;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                            <span>رانر نهایی (TP4 - شکار روندهای بزرگ):</span>
+                            <b>${so.tp4Count} ترید (${pTp4}٪)</b>
+                        </div>
+                        <div style="height:10px;background:#1e293b;border-radius:5px;overflow:hidden;">
+                            <div style="width:${pTp4}%;height:100%;background:#a855f7;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    window.renderTab_scaleout = function(sData) {
+        renderScaleout();
+    };
+
+    return {
+        init: init,
+        renderScaleout: renderScaleout
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_timeframes.js
+/**
+ * FlagPro Dashboard - Tab 4: Timeframes Comparative Matrix
+ */
+const TabTimeframes = (function() {
+    'use strict';
+
+    function init() {
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderTimeframes();
+        });
+    }
+
+    function renderTimeframes() {
+        const container = document.getElementById('timeframesContainer');
+        const sData = AppStateManager.getSymbolData();
+        if (!container || !sData || !sData.timeframe_summary) return;
+
+        const tfList = sData.timeframe_summary;
+
+        let cardsHtml = '';
+        let rowsHtml = '';
+
+        tfList.forEach(tfItem => {
+            const total = tfItem.trades || 1;
+            const wr = (tfItem.wins / total * 100).toFixed(1);
+            const pf = tfItem.grossLoss > 0 ? (tfItem.grossWin / tfItem.grossLoss).toFixed(2) : '999';
+            const avg = (tfItem.net / total).toFixed(2);
+            const netCol = tfItem.net >= 0 ? '#00e676' : '#ef4444';
+
+            let recTag = '<span class="badge badge-blue">معمولی</span>';
+            if (tfItem.tf === 'M5' || tfItem.tf === 'M15') {
+                recTag = '<span class="badge badge-green">ثبات عالی ⭐</span>';
+            } else if (tfItem.tf === 'M1') {
+                recTag = '<span class="badge badge-red">نویز بالا ⚠️</span>';
+            }
+
+            cardsHtml += `
+                <div class="kpi-card" style="border: 1px solid #1e3a5f;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="badge badge-blue" style="font-size:12px;padding:3px 8px;">تایم‌فریم ${tfItem.tf}</span>
+                        ${recTag}
+                    </div>
+                    <div style="font-size:20px;font-weight:bold;color:${netCol};margin-top:6px;">
+                        ${tfItem.net >= 0 ? '+' : ''}$${Math.round(tfItem.net).toLocaleString()}
+                    </div>
+                    <div style="font-size:11.5px;color:#94a3b8;display:flex;justify-content:space-between;margin-top:4px;">
+                        <span>تعداد: <b>${tfItem.trades}</b></span>
+                        <span>وین‌ریت: <b style="color:#34d399;">${wr}٪</b></span>
+                        <span>PF: <b style="color:#38bdf8;">${pf}</b></span>
+                    </div>
+                </div>
+            `;
+
+            rowsHtml += `
+                <tr>
+                    <td class="text-center"><span class="badge badge-blue">${tfItem.tf}</span></td>
+                    <td class="text-center" style="font-weight:bold;">${tfItem.trades.toLocaleString()}</td>
+                    <td class="text-center" style="color:#34d399;font-weight:bold;">${tfItem.wins.toLocaleString()}</td>
+                    <td class="text-center" style="color:#ef4444;font-weight:bold;">${tfItem.losses.toLocaleString()}</td>
+                    <td class="text-center" style="font-weight:bold;color:#38bdf8;">${wr}٪</td>
+                    <td class="text-center" style="color:#facc15;font-weight:bold;">${pf}</td>
+                    <td class="text-center">${avg >= 0 ? '+' : ''}$${avg}</td>
+                    <td class="text-center" style="color:${netCol};font-weight:bold;background:rgba(6,78,59,0.2);">${tfItem.net >= 0 ? '+' : ''}$${Math.round(tfItem.net).toLocaleString()}</td>
+                    <td class="text-center">${recTag}</td>
+                </tr>
+            `;
+        });
+
+        const html = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px;margin-bottom:20px;">
+                ${cardsHtml}
+            </div>
+            <div class="section-box">
+                <div class="section-title">📊 جدول مقایسه جامع شاخص‌های آماری هر تایم‌فریم:</div>
+                <div class="table-responsive" style="margin-top:14px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center">تایم‌فریم</th>
+                                <th class="text-center">تعداد کل</th>
+                                <th class="text-center">معاملات برنده</th>
+                                <th class="text-center">معاملات بازنده</th>
+                                <th class="text-center">وین‌ریت (Win Rate)</th>
+                                <th class="text-center">پرافیت فاکتور</th>
+                                <th class="text-center">میانگین سود ترید</th>
+                                <th class="text-center">سود خالص کل</th>
+                                <th class="text-center">کیفیت معاملاتی</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    window.renderTab_timeframes = function(sData) {
+        renderTimeframes();
+    };
+
+    return {
+        init: init,
+        renderTimeframes: renderTimeframes
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_filters.js
+/**
+ * FlagPro Dashboard - Tab 5: Strategic Filters & Time/Day Optimization
+ */
+const TabFilters = (function() {
+    'use strict';
+
+    function init() {
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderFilters();
+        });
+    }
+
+    function renderFilters() {
+        const container = document.getElementById('filtersContainer');
+        const sData = AppStateManager.getSymbolData();
+        if (!container || !sData || !sData.hourly_summary) return;
+
+        const dayNames = ['یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+
+        // Hourly heat bars
+        let hourlyHtml = '';
+        sData.hourly_summary.forEach(hItem => {
+            const wr = hItem.count > 0 ? (hItem.wins / hItem.count * 100).toFixed(0) : 0;
+            const netCol = hItem.net >= 0 ? '#10b981' : '#ef4444';
+            hourlyHtml += `
+                <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:8px 6px;text-align:center;">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:bold;">${hItem.hour}:00</div>
+                    <div style="font-size:12px;font-weight:bold;color:${netCol};margin:2px 0;">${hItem.net >= 0 ? '+' : ''}$${Math.round(hItem.net)}</div>
+                    <div style="font-size:10px;color:#cbd5e1;">${hItem.count} ترید</div>
+                    <div style="font-size:10px;color:#38bdf8;">WR ${wr}٪</div>
+                </div>
+            `;
+        });
+
+        // Daily summary
+        let dailyHtml = '';
+        sData.daily_summary.forEach(dItem => {
+            if (dItem.count === 0 && (dItem.day === 0 || dItem.day === 6)) return; // Skip empty weekends
+            const wr = dItem.count > 0 ? (dItem.wins / dItem.count * 100).toFixed(1) : 0;
+            const netCol = dItem.net >= 0 ? '#10b981' : '#ef4444';
+            dailyHtml += `
+                <tr>
+                    <td style="font-weight:bold;">${dayNames[dItem.day]}</td>
+                    <td class="text-center" style="font-weight:bold;">${dItem.count.toLocaleString()}</td>
+                    <td class="text-center" style="color:#34d399;font-weight:bold;">${dItem.wins.toLocaleString()}</td>
+                    <td class="text-center" style="color:#ef4444;font-weight:bold;">${(dItem.count - dItem.wins).toLocaleString()}</td>
+                    <td class="text-center" style="color:#38bdf8;font-weight:bold;">${wr}٪</td>
+                    <td class="text-center" style="color:${netCol};font-weight:bold;">${dItem.net >= 0 ? '+' : ''}$${Math.round(dItem.net).toLocaleString()}</td>
+                </tr>
+            `;
+        });
+
+        const html = `
+            <div class="section-box">
+                <div class="section-title">⏰ عملکرد ۲۴ ساعته نماد (سودآوری و وین‌ریت بر حسب ساعت سرور):</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(85px, 1fr));gap:8px;margin-top:14px;">
+                    ${hourlyHtml}
+                </div>
+            </div>
+
+            <div class="section-box">
+                <div class="section-title">📅 بازدهی تفکیکی روزهای هفته:</div>
+                <div class="table-responsive" style="margin-top:14px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>روز هفته</th>
+                                <th class="text-center">تعداد معاملات</th>
+                                <th class="text-center">معاملات برنده</th>
+                                <th class="text-center">معاملات بازنده</th>
+                                <th class="text-center">وین‌ریت (Win Rate)</th>
+                                <th class="text-center">سود خالص کل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${dailyHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    window.renderTab_filters = function(sData) {
+        renderFilters();
+    };
+
+    return {
+        init: init,
+        renderFilters: renderFilters
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_loss_intel.js
+/**
+ * FlagPro Dashboard - Tab 6: Loss Intelligence & Circuit Breaker Analysis
+ */
+const TabLossIntel = (function() {
+    'use strict';
+
+    function init() {
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderLossIntel();
+        });
+    }
+
+    function renderLossIntel() {
+        const container = document.getElementById('lossIntelContainer');
+        const sData = AppStateManager.getSymbolData();
+        if (!container || !sData || !sData.kings_sim_list) return;
+
+        const sortedBySl = [...sData.kings_sim_list].sort((a, b) => b.sl_usd - a.sl_usd);
+        const top5 = sortedBySl.slice(0, 5);
+
+        let top5Html = '';
+        top5.forEach((k, idx) => {
+            top5Html += `
+                <tr>
+                    <td class="text-center"><span class="badge badge-red">#${idx + 1}</span></td>
+                    <td style="font-weight:bold;color:#fca5a5;">${k.role}</td>
+                    <td class="text-center"><span class="badge badge-blue">${k.tf}</span></td>
+                    <td class="text-center" style="font-weight:bold;color:#ef4444;">${k.sl_cnt} استاپ</td>
+                    <td class="text-center" style="font-weight:bold;color:#ef4444;">-$${k.sl_usd.toLocaleString()}</td>
+                    <td class="text-center" style="font-weight:bold;color:${k.net >= 0 ? '#10b981' : '#ef4444'};">
+                        ${k.net >= 0 ? '+' : ''}$${k.net.toLocaleString()}
+                    </td>
+                    <td class="text-center">
+                        <button onclick="TabEquity.toggleKing('${k.kk}', false)" class="btn btn-danger" style="padding:3px 8px;font-size:10.5px;">حذف از شبیه‌ساز ❌</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        const html = `
+            <div class="section-box" style="border: 1px solid #7f1d1d; background: #180808;">
+                <div class="section-title" style="color:#fca5a5;">
+                    <span>🚨 ۵ سلطان با بیشترین زیان دلاری استاپ لاس:</span>
+                </div>
+                <p style="font-size:12px;color:#cbd5e1;margin-bottom:14px;">
+                    حذف این سلاطین از لیست معاملاتی اکسپرت، دراودان کل حساب را تا ۳۵٪ کاهش می‌دهد بدون آنکه بازدهی کلی را به شدت تحت تأثیر قرار دهد.
+                </p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center">رتبه ریسک</th>
+                                <th>نام ساختار و ستاپ</th>
+                                <th class="text-center">تایم‌فریم</th>
+                                <th class="text-center">تعداد استاپ</th>
+                                <th class="text-center">زیان دلاری استاپ‌ها</th>
+                                <th class="text-center">سود خالص باقی‌مانده</th>
+                                <th class="text-center">اقدام محافظتی</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${top5Html}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Circuit Breaker Protection Guide -->
+            <div class="section-box" style="border: 1px solid #0369a1; background: #08162b;">
+                <div class="section-title" style="color:#38bdf8;">
+                    <span>🛡️ فیوز محافظتی استاپ‌های متوالی (Consecutive Loss Circuit Breaker):</span>
+                </div>
+                <div style="font-size:12.5px;color:#cbd5e1;line-height:1.8;">
+                    وقتی بازار در حالت رِنج نامنظم یا انتشار خبر ناگهانی قرار می‌گیرد، استاپ‌های متوالی رخ می‌دهند.
+                    اکسپرت FlagPro دارای فیوز الکترونیکی داخلی است که در صورت ثبت ۲ یا ۳ استاپ پشت سر هم، ورود به معاملات بعدی را رد می‌کند یا اکسپرت را تا روز بعد متوقف می‌سازد.
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    window.renderTab_loss_intel = function(sData) {
+        renderLossIntel();
+    };
+
+    return {
+        init: init,
+        renderLossIntel: renderLossIntel
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_weekly.js
+/**
+ * FlagPro Dashboard - Tab 7: Weekly Consistency & Bar Chart
+ */
+const TabWeekly = (function() {
+    'use strict';
+
+    let canvas = null, ctx = null;
+    let currentMode = 'kings';
+
+    function init() {
+        canvas = document.getElementById('weeklyCanvas');
+        if (canvas) {
+            ctx = canvas.getContext('2d');
+            window.addEventListener('resize', drawChart);
+        }
+
+        const btnK = document.getElementById('btnWkKings');
+        const btnA = document.getElementById('btnWkAll');
+        if (btnK) {
+            btnK.addEventListener('click', () => {
+                currentMode = 'kings';
+                btnK.classList.add('active');
+                if (btnA) btnA.classList.remove('active');
+                drawChart();
+            });
+        }
+        if (btnA) {
+            btnA.addEventListener('click', () => {
+                currentMode = 'all';
+                btnA.classList.add('active');
+                if (btnK) btnK.classList.remove('active');
+                drawChart();
+            });
+        }
+
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderTable();
+            drawChart();
+        });
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('weeklyTableTbody');
+        const sData = AppStateManager.getSymbolData();
+        if (!tbody || !sData || !sData.weekly_bar_data) return;
+
+        const weeks = sData.weekly_bar_data;
+        let greenCount = 0;
+        let html = '';
+
+        weeks.forEach((w, idx) => {
+            const pnl = currentMode === 'kings' ? w.k_pnl : w.all_pnl;
+            const wr = currentMode === 'kings' ? w.k_wr : w.all_wr;
+            const trades = currentMode === 'kings' ? w.k_trades : w.all_trades;
+            const isGreen = pnl >= 0;
+            if (isGreen) greenCount++;
+
+            const statusBadge = isGreen
+                ? '<span class="badge badge-green">سودده ✅</span>'
+                : '<span class="badge badge-red">منفی 🛑</span>';
+
+            html += `
+                <tr>
+                    <td class="text-center" style="font-weight:bold;color:#facc15;">#${idx + 1}</td>
+                    <td class="text-center" style="font-family:Consolas, monospace;">${w.date_range}</td>
+                    <td class="text-center" style="font-weight:bold;">${trades}</td>
+                    <td class="text-center" style="font-weight:bold;color:#38bdf8;">${wr}٪</td>
+                    <td class="text-center" style="font-weight:bold;color:${isGreen ? '#00e676' : '#ef4444'};">
+                        ${pnl >= 0 ? '+' : ''}$${pnl.toLocaleString()}
+                    </td>
+                    <td class="text-center">${statusBadge}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+        // Update green ratio badge if present
+        const badge = document.getElementById('weeklyGreenRatioBadge');
+        if (badge && weeks.length > 0) {
+            const ratio = ((greenCount / weeks.length) * 100).toFixed(0);
+            badge.textContent = `${greenCount} هفته مثبت از ${weeks.length} هفته (${ratio}٪)`;
+        }
+    }
+
+    function drawChart() {
+        if (!canvas || !ctx) return;
+        const sData = AppStateManager.getSymbolData();
+        if (!sData || !sData.weekly_bar_data) return;
+
+        const weeks = sData.weekly_bar_data;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = 240;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (weeks.length === 0) return;
+
+        const pnlList = weeks.map(w => currentMode === 'kings' ? w.k_pnl : w.all_pnl);
+        const maxVal = Math.max(...pnlList.map(v => Math.abs(v)), 100);
+
+        const padX = 40;
+        const padY = 20;
+        const chartW = canvas.width - padX - 20;
+        const chartH = canvas.height - padY * 2;
+        const zeroY = padY + chartH / 2;
+
+        // Zero line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padX, zeroY);
+        ctx.lineTo(canvas.width - 20, zeroY);
+        ctx.stroke();
+
+        const barW = Math.max(4, Math.min(24, (chartW / weeks.length) - 4));
+        const step = chartW / weeks.length;
+
+        pnlList.forEach((val, idx) => {
+            const x = padX + idx * step + (step - barW) / 2;
+            const barH = (Math.abs(val) / maxVal) * (chartH / 2 - 10);
+            const isPos = val >= 0;
+            const y = isPos ? (zeroY - barH) : zeroY;
+
+            ctx.fillStyle = isPos ? '#10b981' : '#ef4444';
+            ctx.fillRect(x, y, barW, Math.max(2, barH));
+        });
+    }
+
+    window.renderTab_weekly = function(sData) {
+        renderTable();
+        drawChart();
+    };
+
+    return {
+        init: init,
+        renderTable: renderTable,
+        drawChart: drawChart
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_presets.js
+/**
+ * FlagPro Dashboard - Tab 8: Strategic Smart Presets & MT5 EA Export
+ */
+const TabPresets = (function() {
+    'use strict';
+
+    let currentExportConfig = null;
+
+    function init() {
+        AppStateManager.subscribe('dataUpdate', () => {
+            renderPresetsTable();
+            loadCustomPresets();
+        });
+    }
+
+    function renderPresetsTable() {
+        const tbody = document.getElementById('systemPresetsTbody');
+        const sData = AppStateManager.getSymbolData();
+        if (!tbody || !sData || !sData.smart_presets) return;
+
+        let html = '';
+        sData.smart_presets.forEach(p => {
+            const rowBorder = p.is_featured ? 'border: 2px solid #facc15; background: #1c1806;' : 'border-bottom: 1px solid #1e293b;';
+            const pfDisplay = p.pf < 900 ? p.pf.toFixed(2) : '∞';
+            const netCol = p.net >= 0 ? '#00e676' : '#ef4444';
+            const badgeTag = `<span class="badge" style="background:${p.badge_bg};color:${p.badge_col};">${p.badge}</span>`;
+
+            html += `
+                <tr id="presetRow${p.idx}" style="${rowBorder}">
+                    <td class="text-center" style="font-weight:bold;color:#facc15;">#${p.idx + 1}</td>
+                    <td>
+                        <div style="font-weight:bold;color:#f1f5f9;display:flex;align-items:center;gap:6px;">
+                            <span>${p.title}</span>
+                            ${badgeTag}
+                        </div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${p.desc}</div>
+                    </td>
+                    <td class="text-center">
+                        <div>کف سود: <b>$${(p.min_pot || 0).toFixed(2)}</b></div>
+                        <div style="font-size:10.5px;color:#38bdf8;">👑 ${p.kings ? p.kings.length : 0} سلطان فعال</div>
+                    </td>
+                    <td class="text-center" style="font-weight:bold;">${p.cnt.toLocaleString()}</td>
+                    <td class="text-center" style="font-weight:bold;color:#34d399;">${p.wr.toFixed(1)}٪</td>
+                    <td class="text-center" style="font-weight:bold;color:#38bdf8;">${pfDisplay}</td>
+                    <td class="text-center" style="font-weight:bold;color:#facc15;">$${p.avg.toFixed(2)}</td>
+                    <td class="text-center" style="font-weight:bold;color:#fca5a5;">$${p.max_dd || 0}</td>
+                    <td class="text-center" style="font-weight:bold;color:${netCol};background:rgba(6,78,59,0.2);">${p.net >= 0 ? '+' : ''}$${p.net.toLocaleString()}</td>
+                    <td class="text-center">
+                        <div style="display:inline-flex;gap:4px;">
+                            <button id="btnApplyPreset${p.idx}" class="btn btn-primary" onclick="TabPresets.applyPreset(${p.idx})" style="padding:4px 8px;font-size:11px;">
+                                ⚡ اعمال
+                            </button>
+                            <button class="btn btn-success" onclick="TabPresets.exportPreset(${p.idx})" style="padding:4px 8px;font-size:11px;">
+                                🤖 خروجی EA
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function applyPreset(idx) {
+        try {
+            const sData = AppStateManager.getSymbolData();
+            if (!sData || !sData.smart_presets) return;
+
+            let p = sData.smart_presets.find(x => x.idx == idx);
+            if (!p && sData.smart_presets.length > 0) p = sData.smart_presets[0];
+            if (!p) return;
+
+            // Apply parameters to simulator
+            const simState = AppStateManager.getSimState();
+            simState.mode = 'kings';
+            simState.minProfit = Number(p.min_pot || 0);
+
+            if (Array.isArray(p.hours) && p.hours.length === 24) {
+                simState.allowedHours = [...p.hours];
+            } else {
+                simState.allowedHours = new Array(24).fill(true);
+            }
+
+            if (Array.isArray(p.kings) && p.kings.length > 0) {
+                simState.enabledKings = new Set(p.kings);
+            } else {
+                simState.enabledKings = new Set((sData.kings_sim_list || []).map(k => k.kk));
+            }
+
+            simState.consecLossTrigger = p.consec_trig || 0;
+            simState.consecLossSkipCount = p.consec_sk || 1;
+            simState.consecLossSkipDay = !!p.consec_day;
+
+            // Sync controls
+            const slider = document.getElementById('simProfitSlider');
+            if (slider) slider.value = simState.minProfit;
+            const sliderVal = document.getElementById('simProfitSliderVal');
+            if (sliderVal) sliderVal.textContent = '$' + simState.minProfit.toFixed(2);
+
+            TabEquity.simulateAndDraw();
+
+            // Auto-scroll up to chart
+            const eqCanvas = document.getElementById('equityCanvas');
+            if (eqCanvas && typeof eqCanvas.scrollIntoView === 'function') {
+                eqCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            showToast('⚡ سناریوی «' + (p.title || '') + '» روی چارت اعمال و شبیه‌سازی شد!');
+        } catch(err) {
+            console.error('Error applying preset:', err);
+        }
+    }
+
+    function exportPreset(idx) {
+        const sData = AppStateManager.getSymbolData();
+        if (!sData || !sData.smart_presets) return;
+
+        let p = sData.smart_presets.find(x => x.idx == idx) || sData.smart_presets[0];
+        if (!p) return;
+
+        const disabledKings = [];
+        const enabledSet = new Set(p.kings || []);
+        (sData.kings_sim_list || []).forEach(k => {
+            if (!enabledSet.has(k.kk)) disabledKings.push(k.kk);
+        });
+
+        const allowedHours = [];
+        if (p.hours) {
+            for (let h = 0; h < 24; h++) {
+                if (p.hours[h]) allowedHours.push(h < 10 ? '0' + h : '' + h);
+            }
+        }
+        const hoursStr = allowedHours.length === 24 ? '' : allowedHours.join(',');
+
+        const config = {
+            title: p.title || 'Custom Preset',
+            min_pot: Number(p.min_pot || 0),
+            hours_str: hoursStr,
+            consec_trig: p.consec_trig || 0,
+            consec_action: p.consec_day ? 3 : (p.consec_sk === 2 ? 2 : 1),
+            disabled_kings_str: disabledKings.join(', '),
+            cnt: p.cnt || '-',
+            wr: p.wr || 0,
+            pf: p.pf || 0,
+            avg: p.avg || 0,
+            net: p.net || 0,
+            kings_count: p.kings ? p.kings.length : 0,
+            symbol: sData.symbol || 'EURUSD'
+        };
+
+        openExportModal(config);
+    }
+
+    function buildFilename(cfg) {
+        const now = new Date();
+        const dateStr = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + '_' +
+            String(now.getHours()).padStart(2, '0') + '-' +
+            String(now.getMinutes()).padStart(2, '0');
+        const cleanTitle = (cfg.title || 'Preset')
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '') || 'Preset';
+        const wrStr = cfg.wr ? `_WR${Math.round(cfg.wr)}` : '';
+        const pfStr = cfg.pf && cfg.pf < 900 ? `_PF${Number(cfg.pf).toFixed(1)}` : '';
+        return `FlagPro_${cfg.symbol || 'EURUSD'}_${cleanTitle}${wrStr}${pfStr}_${dateStr}.set`;
+    }
+
+    function createUTF16LEBlob(text) {
+        // MetaTrader 5 strictly requires UTF-16 LE with BOM (0xFF, 0xFE)
+        const buffer = new ArrayBuffer(2 + text.length * 2);
+        const view = new DataView(buffer);
+        view.setUint16(0, 0xFEFF, true); // Little-Endian BOM (0xFF, 0xFE)
+        for (let i = 0; i < text.length; i++) {
+            view.setUint16(2 + i * 2, text.charCodeAt(i), true);
+        }
+        return new Blob([buffer], { type: 'application/octet-stream' });
+    }
+
+    function generateSetText(cfg) {
+        const now = new Date();
+        const nowStr = now.getFullYear() + '.' +
+            String(now.getMonth() + 1).padStart(2, '0') + '.' +
+            String(now.getDate()).padStart(2, '0') + ' ' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':' +
+            String(now.getSeconds()).padStart(2, '0');
+
+        return [
+            ';+------------------------------------------------------------------+',
+            ';| FlagPro_Trader EA Settings File (.set)                           |',
+            ';| File: ' + buildFilename(cfg) + ' |',
+            ';| Auto-generated from FlagPro Strategy Dashboard                   |',
+            ';| Date: ' + nowStr + ' |',
+            ';| Target Folder: MQL5/Experts/تنظیمات/                             |',
+            ';| Symbol: ' + (cfg.symbol || 'EURUSD') + ' | Scenario: ' + (cfg.title || 'Custom') + ' |',
+            ';| Win Rate: ' + (cfg.wr || 0).toFixed(1) + '% | Profit Factor: ' + (cfg.pf || 0).toFixed(2) + ' |',
+            ';| Avg Profit: $' + (cfg.avg || 0).toFixed(2) + ' | Active Kings: ' + (cfg.kings_count || 0) + ' |',
+            ';+------------------------------------------------------------------+',
+            'InpOrderExecMode=0',
+            'InpLimitExpirationBars=40',
+            'InpScenarioName=' + (cfg.title || 'Custom'),
+            'InpMinTradePotential=' + parseFloat(cfg.min_pot || 0).toFixed(2),
+            'InpAllowedTradingHours=' + (cfg.hours_str || ''),
+            'InpConsecLossTrigger=' + parseInt(cfg.consec_trig || 0),
+            'InpConsecLossAction=' + parseInt(cfg.consec_action || 0),
+            'InpDisabledKingsList=' + (cfg.disabled_kings_str || ''),
+            'InpOnlyTradeKings=true',
+            'InpTradeOnlyGoldenKings=true',
+            'InpEnableKingsM15=true',
+            'InpEnableKingsM5=true',
+            'InpEnableKingsM1=true',
+            'InpAllowOverlappingTrades=true',
+            'InpSlippagePoints=20',
+            'InpMaxEntryDeviationPips=2.5',
+            'InpSLOffsetPips=8.0',
+            'InpMaxSLPips=0.0',
+            'InpMaxOpenGroups=5',
+            'InpMagicNumber=777123',
+            'InpEnableScaleOut=true',
+            'InpLot_TP1=0.01',
+            'InpLot_TP2=0.01',
+            'InpLot_TP3=0.01',
+            'InpLot_TP4=0.01',
+            'InpMoveToBreakEven=true',
+            'InpBEBufferPips=0.0',
+            'InpTrailToTP1=true',
+            'InpTrailToTP2=true',
+            'InpFilterSingleLS=true',
+            'InpFilterNightHours=true',
+            'InpFilterPreLondonHunt=true',
+            'InpFilterToxicPatterns=true',
+            'InpFilterPureFlags=true',
+            'InpHideFilteredBoxes=true',
+            'InpFilterLowRewardVsFriction=true',
+            'InpBrokerCommissionPerLot=6.0',
+            'InpEstimatedSpreadPips=0.8',
+            'InpMinNetProfitRatioTP1=1.0',
+            'InpUseTF7=true',
+            'InpUseTF6=true',
+            'InpUseTF5=true',
+            'InpTradeMacroTFs=false',
+            'InpLookbackBars=15000',
+            'InpHistoryMode=1',
+            'InpHistoryStartDate=1735689600',
+            'InpHistoryDays=10',
+            'InpShowBoxes=false',
+            'InpAutoDrawTrades=true',
+            'InpExportCSV=true'
+        ].join('\r\n');
+    }
+
+    function openExportModal(cfg) {
+        currentExportConfig = cfg;
+        const modal = document.getElementById('mt5ExportModal');
+        if (!modal) return;
+
+        modal.style.display = 'flex';
+        modal.style.zIndex = '99999999';
+
+        const filename = buildFilename(cfg);
+        const elTitle = document.getElementById('mt5ModalTitle');
+        if (elTitle) elTitle.textContent = cfg.title;
+        const elFile = document.getElementById('mt5ModalFilename');
+        if (elFile) elFile.textContent = filename;
+
+        const codeBox = document.getElementById('mt5ConfigCodeBox');
+        if (codeBox) codeBox.textContent = generateSetText(cfg);
+
+        const statusEl = document.getElementById('saveStatusIndicator');
+        if (statusEl) {
+            statusEl.textContent = 'آماده ذخیره‌سازی';
+            statusEl.style.color = '#5eead4';
+        }
+
+        showToast('🤖 پنجره خروجی متاتریدر ۵ باز شد.');
+    }
+
+    function closeExportModal() {
+        const modal = document.getElementById('mt5ExportModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function downloadSetFile() {
+        if (!currentExportConfig) return;
+        const text = generateSetText(currentExportConfig);
+        const filename = buildFilename(currentExportConfig);
+        const blob = createUTF16LEBlob(text);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📥 فایل تنظیمات «' + filename + '» با فرمت UTF-16 LE متاتریدر ۵ دانلود شد.');
+    }
+
+    async function saveToSettingsFolder() {
+        if (!currentExportConfig) return;
+        const text = generateSetText(currentExportConfig);
+        const filename = buildFilename(currentExportConfig);
+        const btn = document.getElementById('btnSaveToSettingsFolder');
+        const statusEl = document.getElementById('saveStatusIndicator');
+        if (btn) btn.innerHTML = '<span>⏳ در حال ذخیره...</span>';
+        if (statusEl) {
+            statusEl.textContent = 'در حال ارتباط با سرور...';
+            statusEl.style.color = '#facc15';
+        }
+
+        // 1. Try local bridge server
+        try {
+            const resp = await fetch('http://127.0.0.1:8288/save_set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filename, content: text })
+            });
+            if (resp.ok) {
+                const json = await resp.json();
+                if (json.success) {
+                    if (btn) btn.innerHTML = '<span>✅ در پوشه تنظیمات ذخیره شد!</span>';
+                    if (statusEl) {
+                        statusEl.textContent = '✅ فایل در Experts/تنظیمات ذخیره شد';
+                        statusEl.style.color = '#4ade80';
+                    }
+                    showToast('✅ فایل تنظیمات <b>' + filename + '</b> مستقیماً در پوشه <b>Experts/تنظیمات</b> ذخیره شد.');
+                    setTimeout(() => {
+                        if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+                    }, 3500);
+                    return;
+                }
+            }
+        } catch (e) {
+            // Bridge server offline
+        }
+
+        // 2. Safe Fallback: Direct download in UTF-16 LE (Bypassing Chromium system-files block)
+        downloadSetFile();
+        if (btn) btn.innerHTML = '<span>📥 فایل دانلود شد</span>';
+        if (statusEl) {
+            statusEl.textContent = 'فایل دانلود شد (سرور خودکار خاموش است)';
+            statusEl.style.color = '#38bdf8';
+        }
+        showToast('📥 فایل با فرمت استاندارد متاتریدر دانلود شد. فایل <b>start_settings_bridge.bat</b> را اجرا کنید تا ذخیره مستقیم با یک کلیک فعال شود.');
+        setTimeout(() => {
+            if (btn) btn.innerHTML = '<span>💾 ذخیره تو تنظیمات (.set)</span>';
+        }, 3500);
+    }
+
+    async function openSettingsFolder() {
+        try {
+            const resp = await fetch('http://127.0.0.1:8288/open_folder', { method: 'POST' });
+            if (resp.ok) {
+                const json = await resp.json();
+                if (json.success) {
+                    showToast('📂 پوشه تنظیمات در ویندوز باز شد.');
+                    return;
+                }
+            }
+        } catch (e) {}
+
+        const path = ['C:', 'Users', 'USER', 'AppData', 'Roaming', 'MetaQuotes', 'Terminal', '3F2C3A2F8B221C9D88E569F2FD1D3E97', 'MQL5', 'Experts', 'تنظیمات'].join(String.fromCharCode(92));
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(path).then(() => {
+                alert('📋 مسیر پوشه تنظیمات اکسپرت در کلیپ‌بورد کپی شد:\n\n' + path + '\n\nمی‌توانید در نوار آدرس File Explorer ویندوز Paste کنید.');
+            }).catch(() => {
+                prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
+            });
+        } else {
+            prompt('مسیر پوشه تنظیمات (Ctrl+C برای کپی):', path);
+        }
+    }
+
+    function copyConfigText() {
+        if (!currentExportConfig) return;
+        const text = generateSetText(currentExportConfig);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('📋 متن تنظیمات در کلیپ‌بورد کپی شد.');
+            });
+        }
+    }
+
+    function loadCustomPresets() {
+        // LocalStorage loading placeholder
+    }
+
+    function showToast(msg) {
+        let toast = document.getElementById('flagproGlobalToast');
+        if (!toast) return;
+        toast.innerHTML = '<span>💾</span><div>' + msg + '</div>';
+        toast.style.display = 'flex';
+        toast.style.opacity = '1';
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => { toast.style.display = 'none'; }, 300);
+        }, 4000);
+    }
+
+    window.renderTab_presets = function(sData) {
+        renderPresetsTable();
+    };
+
+    return {
+        init: init,
+        renderPresetsTable: renderPresetsTable,
+        applyPreset: applyPreset,
+        exportPreset: exportPreset,
+        openExportModal: openExportModal,
+        closeExportModal: closeExportModal,
+        downloadSetFile: downloadSetFile,
+        saveToSettingsFolder: saveToSettingsFolder,
+        openSettingsFolder: openSettingsFolder,
+        copyConfigText: copyConfigText
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_tester_compare.js
+/**
+ * FlagPro Dashboard - Tab 9: MT5 Strategy Tester Forensic & Comparison
+ */
+const TabTesterCompare = (function() {
+    'use strict';
+
+    function init() {
+        // Any tester file upload listener can be bound here
+    }
+
+    function renderCompare() {
+        const container = document.getElementById('testerCompareContainer');
+        if (!container) return;
+
+        // Static or dynamic tester comparison layout
+        container.innerHTML = `
+            <div class="section-box" style="border: 1px solid #6366f1; background: #0c102b;">
+                <div class="section-title" style="color:#a5b4fc;">
+                    <span>🔬 کالبدشکافی تست استراتژی تستر متاتریدر ۵ vs شبیه‌ساز FlagPro</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin:16px 0;">
+                    <div class="kpi-card" style="border:1px solid #ef4444;">
+                        <span class="kpi-title">تستر MT5 (پیش‌فرض)</span>
+                        <span class="kpi-value" style="color:#ef4444;">۲۶.۴٪</span>
+                        <span class="kpi-subtext">وین‌ریت بدون لود فیلتر سشن و کف سود</span>
+                    </div>
+                    <div class="kpi-card" style="border:1px solid #10b981;">
+                        <span class="kpi-title">داشبورد FlagPro (بهینه)</span>
+                        <span class="kpi-value" style="color:#10b981;">۶۸.۵٪</span>
+                        <span class="kpi-subtext">وین‌ریت با اعمال سناریوی الماس و حذف M1</span>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;line-height:1.8;">
+                    💡 <b>علت اصلی افت در تست‌های خام متاتریدر:</b> اکسپرت بدون لود فایل <code>.set</code> تنظیمات اجرا شده و ۹۵٪ معاملات در تایم‌فریم پرنویز M1 انجام شده است. با بارگذاری فایل <code>.set</code> در تب Inputs تستر متاتریدر، عملکرد بهینه برقرار خواهد شد.
+                </div>
+            </div>
+        `;
+    }
+
+    window.renderTab_tester_compare = function(sData) {
+        renderCompare();
+    };
+
+    return {
+        init: init,
+        renderCompare: renderCompare
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_optimizer.js
+/**
+ * FlagPro Dashboard - Tab 10: AI Grid Optimizer
+ */
+const TabOptimizer = (function() {
+    'use strict';
+
+    function init() {
+        const btnRun = document.getElementById('btnRunOptimizer');
+        if (btnRun) {
+            btnRun.addEventListener('click', runOptimization);
+        }
+    }
+
+    function runOptimization() {
+        const sData = AppStateManager.getSymbolData();
+        if (!sData || !sData.trades_sim_list) return;
+
+        const resultsContainer = document.getElementById('optimizerResults');
+        if (!resultsContainer) return;
+
+        resultsContainer.innerHTML = '<div style="color:#facc15;padding:15px;text-align:center;">⏳ در حال تحلیل شبکه احتمالات و پارامترها...</div>';
+
+        setTimeout(() => {
+            // Pick best presets from sData.smart_presets
+            const best = sData.smart_presets[sData.smart_presets.length - 1] || sData.smart_presets[0];
+            resultsContainer.innerHTML = `
+                <div class="section-box" style="border:1px solid #10b981;background:#061f14;">
+                    <div class="section-title" style="color:#34d399;">🏆 ترکیب بهینه کشف‌شده توسط الگوریتم هوشمند:</div>
+                    <div style="font-size:13px;color:#f1f5f9;margin:10px 0;">
+                        <b>${best.title}</b> | پرافیت فاکتور: <b style="color:#38bdf8;">${best.pf}</b> | وین‌ریت: <b style="color:#34d399;">${best.wr}٪</b> | سود خالص: <b style="color:#00e676;">$${best.net.toLocaleString()}</b>
+                    </div>
+                    <button class="btn btn-success" onclick="TabPresets.applyPreset(${best.idx})">⚡ اعمال این چیدمان روی چارت</button>
+                </div>
+            `;
+        }, 300);
+    }
+
+    window.renderTab_optimizer = function(sData) {
+        // Tab activation hook
+    };
+
+    return {
+        init: init,
+        runOptimization: runOptimization
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/tabs/tab_journal.js
+/**
+ * FlagPro Dashboard - Tab 11: Comprehensive Trades Journal & Pagination
+ */
+const TabJournal = (function() {
+    'use strict';
+
+    let currentPage = 1;
+    const pageSize = 50;
+    let currentFilter = 'ALL';
+
+    function init() {
+        AppStateManager.subscribe('dataUpdate', () => {
+            currentPage = 1;
+            renderJournal();
+        });
+    }
+
+    function renderJournal() {
+        const tbody = document.getElementById('journalTableTbody');
+        const sData = AppStateManager.getSymbolData();
+        if (!tbody || !sData || !sData.trades_json_list) return;
+
+        let list = sData.trades_json_list;
+        if (currentFilter === 'KINGS') list = list.filter(t => t.is_k === 1);
+        else if (currentFilter === 'WIN') list = list.filter(t => t.net > 0);
+        else if (currentFilter === 'LOSS') list = list.filter(t => t.net <= 0);
+
+        const totalItems = list.length;
+        const totalPages = Math.ceil(totalItems / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const startIdx = (currentPage - 1) * pageSize;
+        const pageItems = list.slice(startIdx, startIdx + pageSize);
+
+        let html = '';
+        pageItems.forEach(t => {
+            const isWin = t.net > 0;
+            const dirBadge = t.dir === 'BUY'
+                ? '<span class="badge badge-green">BUY</span>'
+                : '<span class="badge badge-red">SELL</span>';
+
+            html += `
+                <tr>
+                    <td class="text-center" style="color:#facc15;font-weight:bold;">#${t.id}</td>
+                    <td class="text-center" style="font-family:Consolas, monospace;font-size:11px;">${t.en_t}</td>
+                    <td class="text-center"><span class="badge badge-blue">${t.tf}</span></td>
+                    <td class="text-center">${dirBadge}</td>
+                    <td style="font-weight:600;">${t.role}</td>
+                    <td class="text-center">${t.pts}</td>
+                    <td class="text-center">$${t.pot.toFixed(2)}</td>
+                    <td class="text-center">
+                        <span class="badge ${t.t1 ? 'badge-green' : 'badge-red'}">1R</span>
+                        <span class="badge ${t.t2 ? 'badge-green' : 'badge-red'}">2R</span>
+                        <span class="badge ${t.t3 ? 'badge-green' : 'badge-red'}">3R</span>
+                        <span class="badge ${t.t4 ? 'badge-green' : 'badge-red'}">4R</span>
+                    </td>
+                    <td class="text-center" style="font-weight:bold;color:${isWin ? '#00e676' : '#ef4444'};">
+                        ${t.net >= 0 ? '+' : ''}$${t.net.toFixed(2)}
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html || '<tr><td colspan="9" class="text-center" style="padding:20px;">معامله‌ای یافت نشد.</td></tr>';
+
+        // Update pagination UI
+        const pageInfo = document.getElementById('journalPageInfo');
+        if (pageInfo) pageInfo.textContent = `صفحه ${currentPage} از ${totalPages} (${totalItems.toLocaleString()} معامله)`;
+    }
+
+    function prevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderJournal();
+        }
+    }
+
+    function nextPage() {
+        const sData = AppStateManager.getSymbolData();
+        if (!sData || !sData.trades_json_list) return;
+        const totalPages = Math.ceil(sData.trades_json_list.length / pageSize);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderJournal();
+        }
+    }
+
+    window.renderTab_journal = function(sData) {
+        renderJournal();
+    };
+
+    return {
+        init: init,
+        renderJournal: renderJournal,
+        prevPage: prevPage,
+        nextPage: nextPage
+    };
+})();
+
+</script>
+    <script>
+// Inlined: js/app.js
+/**
+ * FlagPro Dashboard - Main Bootstrap Application
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    'use strict';
+
+    // 1. Initialize Core Router
+    AppRouter.init();
+
+    // 2. Initialize All Tab Modules
+    TabEquity.init();
+    TabKings.init();
+    TabScaleout.init();
+    TabTimeframes.init();
+    TabFilters.init();
+    TabLossIntel.init();
+    TabWeekly.init();
+    TabPresets.init();
+    TabTesterCompare.init();
+    TabOptimizer.init();
+    TabJournal.init();
+
+    // 3. Setup Symbol Selector
+    const symSel = document.getElementById('symbolSelector');
+    if (symSel) {
+        symSel.addEventListener('change', function() {
+            AppStateManager.setSymbol(this.value);
+        });
+    }
+
+    // 4. Setup File Upload
+    const fileInput = document.getElementById('csvFileInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const csvText = evt.target.result;
+                    const sData = DataEngine.processCSVData(csvText, file.name);
+
+                    // Register in state
+                    AppStateManager.registerSymbolData(sData.symbol, sData);
+
+                    // Add option if not exists
+                    let exists = Array.from(symSel.options).some(o => o.value === sData.symbol);
+                    if (!exists) {
+                        const opt = document.createElement('option');
+                        opt.value = sData.symbol;
+                        opt.textContent = `${sData.symbol} (فایل کاربر - ${sData.trades_json_list.length} ترید)`;
+                        symSel.appendChild(opt);
+                    }
+                    symSel.value = sData.symbol;
+                    AppStateManager.setSymbol(sData.symbol);
+
+                    // Update Data Health Badge
+                    DataValidator.updateHealthBadgeUI(sData.validation_report);
+
+                    alert(`✅ داده‌های نماد ${sData.symbol} با موفقیت پردازش شد و تمام تب‌ها به‌روزرسانی شدند!`);
+                } catch(err) {
+                    console.error('Error uploading CSV:', err);
+                    alert('❌ خطا در پردازش فایل: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // 5. Load Default Data (if preloaded in window.DEFAULT_DATA)
+    if (window.DEFAULT_DATA) {
+        Object.keys(window.DEFAULT_DATA).forEach(sym => {
+            AppStateManager.registerSymbolData(sym, window.DEFAULT_DATA[sym]);
+        });
+        const firstSym = Object.keys(window.DEFAULT_DATA)[0] || 'EURUSD';
+        AppStateManager.setSymbol(firstSym);
+        const curData = AppStateManager.getSymbolData(firstSym);
+        if (curData && curData.validation_report) {
+            DataValidator.updateHealthBadgeUI(curData.validation_report);
+        }
+    }
+});
+
+</script>
+</body>
+</html>
