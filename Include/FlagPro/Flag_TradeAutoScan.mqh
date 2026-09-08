@@ -673,7 +673,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
       tps[3] = g_tradeSetups[t].tp4;
 
       datetime t2 = g_tradeSetups[t].exitTime;
-      if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
+      if(t2 <= t1) t2 = TimeCurrent() + PeriodSeconds(_Period) * 3;
 
       string pfx = FP_PREFIX + "AUTO_TR_" + IntegerToString(t) + "_";
       int hitTP = g_tradeSetups[t].hitTP;

@@ -455,6 +455,10 @@ void ShowTradeSetupForBox(int boxIdx)
    bool isClosed     = false;
    datetime exitTime = 0;
    string cancelReasonStr = "";
+   datetime cancelTime = 0;
+   MqlRates rates[];
+   ArraySetAsSeries(rates, false);
+   int copied = 0;
 
    datetime baseTime = (g_drawnBoxes[boxIdx].formationTime > 0) ? g_drawnBoxes[boxIdx].formationTime : g_drawnBoxes[boxIdx].t1;
    datetime confirmTime = g_drawnBoxes[boxIdx].confirmationTime;
@@ -529,12 +533,9 @@ void ShowTradeSetupForBox(int boxIdx)
       }
 
       datetime startReq = baseTime - PeriodSeconds(_Period) * 15;
-      datetime stopReq  = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 400;
-      if(stopReq > TimeCurrent()) stopReq = TimeCurrent();
+      datetime stopReq  = TimeCurrent();
 
-      MqlRates rates[];
-      ArraySetAsSeries(rates, false);
-      int copied = CopyRates(_Symbol, _Period, startReq, stopReq, rates);
+      copied = CopyRates(_Symbol, _Period, startReq, stopReq, rates);
 
       if(copied <= 5)
       {
@@ -542,7 +543,7 @@ void ShowTradeSetupForBox(int boxIdx)
          if(startShift >= 0)
          {
             int barsToCopy = startShift + 50;
-            if(barsToCopy > 15000) barsToCopy = 15000;
+            if(barsToCopy > 30000) barsToCopy = 30000;
             copied = CopyRates(_Symbol, _Period, 0, barsToCopy, rates);
          }
       }
@@ -572,6 +573,7 @@ void ShowTradeSetupForBox(int boxIdx)
             if(departedBar < 0 && rates[k].time > maxBoxTime)
             {
                cancelReasonStr = "EXPIRED ⏱ (عدم خروج قیمت ظرف ۴۰ کندل)";
+               cancelTime = rates[k].time;
                break;
             }
 
@@ -579,11 +581,13 @@ void ShowTradeSetupForBox(int boxIdx)
             if(isBull && rates[k].low <= slPrice)
             {
                cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
+               cancelTime = rates[k].time;
                break;
             }
             else if(!isBull && rates[k].high >= slPrice)
             {
                cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
+               cancelTime = rates[k].time;
                break;
             }
 
@@ -597,6 +601,7 @@ void ShowTradeSetupForBox(int boxIdx)
                if(rates[k].time > maxDepTime)
                {
                   cancelReasonStr = "NO BREAKOUT ⏱ (عدم خروج قیمت ظرف ۳۰ کندل)";
+                  cancelTime = rates[k].time;
                   break;
                }
             }
@@ -625,6 +630,7 @@ void ShowTradeSetupForBox(int boxIdx)
                if(rates[k].time > maxLimitTime)
                {
                   cancelReasonStr = "NO PULLBACK 💨 (انقضای مهلت بازگشت پولبک)";
+                  cancelTime = rates[k].time;
                   break;
                }
             }
@@ -753,7 +759,8 @@ void ShowTradeSetupForBox(int boxIdx)
    {
       datetime t1 = entryTime;
       datetime t2 = exitTime;
-      if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
+      datetime lastBarTime = (copied > 0) ? rates[copied - 1].time : TimeCurrent();
+      if(t2 <= t1) t2 = lastBarTime + PeriodSeconds(_Period) * 3;
 
       // خط عمودی زمان تایید
       string confLine = pfx + "CONFIRM_VLINE";
@@ -867,7 +874,8 @@ void ShowTradeSetupForBox(int boxIdx)
    {
       // رسم خطوط راهنمای ورود و استاپ برای ستاپ‌هایی که وارد نشده یا نقض شده‌اند
       datetime t1 = confirmTime;
-      datetime t2 = t1 + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 35;
+      datetime t2 = (cancelTime > 0) ? cancelTime : (t1 + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 35);
+      if(t2 <= t1) t2 = t1 + PeriodSeconds(_Period) * 10;
 
       // خط نقطه ورود (خاکستری نقطه‌چین)
       string entryLine = pfx + "ENTRY";
