@@ -227,6 +227,13 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
          }
       }
 
+      if(IsFocusModeActive() && b == GetFocusBoxIndex())
+      {
+         drawClr   = clrGold;
+         drawWidth = 3;
+         drawStyle = STYLE_SOLID;
+      }
+
       DrawHollowBox(g_drawnBoxes[b].boxName,
                     g_drawnBoxes[b].t1,
                     g_drawnBoxes[b].top,

@@ -7,12 +7,13 @@
 #property link      ""
 
 // متغیرهای وضعیت حالت تمرکز (Focus Mode)
-bool   g_focusModeActive       = false;
-int    g_focusBoxIdx           = -1;
-string g_origFocusBoxName      = "";
-color  g_origFocusColor        = clrNONE;
-int    g_origFocusWidth        = 1;
-ENUM_LINE_STYLE g_origFocusStyle = STYLE_SOLID;
+bool            g_focusModeActive         = false;
+int             g_focusBoxIdx             = -1;
+string          g_origFocusBoxName        = "";
+color           g_origFocusColor          = clrNONE;
+int             g_origFocusWidth          = 1;
+ENUM_LINE_STYLE g_origFocusStyle          = STYLE_SOLID;
+ulong           g_lastTradeTestActionTick = 0;
 
 //+------------------------------------------------------------------+
 //| بررسی فعال بودن حالت تمرکز                                      |
@@ -40,6 +41,79 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
 void CleanupFocusHUD();
 
 //+------------------------------------------------------------------+
+//| پاکسازی پنل اطلاعاتی HUD                                         |
+//+------------------------------------------------------------------+
+void CleanupFocusHUD()
+{
+   ObjectsDeleteAll(0, FP_PREFIX + "FOCUS_HUD_");
+}
+
+//+------------------------------------------------------------------+
+//| خروج از حالت تمرکز و بازگردانی چارت به وضعیت عادی (Exit Focus)   |
+//+------------------------------------------------------------------+
+void ExitFocusMode()
+{
+   if(!g_focusModeActive && g_selectedBoxName == "") return;
+
+   // ۱. بازگردانی خصوصیات اختصاصی باکس فوکوس‌شده
+   if(g_focusBoxIdx >= 0 && g_focusBoxIdx < g_boxCount)
+   {
+      string fName = g_drawnBoxes[g_focusBoxIdx].boxName;
+      if(ObjectFind(0, fName) >= 0)
+      {
+         if(g_origFocusColor != clrNONE)
+            ObjectSetInteger(0, fName, OBJPROP_COLOR, g_origFocusColor);
+         ObjectSetInteger(0, fName, OBJPROP_WIDTH, g_origFocusWidth > 0 ? g_origFocusWidth : 1);
+         ObjectSetInteger(0, fName, OBJPROP_STYLE, g_origFocusStyle);
+      }
+   }
+
+   // ۲. نمایان‌سازی تمام باکس‌ها (دست‌نخورده ماندن رنگ‌ها و استایل‌ها)
+   for(int b = 0; b < g_boxCount; b++)
+   {
+      ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+
+      string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
+      if(ObjectFind(0, lblName) >= 0)
+         ObjectSetInteger(0, lblName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+
+      string extName = FP_PREFIX + "EXT_" + g_drawnBoxes[b].boxName;
+      if(ObjectFind(0, extName) >= 0)
+         ObjectSetInteger(0, extName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+   }
+
+   // ۳. نمایان‌سازی مجدد خطوط ساختار و معاملات خودکار
+   int totalObjs = ObjectsTotal(0, 0, -1);
+   for(int i = totalObjs - 1; i >= 0; i--)
+   {
+      string oName = ObjectName(0, i);
+      if(StringFind(oName, FP_PREFIX + "IP_") == 0 ||
+         StringFind(oName, FP_PREFIX + "RS_") == 0 ||
+         StringFind(oName, FP_PREFIX + "SWAP_") == 0 ||
+         StringFind(oName, FP_PREFIX + "STRUCT_") == 0 ||
+         StringFind(oName, FP_PREFIX + "PIVOT_") == 0 ||
+         StringFind(oName, FP_PREFIX + "AUTO_TR_") == 0 ||
+         StringFind(oName, FP_PREFIX + "AUTOTRADE_") == 0)
+      {
+         ObjectSetInteger(0, oName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+      }
+   }
+
+   // ۴. حذف کامل خطوط معامله کلیک و پنل HUD
+   ObjectsDeleteAll(0, FP_PREFIX + "CLICK_TRADE_");
+   CleanupFocusHUD();
+   Comment("");
+
+   g_focusModeActive  = false;
+   g_focusBoxIdx      = -1;
+   g_selectedBoxName  = "";
+   g_origFocusBoxName = "";
+   g_origFocusColor   = clrNONE;
+
+   ChartRedraw(0);
+}
+
+//+------------------------------------------------------------------+
 //| ورود به حالت تمرکز برای یک باکس (Focus Mode Activation)           |
 //+------------------------------------------------------------------+
 void EnterFocusMode(int boxIdx, bool toggle = true)
@@ -48,25 +122,15 @@ void EnterFocusMode(int boxIdx, bool toggle = true)
 
    string boxName = g_drawnBoxes[boxIdx].boxName;
 
-   // اگر قبلاً روی همین باکس کلیک شده بود، در صورت فعال بودن toggle خروج از حالت تمرکز
-   static ulong lastToggleTick = 0;
+   // اگر قبلاً روی همین باکس بودیم و toggle فعال است، خروج
    if(g_focusModeActive && g_focusBoxIdx == boxIdx)
    {
       if(toggle)
       {
-         if(GetTickCount64() - lastToggleTick > 400)
-         {
-            lastToggleTick = GetTickCount64();
-            ExitFocusMode();
-            return;
-         }
-         else
-         {
-            return; // نادیده گرفتن کلیک‌های دوبل و لرزش ماوس
-         }
+         ExitFocusMode();
+         return;
       }
    }
-   lastToggleTick = GetTickCount64();
 
    // اگر روی باکس دیگری بودیم ابتدا پاکسازی شود
    if(g_focusModeActive)
@@ -79,6 +143,7 @@ void EnterFocusMode(int boxIdx, bool toggle = true)
    g_selectedBoxName  = boxName;
    g_origFocusBoxName = boxName;
 
+   // ذخیره ویژگی‌های اصلی فقط همین باکس
    if(ObjectFind(0, boxName) >= 0)
    {
       g_origFocusColor = (color)ObjectGetInteger(0, boxName, OBJPROP_COLOR);
@@ -86,103 +151,53 @@ void EnterFocusMode(int boxIdx, bool toggle = true)
       g_origFocusStyle = (ENUM_LINE_STYLE)ObjectGetInteger(0, boxName, OBJPROP_STYLE);
    }
 
-   // ۱. پنهان‌سازی تمامی سایر باکس‌ها و برچسب‌ها روی چارت
+   // ۱. برجسته‌سازی طلایی باکس انتخابی
+   ObjectSetInteger(0, boxName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+   ObjectSetInteger(0, boxName, OBJPROP_COLOR, clrGold);
+   ObjectSetInteger(0, boxName, OBJPROP_WIDTH, 3);
+   ObjectSetInteger(0, boxName, OBJPROP_STYLE, STYLE_SOLID);
+
+   string fLbl = FP_PREFIX + "LBL_" + boxName;
+   if(ObjectFind(0, fLbl) >= 0)
+      ObjectSetInteger(0, fLbl, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+
+   // ۲. پنهان‌سازی سایر باکس‌ها (بدون دستکاری رنگ و استایل آنها)
    for(int b = 0; b < g_boxCount; b++)
    {
-      if(b == boxIdx)
-      {
-         // هایلایت طلایی برجسته برای باکس انتخابی
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_COLOR, clrGold);
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_WIDTH, 3);
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_STYLE, STYLE_SOLID);
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_FILL,  false);
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_BACK,  false);
+      if(b == boxIdx) continue;
 
-         string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
-         if(ObjectFind(0, lblName) >= 0)
-            ObjectSetInteger(0, lblName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
-      }
-      else
-      {
-         // سایر باکس‌ها و برچسب‌های آنها موقتاً محو می‌شوند
-         ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
-         string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
-         if(ObjectFind(0, lblName) >= 0)
-            ObjectSetInteger(0, lblName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
-         string extName = FP_PREFIX + "EXT_" + g_drawnBoxes[b].boxName;
-         if(ObjectFind(0, extName) >= 0)
-            ObjectSetInteger(0, extName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
-      }
-   }
-
-   // ۲. موقتاً محو کردن خطوط معاملات اسکن خودکار قبلی
-   int totalObjs = ObjectsTotal(0, 0, -1);
-   for(int i = totalObjs - 1; i >= 0; i--)
-   {
-      string oName = ObjectName(0, i);
-      if(StringFind(oName, FP_PREFIX + "AUTOTRADE_") == 0)
-         ObjectSetInteger(0, oName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
-   }
-
-   // ۳. شبیه‌سازی دقیق و رسم سطوح معامله باکس و پنل HUD
-   ShowTradeSetupForBox(boxIdx);
-
-   ChartRedraw(0);
-}
-
-//+------------------------------------------------------------------+
-//| خروج از حالت تمرکز و بازگردانی چارت به وضعیت عادی (Exit Focus)   |
-//+------------------------------------------------------------------+
-void ExitFocusMode()
-{
-   if(!g_focusModeActive && g_selectedBoxName == "") return;
-
-   // ۱. بازگردانی تمامی باکس‌ها و خطوط به وضعیت عادی
-   for(int b = 0; b < g_boxCount; b++)
-   {
-      ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
-      ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_COLOR, g_drawnBoxes[b].baseColor);
-      ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_WIDTH, g_drawnBoxes[b].baseWidth);
-      ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_STYLE, g_drawnBoxes[b].baseStyle);
+      ObjectSetInteger(0, g_drawnBoxes[b].boxName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
 
       string lblName = FP_PREFIX + "LBL_" + g_drawnBoxes[b].boxName;
       if(ObjectFind(0, lblName) >= 0)
-         ObjectSetInteger(0, lblName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+         ObjectSetInteger(0, lblName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
 
       string extName = FP_PREFIX + "EXT_" + g_drawnBoxes[b].boxName;
       if(ObjectFind(0, extName) >= 0)
-         ObjectSetInteger(0, extName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+         ObjectSetInteger(0, extName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
    }
 
-   // ۲. بازگردانی خطوط معاملات اسکن خودکار
+   // ۳. پنهان‌سازی تمام خطوط ساختاری و معاملات قبلی
    int totalObjs = ObjectsTotal(0, 0, -1);
    for(int i = totalObjs - 1; i >= 0; i--)
    {
       string oName = ObjectName(0, i);
-      if(StringFind(oName, FP_PREFIX + "AUTOTRADE_") == 0)
-         ObjectSetInteger(0, oName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+      if(StringFind(oName, FP_PREFIX + "IP_") == 0 ||
+         StringFind(oName, FP_PREFIX + "RS_") == 0 ||
+         StringFind(oName, FP_PREFIX + "SWAP_") == 0 ||
+         StringFind(oName, FP_PREFIX + "STRUCT_") == 0 ||
+         StringFind(oName, FP_PREFIX + "PIVOT_") == 0 ||
+         StringFind(oName, FP_PREFIX + "AUTO_TR_") == 0 ||
+         StringFind(oName, FP_PREFIX + "AUTOTRADE_") == 0)
+      {
+         ObjectSetInteger(0, oName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+      }
    }
 
-   // ۳. حذف تمام اشیاء معامله تعاملی و پنل اطلاعاتی
-   ObjectsDeleteAll(0, FP_PREFIX + "CLICK_TRADE_");
-   CleanupFocusHUD();
-   Comment("");
-
-   g_focusModeActive  = false;
-   g_focusBoxIdx      = -1;
-   g_selectedBoxName  = "";
-   g_origFocusBoxName = "";
+   // ۴. شبیه‌سازی دقیق و رسم سطوح معامله باکس و پنل HUD
+   ShowTradeSetupForBox(boxIdx);
 
    ChartRedraw(0);
-}
-
-//+------------------------------------------------------------------+
-//| پاکسازی پنل اطلاعاتی HUD                                         |
-//+------------------------------------------------------------------+
-void CleanupFocusHUD()
-{
-   ObjectsDeleteAll(0, FP_PREFIX + "FOCUS_HUD_");
 }
 
 //+------------------------------------------------------------------+
@@ -253,7 +268,6 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    string statusStr = "";
    if(isEntered)
    {
-      double rMultiple = (hitTP > 0) ? (double)hitTP : -1.0;
       statusStr = StringFormat("📊 وضعیت: %s | ریسک: %.1f پیپ | R:R معادل: 1:%.0f",
                                resText, riskPips, (hitTP > 0 ? (double)hitTP : 0.0));
    }
@@ -285,7 +299,7 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, l2, OBJPROP_COLOR, clrWhiteSmoke);
    ObjectSetInteger(0, l2, OBJPROP_SELECTABLE, false);
 
-   // ۵. ردیف ۳: اطلاعات زمانی و کندلی
+   // ۵. ردیف ۳: اطلاعات زمانی
    string l3 = pfx + "TIMING";
    ObjectCreate(0, l3, OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, l3, OBJPROP_CORNER, CORNER_LEFT_UPPER);
@@ -294,9 +308,8 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    string timeStr = "";
    if(isEntered && entryTime > 0)
    {
-      timeStr = StringFormat("⏱ تاچ ورود: %s (کندل #%d)  |  خروج: %s",
+      timeStr = StringFormat("⏱ تاچ ورود: %s  |  خروج: %s",
                              TimeToString(entryTime, TIME_DATE|TIME_MINUTES),
-                             entryBarIdx,
                              (exitTime > 0 ? TimeToString(exitTime, TIME_DATE|TIME_MINUTES) : "در جریان"));
    }
    else
@@ -340,7 +353,7 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
 }
 
 //+------------------------------------------------------------------+
-//| شبیه‌سازی کامل معامله باکس و ترسیم سطوح روی چارت                  |
+//| شبیه‌سازی سریع معامله باکس و ترسیم سطوح روی چارت                  |
 //+------------------------------------------------------------------+
 void ShowTradeSetupForBox(int boxIdx)
 {
@@ -355,22 +368,6 @@ void ShowTradeSetupForBox(int boxIdx)
       PrintFormat("FlagPro: معامله برای تایم %s غیرفعال است (فقط M1, M5, M15 فعال هستند).", g_drawnBoxes[boxIdx].tfTag);
       return;
    }
-
-   datetime chartTime[];
-   double chartHigh[], chartLow[], chartClose[];
-   int chartSpread[];
-   ArraySetAsSeries(chartTime, false);
-   ArraySetAsSeries(chartHigh, false);
-   ArraySetAsSeries(chartLow, false);
-   ArraySetAsSeries(chartClose, false);
-   ArraySetAsSeries(chartSpread, false);
-
-   int copied = CopyTime(_Symbol, _Period, 0, 250000, chartTime);
-   CopyHigh(_Symbol, _Period, 0, 250000, chartHigh);
-   CopyLow(_Symbol, _Period, 0, 250000, chartLow);
-   CopyClose(_Symbol, _Period, 0, 250000, chartClose);
-   CopySpread(_Symbol, _Period, 0, 250000, chartSpread);
-   if(copied < 10) return;
 
    string role = "Flag";
    bool isSwap = g_drawnBoxes[boxIdx].isSwap;
@@ -424,7 +421,7 @@ void ShowTradeSetupForBox(int boxIdx)
       else role = "Flag-" + (g_drawnBoxes[boxIdx].isBullish ? "BU" : "BE");
    }
 
-   // بررسی شرط سلاطین طلایی در صورت فعال بودن فیلتر سلاطین
+   // بررسی شرط سلاطین طلایی
    if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[boxIdx].tf, role))
    {
       string noTradeMsg = StringFormat(
@@ -442,206 +439,82 @@ void ShowTradeSetupForBox(int boxIdx)
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = ActiveSLOffsetPips() * pipSize;
 
-   bool isBull = true;
+   bool isBull       = true;
    double entryPrice = 0;
    double slPrice    = 0;
-
-   double pivotP = 0;
-   if(isOI)
-   {
-      isBull = g_drawnBoxes[boxIdx].isOInnerBull; // جهت ترید حتماً جهت خود گره OInner است
-
-      datetime closestPivotTime = 0;
-      for(int k = 0; k < g_indepCount; k++)
-      {
-         if(!g_indepPivots[k].hasIP) continue;
-         if(!IsPivotTimeframeMatch(k, g_drawnBoxes[boxIdx].tfTag)) continue;
-         if(g_indepPivots[k].time <= g_drawnBoxes[boxIdx].t1)
-         {
-            bool pivotValidForTrade = (isBull ? !g_indepPivots[k].isHigh : g_indepPivots[k].isHigh);
-            if(pivotValidForTrade)
-            {
-               if(closestPivotTime == 0 || g_indepPivots[k].time > closestPivotTime)
-               {
-                  closestPivotTime = g_indepPivots[k].time;
-                  pivotP = g_indepPivots[k].price;
-               }
-            }
-         }
-      }
-   }
-   else
-   {
-      if(isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
-      else if(isRS) isBull = g_drawnBoxes[boxIdx].isRSBull;
-      else if(isLS) isBull = g_drawnBoxes[boxIdx].isLSBull;
-      else isBull = g_drawnBoxes[boxIdx].isBullish;
-   }
-
-   int bStartIdx = FindBarIndex(chartTime, copied, g_drawnBoxes[boxIdx].t1);
-   datetime formEnd = (g_drawnBoxes[boxIdx].formationTime > 0) ? g_drawnBoxes[boxIdx].formationTime : g_drawnBoxes[boxIdx].t1;
-   int bEndIdx   = FindBarIndex(chartTime, copied, formEnd);
-   if(bEndIdx < bStartIdx) bEndIdx = bStartIdx;
-
-   double patternHigh = g_drawnBoxes[boxIdx].top;
-   double patternLow  = g_drawnBoxes[boxIdx].bottom;
-
-   if(isOI && pivotP > 0)
-   {
-      if(pivotP > patternHigh) patternHigh = pivotP;
-      if(pivotP < patternLow)  patternLow  = pivotP;
-   }
-
-   for(int ck = bStartIdx; ck <= bEndIdx && ck < copied; ck++)
-   {
-      if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
-      if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
-   }
-
-   if(isBull)
-   {
-      entryPrice = g_drawnBoxes[boxIdx].top;
-      slPrice    = patternLow - bufferPips;
-   }
-   else
-   {
-      entryPrice = g_drawnBoxes[boxIdx].bottom;
-      slPrice    = patternHigh + bufferPips;
-   }
-
-   double risk = MathAbs(entryPrice - slPrice);
-   if(risk < _Point * 2.0) risk = _Point * 2.0;
-
+   double risk       = 0;
    double tps[4];
    datetime tpHitTime[4] = {0, 0, 0, 0};
-   for(int tp = 0; tp < 4; tp++)
-   {
-      if(isBull) tps[tp] = entryPrice + risk * (tp + 1);
-      else       tps[tp] = entryPrice - risk * (tp + 1);
-   }
+   bool isEntered    = false;
+   int  entryBarIdx  = -1;
+   datetime entryTime = 0;
+   int hitTP         = -1;
+   bool isClosed     = false;
+   datetime exitTime = 0;
+   string cancelReasonStr = "";
 
    datetime baseTime = (g_drawnBoxes[boxIdx].formationTime > 0) ? g_drawnBoxes[boxIdx].formationTime : g_drawnBoxes[boxIdx].t1;
    datetime confirmTime = g_drawnBoxes[boxIdx].confirmationTime;
    if(confirmTime <= 0 || confirmTime > baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 15)
       confirmTime = baseTime;
 
-   int confirmIdx = FindBarIndex(chartTime, copied, confirmTime);
-   if(confirmIdx < 0) confirmIdx = FindBarIndex(chartTime, copied, baseTime);
-   if(confirmIdx < 0) confirmIdx = 0;
-
-   double boxHeight = MathAbs(g_drawnBoxes[boxIdx].top - g_drawnBoxes[boxIdx].bottom);
-   double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
-
-   bool isEntered = false;
-   int  entryBarIdx = -1;
-   datetime entryTime = 0;
-   int departedBar = -1;
-
-   double simSpread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
-   if(simSpread <= 0) simSpread = 1.0 * pipSize;
-
-   datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
-
-   int cancelBarIdx = -1;
-   string cancelReasonStr = "";
-
-   for(int k = confirmIdx; k < copied; k++)
+   // ۱. بازیابی فوق سریع از مخزن از پیش محاسبه‌شده معاملات (0ms بدون نیاز به کپی کندل‌ها)
+   int matchedTrade = -1;
+   for(int t = 0; t < g_tradeCount; t++)
    {
-      // ابطال ۱: انقضای زمانی معامله با گذشت از اعتبار باکس
-      if(chartTime[k] > maxBoxTime)
+      if(g_tradeSetups[t].boxName == g_drawnBoxes[boxIdx].boxName)
       {
-         cancelBarIdx = k;
-         cancelReasonStr = "EXPIRED ⏱ (پایان اعتبار زمانی باکس)";
+         matchedTrade = t;
          break;
-      }
-
-      // ابطال ۲: برخورد قیمت به حد ضرر در هر زمان ستاپ را فوراً لغو می‌کند
-      if(isBull)
-      {
-         if(chartLow[k] <= slPrice)
-         {
-            cancelBarIdx = k;
-            cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
-            break;
-         }
-      }
-      else
-      {
-         double barSpread = GetBarSpread(k, chartSpread, simSpread);
-         if((chartHigh[k] + barSpread) >= slPrice)
-         {
-            cancelBarIdx = k;
-            cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
-            break;
-         }
-      }
-
-      if(departedBar < 0)
-      {
-         // تایید پرتاب و کلوز کامل کندل در بیرون از باکس
-         if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
-         else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
-
-         // مهلت خروج اولیه از باکس حداکثر ۳۰ کندل
-         datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 30;
-         if(chartTime[k] > maxDepTime)
-         {
-            cancelBarIdx = k;
-            cancelReasonStr = "NO BREAKOUT ⏱ (عدم خروج قیمت از گره)";
-            break;
-         }
-      }
-      else // ورود منحصراً روی کندل‌های بعد از پرتاب اولیه (پولبک واقعی)
-      {
-         double barSpread = GetBarSpread(k, chartSpread, simSpread);
-
-         if(isBull)
-         {
-            if((chartLow[k] + barSpread) <= entryPrice)
-            {
-               isEntered = true;
-               entryBarIdx = k;
-               entryTime = chartTime[k];
-               break;
-            }
-         }
-         else
-         {
-            if(chartHigh[k] >= entryPrice)
-            {
-               isEntered = true;
-               entryBarIdx = k;
-               entryTime = chartTime[k];
-               break;
-            }
-         }
-
-         // مهلت بازگشت پولبک بر مبنای تایم‌فریم الگو و پارامتر ورودی InpLimitExpirationBars
-         datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * ActiveLimitExpirationBars();
-         if(chartTime[k] > maxLimitTime)
-         {
-            cancelBarIdx = k;
-            cancelReasonStr = "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";
-            break;
-         }
       }
    }
 
-   int hitTP = -1;
-   bool isClosed = false;
-   datetime exitTime = 0;
-
-   if(isEntered)
+   if(matchedTrade >= 0)
    {
-      // به‌روزرسانی نهایی حد ضرر و ریسک بر مبنای نوک واقعی شدوها تا لحظه ورود
-      for(int ck = bStartIdx; ck <= entryBarIdx && ck < copied; ck++)
+      isEntered    = true;
+      isBull       = g_tradeSetups[matchedTrade].isBuy;
+      entryPrice   = g_tradeSetups[matchedTrade].entryPrice;
+      slPrice      = g_tradeSetups[matchedTrade].slPrice;
+      risk         = g_tradeSetups[matchedTrade].risk;
+      tps[0]       = g_tradeSetups[matchedTrade].tp1;
+      tps[1]       = g_tradeSetups[matchedTrade].tp2;
+      tps[2]       = g_tradeSetups[matchedTrade].tp3;
+      tps[3]       = g_tradeSetups[matchedTrade].tp4;
+      tpHitTime[0] = g_tradeSetups[matchedTrade].tp1Time;
+      tpHitTime[1] = g_tradeSetups[matchedTrade].tp2Time;
+      tpHitTime[2] = g_tradeSetups[matchedTrade].tp3Time;
+      tpHitTime[3] = g_tradeSetups[matchedTrade].tp4Time;
+      entryTime    = g_tradeSetups[matchedTrade].entryTime;
+      exitTime     = g_tradeSetups[matchedTrade].exitTime;
+      hitTP        = g_tradeSetups[matchedTrade].hitTP;
+      isClosed     = g_tradeSetups[matchedTrade].isClosed;
+      role         = g_tradeSetups[matchedTrade].boxRole;
+   }
+   else
+   {
+      // ۲. در صورتی که معامله در مخزن نبود (مثلاً وارد نشده یا منقضی شده)، فقط ۲۰۰ کندل اطراف باکس بررسی شود
+      if(isOI)
       {
-         if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
-         if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
+         isBull = g_drawnBoxes[boxIdx].isOInnerBull;
+      }
+      else
+      {
+         if(isSwap) isBull = g_drawnBoxes[boxIdx].isSwapBull;
+         else if(isRS) isBull = g_drawnBoxes[boxIdx].isRSBull;
+         else if(isLS) isBull = g_drawnBoxes[boxIdx].isLSBull;
+         else isBull = g_drawnBoxes[boxIdx].isBullish;
       }
 
-      if(isBull) slPrice = patternLow - bufferPips;
-      else       slPrice = patternHigh + bufferPips;
+      if(isBull)
+      {
+         entryPrice = g_drawnBoxes[boxIdx].top;
+         slPrice    = g_drawnBoxes[boxIdx].bottom - bufferPips;
+      }
+      else
+      {
+         entryPrice = g_drawnBoxes[boxIdx].bottom;
+         slPrice    = g_drawnBoxes[boxIdx].top + bufferPips;
+      }
 
       risk = MathAbs(entryPrice - slPrice);
       if(risk < _Point * 2.0) risk = _Point * 2.0;
@@ -652,73 +525,77 @@ void ShowTradeSetupForBox(int boxIdx)
          else       tps[tp] = entryPrice - risk * (tp + 1);
       }
 
-      int maxHit = 0;
-      datetime hitTime = 0;
-      for(int k = entryBarIdx; k < copied; k++)
+      datetime chartTime[];
+      double chartHigh[], chartLow[], chartClose[];
+      ArraySetAsSeries(chartTime, false);
+      ArraySetAsSeries(chartHigh, false);
+      ArraySetAsSeries(chartLow, false);
+      ArraySetAsSeries(chartClose, false);
+
+      datetime startReq = g_drawnBoxes[boxIdx].t1 - PeriodSeconds(_Period) * 5;
+      int copied = CopyTime(_Symbol, _Period, startReq, 300, chartTime);
+      CopyHigh(_Symbol, _Period, startReq, copied, chartHigh);
+      CopyLow(_Symbol, _Period, startReq, copied, chartLow);
+      CopyClose(_Symbol, _Period, startReq, copied, chartClose);
+
+      if(copied > 5)
       {
-         if(isBull)
+         double boxHeight = MathAbs(g_drawnBoxes[boxIdx].top - g_drawnBoxes[boxIdx].bottom);
+         double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
+         datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
+         int departedBar = -1;
+
+         for(int k = 0; k < copied; k++)
          {
-            for(int tp = maxHit; tp < 4; tp++)
+            if(chartTime[k] < confirmTime) continue;
+
+            if(chartTime[k] > maxBoxTime)
             {
-               if(chartHigh[k] >= tps[tp])
+               cancelReasonStr = "EXPIRED ⏱ (پایان اعتبار زمانی باکس)";
+               break;
+            }
+
+            if(isBull && chartLow[k] <= slPrice)
+            {
+               cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
+               break;
+            }
+            else if(!isBull && chartHigh[k] >= slPrice)
+            {
+               cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
+               break;
+            }
+
+            if(departedBar < 0)
+            {
+               if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
+               else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+            }
+            else
+            {
+               if(isBull && chartLow[k] <= entryPrice)
                {
-                  maxHit = tp + 1;
-                  hitTime = chartTime[k];
-                  if(tpHitTime[tp] == 0) tpHitTime[tp] = chartTime[k];
+                  isEntered = true;
+                  entryTime = chartTime[k];
+                  break;
                }
-            }
-
-            if(chartLow[k] <= slPrice)
-            {
-               hitTP = maxHit;
-               isClosed = true;
-               exitTime = (maxHit > 0) ? hitTime : chartTime[k];
-               break;
-            }
-
-            if(maxHit == 4)
-            {
-               hitTP = 4;
-               isClosed = true;
-               exitTime = hitTime;
-               break;
+               else if(!isBull && chartHigh[k] >= entryPrice)
+               {
+                  isEntered = true;
+                  entryTime = chartTime[k];
+                  break;
+               }
             }
          }
-         else // SELL
+
+         if(!isEntered && cancelReasonStr == "")
          {
-            double barSpread = GetBarSpread(k, chartSpread, simSpread);
-            for(int tp = maxHit; tp < 4; tp++)
-            {
-               if((chartLow[k] + barSpread) <= tps[tp])
-               {
-                  maxHit = tp + 1;
-                  hitTime = chartTime[k];
-                  if(tpHitTime[tp] == 0) tpHitTime[tp] = chartTime[k];
-               }
-            }
-
-            if((chartHigh[k] + barSpread) >= slPrice)
-            {
-               hitTP = maxHit;
-               isClosed = true;
-               exitTime = (maxHit > 0) ? hitTime : chartTime[k];
-               break;
-            }
-
-            if(maxHit == 4)
-            {
-               hitTP = 4;
-               isClosed = true;
-               exitTime = hitTime;
-               break;
-            }
+            cancelReasonStr = (departedBar < 0) ? "NO BREAKOUT ⏱ (عدم خروج قیمت از گره)" : "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";
          }
       }
-
-      if(!isClosed)
+      else
       {
-         hitTP = maxHit;
-         exitTime = (maxHit > 0) ? hitTime : chartTime[copied - 1];
+         cancelReasonStr = "PENDING ⏳ (در انتظار پولبک معتبر)";
       }
    }
 
@@ -754,7 +631,7 @@ void ShowTradeSetupForBox(int boxIdx)
    else                  { resText = "IN TRADE ⏱ (معامله باز)"; resColor = clrGold; }
 
    double riskPts = (_Point > 0) ? (risk / _Point) : 0.0;
-   double slPips  = risk / pipSize;
+   double slPips  = (pipSize > 0) ? (risk / pipSize) : 0.0;
    bool isFiltered = IsSetupFilteredOut(role, (entryTime > 0 ? entryTime : baseTime), riskPts);
    string filterReason = isFiltered ? GetFilterRejectionReason(role, (entryTime > 0 ? entryTime : baseTime), riskPts) : "مجاز (تایید فیلترها) ✅";
 
@@ -913,4 +790,157 @@ void ShowTradeSetupForBox(int boxIdx)
 
    Comment(logMsg);
    Print(logMsg);
+}
+
+//+------------------------------------------------------------------+
+//| ماژول اختصاصی مدیریت رویدادهای چارت (OnTradeTestChartEvent)        |
+//| بازگشت true در صورت پردازش رویداد توسط ماژول تست                |
+//+------------------------------------------------------------------+
+bool OnTradeTestChartEvent(const int id,
+                           const long &lparam,
+                           const double &dparam,
+                           const string &sparam)
+{
+   static ulong lastActionTick = 0;
+
+   // ۱. رویداد کیبورد: کلید Escape جهت خروج از حالت تمرکز
+   if(id == CHARTEVENT_KEYDOWN)
+   {
+      if(lparam == 27) // Escape key
+      {
+         if(IsFocusModeActive())
+         {
+            ExitFocusMode();
+            Print("FlagPro: خروج از حالت تمرکز با فشردن کلید Escape.");
+            return true;
+         }
+      }
+      return false;
+   }
+
+   // ۲. رویداد کلیک مستقیم روی آبجکت‌ها
+   if(id == CHARTEVENT_OBJECT_CLICK)
+   {
+      // دکمه خروج [✕] در گوشه HUD
+      if(sparam == FP_PREFIX + "FOCUS_HUD_CLOSE")
+      {
+         ExitFocusMode();
+         lastActionTick = GetTickCount64();
+         return true;
+      }
+
+      // کلیک روی آبجکت‌های درون خود HUD (مانند عنوان یا کادر)
+      if(StringFind(sparam, FP_PREFIX + "FOCUS_HUD_") == 0)
+      {
+         return true; // درون پنل مصرف می‌شود و از خروج جلوگیری می‌کند
+      }
+
+      // بررسی کلیک روی کادر مستطیل باکس یا برچسب متنی آن
+      string targetBoxName = "";
+      if(StringFind(sparam, FP_PREFIX + "BOX_") == 0)
+      {
+         targetBoxName = sparam;
+      }
+      else if(StringFind(sparam, FP_PREFIX + "LBL_") == 0)
+      {
+         targetBoxName = sparam;
+         StringReplace(targetBoxName, FP_PREFIX + "LBL_", "");
+      }
+
+      if(targetBoxName != "")
+      {
+         for(int b = 0; b < g_boxCount; b++)
+         {
+            if(g_drawnBoxes[b].boxName == targetBoxName)
+            {
+               lastActionTick = GetTickCount64();
+               EnterFocusMode(b, true); // با کلیک مجدد روی همان باکس toggle می‌شود
+               return true;
+            }
+         }
+      }
+   }
+
+   // ۳. رویداد کلیک روی فضای چارت (CHARTEVENT_CLICK)
+   if(id == CHARTEVENT_CLICK)
+   {
+      // جلوگیری از تداخل رویداد کلیک ماوس ناشی از کلیک روی آبجکت (Debounce)
+      if(GetTickCount64() - lastActionTick < 350)
+      {
+         return true;
+      }
+
+      int x = (int)lparam;
+      int y = (int)dparam;
+
+      // اگر کلیک داخل کادر پنل HUD در گوشه بالای چارت باشد، نادیده بگیر
+      if(IsFocusModeActive())
+      {
+         if(x >= 20 && x <= 530 && y >= 30 && y <= 195)
+         {
+            return true;
+         }
+      }
+
+      int subWindow = 0;
+      datetime clickTime = 0;
+      double   clickPrice = 0.0;
+      if(!ChartXYToTimePrice(0, x, y, subWindow, clickTime, clickPrice))
+      {
+         return false;
+      }
+
+      // اگر در حالت تمرکز هستیم:
+      if(IsFocusModeActive())
+      {
+         // هرگونه کلیک روی فضای چارت (خارج از پنل HUD) حالت تمرکز را خاتمه می‌دهد
+         ExitFocusMode();
+         lastActionTick = GetTickCount64();
+         return true;
+      }
+      else // اگر در حالت تمرکز نیستیم:
+      {
+         // بررسی کلیک داخل هر یک از باکس‌های نمایان
+         for(int b = 0; b < g_boxCount; b++)
+         {
+            if(g_drawnBoxes[b].top <= 0) continue;
+            double top = MathMax(g_drawnBoxes[b].top, g_drawnBoxes[b].bottom);
+            double btm = MathMin(g_drawnBoxes[b].top, g_drawnBoxes[b].bottom);
+
+            if(clickTime >= g_drawnBoxes[b].t1 && clickTime <= g_drawnBoxes[b].t2 &&
+               clickPrice >= btm && clickPrice <= top)
+            {
+               lastActionTick = GetTickCount64();
+               EnterFocusMode(b, true);
+               return true;
+            }
+         }
+      }
+   }
+
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| مقداردهی اولیه ماژول تست معاملات                                 |
+//+------------------------------------------------------------------+
+void InitTradeTestModule()
+{
+   g_focusModeActive  = false;
+   g_focusBoxIdx      = -1;
+   g_selectedBoxName  = "";
+   g_origFocusBoxName = "";
+   g_origFocusColor   = clrNONE;
+
+   // پاکسازی هرگونه اشیاء بازمانده از قبل
+   ObjectsDeleteAll(0, FP_PREFIX + "CLICK_TRADE_");
+   CleanupFocusHUD();
+}
+
+//+------------------------------------------------------------------+
+//| آزادسازی ماژول تست معاملات                                       |
+//+------------------------------------------------------------------+
+void DeinitTradeTestModule()
+{
+   ExitFocusMode();
 }

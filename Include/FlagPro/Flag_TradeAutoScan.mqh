@@ -28,7 +28,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    if(!InpShowTradeShading)
       DeleteAllTradeShadings();
 
-   if(!InpAutoDrawTrades || ratesTotal < 10) return;
+   if(!InpEnableTradeSetup || ratesTotal < 10) return;
 
    ArrayResize(g_tradeSetups, 0);
    g_tradeCount = 0;
@@ -646,6 +646,7 @@ void RenderAutoTradeSetups(const datetime &chartTime[], const double &chartHigh[
    // مرحله ۳: رسم گرافیک معاملات بر روی چارت (اولویت قطعی با جدیدترین معاملات از امروز به گذشته)
    // جهت جلوگیری از پر شدن حافظه اشیاء متاتریدر و تضمین رسم کامل معاملات روزها و ماه‌های اخیر
    ObjectsDeleteAll(0, FP_PREFIX + "AUTO_TR_");
+   if(!InpAutoDrawTrades) return;
 
    int drawnCount = 0;
    int maxTradesToDraw = 2000;

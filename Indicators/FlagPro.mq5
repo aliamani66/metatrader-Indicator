@@ -58,7 +58,7 @@ input bool              InpApplyProTheme      = true;                   // 🌓 
 //| ۳. 🏹 شبیه‌ساز معاملات و ترسیم خطوط ترید                         |
 //+------------------------------------------------------------------+
 input group "=== 🏹 ۳. شبیه‌ساز معاملات و ترسیم خطوط ترید ==="
-input bool              InpAutoDrawTrades     = true;                   // 🎯 رسم خودکار معاملات روی چارت (سطوح ورود، حد ضرر و تارگت‌ها)
+input bool              InpAutoDrawTrades     = false;                  // 🎯 رسم خودکار معاملات روی چارت (پیش‌فرض: خاموش جهت چارت خلوت و تمیز)
 input bool              InpEnableTradeSetup   = true;                   // ⚡ فعال‌سازی محاسبه و تشخیص ستاپ‌های معاملاتی روی باکس‌ها
 input bool              InpUniqueTradeColors  = true;                   // 🎨 رنگ‌های مجزا برای هر معامله (تفکیک آسان معاملات همزمان چارت)
 input bool              InpShowTradeShading   = false;                  // 🌈 نمایش پس‌زمینه رنگی معاملات (محدوده سود و زیان)
@@ -233,6 +233,7 @@ int OnInit()
    }
    RenderVersionBadge("FlagPro Indicator", FLAGPRO_VERSION);
    RenderSyncStatusBadge();
+   InitTradeTestModule();
    return INIT_SUCCEEDED;
 }
 
@@ -241,6 +242,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   DeinitTradeTestModule();
    if(InpAutoSyncWithTester)
       EventKillTimer();
    ArrayResize(g_tradeSetups, 0);
@@ -401,19 +403,6 @@ int OnCalculate(const int rates_total,
    RenderFinalBoxes(fullTime, totalCopied);
    RenderFinalIndependentPivots(fullTime, fullHigh, fullLow, totalCopied);
 
-   // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
-   if(g_selectedBoxName != "" || IsFocusModeActive())
-   {
-      for(int b = 0; b < g_boxCount; b++)
-      {
-         if(g_drawnBoxes[b].boxName == g_selectedBoxName)
-         {
-            HighlightBox(b, false);
-            break;
-         }
-      }
-   }
-
    // اکسپورت خودکار گزارش جامع ستاپ‌ها به فایل CSV
    ExportAllTradesToCSV();
 
@@ -432,116 +421,18 @@ void OnChartEvent(const int id,
                   const double &dparam,
                   const string &sparam)
 {
-   static ulong lastFocusActionTime = 0;
-
-   if(id == CHARTEVENT_OBJECT_CLICK)
+   // ۱. ماژول اختصاصی و مستقل تست معاملات و حالت تمرکز چارت (Focus Mode)
+   if(OnTradeTestChartEvent(id, lparam, dparam, sparam))
    {
-      // ۱. کلیک روی دکمه خروج [✕] در گوشه بالای پنل HUD
-      if(sparam == FP_PREFIX + "FOCUS_HUD_CLOSE")
-      {
-         ExitFocusMode();
-         ChartRedraw(0);
-         return;
-      }
-
-      // ۲. کلیک روی کادر یا برچسب متنی باکس
-      string targetBoxName = "";
-      if(StringFind(sparam, FP_PREFIX + "BOX_") >= 0)
-      {
-         targetBoxName = sparam;
-      }
-      else if(StringFind(sparam, FP_PREFIX + "LBL_") >= 0)
-      {
-         targetBoxName = sparam;
-         StringReplace(targetBoxName, FP_PREFIX + "LBL_", "");
-      }
-
-      if(targetBoxName != "")
-      {
-         for(int b = 0; b < g_boxCount; b++)
-         {
-            if(g_drawnBoxes[b].boxName == targetBoxName)
-            {
-               lastFocusActionTime = GetTickCount64();
-               HighlightBox(b, true);
-               ChartRedraw(0);
-               break;
-            }
-         }
-      }
+      ChartRedraw(0);
+      return;
    }
-   else if(id == CHARTEVENT_CLICK)
+
+   // ۲. کلیدهای میانبر کنترلی چارت
+   if(id == CHARTEVENT_KEYDOWN)
    {
-      // اگر این رویداد کلیک بلافاصله (کمتر از ۵۰۰ میلی‌ثانیه) پس از کلیک روی آبجکت ارسال شده باشد،
-      // متعلق به همان کلیک اولیه ماوس است و هرگز نباید حالت تمرکز را ببندد!
-      if(GetTickCount64() - lastFocusActionTime < 500)
-      {
-         return;
-      }
-
-      // تبدیل مختصات پیکسلی کلیک به زمان و قیمت چارت جهت بررسی کلیک درون فضای باکس
-      int subWindow = 0;
-      datetime clickTime = 0;
-      double   clickPrice = 0.0;
-      if(ChartXYToTimePrice(0, (int)lparam, (int)dparam, subWindow, clickTime, clickPrice))
-      {
-         int clickedBoxIdx = -1;
-         for(int b = 0; b < g_boxCount; b++)
-         {
-            if(clickTime >= g_drawnBoxes[b].t1 && clickTime <= g_drawnBoxes[b].t2)
-            {
-               double top = MathMax(g_drawnBoxes[b].top, g_drawnBoxes[b].bottom);
-               double btm = MathMin(g_drawnBoxes[b].top, g_drawnBoxes[b].bottom);
-               if(clickPrice >= btm && clickPrice <= top)
-               {
-                  clickedBoxIdx = b;
-                  break;
-               }
-            }
-         }
-
-         if(clickedBoxIdx >= 0)
-         {
-            lastFocusActionTime = GetTickCount64();
-            HighlightBox(clickedBoxIdx, true);
-            ChartRedraw(0);
-            return;
-         }
-      }
-
-      // اگر کاربر داخل کادر پنل HUD در گوشه بالا-چپ کلیک کرده باشد، خارج نشو
-      if(IsFocusModeActive())
-      {
-         int x = (int)lparam;
-         int y = (int)dparam;
-         if(x >= 20 && x <= 530 && y >= 30 && y <= 195)
-         {
-            return; // کلیک درون پنل اطلاعاتی HUD
-         }
-      }
-
-      // با کلیک روی فضای خالی چارت، حالت تمرکز بسته می‌شود
-      if(IsFocusModeActive() || g_selectedBoxName != "")
-      {
-         ExitFocusMode();
-         g_clickCounter = 0;
-         ChartRedraw(0);
-      }
-   }
-   else if(id == CHARTEVENT_KEYDOWN)
-   {
-      // فشردن کلید Escape در کیبورد برای خروج فوری از حالت تمرکز (Focus Mode)
-      if(lparam == 27)
-      {
-         if(IsFocusModeActive() || g_selectedBoxName != "")
-         {
-            ExitFocusMode();
-            ChartRedraw(0);
-            Print("FlagPro: خروج از حالت تمرکز (Focus Mode) با فشردن کلید Escape.");
-         }
-      }
       // فشردن کلید B در کیبورد برای مخفی یا نمایان کردن فوری تمام باکس‌ها
-      else if(lparam == 'B' || lparam == 'b')
+      if(lparam == 'B' || lparam == 'b')
       {
          g_boxesVisible = !g_boxesVisible;
          Print("FlagPro: وضعیت نمایش باکس‌ها: ", (g_boxesVisible ? "روشن (نمایان)" : "خاموش (مخفی)"));
