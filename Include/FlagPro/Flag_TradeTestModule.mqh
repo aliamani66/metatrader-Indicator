@@ -37,7 +37,8 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
                     string resText, color resColor, double entryPrice, double slPrice,
                     double riskPips, double &tps[], int hitTP, datetime entryTime,
                     int entryBarIdx, datetime exitTime, int smartScore, string scoreTier,
-                    string filterReason, string exitPlan, string cancelReasonStr);
+                    string filterReason, string exitPlan, string cancelReasonStr,
+                    bool isFiltered = false);
 void CleanupFocusHUD();
 
 //+------------------------------------------------------------------+
@@ -207,7 +208,8 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
                     string resText, color resColor, double entryPrice, double slPrice,
                     double riskPips, double &tps[], int hitTP, datetime entryTime,
                     int entryBarIdx, datetime exitTime, int smartScore, string scoreTier,
-                    string filterReason, string exitPlan, string cancelReasonStr)
+                    string filterReason, string exitPlan, string cancelReasonStr,
+                    bool isFiltered = false)
 {
    CleanupFocusHUD();
 
@@ -219,8 +221,8 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, 20);
    ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, 30);
-   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 500);
-   ObjectSetInteger(0, bgName, OBJPROP_YSIZE, 155);
+   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 570);
+   ObjectSetInteger(0, bgName, OBJPROP_YSIZE, 160);
    ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, C'18,22,28');
    ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
    ObjectSetInteger(0, bgName, OBJPROP_COLOR, clrGold);
@@ -232,7 +234,7 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    string btnClose = pfx + "CLOSE";
    ObjectCreate(0, btnClose, OBJ_BUTTON, 0, 0, 0);
    ObjectSetInteger(0, btnClose, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 485);
+   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 555);
    ObjectSetInteger(0, btnClose, OBJPROP_YDISTANCE, 35);
    ObjectSetInteger(0, btnClose, OBJPROP_XSIZE, 26);
    ObjectSetInteger(0, btnClose, OBJPROP_YSIZE, 20);
@@ -266,14 +268,27 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, l1, OBJPROP_XDISTANCE, 32);
    ObjectSetInteger(0, l1, OBJPROP_YDISTANCE, 58);
    string statusStr = "";
-   if(isEntered)
+   if(isFiltered)
    {
-      statusStr = StringFormat("📊 وضعیت: %s | ریسک: %.1f پیپ | R:R معادل: 1:%.0f",
+      if(isEntered)
+      {
+         statusStr = StringFormat("🛡️ فیلتر شده (عدم معامله) | شبیه‌سازی: %s", resText);
+         resColor = (StringFind(resText, "STOP LOSS") >= 0) ? clrSalmon : clrSkyBlue;
+      }
+      else
+      {
+         statusStr = StringFormat("🛡️ فیلتر شده (عدم معامله) | وضعیت ستاپ: %s", (cancelReasonStr != "" ? cancelReasonStr : "عدم تاچ ورود"));
+         resColor = clrSandyBrown;
+      }
+   }
+   else if(isEntered)
+   {
+      statusStr = StringFormat("📊 وضعیت معامله: %s | ریسک: %.1f پیپ | R:R معادل: 1:%.0f",
                                resText, riskPips, (hitTP > 0 ? (double)hitTP : 0.0));
    }
    else
    {
-      statusStr = StringFormat("⚠️ وضعیت عدم ورود: %s",
+      statusStr = StringFormat("⚠️ دلیل عدم ورود: %s",
                                (cancelReasonStr != "" ? cancelReasonStr : "در انتظار پولبک معتبر"));
    }
    ObjectSetString(0, l1, OBJPROP_TEXT, statusStr);
@@ -421,20 +436,8 @@ void ShowTradeSetupForBox(int boxIdx)
       else role = "Flag-" + (g_drawnBoxes[boxIdx].isBullish ? "BU" : "BE");
    }
 
-   // بررسی شرط سلاطین طلایی
-   if((InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[boxIdx].tf, role))
-   {
-      string noTradeMsg = StringFormat(
-         "═══════════════════════════════════════════════════\n"
-         "📦 باکس %s [%s]\n"
-         "⚠️ این ساختار جزو سلاطین برگزیده معامله نیست.\n"
-         "👑 فیلتر سلاطین روشن است و معامله فقط روی الگوهای برتر مجاز است.\n"
-         "═══════════════════════════════════════════════════",
-         g_drawnBoxes[boxIdx].tfTag, role);
-      Comment(noTradeMsg);
-      Print(noTradeMsg);
-      return;
-   }
+   // بررسی اولیه شرط سلاطین طلایی (بدون خروج زودهنگام جهت نمایش کامل دلیل در HUD)
+   bool isKingRejected = (InpOnlyTradeKings || InpTradeOnlyGoldenKings) && !IsQualifiedKing(g_drawnBoxes[boxIdx].tf, role);
 
    double pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
    double bufferPips = ActiveSLOffsetPips() * pipSize;
@@ -532,11 +535,17 @@ void ShowTradeSetupForBox(int boxIdx)
       ArraySetAsSeries(chartLow, false);
       ArraySetAsSeries(chartClose, false);
 
-      datetime startReq = g_drawnBoxes[boxIdx].t1 - PeriodSeconds(_Period) * 5;
-      int copied = CopyTime(_Symbol, _Period, startReq, 300, chartTime);
-      CopyHigh(_Symbol, _Period, startReq, copied, chartHigh);
-      CopyLow(_Symbol, _Period, startReq, copied, chartLow);
-      CopyClose(_Symbol, _Period, startReq, copied, chartClose);
+      // محاسبه موقعیت زمانی باکس و لود کندل‌ها از زمان تشکیل تا کندل جاری
+      int startShift = iBarShift(_Symbol, _Period, baseTime, false);
+      if(startShift < 0) startShift = 0;
+      int barsToCopy = startShift + 30; // ۳۰ کندل قبل از تشکیل تا کندل جاری
+      if(barsToCopy > 3000) barsToCopy = 3000;
+      if(barsToCopy < 30)   barsToCopy = 30;
+
+      int copied = CopyTime(_Symbol, _Period, 0, barsToCopy, chartTime);
+      CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
+      CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);
+      CopyClose(_Symbol, _Period, 0, barsToCopy, chartClose);
 
       if(copied > 5)
       {
@@ -544,17 +553,29 @@ void ShowTradeSetupForBox(int boxIdx)
          double minDeparturePrice = isBull ? (entryPrice + boxHeight * 0.3) : (entryPrice - boxHeight * 0.3);
          datetime maxBoxTime = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 40;
          int departedBar = -1;
+         int entryBar = -1;
 
+         // پیدا کردن کندل شروع بررسی (تأیید ساختار)
+         int startK = 0;
          for(int k = 0; k < copied; k++)
          {
-            if(chartTime[k] < confirmTime) continue;
-
-            if(chartTime[k] > maxBoxTime)
+            if(chartTime[k] >= confirmTime)
             {
-               cancelReasonStr = "EXPIRED ⏱ (پایان اعتبار زمانی باکس)";
+               startK = k;
+               break;
+            }
+         }
+
+         for(int k = startK; k < copied; k++)
+         {
+            // ۱. انقضای زمانی در صورت عدم خروج
+            if(departedBar < 0 && chartTime[k] > maxBoxTime)
+            {
+               cancelReasonStr = "EXPIRED ⏱ (پایان مهلت زمانی ۴۰ کندل)";
                break;
             }
 
+            // ۲. نقض حد ضرر قبل از ورود
             if(isBull && chartLow[k] <= slPrice)
             {
                cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
@@ -566,36 +587,118 @@ void ShowTradeSetupForBox(int boxIdx)
                break;
             }
 
+            // ۳. بررسی پرتاب اولیه و خروج از گره (Breakout/Departure)
             if(departedBar < 0)
             {
                if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
                else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+
+               datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 30;
+               if(chartTime[k] > maxDepTime)
+               {
+                  cancelReasonStr = "NO BREAKOUT ⏱ (عدم خروج قیمت ظرف ۳۰ کندل)";
+                  break;
+               }
             }
             else
             {
+               // ۴. بررسی پولبک و تاچ نقطه ورود
                if(isBull && chartLow[k] <= entryPrice)
                {
                   isEntered = true;
+                  entryBar = k;
+                  entryBarIdx = k;
                   entryTime = chartTime[k];
                   break;
                }
                else if(!isBull && chartHigh[k] >= entryPrice)
                {
                   isEntered = true;
+                  entryBar = k;
+                  entryBarIdx = k;
                   entryTime = chartTime[k];
                   break;
+               }
+
+               // بررسی مهلت بازگشت پولبک
+               datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * ActiveLimitExpirationBars();
+               if(chartTime[k] > maxLimitTime)
+               {
+                  cancelReasonStr = "NO PULLBACK 💨 (انقضای مهلت بازگشت پولبک)";
+                  break;
+               }
+            }
+         }
+
+         // ۵. اگر ورود انجام شد، شبیه‌سازی دقیق تارگت‌ها و حد ضرر (TP/SL)
+         if(isEntered && entryBar >= 0)
+         {
+            double currentSL = slPrice;
+            for(int k = entryBar; k < copied; k++)
+            {
+               if(isBull)
+               {
+                  if(chartLow[k] <= currentSL)
+                  {
+                     isClosed = true;
+                     exitTime = chartTime[k];
+                     break;
+                  }
+                  for(int tp = (hitTP > 0 ? hitTP : 0); tp < 4; tp++)
+                  {
+                     if(chartHigh[k] >= tps[tp])
+                     {
+                        hitTP = tp + 1;
+                        tpHitTime[tp] = chartTime[k];
+                        if(hitTP == 1) currentSL = entryPrice;
+                        else if(hitTP == 2) currentSL = tps[0];
+                        else if(hitTP == 3) currentSL = tps[1];
+                     }
+                  }
+                  if(hitTP == 4)
+                  {
+                     isClosed = true;
+                     exitTime = tpHitTime[3];
+                     break;
+                  }
+               }
+               else // SELL
+               {
+                  if(chartHigh[k] >= currentSL)
+                  {
+                     isClosed = true;
+                     exitTime = chartTime[k];
+                     break;
+                  }
+                  for(int tp = (hitTP > 0 ? hitTP : 0); tp < 4; tp++)
+                  {
+                     if(chartLow[k] <= tps[tp])
+                     {
+                        hitTP = tp + 1;
+                        tpHitTime[tp] = chartTime[k];
+                        if(hitTP == 1) currentSL = entryPrice;
+                        else if(hitTP == 2) currentSL = tps[0];
+                        else if(hitTP == 3) currentSL = tps[1];
+                     }
+                  }
+                  if(hitTP == 4)
+                  {
+                     isClosed = true;
+                     exitTime = tpHitTime[3];
+                     break;
+                  }
                }
             }
          }
 
          if(!isEntered && cancelReasonStr == "")
          {
-            cancelReasonStr = (departedBar < 0) ? "NO BREAKOUT ⏱ (عدم خروج قیمت از گره)" : "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";
+            cancelReasonStr = (departedBar < 0) ? "NO BREAKOUT ⏱ (عدم خروج قیمت ظرف ۳۰ کندل)" : "NO PULLBACK 💨 (پرتاب مستقیم بدون پولبک)";
          }
       }
       else
       {
-         cancelReasonStr = "PENDING ⏳ (در انتظار پولبک معتبر)";
+         cancelReasonStr = "PENDING ⏳ (در انتظار دریافت دیتای چارت)";
       }
    }
 
@@ -634,6 +737,12 @@ void ShowTradeSetupForBox(int boxIdx)
    double slPips  = (pipSize > 0) ? (risk / pipSize) : 0.0;
    bool isFiltered = IsSetupFilteredOut(role, (entryTime > 0 ? entryTime : baseTime), riskPts);
    string filterReason = isFiltered ? GetFilterRejectionReason(role, (entryTime > 0 ? entryTime : baseTime), riskPts) : "مجاز (تایید فیلترها) ✅";
+
+   if(isKingRejected)
+   {
+      isFiltered = true;
+      filterReason = "👑 فیلتر سلاطین: ساختار غیرسلطان (معامله فقط روی الگوهای برتر مجاز است)";
+   }
 
    int smartScore = CalculateSmartSetupScore(role, (entryTime > 0 ? entryTime : baseTime), riskPts);
    string scoreTier = GetSmartScoreTier(smartScore);
@@ -744,8 +853,13 @@ void ShowTradeSetupForBox(int boxIdx)
       // برچسب نتیجه روی انتهای خط ورود
       string resLbl = pfx + "RESULT_LBL";
       ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, entryPrice);
-      ObjectSetString(0, resLbl, OBJPROP_TEXT, " " + role + " " + (isBull ? "BUY" : "SELL") + " -> " + resText);
-      ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resColor);
+      string finalTxt = "";
+      if(isFiltered)
+         finalTxt = " " + role + " " + (isBull ? "BUY" : "SELL") + " [🛡️ فیلتر شده] -> شبیه‌سازی: " + resText;
+      else
+         finalTxt = " " + role + " " + (isBull ? "BUY" : "SELL") + " -> " + resText;
+      ObjectSetString(0, resLbl, OBJPROP_TEXT, finalTxt);
+      ObjectSetInteger(0, resLbl, OBJPROP_COLOR, (isFiltered && isClosed) ? clrSalmon : resColor);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 9);
       ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
       ObjectSetInteger(0, resLbl, OBJPROP_SELECTABLE, false);
@@ -755,11 +869,26 @@ void ShowTradeSetupForBox(int boxIdx)
    RenderFocusHUD(boxIdx, role, isBull, isEntered, resText, resColor,
                   entryPrice, slPrice, slPips, tps, hitTP, entryTime,
                   entryBarIdx, exitTime, smartScore, scoreTier, filterReason,
-                  exitPlan, cancelReasonStr);
+                  exitPlan, cancelReasonStr, isFiltered);
 
    // ثبت در کامنت چارت و لاگ ترمینال
    string tradeType = isBull ? "BUY 🔵" : "SELL 🟠";
    string dirFarsi  = isBull ? "خرید (گره صعودی)" : "فروش (گره نزولی)";
+
+   string statusDisplay = "";
+   if(isFiltered)
+   {
+      if(isEntered) statusDisplay = StringFormat("🛡️ فیلتر شده (عدم معامله) | شبیه‌سازی: %s", resText);
+      else          statusDisplay = StringFormat("🛡️ فیلتر شده (عدم معامله) | وضعیت ستاپ: %s", (cancelReasonStr != "" ? cancelReasonStr : "عدم تاچ"));
+   }
+   else if(isEntered)
+   {
+      statusDisplay = resText;
+   }
+   else
+   {
+      statusDisplay = (cancelReasonStr != "" ? cancelReasonStr : "در انتظار پولبک معتبر");
+   }
 
    string logMsg = StringFormat(
       "═══════════════════════════════════════════════════\n"
@@ -785,7 +914,7 @@ void ShowTradeSetupForBox(int boxIdx)
       DoubleToString(slPrice, _Digits), slPips,
       DoubleToString(tps[0], _Digits), DoubleToString(tps[1], _Digits),
       DoubleToString(tps[2], _Digits), DoubleToString(tps[3], _Digits),
-      resText
+      statusDisplay
    );
 
    Comment(logMsg);
