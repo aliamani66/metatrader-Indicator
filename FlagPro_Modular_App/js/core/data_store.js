@@ -17,7 +17,9 @@ var simState = {
     consecLossTrigger: 0,
     consecLossSkipCount: 1,
     consecLossSkipDay: false,
-    showDrawdown: true
+    showDrawdown: true,
+    enableHTFDominance: false,
+    maxConcurrentLimit: 0
 };
 
 function switchDashboardSymbol(symName) {

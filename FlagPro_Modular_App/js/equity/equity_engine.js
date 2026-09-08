@@ -1,3 +1,19 @@
+        function getTfRank(tf) {
+            if (!tf) return 1;
+            let s = String(tf).toUpperCase().replace('PERIOD_', '').trim();
+            if (s === 'MN' || s === 'MN1') return 8;
+            if (s === 'W1') return 7;
+            if (s === 'D1') return 6;
+            if (s === 'H4') return 5;
+            if (s === 'H1') return 4;
+            if (s === 'M30') return 3.5;
+            if (s === 'M15') return 3;
+            if (s === 'M5') return 2;
+            if (s === 'M1') return 1;
+            let num = parseInt(s.replace(/\D/g, ''), 10);
+            return isNaN(num) ? 1 : num;
+        }
+
         function runEquitySimulation() {
             let t_init = (simTrades.length > 0 && simTrades[0].t) ? simTrades[0].t : '2025.01.01 00:00';
             let pts = [{ idx: 0, t: t_init, b: 100.0, p: 0.0, n: 'موجودی اولیه (Initial Balance)', peak: 100.0, dd: 0.0, ddPct: 0.0 }];
@@ -25,7 +41,9 @@
 
             let maxConcurrent = 0;
             let sumConcurrent = 0;
-            let activeOpenExits = [];
+            let activeOpenPositions = [];
+            let htfSuppressedCount = 0;
+            let concurrencySuppressedCount = 0;
 
             for (let i = 0; i < simTrades.length; i++) {
                 let t = simTrades[i];
@@ -65,15 +83,39 @@
                     }
                 }
 
-                // Trade accepted!
+                // Active positions concurrency and HTF dominance checks (Task 7)
                 let enTime = t.t || '';
                 let exTime = t.xt || t.t || '';
                 if (!exTime || exTime <= enTime) {
                     exTime = enTime + "z";
                 }
-                activeOpenExits = activeOpenExits.filter(ex => ex > enTime);
-                activeOpenExits.push(exTime);
-                let curConcurrent = activeOpenExits.length;
+                // 1. Purge closed positions prior to or at enTime
+                activeOpenPositions = activeOpenPositions.filter(p => p.exitTime > enTime);
+
+                // 2. HTF Trade Dominance Filter (Task 7)
+                // If a position in a higher timeframe is already open, suppress incoming lower timeframe trades
+                if (simState.enableHTFDominance) {
+                    let candRank = getTfRank(t.tf);
+                    let hasHigherActive = activeOpenPositions.some(p => p.tfRank > candRank);
+                    if (hasHigherActive) {
+                        htfSuppressedCount++;
+                        continue;
+                    }
+                }
+
+                // 3. Max Concurrent Open Positions Filter (Task 7)
+                if (simState.maxConcurrentLimit > 0 && activeOpenPositions.length >= simState.maxConcurrentLimit) {
+                    concurrencySuppressedCount++;
+                    continue;
+                }
+
+                // Trade accepted!
+                activeOpenPositions.push({
+                    exitTime: exTime,
+                    tf: t.tf,
+                    tfRank: getTfRank(t.tf)
+                });
+                let curConcurrent = activeOpenPositions.length;
                 if (curConcurrent > maxConcurrent) maxConcurrent = curConcurrent;
                 sumConcurrent += curConcurrent;
 
@@ -138,7 +180,10 @@
                 winCnt: winCnt,
                 maxDD: maxDD,
                 grossProfit: grossP,
-                grossLoss: grossL
+                grossLoss: grossL,
+                htfSuppressed: htfSuppressedCount,
+                concurrencySuppressed: concurrencySuppressedCount,
+                maxConcurrent: maxConcurrent
             };
             window.currentActiveSimSettings = JSON.parse(JSON.stringify(simState));
 
@@ -192,6 +237,32 @@
             if (elAvgConc) elAvgConc.textContent = avgConcurrent.toFixed(1);
             if (elKpiConcVal) elKpiConcVal.textContent = maxConcurrent + ' معامله';
             if (elKpiConcSub) elKpiConcSub.textContent = 'میانگین: ' + avgConcurrent.toFixed(1) + ' همزمان';
+
+            // Update HTF Dominance & Concurrency Badges (Task 7)
+            let elHTFBadge = document.getElementById('simHTFActiveBadge');
+            if (elHTFBadge) {
+                if (simState.enableHTFDominance) {
+                    elHTFBadge.textContent = 'روشن (' + htfSuppressedCount + ' نویز M1/M5 حذف شد)';
+                    elHTFBadge.style.background = '#064e3b';
+                    elHTFBadge.style.color = '#34d399';
+                } else {
+                    elHTFBadge.textContent = 'خاموش (معاملات آزاد)';
+                    elHTFBadge.style.background = '#1e293b';
+                    elHTFBadge.style.color = '#94a3b8';
+                }
+            }
+            let elConcBadge = document.getElementById('simConcLimitBadge');
+            if (elConcBadge) {
+                if (simState.maxConcurrentLimit > 0) {
+                    elConcBadge.textContent = 'سقف ' + simState.maxConcurrentLimit + ' پوزیشن (' + concurrencySuppressedCount + ' مازاد مسدود شد)';
+                    elConcBadge.style.background = '#0c4a6e';
+                    elConcBadge.style.color = '#38bdf8';
+                } else {
+                    elConcBadge.textContent = 'نامحدود (بدون سقف)';
+                    elConcBadge.style.background = '#1e293b';
+                    elConcBadge.style.color = '#94a3b8';
+                }
+            }
 
             // Update Simulator Footer Status
             let elAct = document.getElementById('simActiveTradesCount');

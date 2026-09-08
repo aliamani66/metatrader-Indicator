@@ -78,7 +78,6 @@ function checkIsRawOrBaseScenario(scenario, report) {
 function getProcessedTesterTrades(report, scenarioKey) {
     if (!report) return [];
     let trades = report.trades || [];
-    if (trades.length === 0) return [];
 
     let sym = report.symbol || window.currentActiveSymbol || 'GBPUSD';
     let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
@@ -87,8 +86,27 @@ function getProcessedTesterTrades(report, scenarioKey) {
     let scenario = resolveActiveScenario(scenarioKey || window.currentTesterScenarioKey, report);
     let isBaseScenario = checkIsRawOrBaseScenario(scenario, report);
 
-    // Pre-match and prepare trade metadata for 1:1 Deal-by-Deal forensics
-    return trades.map(t => {
+    let matchedIndKeys = new Set();
+    let repStart = '';
+    let repEnd = '';
+    let dr = report.dateRange || '';
+    let m = dr.match(/(\d{4}[.\-/]\d{2}[.\-/]\d{2})\s*[-_to]+\s*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/i);
+    if (m) {
+        repStart = m[1].replace(/[\/-]/g, '.');
+        repEnd = m[2].replace(/[\/-]/g, '.');
+    }
+    if (!repStart && trades.length > 0) {
+        let firstT = trades[0].entryTime || '';
+        let lastT = trades[trades.length - 1].entryTime || '';
+        if (firstT.length >= 10) repStart = firstT.substring(0, 10).replace(/[\/-]/g, '.');
+        if (lastT.length >= 10) repEnd = lastT.substring(0, 10).replace(/[\/-]/g, '.');
+    }
+
+    let isJpy = sym.includes('JPY');
+    let pipMult = isJpy ? 100 : 10000;
+
+    // 1. Process MT5 Tester Trades
+    let processedMT5 = trades.map(t => {
         let profitPips = (t.profitPips !== undefined && !isNaN(Number(t.profitPips))) ? Number(t.profitPips) : ((t.pnlPips !== undefined && !isNaN(Number(t.pnlPips))) ? Number(t.pnlPips) : 0);
         let profitUSD = (t.profitUSD !== undefined && !isNaN(Number(t.profitUSD))) ? Number(t.profitUSD) : ((t.pnlUSD !== undefined && !isNaN(Number(t.pnlUSD))) ? Number(t.pnlUSD) : 0);
         let slippagePips = (t.slippagePips !== undefined && !isNaN(Number(t.slippagePips))) ? Number(t.slippagePips) : 0;
@@ -129,6 +147,11 @@ function getProcessedTesterTrades(report, scenarioKey) {
                     break;
                 }
             }
+        }
+
+        if (match) {
+            let kKey = (match.id !== undefined) ? ('id_' + match.id) : (match.en_t + '|' + match.tf + '|' + match.role);
+            matchedIndKeys.add(kKey);
         }
 
         // Check if trade is allowed by active scenario
@@ -194,8 +217,6 @@ function getProcessedTesterTrades(report, scenarioKey) {
         }
 
         // Indicator Theoretical PnL & Outcome
-        let isJpy = sym.includes('JPY');
-        let pipMult = isJpy ? 100 : 10000;
         let riskPips = (boxEntry > 0 && slPrice > 0) ? (Math.round(Math.abs(boxEntry - slPrice) * pipMult * 10) / 10) : 10.0;
         let riskPts = riskPips * 10;
 
@@ -263,6 +284,9 @@ function getProcessedTesterTrades(report, scenarioKey) {
         } else if (!isAllowed) {
             isDisc = true;
             verdictHtml = `<span style="color:#fca5a5;">🛑 <b>فیلتر در سناریو:</b> علت: «${filterReason}» (${profitUSD < 0 ? 'جلوی این باخت در سناریو گرفته شد' : 'در سناریو رد شد'}).</span>`;
+        } else if (!match) {
+            isDisc = true;
+            verdictHtml = `<span style="color:#93c5fd;">⚡ <b>فقط در تستر:</b> در متاتریدر باز شده اما ستاپ معادل در دیتای اندیکاتور ثبت نشده است.</span>`;
         } else if (isIndWin && profitUSD < 0) {
             isDisc = true;
             verdictHtml = `<span style="color:#fca5a5;">❌ <b>اختلاف اجرای مارکت:</b> در اندیکاتور تارگت زده شد اما در تستر به دلیل نوسان یا اسپرد استاپ خورد.</span>`;
@@ -284,6 +308,7 @@ function getProcessedTesterTrades(report, scenarioKey) {
 
         return {
             raw: t,
+            matchType: match ? 'matched' : 'tester_only',
             profitPips: profitPips,
             profitUSD: profitUSD,
             slippagePips: slippagePips,
@@ -309,5 +334,108 @@ function getProcessedTesterTrades(report, scenarioKey) {
             isDisc: isDisc
         };
     });
+
+    // 2. Process Indicator Trades not taken by MT5 Tester (Sim-Only)
+    let simOnlyProcessed = [];
+    if (repStart && repEnd) {
+        indTrades.forEach((it, itIdx) => {
+            let itEn = (it.en_t || '').substring(0, 10).replace(/[\/-]/g, '.');
+            if (itEn < repStart || itEn > repEnd) return;
+
+            let indKey = (it.id !== undefined) ? ('id_' + it.id) : (it.en_t + '|' + it.tf + '|' + it.role);
+            if (matchedIndKeys.has(indKey)) return;
+
+            let itTF = (it.tf || '').replace('PERIOD_', '').trim();
+            let patName = (it.role || '').trim();
+            let patKey = patName + (itTF ? '|' + itTF : '');
+            let isScenarioKing = false;
+            if (Array.isArray(scenario.kings) && scenario.kings.length > 0) {
+                let cleanP = patName.replace(/\s+/g, '').toLowerCase();
+                let cleanPK = patKey.replace(/\s+/g, '').toLowerCase();
+                isScenarioKing = scenario.kings.some(k => {
+                    let kClean = (typeof k === 'string' ? k : (k.kk || k.role || '')).replace(/\s+/g, '').toLowerCase();
+                    return kClean === cleanP || kClean === cleanPK || kClean.includes(cleanP) || cleanP.includes(kClean);
+                });
+            }
+
+            let isAllowed = true;
+            let filterReason = '';
+            if (!isBaseScenario) {
+                if (itTF === 'M1' && !isScenarioKing) {
+                    let allowsM1 = scenario.tfM1 && (scenario.tfM1.includes('فعال (True)') || scenario.tfM1.includes('هوشمند'));
+                    if (!allowsM1) {
+                        isAllowed = false;
+                        filterReason = 'فیلتر نویز M1';
+                    }
+                }
+                if (isAllowed) {
+                    let h = (it.en_t && it.en_t.length >= 13) ? parseInt(it.en_t.substring(11, 13)) : 0;
+                    let scHours = extractHourSet(scenario.hours, scenario.hoursDisplay);
+                    if (scHours.size > 0 && scHours.size < 24) {
+                        if (!scHours.has(h)) {
+                            isAllowed = false;
+                            filterReason = 'ساعت غیرمجاز (' + (h < 10 ? '0' + h : h) + ':00)';
+                        }
+                    }
+                }
+                if (isAllowed && scenario.minPot > 0) {
+                    let potVal = it.pts ? (it.pts * 0.04) : 0;
+                    if (potVal > 0 && potVal < scenario.minPot) {
+                        isAllowed = false;
+                        filterReason = 'کف سود زیر ' + scenario.minPotDisplay;
+                    }
+                }
+                if (isAllowed) {
+                    if (Array.isArray(scenario.kings) && scenario.kings.length > 0 && !isScenarioKing) {
+                        isAllowed = false;
+                        filterReason = 'سلطان غیرمنتخب در سناریو (' + patName + ')';
+                    }
+                }
+            }
+
+            let boxEntry = it.en_p || 0.0;
+            let slPrice = it.sl || 0.0;
+            let riskPips = (boxEntry > 0 && slPrice > 0) ? (Math.round(Math.abs(boxEntry - slPrice) * pipMult * 10) / 10) : 10.0;
+            let indNet = it.net !== undefined ? Number(it.net) : (it.t1 ? (it.pts * 0.04) : -(it.pts * 0.04));
+            let isIndWin = (it.t1 === 1 || indNet > 0);
+            let indPips = it.pts ? (Math.round((it.pts / 10.0) * 10) / 10) : riskPips;
+            if (!isIndWin && indPips > 0) indPips = -indPips;
+            let indTgt = it.t4 ? 'TP 1:4 🚀' : (it.t3 ? 'TP 1:3 🎯' : (it.t2 ? 'TP 1:2 🎯' : (it.t1 ? 'TP 1:1 🎯' : 'Full SL ❌')));
+
+            let verdictHtml = `<span style="color:#fde68a;">🔮 <b>فقط در شبیه‌ساز:</b> در متاتریدر اجرا نشد (لمس نشدن اردر لیمیت، انقضا، یا فیلتر متاتریدر).</span>`;
+
+            simOnlyProcessed.push({
+                raw: { setupId: 'SIM-' + (it.id || (itIdx + 1)) },
+                matchType: 'sim_only',
+                profitPips: 0.0,
+                profitUSD: 0.0,
+                slippagePips: 0.0,
+                boxEntry: boxEntry,
+                marketFill: 0.0,
+                slPrice: slPrice,
+                tp1: it.tp1 || 0.0,
+                tp4: it.tp4 || 0.0,
+                exitPrice: 0.0,
+                tEntryTime: (it.en_t || '').substring(0, 16).replace(/-/g, '.'),
+                tTF: itTF,
+                tDir: (it.dir || '').toUpperCase().trim(),
+                pattern: patName,
+                exitClass: 'عدم اجرا در تستر',
+                match: it,
+                isAllowed: isAllowed,
+                filterReason: filterReason,
+                indNet: indNet,
+                indPips: indPips,
+                indTgt: indTgt,
+                isIndWin: isIndWin,
+                verdictHtml: verdictHtml,
+                isDisc: true
+            });
+        });
+    }
+
+    let combined = processedMT5.concat(simOnlyProcessed);
+    combined.sort((a, b) => a.tEntryTime.localeCompare(b.tEntryTime));
+    return combined;
 }
 

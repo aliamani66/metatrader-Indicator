@@ -287,6 +287,19 @@ function updateQuickSelectButtons(reportKey) {
     let btnKings = document.getElementById('btnSelectKingsTrades');
     let r = window.TESTER_REPORTS && window.TESTER_REPORTS[reportKey];
     let cnt = r && r.trades ? r.trades.length : 0;
+
+    let keys = Object.keys(window.TESTER_REPORTS || {});
+    let fullKey = keys.find(k => k.includes('64Trades') || (window.TESTER_REPORTS[k] && window.TESTER_REPORTS[k].trades && window.TESTER_REPORTS[k].trades.length >= 30)) || reportKey;
+    let kingsKey = keys.find(k => k.includes('6Trades') || (window.TESTER_REPORTS[k] && window.TESTER_REPORTS[k].trades && window.TESTER_REPORTS[k].trades.length <= 10));
+
+    let fullCnt = (fullKey && window.TESTER_REPORTS[fullKey] && window.TESTER_REPORTS[fullKey].trades) ? window.TESTER_REPORTS[fullKey].trades.length : (cnt || 0);
+    let kingsCnt = (kingsKey && window.TESTER_REPORTS[kingsKey] && window.TESTER_REPORTS[kingsKey].trades) ? window.TESTER_REPORTS[kingsKey].trades.length : 0;
+
+    let elFullCnt = document.getElementById('tcTotalTradesBtnCount');
+    if (elFullCnt) elFullCnt.textContent = fullCnt;
+    let elKingsCnt = document.getElementById('tcKingsTradesBtnCount');
+    if (elKingsCnt) elKingsCnt.textContent = kingsCnt;
+
     if (btnFull && btnKings) {
         if (cnt >= 30 || (reportKey && reportKey.includes('64Trades'))) {
             btnFull.classList.add('active');

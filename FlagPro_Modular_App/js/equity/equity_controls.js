@@ -220,7 +220,8 @@
                 { id: 'chkFilterPreLondon', lbl: 'lblFilterPreLondon', key: 'filterPreLondonHunt', activeBorder: '#38bdf8' },
                 { id: 'chkFilterToxic', lbl: 'lblFilterToxic', key: 'filterToxicPatterns', activeBorder: '#f87171' },
                 { id: 'chkFilterSingleLS', lbl: 'lblFilterSingleLS', key: 'filterSingleLS', activeBorder: '#facc15' },
-                { id: 'chkFilterPureFlags', lbl: 'lblFilterPureFlags', key: 'filterPureFlags', activeBorder: '#34d399' }
+                { id: 'chkFilterPureFlags', lbl: 'lblFilterPureFlags', key: 'filterPureFlags', activeBorder: '#34d399' },
+                { id: 'chkFilterHTFDominance', lbl: 'lblFilterHTFDominance', key: 'enableHTFDominance', activeBorder: '#a855f7' }
             ];
             filterDefs.forEach(item => {
                 let el = document.getElementById(item.id);
@@ -233,12 +234,37 @@
                     lbl.style.boxShadow = on ? ('0 0 10px ' + item.activeBorder + '33') : 'none';
                 }
             });
+
+            // Sync concurrency buttons
+            document.querySelectorAll('.concurrent-limit-btn').forEach(b => {
+                let val = parseInt(b.getAttribute('data-limit'), 10) || 0;
+                if (val === (simState.maxConcurrentLimit || 0)) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
         }
 
         function toggleMT5Filter(key, isChecked) {
             clearPresetActiveState();
             simState[key] = !!isChecked;
             syncMT5FilterCheckboxesUI();
+            runEquitySimulation();
+        }
+
+        function toggleHTFDominance(isChecked) {
+            clearPresetActiveState();
+            simState.enableHTFDominance = !!isChecked;
+            syncMT5FilterCheckboxesUI();
+            runEquitySimulation();
+        }
+
+        function setConcurrentLimit(limit, btnElem) {
+            clearPresetActiveState();
+            simState.maxConcurrentLimit = parseInt(limit, 10) || 0;
+            document.querySelectorAll('.concurrent-limit-btn').forEach(b => b.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
             runEquitySimulation();
         }
 
@@ -249,11 +275,14 @@
             simState.filterToxicPatterns = !!enableAll;
             simState.filterSingleLS = !!enableAll;
             simState.filterPureFlags = !!enableAll;
+            simState.enableHTFDominance = !!enableAll;
             syncMT5FilterCheckboxesUI();
             runEquitySimulation();
         }
         window.syncMT5FilterCheckboxesUI = syncMT5FilterCheckboxesUI;
         window.toggleMT5Filter = toggleMT5Filter;
+        window.toggleHTFDominance = toggleHTFDominance;
+        window.setConcurrentLimit = setConcurrentLimit;
         window.setAllMT5Filters = setAllMT5Filters;
 
         function toggleHour(h) {
@@ -386,6 +415,8 @@
             simState.filterToxicPatterns = false;
             simState.filterSingleLS = false;
             simState.filterPureFlags = false;
+            simState.enableHTFDominance = false;
+            simState.maxConcurrentLimit = 0;
             syncMT5FilterCheckboxesUI();
 
             renderSimKingsGrid();

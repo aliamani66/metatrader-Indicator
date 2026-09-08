@@ -1,7 +1,8 @@
 function renderTesterKPIs(report, scenarioKey) {
     if (!report) return;
     let processed = getProcessedTesterTrades(report, scenarioKey);
-    let totalSetups = processed.length;
+    let mt5Trades = processed.filter(p => p.matchType !== 'sim_only');
+    let totalSetups = mt5Trades.length;
 
     let sym = report.symbol || window.currentActiveSymbol || 'GBPUSD';
     let cleanSym = sym.replace(/[^a-zA-Z0-9]/g, '');
@@ -15,24 +16,26 @@ function renderTesterKPIs(report, scenarioKey) {
         return;
     }
 
-    // 1. Tester MT5 Actual Metrics
-    let tUsd = processed.reduce((acc, p) => acc + p.profitUSD, 0);
-    let tPips = processed.reduce((acc, p) => acc + p.profitPips, 0);
-    let tWins = processed.filter(p => p.profitUSD >= 0).length;
+    // 1. Tester MT5 Actual Metrics (strictly on deals executed in MT5)
+    let tUsd = mt5Trades.reduce((acc, p) => acc + p.profitUSD, 0);
+    let tPips = mt5Trades.reduce((acc, p) => acc + p.profitPips, 0);
+    let tWins = mt5Trades.filter(p => p.profitUSD >= 0).length;
     let tLosses = totalSetups - tWins;
-    let tWr = (tWins / totalSetups) * 100;
-    let tGrossWin = processed.filter(p => p.profitUSD > 0).reduce((acc, p) => acc + p.profitUSD, 0);
-    let tGrossLoss = processed.filter(p => p.profitUSD < 0).reduce((acc, p) => acc + Math.abs(p.profitUSD), 0);
+    let tWr = totalSetups > 0 ? ((tWins / totalSetups) * 100) : 0;
+    let tGrossWin = mt5Trades.filter(p => p.profitUSD > 0).reduce((acc, p) => acc + p.profitUSD, 0);
+    let tGrossLoss = mt5Trades.filter(p => p.profitUSD < 0).reduce((acc, p) => acc + Math.abs(p.profitUSD), 0);
     let tPf = tGrossLoss > 0 ? (tGrossWin / tGrossLoss) : (tGrossWin > 0 ? 99.9 : 0.0);
 
-    // 2. Indicator Theoretical Metrics (for these exact setups)
-    let iUsd = processed.reduce((acc, p) => acc + p.indNet, 0);
-    let iPips = processed.reduce((acc, p) => acc + p.indPips, 0);
-    let iWins = processed.filter(p => p.isIndWin).length;
-    let iLosses = totalSetups - iWins;
-    let iWr = (iWins / totalSetups) * 100;
-    let iGrossWin = processed.filter(p => p.indNet > 0).reduce((acc, p) => acc + p.indNet, 0);
-    let iGrossLoss = processed.filter(p => p.indNet < 0).reduce((acc, p) => acc + Math.abs(p.indNet), 0);
+    // 2. Indicator Theoretical Metrics (for indicator setups in active scenario)
+    let indSetups = processed.filter(p => p.matchType !== 'tester_only' && p.isAllowed);
+    let totalIndSetups = indSetups.length;
+    let iUsd = indSetups.reduce((acc, p) => acc + p.indNet, 0);
+    let iPips = indSetups.reduce((acc, p) => acc + p.indPips, 0);
+    let iWins = indSetups.filter(p => p.isIndWin).length;
+    let iLosses = totalIndSetups - iWins;
+    let iWr = totalIndSetups > 0 ? ((iWins / totalIndSetups) * 100) : 0;
+    let iGrossWin = indSetups.filter(p => p.indNet > 0).reduce((acc, p) => acc + p.indNet, 0);
+    let iGrossLoss = indSetups.filter(p => p.indNet < 0).reduce((acc, p) => acc + Math.abs(p.indNet), 0);
     let iPf = iGrossLoss > 0 ? (iGrossWin / iGrossLoss) : (iGrossWin > 0 ? 99.9 : 0.0);
 
     // --- Card 1: Total Profit / PnL & Gap ---
@@ -102,11 +105,12 @@ function renderTesterKPIs(report, scenarioKey) {
     }
 
     // --- Card 4: Outcome Discrepancies ---
-    let outcomeDiffTrades = processed.filter(p => (p.profitUSD >= 0) !== p.isIndWin);
+    let matchedTrades = processed.filter(p => p.matchType === 'matched');
+    let outcomeDiffTrades = matchedTrades.filter(p => (p.profitUSD >= 0) !== p.isIndWin);
     let outcomeDiffCount = outcomeDiffTrades.length;
-    let bothAgreedCount = totalSetups - outcomeDiffCount;
-    let bothWinCount = processed.filter(p => p.profitUSD >= 0 && p.isIndWin).length;
-    let bothLossCount = processed.filter(p => p.profitUSD < 0 && !p.isIndWin).length;
+    let bothAgreedCount = matchedTrades.length - outcomeDiffCount;
+    let bothWinCount = matchedTrades.filter(p => p.profitUSD >= 0 && p.isIndWin).length;
+    let bothLossCount = matchedTrades.filter(p => p.profitUSD < 0 && !p.isIndWin).length;
 
     let elOutDiff = document.getElementById('tcValOutcomeDiff');
     if (elOutDiff) {
@@ -125,17 +129,12 @@ function renderTesterKPIs(report, scenarioKey) {
     }
 
     // --- Card 5: Platform Presence ---
-    let matchedTrades = processed.filter(p => p.match);
     let bothPlatformsCount = matchedTrades.length;
-    let onlyTesterCount = processed.filter(p => !p.match).length;
+    let onlyTesterCount = processed.filter(p => p.matchType === 'tester_only').length;
+    let onlyIndCount = processed.filter(p => p.matchType === 'sim_only').length;
 
     let startDate = (processed.length > 0 && processed[0].tEntryTime) ? processed[0].tEntryTime.substring(0, 10) : '';
     let endDate = (processed.length > 0 && processed[processed.length - 1].tEntryTime) ? processed[processed.length - 1].tEntryTime.substring(0, 10) : '';
-    let indInRange = (startDate && endDate) ? indTrades.filter(it => {
-        let t = (it.en_t || '').substring(0, 10).replace(/-/g, '.');
-        return t >= startDate && t <= endDate;
-    }).length : 0;
-    let onlyIndCount = Math.max(0, indInRange - bothPlatformsCount);
 
     let elBothPlat = document.getElementById('tcValBothPlatforms');
     if (elBothPlat) elBothPlat.textContent = bothPlatformsCount;
@@ -148,7 +147,7 @@ function renderTesterKPIs(report, scenarioKey) {
 
     let elPlatSub = document.getElementById('tcPlatformPresenceSub');
     if (elPlatSub) {
-        elPlatSub.textContent = `کل دوره (${startDate} الی ${endDate}): ${totalSetups} تستر | ${indInRange} اندیکاتور`;
+        elPlatSub.textContent = `کل دوره (${startDate} الی ${endDate}): ${bothPlatformsCount} مشترک | ${onlyTesterCount} فقط تستر | ${onlyIndCount} فقط شبیه‌ساز`;
     }
 
     // --- Card 6: Box-to-Entry Latency KPIs ---
@@ -766,21 +765,23 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
     if (!tbody) return;
 
     let trades = report.trades || [];
-    if (trades.length === 0) {
+    let processed = getProcessedTesterTrades(report, window.currentTesterScenarioKey);
+
+    if (processed.length === 0) {
         tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:#94a3b8;">هیچ معامله‌ای در این گزارش ثبت نشده است.</td></tr>';
         return;
     }
 
-    let processed = getProcessedTesterTrades(report, window.currentTesterScenarioKey);
-
     // Update Filter Buttons Text & Badge Counts
     let cntAll = processed.length;
-    let cntWin = processed.filter(x => x.profitUSD >= 0).length;
-    let cntLoss = processed.filter(x => x.profitUSD < 0).length;
+    let cntWin = processed.filter(x => x.matchType !== 'sim_only' ? (x.profitUSD >= 0) : x.isIndWin).length;
+    let cntLoss = processed.filter(x => x.matchType !== 'sim_only' ? (x.profitUSD < 0) : !x.isIndWin).length;
     let cntM1 = processed.filter(x => x.tTF === 'M1').length;
     let cntSlip = processed.filter(x => x.slippagePips >= 2.0).length;
-    let cntBe = processed.filter(x => x.exitClass.includes('BE')).length;
+    let cntBe = processed.filter(x => x.exitClass && x.exitClass.includes('BE')).length;
     let cntDisc = processed.filter(x => x.isDisc).length;
+    let cntMatched = processed.filter(x => x.matchType === 'matched').length;
+    let cntSimOnly = processed.filter(x => x.matchType === 'sim_only').length;
 
     let bAll = document.getElementById('tcFilterAll'); if (bAll) bAll.textContent = 'همه (' + cntAll + ')';
     let bWin = document.getElementById('tcFilterWin'); if (bWin) bWin.textContent = 'بردها (' + cntWin + ')';
@@ -789,20 +790,25 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
     let bSlip = document.getElementById('tcFilterSlip'); if (bSlip) bSlip.textContent = 'اسلیپیج بالا > 2p (' + cntSlip + ')';
     let bBe = document.getElementById('tcFilterBe'); if (bBe) bBe.textContent = 'خروج در BE (' + cntBe + ')';
     let bDisc = document.getElementById('tcFilterDisc'); if (bDisc) bDisc.textContent = '⚠️ مغایرت‌ها (' + cntDisc + ')';
+    let bMatched = document.getElementById('tcFilterMatched'); if (bMatched) bMatched.textContent = '🤝 منطبق (' + cntMatched + ')';
+    let bSimOnly = document.getElementById('tcFilterSimOnly'); if (bSimOnly) bSimOnly.textContent = '🔮 فقط شبیه‌ساز (' + cntSimOnly + ')';
 
     let tblTitle = document.getElementById('tcTradesTableTitle');
     if (tblTitle) {
-        tblTitle.textContent = 'جدول بازرسی و مقایسه نظیر به نظیر (1:1) معاملات متاتریدر ۵ با اندیکاتور (' + cntAll + ' ستاپ | ' + cntDisc + ' مغایرت ریشه‌ای)';
+        tblTitle.textContent = 'جدول بازرسی و مقایسه نظیر به نظیر (1:1) تستر MT5 با شبیه‌ساز (' + cntAll + ' ستاپ | ' + cntMatched + ' منطبق | ' + cntDisc + ' مغایرت)';
     }
 
     // Apply active filter
     let filtered = processed.filter(pt => {
-        if (filterMode === 'win' && pt.profitUSD < 0) return false;
-        if (filterMode === 'loss' && pt.profitUSD >= 0) return false;
+        if (filterMode === 'win' && (pt.matchType !== 'sim_only' ? pt.profitUSD < 0 : !pt.isIndWin)) return false;
+        if (filterMode === 'loss' && (pt.matchType !== 'sim_only' ? pt.profitUSD >= 0 : pt.isIndWin)) return false;
         if (filterMode === 'm1' && pt.tTF !== 'M1') return false;
         if (filterMode === 'slip' && pt.slippagePips < 2.0) return false;
-        if (filterMode === 'be' && !pt.exitClass.includes('BE')) return false;
+        if (filterMode === 'be' && (!pt.exitClass || !pt.exitClass.includes('BE'))) return false;
         if (filterMode === 'disc' && !pt.isDisc) return false;
+        if (filterMode === 'matched' && pt.matchType !== 'matched') return false;
+        if (filterMode === 'sim_only' && pt.matchType !== 'sim_only') return false;
+        if (filterMode === 'tester_only' && pt.matchType !== 'tester_only') return false;
         if (searchQuery) {
             let q = searchQuery.toLowerCase();
             let hay = (pt.pattern + ' ' + pt.tTF + ' ' + pt.tDir + ' ' + pt.tEntryTime + ' ' + pt.filterReason).toLowerCase();
@@ -813,8 +819,10 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
 
     let html = '';
     filtered.forEach(pt => {
-        let isWin = (pt.profitUSD >= 0);
-        let tUsdColor = isWin ? '#34d399' : '#f87171';
+        let isSimOnly = (pt.matchType === 'sim_only');
+        let isTesterOnly = (pt.matchType === 'tester_only');
+        let isWin = isSimOnly ? pt.isIndWin : (pt.profitUSD >= 0);
+        let tUsdColor = (pt.profitUSD >= 0) ? '#34d399' : '#f87171';
         let indUsdColor = (pt.indNet >= 0) ? '#34d399' : '#f87171';
         let slipColor = (pt.slippagePips > 2.0) ? '#f59e0b' : '#94a3b8';
 
@@ -823,18 +831,35 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             : '<span style="color:#f87171;font-weight:bold;">SELL</span>';
 
         let tfBadge = pt.tTF === 'M1'
-            ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1 (نویز)</span>'
+            ? '<span style="background:#450a0a;color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #991b1b;">M1</span>'
             : '<span style="background:#064e3b;color:#a7f3d0;padding:1px 5px;border-radius:3px;font-size:10px;border:1px solid #059669;">' + pt.tTF + '</span>';
 
+        // Match type category tag
+        let matchTag = '';
+        if (isSimOnly) {
+            matchTag = '<span style="background:#78350f33;color:#fef08a;border:1px solid #ca8a04;padding:1px 4px;border-radius:3px;font-size:8.5px;font-weight:bold;margin-right:4px;">🔮 شبیه‌ساز</span>';
+        } else if (isTesterOnly) {
+            matchTag = '<span style="background:#1e293b;color:#7dd3fc;border:1px solid #0284c7;padding:1px 4px;border-radius:3px;font-size:8.5px;font-weight:bold;margin-right:4px;">🤖 تستر</span>';
+        } else {
+            matchTag = '<span style="background:#064e3b;color:#34d399;border:1px solid #059669;padding:1px 4px;border-radius:3px;font-size:8.5px;font-weight:bold;margin-right:4px;">🤝 منطبق</span>';
+        }
+
         // Tester PnL HTML (USD & Pips)
-        let tUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${tUsdColor};">${(pt.profitUSD >= 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</span>`;
-        let tPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${tUsdColor};">${(pt.profitPips >= 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p</span>`;
+        let tUsdHtml = '';
+        let tPipsHtml = '';
+        if (isSimOnly) {
+            tUsdHtml = `<span style="color:#64748b;font-size:10px;">-</span>`;
+            tPipsHtml = `<span style="color:#64748b;font-size:10px;">-</span>`;
+        } else {
+            tUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${tUsdColor};">${(pt.profitUSD >= 0 ? '+$' : '-$')}${Math.abs(pt.profitUSD).toFixed(2)}</span>`;
+            tPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${tUsdColor};">${(pt.profitPips >= 0 ? '+' : '')}${pt.profitPips.toFixed(1)}p</span>`;
+        }
 
         // Indicator PnL HTML (USD & Pips)
         let indUsdHtml = '';
         let indPipsHtml = '';
         if (!pt.isAllowed) {
-            indUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;color:#94a3b8;font-size:10px;text-decoration:line-through;">${(pt.indNet >= 0 ? '+$' : '-$')}${Math.abs(pt.indNet).toFixed(2)}</span> <span style="color:#fca5a5;font-size:9.5px;">(فیلتر)</span>`;
+            indUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;color:#94a3b8;font-size:10px;text-decoration:line-through;">${(pt.indNet >= 0 ? '+$' : '-$')}${Math.abs(pt.indNet).toFixed(2)}</span> <span style="color:#fca5a5;font-size:9px;">(فیلتر)</span>`;
             indPipsHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;color:#94a3b8;font-size:10px;text-decoration:line-through;">${(pt.indPips >= 0 ? '+' : '')}${pt.indPips.toFixed(1)}p</span>`;
         } else {
             indUsdHtml = `<span style="direction:ltr;display:inline-block;unicode-bidi:embed;font-weight:bold;color:${indUsdColor};">${(pt.indNet >= 0 ? '+$' : '-$')}${Math.abs(pt.indNet).toFixed(2)}</span>`;
@@ -842,9 +867,14 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
         }
 
         // Tester Exit / Target HTML
-        let tExitHtml = `<div style="color:#e2e8f0;font-size:10.5px;font-weight:600;white-space:nowrap;">${pt.exitClass}</div>`;
-        if (pt.exitPrice > 0) {
-            tExitHtml += `<div style="color:#38bdf8;font-size:9.5px;font-family:monospace;margin-top:2px;">${pt.exitPrice.toFixed(5)}</div>`;
+        let tExitHtml = '';
+        if (isSimOnly) {
+            tExitHtml = `<div style="color:#f87171;font-size:10px;font-weight:600;">عدم ورود MT5</div>`;
+        } else {
+            tExitHtml = `<div style="color:#e2e8f0;font-size:10.5px;font-weight:600;white-space:nowrap;">${pt.exitClass}</div>`;
+            if (pt.exitPrice > 0) {
+                tExitHtml += `<div style="color:#38bdf8;font-size:9.5px;font-family:monospace;margin-top:2px;">${pt.exitPrice.toFixed(5)}</div>`;
+            }
         }
 
         // Indicator Target HTML
@@ -864,17 +894,19 @@ function renderTesterTradesTable(report, filterMode, searchQuery) {
             ? `<div style="color:#38bdf8;font-size:9.5px;margin-top:2px;direction:rtl;font-family:sans-serif;">⏱️ انتظار: ${pt.match.wait_fmt}</div>`
             : '';
 
+        let rowBg = isSimOnly ? 'background:#241a0822;' : (isTesterOnly ? 'background:#0d1c3022;' : (!pt.isAllowed ? 'background:#1a0e1422;' : ''));
+
         // 16 Columns strictly aligned with table thead:
         // 1:# | 2:الگو | 3:تایم | 4:جهت | 5:زمان ورود | 6:ورود تستر | 7:ورود اندیکاتور | 8:لغزش | 9:حد ضرر | 10:تارگت تستر | 11:تارگت اندیکاتور | 12:سود تستر $ | 13:سود اندیکاتور $ | 14:سود تستر p | 15:سود اندیکاتور p | 16:کالبدشکافی
-        html += `<tr style="border-bottom:1px solid #1e293b;${!pt.isAllowed ? 'background:#1a0e1422;' : ''}">
-            <td style="padding:7px 8px;text-align:center;color:#64748b;">${pt.raw.setupId || ''}</td>
-            <td style="padding:7px 8px;font-weight:600;color:#f8fafc;white-space:nowrap;text-align:right;">${pt.pattern}</td>
+        html += `<tr style="border-bottom:1px solid #1e293b;${rowBg}">
+            <td style="padding:7px 8px;text-align:center;color:#64748b;font-size:10px;">${pt.raw.setupId || ''}</td>
+            <td style="padding:7px 8px;font-weight:600;color:#f8fafc;white-space:nowrap;text-align:right;">${pt.pattern} ${matchTag}</td>
             <td style="padding:7px 8px;text-align:center;">${tfBadge}</td>
             <td style="padding:7px 8px;text-align:center;">${sideBadge}</td>
             <td style="padding:7px 8px;color:#94a3b8;font-size:10.5px;direction:ltr;text-align:right;">${pt.tEntryTime}${waitTag}</td>
-            <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${pt.marketFill > 0 ? pt.marketFill.toFixed(5) : '-'}</td>
+            <td style="padding:7px 8px;color:#38bdf8;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;">${pt.marketFill > 0 ? pt.marketFill.toFixed(5) : '<span style="color:#64748b;">-</span>'}</td>
             <td style="padding:7px 8px;color:#34d399;font-size:10.5px;font-weight:600;font-family:monospace;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;">${pt.boxEntry > 0 ? pt.boxEntry.toFixed(5) : '-'}</td>
-            <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips.toFixed(1)}p</td>
+            <td style="padding:7px 8px;text-align:center;color:${slipColor};font-weight:bold;">${pt.slippagePips > 0 ? pt.slippagePips.toFixed(1) + 'p' : '-'}</td>
             <td style="padding:7px 8px;text-align:center;color:#f87171;font-family:monospace;font-size:10.5px;">${pt.slPrice > 0 ? pt.slPrice.toFixed(5) : '-'}</td>
             <td style="padding:7px 8px;text-align:center;background:#0f243822;border-right:1px solid #1e3a5f33;white-space:nowrap;">${tExitHtml}</td>
             <td style="padding:7px 8px;text-align:center;background:#0d2e2422;border-right:1px solid #064e3b33;white-space:nowrap;">${indTgtHtml}</td>

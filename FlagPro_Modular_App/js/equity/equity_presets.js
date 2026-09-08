@@ -12,7 +12,9 @@ var simState = (typeof simState !== 'undefined') ? simState : {
     filterPreLondonHunt: false,
     filterToxicPatterns: false,
     filterSingleLS: false,
-    filterPureFlags: false
+    filterPureFlags: false,
+    enableHTFDominance: false,
+    maxConcurrentLimit: 0
 };
 var kingsSimList = (typeof kingsSimList !== 'undefined') ? kingsSimList : [];
 var top3SLCntKeys = (typeof top3SLCntKeys !== 'undefined') ? top3SLCntKeys : [];

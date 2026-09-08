@@ -177,6 +177,8 @@ function getAvailableTesterScenarios() {
             kings: curKings,
             beBuffer: (curActivePreset && curActivePreset.be_buffer !== undefined) ? (curActivePreset.be_buffer + ' pips') : '0.0 pips',
             maxDev: (curActivePreset && curActivePreset.max_dev !== undefined) ? (curActivePreset.max_dev + ' pips') : '2.5 pips',
+            enableHTFDominance: (window.simState && window.simState.enableHTFDominance) || false,
+            maxConcurrentLimit: (window.simState && window.simState.maxConcurrentLimit) || 0,
             simWinRate: curWr,
             simPf: curPf,
             simNetR: curNet

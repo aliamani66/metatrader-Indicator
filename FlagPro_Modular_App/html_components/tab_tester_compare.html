@@ -261,15 +261,17 @@
                                         <span>🔍</span> <span id="tcTradesTableTitle">جدول بازرسی و کالبدشکافی معاملات تستر متاتریدر ۵</span>
                                     </div>
                                     <div style="display:flex;align-items:center;gap:4px;background:#090d16;padding:2px 4px;border-radius:6px;border:1px solid #1e3a5f;">
-                                        <button id="btnSelectAllTrades" class="eq-subtab-btn active" onclick="quickSelectTesterReport('full', event)" style="font-weight:bold;color:#38bdf8;font-size:11px;">🌟 کل معاملات (۴۲ ستاپ)</button>
-                                        <button id="btnSelectKingsTrades" class="eq-subtab-btn" onclick="quickSelectTesterReport('kings', event)" style="font-weight:600;color:#cbd5e1;font-size:11px;">🎯 فقط سلاطین (۶ معامله)</button>
+                                        <button id="btnSelectAllTrades" class="eq-subtab-btn active" onclick="quickSelectTesterReport('full', event)" style="font-weight:bold;color:#38bdf8;font-size:11px;">🌟 کل معاملات (<span id="tcTotalTradesBtnCount">--</span> ستاپ)</button>
+                                        <button id="btnSelectKingsTrades" class="eq-subtab-btn" onclick="quickSelectTesterReport('kings', event)" style="font-weight:600;color:#cbd5e1;font-size:11px;">🎯 فقط سلاطین (<span id="tcKingsTradesBtnCount">--</span> معامله)</button>
                                     </div>
                                 </div>
                                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                                    <button id="tcFilterAll" class="eq-subtab-btn active" onclick="filterTesterTradesTable('all', event)">همه (۴۲)</button>
+                                    <button id="tcFilterAll" class="eq-subtab-btn active" onclick="filterTesterTradesTable('all', event)">همه</button>
+                                    <button id="tcFilterMatched" class="eq-subtab-btn" onclick="filterTesterTradesTable('matched', event)" style="color:#34d399;">🤝 منطبق</button>
+                                    <button id="tcFilterSimOnly" class="eq-subtab-btn" onclick="filterTesterTradesTable('sim_only', event)" style="color:#facc15;">🔮 فقط شبیه‌ساز</button>
                                     <button id="tcFilterWin" class="eq-subtab-btn" onclick="filterTesterTradesTable('win', event)">بردها</button>
                                     <button id="tcFilterLoss" class="eq-subtab-btn" onclick="filterTesterTradesTable('loss', event)">باخت‌ها</button>
-                                    <button id="tcFilterM1" class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">نویز تایم M1</button>
+                                    <button id="tcFilterM1" class="eq-subtab-btn" onclick="filterTesterTradesTable('m1', event)">نویز M1</button>
                                     <button id="tcFilterSlip" class="eq-subtab-btn" onclick="filterTesterTradesTable('slip', event)">اسلیپیج بالا</button>
                                     <button id="tcFilterBe" class="eq-subtab-btn" onclick="filterTesterTradesTable('be', event)">خروج در BE</button>
                                     <button id="tcFilterDisc" class="eq-subtab-btn" onclick="filterTesterTradesTable('disc', event)" style="color:#fca5a5;border-color:#7f1d1d;">⚠️ مغایرت‌ها</button>
