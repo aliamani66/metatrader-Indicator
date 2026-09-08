@@ -7,6 +7,6 @@
 #property link      ""
 
 #include <FlagPro\Flag_TradeTypes.mqh>
-#include <FlagPro\Flag_TradeInteractive.mqh>
+#include <FlagPro\Flag_TradeTestModule.mqh>
 #include <FlagPro\Flag_TradeAutoScan.mqh>
 #include <FlagPro\Flag_TradeExport.mqh>

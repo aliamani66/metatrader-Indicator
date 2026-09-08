@@ -77,6 +77,21 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
       if(g_effectiveStartDate > 0 && g_drawnBoxes[b].t1 < g_effectiveStartDate)
          continue;
 
+      // ایزولاسیون کامل در صورت فعال بودن حالت تمرکز (Focus Mode)
+      if(IsFocusModeActive())
+      {
+         if(b != GetFocusBoxIndex())
+         {
+            string bName = g_drawnBoxes[b].boxName;
+            if(ObjectFind(0, bName) >= 0) ObjectSetInteger(0, bName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+            string lName = FP_PREFIX + "LBL_" + bName;
+            if(ObjectFind(0, lName) >= 0) ObjectSetInteger(0, lName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+            string eName = FP_PREFIX + "EXT_" + bName;
+            if(ObjectFind(0, eName) >= 0) ObjectSetInteger(0, eName, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+            continue;
+         }
+      }
+
       bool isMacro = g_drawnBoxes[b].isMacro;
       bool hasRSTags = (ArraySize(g_drawnBoxes[b].rsTags) > 0);
 
@@ -234,7 +249,7 @@ void RenderFinalBoxes(const datetime &chartTime[], int ratesTotal)
             lblText = g_drawnBoxes[b].tfTag + " [" + displayTag + "]";
          else
          {
-            string flDir = g_drawnBoxes[b].isBullish ? "BU" : "BE";
+            string flDir = g_drawnBoxes[b].isBullish ? "Flag-BU" : "Flag-BE";
             lblText = g_drawnBoxes[b].tfTag + " [" + flDir + "]";
          }
 
@@ -290,68 +305,19 @@ void RenderFinalIndependentPivots(const datetime &chartTime[], const double &cha
 }
 
 //+------------------------------------------------------------------+
-//| Clear Box Highlight                                              |
+//| Clear Box Highlight / Exit Focus Mode                            |
 //+------------------------------------------------------------------+
 void ClearBoxHighlight()
 {
-   if(g_selectedBoxName != "" && ObjectFind(0, g_selectedBoxName) >= 0)
-   {
-      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_COLOR, g_origBoxColor);
-      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_WIDTH, g_origBoxWidth);
-      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_STYLE, g_origBoxStyle);
-      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_FILL,  false);
-      ObjectSetInteger(0, g_selectedBoxName, OBJPROP_BACK,  false);
-   }
-
-   if(g_selectedExtBoxName != "" && ObjectFind(0, g_selectedExtBoxName) >= 0)
-   {
-      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_COLOR, g_origBoxColor);
-      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_WIDTH, 1);
-      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_FILL,  false);
-      ObjectSetInteger(0, g_selectedExtBoxName, OBJPROP_BACK,  false);
-   }
-
-   ObjectsDeleteAll(0, FP_PREFIX + "CLICK_TRADE_");
-
-   g_selectedBoxName    = "";
-   g_selectedExtBoxName = "";
-   Comment("");
+   ExitFocusMode();
 }
 
 //+------------------------------------------------------------------+
-//| Highlight Box on Click with Glowing Illumination & Fill          |
+//| Highlight Box on Click / Enter Focus Mode                         |
 //+------------------------------------------------------------------+
-void HighlightBox(int boxIdx)
+void HighlightBox(int boxIdx, bool toggle = true)
 {
-   if(boxIdx < 0 || boxIdx >= g_boxCount) return;
-
-   string boxName = g_drawnBoxes[boxIdx].boxName;
-   if(boxName == g_selectedBoxName)
-   {
-      ClearBoxHighlight();
-      ChartRedraw(0);
-      return;
-   }
-
-   ClearBoxHighlight();
-
-   if(ObjectFind(0, boxName) >= 0)
-   {
-      g_selectedBoxName = boxName;
-      g_origBoxColor    = (color)ObjectGetInteger(0, boxName, OBJPROP_COLOR);
-      g_origBoxWidth    = (int)ObjectGetInteger(0, boxName, OBJPROP_WIDTH);
-      g_origBoxStyle    = (ENUM_LINE_STYLE)ObjectGetInteger(0, boxName, OBJPROP_STYLE);
-
-      ObjectSetInteger(0, boxName, OBJPROP_COLOR, clrGold);
-      ObjectSetInteger(0, boxName, OBJPROP_WIDTH, 3);
-      ObjectSetInteger(0, boxName, OBJPROP_STYLE, STYLE_SOLID);
-      ObjectSetInteger(0, boxName, OBJPROP_FILL,  false);
-      ObjectSetInteger(0, boxName, OBJPROP_BACK,  false);
-
-      ShowTradeSetupForBox(boxIdx);
-   }
-
-   ChartRedraw(0);
+   EnterFocusMode(boxIdx, toggle);
 }
 
 //+------------------------------------------------------------------+

@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 #property copyright "FlagPro Indicator"
 #property link      ""
-#property version   "2.13"
+#property version   "2.60"
 #property indicator_chart_window
 #property indicator_buffers 2
 #property indicator_plots   1
@@ -402,13 +402,13 @@ int OnCalculate(const int rates_total,
    RenderFinalIndependentPivots(fullTime, fullHigh, fullLow, totalCopied);
 
    // حفظ و بازترسیم ستاپ باکس انتخاب‌شده تا با آمدن کندل‌های جدید پاک نشود
-   if(g_selectedBoxName != "")
+   if(g_selectedBoxName != "" || IsFocusModeActive())
    {
       for(int b = 0; b < g_boxCount; b++)
       {
          if(g_drawnBoxes[b].boxName == g_selectedBoxName)
          {
-            HighlightBox(b);
+            HighlightBox(b, false);
             break;
          }
       }
@@ -440,7 +440,7 @@ void OnChartEvent(const int id,
          {
             if(g_drawnBoxes[b].boxName == sparam)
             {
-               HighlightBox(b);
+               HighlightBox(b, true);
                break;
             }
          }
@@ -448,21 +448,28 @@ void OnChartEvent(const int id,
    }
    else if(id == CHARTEVENT_CLICK)
    {
-      if(g_selectedBoxName != "")
+      // با کلیک روی فضای خالی چارت، حالت تمرکز بسته می‌شود
+      if(IsFocusModeActive() || g_selectedBoxName != "")
       {
-         g_clickCounter++;
-         if(g_clickCounter >= 2)
-         {
-            ClearBoxHighlight();
-            g_clickCounter = 0;
-            ChartRedraw(0);
-         }
+         ExitFocusMode();
+         g_clickCounter = 0;
+         ChartRedraw(0);
       }
    }
    else if(id == CHARTEVENT_KEYDOWN)
    {
+      // فشردن کلید Escape در کیبورد برای خروج فوری از حالت تمرکز (Focus Mode)
+      if(lparam == 27)
+      {
+         if(IsFocusModeActive() || g_selectedBoxName != "")
+         {
+            ExitFocusMode();
+            ChartRedraw(0);
+            Print("FlagPro: خروج از حالت تمرکز (Focus Mode) با فشردن کلید Escape.");
+         }
+      }
       // فشردن کلید B در کیبورد برای مخفی یا نمایان کردن فوری تمام باکس‌ها
-      if(lparam == 'B' || lparam == 'b')
+      else if(lparam == 'B' || lparam == 'b')
       {
          g_boxesVisible = !g_boxesVisible;
          Print("FlagPro: وضعیت نمایش باکس‌ها: ", (g_boxesVisible ? "روشن (نمایان)" : "خاموش (مخفی)"));

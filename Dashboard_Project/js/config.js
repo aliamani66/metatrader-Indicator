@@ -3,7 +3,7 @@
  */
 const AppConfig = {
     appName: 'FlagPro Master Strategy Dashboard',
-    version: '2.5.0',
+    version: '2.60',
     defaultSymbol: 'EURUSD',
     frictionPerTrade: 0.48, // 0.04 lot friction ($0.48)
     bridgeServerUrl: 'http://127.0.0.1:8288',
