@@ -539,7 +539,34 @@
 
                 </div>
 
-                                <!-- 2C. CONSECUTIVE LOSS FILTER ROW -->
+                <!-- 2X. STOP LOSS ENGINE SELECTION (4 MODES) -->
+                <div style="margin-top:12px;background:#081b2e;padding:12px 14px;border-radius:10px;border:1px solid #0284c7;box-shadow:0 2px 12px rgba(2,132,199,0.15);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                        <div style="color:#38bdf8;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+                            <span>🛑 نوع و متدولوژی استاپ‌لاس (Stop Loss Engine):</span>
+                        </div>
+                        <span id="simSLModeBadge" style="font-size:11px;color:#38bdf8;background:#0c2d48;border:1px solid #0284c7;padding:2px 10px;border-radius:12px;font-weight:bold;">لبه باکس + بافر ثابت (Fixed)</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px;">
+                        <button id="btnSimSL0" class="sl-mode-btn active" onclick="switchSimSLMode(0)">
+                            📌 ۱. لبه باکس + بافر ثابت (Fixed)
+                        </button>
+                        <button id="btnSimSL1" class="sl-mode-btn" onclick="switchSimSLMode(1)">
+                            🛡️ ۲. بافر داینامیک ATR (پیشنهادی ⭐)
+                        </button>
+                        <button id="btnSimSL2" class="sl-mode-btn" onclick="switchSimSLMode(2)">
+                            🌊 ۳. ای‌تی‌آر خالص ولاتیلیتی (Pure ATR)
+                        </button>
+                        <button id="btnSimSL3" class="sl-mode-btn" onclick="switchSimSLMode(3)">
+                            📦 ۴. بافر درصدی الگو (Adaptive)
+                        </button>
+                    </div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;align-items:center;gap:6px;">
+                        <span>💡 با کلیک روی هر مدل، تمام معاملات، بالانس و نمودار رشد بلادرنگ بر مبنای آن استاپ بازسازی می‌شوند.</span>
+                    </div>
+                </div>
+
+                <!-- 2C. CONSECUTIVE LOSS FILTER ROW -->
                 <div style="margin-top:12px;background:#061424;padding:12px 14px;border-radius:10px;border:1px solid #133352;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
                         <div style="color:#ef4444;font-weight:bold;font-size:12.5px;display:flex;align-items:center;gap:6px;">

@@ -22,6 +22,53 @@ from dashboard_builder.presets import (
     optimize_smart_presets
 )
 
+def compute_trade_sl_modes(r, fallback_pts, fallback_hr, fallback_pnl, friction):
+    modes = {}
+    for sm in range(4):
+        sl_col = f'SL_M{sm}'
+        if sl_col in r and r.get(sl_col) not in (None, '', 'None'):
+            try:
+                sm_pts = float(r.get(f'Pts_M{sm}', fallback_pts))
+                sm_hr = int(float(r.get(f'Hit_M{sm}', fallback_hr)))
+                if sm_hr <= 0:
+                    sm_pnl = -sm_pts * 0.04 - friction
+                else:
+                    sm_pnl = -friction
+                    if sm_hr >= 1: sm_pnl += sm_pts * 1.0 * 0.01
+                    if sm_hr >= 2: sm_pnl += sm_pts * 2.0 * 0.01
+                    if sm_hr >= 3: sm_pnl += sm_pts * 3.0 * 0.01
+                    if sm_hr >= 4: sm_pnl += sm_pts * 4.0 * 0.01
+                modes[sm] = {
+                    'sl': round(float(r.get(f'SL_M{sm}', 0.0)), 5),
+                    'pts': round(sm_pts, 1),
+                    'pot': round(sm_pts * 0.04, 2),
+                    'ex_p': round(float(r.get(f'Exit_M{sm}', 0.0)), 5),
+                    'hr': sm_hr,
+                    'p': round(sm_pnl, 2),
+                    'out': str(r.get(f'Out_M{sm}', ''))
+                }
+            except Exception:
+                modes[sm] = {
+                    'sl': round(float(r.get('StopLoss', 0.0)), 5),
+                    'pts': round(fallback_pts, 1),
+                    'pot': round(fallback_pts * 0.04, 2),
+                    'ex_p': round(float(r.get('ExitPrice', 0.0)), 5),
+                    'hr': fallback_hr,
+                    'p': round(fallback_pnl, 2),
+                    'out': str(r.get('Outcome', ''))
+                }
+        else:
+            modes[sm] = {
+                'sl': round(float(r.get('StopLoss', 0.0)), 5),
+                'pts': round(fallback_pts, 1),
+                'pot': round(fallback_pts * 0.04, 2),
+                'ex_p': round(float(r.get('ExitPrice', 0.0)), 5),
+                'hr': fallback_hr,
+                'p': round(fallback_pnl, 2),
+                'out': str(r.get('Outcome', ''))
+            }
+    return modes
+
 def process_symbol_dataset(csv_file):
     print(f"📂 در حال پردازش داده‌های فایل: {csv_file}")
     if not os.path.exists(csv_file):
@@ -630,6 +677,7 @@ def process_symbol_dataset(csv_file):
         et = r.get('EntryTime', '')
         xt = r.get('ExitTime', et)
         h_val = int(et[11:13]) if len(et) >= 13 else 0
+        sl_m = compute_trade_sl_modes(r, pts, hr, pnl, FRICTION_04_PER_TRADE)
         trades_sim_list.append({
             'i': idx,
             't': et,
@@ -643,7 +691,8 @@ def process_symbol_dataset(csv_file):
             'pot': round(pts * 0.04, 2),
             'hr': hr,
             'p': round(pnl, 2),
-            'ex_p': round(float(r.get('ExitPrice', 0.0)), 5)
+            'ex_p': round(float(r.get('ExitPrice', 0.0)), 5),
+            'modes': sl_m
         })
 
     active_open_intervals = []
@@ -682,6 +731,7 @@ def process_symbol_dataset(csv_file):
             if hr >= 4: pnl += pts * 4.0 * 0.01
 
         wm = get_box_wait_time_minutes(r)
+        sl_m_sorted = compute_trade_sl_modes(r, pts, hr, pnl, FRICTION_04_PER_TRADE)
         trades_json_list.append({
             'id': idx,
             'box_t': r.get('BoxTimeStart', ''),
@@ -711,8 +761,64 @@ def process_symbol_dataset(csv_file):
             'mae_r': round(float(r.get('MAE_R', 0.0)), 2),
             'hr': hr,
             'pnl': round(pnl, 2),
-            'net': round(pnl, 2)
+            'net': round(pnl, 2),
+            'modes': sl_m_sorted
         })
+
+    # Pre-calculate Stop Loss Matrix Battle statistics for all 4 modes
+    sl_battle_matrix = {}
+    for sm in range(4):
+        sm_bal = 100.0
+        sm_peak = 100.0
+        sm_max_dd = 0.0
+        sm_wins = 0
+        sm_losses = 0
+        sm_gp = 0.0
+        sm_gl = 0.0
+        sm_tot = 0
+        sm_pts_sum = 0.0
+        sm_equity_curve = []
+
+        for t in trades_sim_list:
+            m_info = t.get('modes', {}).get(sm, {})
+            m_p = m_info.get('p', 0.0)
+            m_hr = m_info.get('hr', 0)
+            m_pts = m_info.get('pts', 0.0)
+
+            sm_tot += 1
+            sm_pts_sum += m_pts
+            sm_bal += m_p
+            if sm_bal > sm_peak: sm_peak = sm_bal
+            sm_dd = sm_peak - sm_bal
+            if sm_dd > sm_max_dd: sm_max_dd = sm_dd
+
+            if m_p > 0:
+                sm_wins += 1
+                sm_gp += m_p
+            else:
+                sm_losses += 1
+                sm_gl += abs(m_p)
+
+            sm_equity_curve.append(round(sm_bal, 2))
+
+        sm_pf = round(sm_gp / sm_gl, 2) if sm_gl > 0 else 99.0
+        sm_wr = round((sm_wins / sm_tot * 100.0), 1) if sm_tot > 0 else 0.0
+        sm_avg_pts = round(sm_pts_sum / sm_tot, 1) if sm_tot > 0 else 0.0
+
+        sl_battle_matrix[sm] = {
+            'name': ['لبه باکس + بافر ثابت (Fixed)', 'لبه باکس + بافر ATR (پیشنهادی)', 'ای‌تی‌آر خالص ولاتیلیتی (Pure ATR)', 'بافر درصدی الگو (Adaptive)'][sm],
+            'key': ['fixed', 'atr_buf', 'pure_atr', 'box_pct'][sm],
+            'total': sm_tot,
+            'wins': sm_wins,
+            'losses': sm_losses,
+            'wr': sm_wr,
+            'net': round(sm_bal - 100.0, 2),
+            'final_bal': round(sm_bal, 2),
+            'max_dd': round(sm_max_dd, 2),
+            'pf': sm_pf,
+            'avg_pts': sm_avg_pts,
+            'equity_curve': sm_equity_curve
+        }
 
     return {
         'symbol': symbol,
@@ -721,6 +827,7 @@ def process_symbol_dataset(csv_file):
         'min_date': min_date,
         'max_date': max_date,
         'tfs_str': tfs_str,
+        'sl_battle_matrix': sl_battle_matrix,
         'date_start_str': date_start_str,
         'date_end_str': date_end_str,
         'bal_initial': bal_initial,

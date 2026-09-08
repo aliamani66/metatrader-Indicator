@@ -94,18 +94,19 @@ double GetCalculatedATR(const string symbol, ENUM_TIMEFRAMES tf, int period, dat
 //| موتور جامع محاسبه حد ضرر (Multi-Mode Stop Loss Engine)          |
 //+------------------------------------------------------------------+
 double CalculateSetupStopLoss(bool isBuy,
-                             double entryPrice,
-                             double patternHigh,
-                             double patternLow,
-                             double boxHeight,
-                             datetime evalTime,
-                             ENUM_TIMEFRAMES boxTf,
-                             double pipSize = 0.0)
+                              double entryPrice,
+                              double patternHigh,
+                              double patternLow,
+                              double boxHeight,
+                              datetime evalTime,
+                              ENUM_TIMEFRAMES boxTf,
+                              double pipSize = 0.0,
+                              int explicitMode = -1)
 {
    if(pipSize <= 0.0)
       pipSize = (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
 
-   ENUM_SL_MODE    slMode        = ActiveSLMode();
+   ENUM_SL_MODE    slMode        = (explicitMode >= 0) ? (ENUM_SL_MODE)explicitMode : ActiveSLMode();
    double          fixedPips     = ActiveSLFixedPips();
    ENUM_TIMEFRAMES atrTf         = ActiveSLATRTimeframe();
    int             atrPeriod     = ActiveSLATRPeriod();

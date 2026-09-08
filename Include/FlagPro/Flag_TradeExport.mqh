@@ -6,6 +6,218 @@
 #property link      ""
 
 //+------------------------------------------------------------------+
+//| ساختار نتیجه شبیه‌سازی برای یک مدل استاپ‌لاس                       |
+//+------------------------------------------------------------------+
+struct SimSLResult
+{
+   double   slPrice;
+   double   riskPoints;
+   double   exitPrice;
+   datetime exitTime;
+   int      hitTP;
+   bool     isClosed;
+   string   outcome;
+};
+
+//+------------------------------------------------------------------+
+//| شبیه‌سازی مستقل نتیجه معامله با یک استاپ‌لاس خاص بر بستر M1 یا کندل |
+//+------------------------------------------------------------------+
+void SimulateSingleSLMode(bool isBull,
+                          double entryPrice,
+                          double slPrice,
+                          double risk,
+                          int entryBarIdx,
+                          datetime entryTime,
+                          const MqlRates &m1Rates[],
+                          int m1Count,
+                          const datetime &chartTime[],
+                          const double &chartHigh[],
+                          const double &chartLow[],
+                          const double &chartClose[],
+                          const int &chartSpread[],
+                          int copied,
+                          double simSpread,
+                          SimSLResult &res)
+{
+   res.slPrice    = slPrice;
+   res.riskPoints = risk / _Point;
+   res.exitPrice  = 0.0;
+   res.exitTime   = 0;
+   res.hitTP      = -1;
+   res.isClosed   = false;
+   res.outcome    = "Open_Trade";
+
+   if(entryBarIdx < 0 || entryTime <= 0)
+   {
+      res.outcome = "Pending";
+      return;
+   }
+
+   double tps[4];
+   for(int tp = 0; tp < 4; tp++)
+      tps[tp] = isBull ? (entryPrice + risk * (tp + 1)) : (entryPrice - risk * (tp + 1));
+
+   int maxHit = 0;
+   datetime hitTime = 0;
+   double currentSL = slPrice;
+
+   if(m1Count > 1)
+   {
+      for(int m = 1; m < m1Count; m++)
+      {
+         if(isBull)
+         {
+            if(m1Rates[m].low <= currentSL)
+            {
+               res.hitTP = maxHit;
+               res.isClosed = true;
+               res.exitTime = m1Rates[m].time;
+               res.exitPrice = currentSL;
+               break;
+            }
+            for(int tp = maxHit; tp < 4; tp++)
+            {
+               if(m1Rates[m].high >= tps[tp])
+               {
+                  maxHit = tp + 1;
+                  hitTime = m1Rates[m].time;
+                  if(maxHit == 1) currentSL = entryPrice;
+                  else if(maxHit == 2) currentSL = tps[0];
+                  else if(maxHit == 3) currentSL = tps[1];
+               }
+            }
+            if(maxHit == 4)
+            {
+               res.hitTP = 4;
+               res.isClosed = true;
+               res.exitTime = hitTime;
+               res.exitPrice = tps[3];
+               break;
+            }
+         }
+         else // SELL
+         {
+            double barSpread = simSpread;
+            if((m1Rates[m].high + barSpread) >= currentSL)
+            {
+               res.hitTP = maxHit;
+               res.isClosed = true;
+               res.exitTime = m1Rates[m].time;
+               res.exitPrice = currentSL;
+               break;
+            }
+            for(int tp = maxHit; tp < 4; tp++)
+            {
+               if((m1Rates[m].low + barSpread) <= tps[tp])
+               {
+                  maxHit = tp + 1;
+                  hitTime = m1Rates[m].time;
+                  if(maxHit == 1) currentSL = entryPrice;
+                  else if(maxHit == 2) currentSL = tps[0];
+                  else if(maxHit == 3) currentSL = tps[1];
+               }
+            }
+            if(maxHit == 4)
+            {
+               res.hitTP = 4;
+               res.isClosed = true;
+               res.exitTime = hitTime;
+               res.exitPrice = tps[3];
+               break;
+            }
+         }
+      }
+   }
+   else
+   {
+      for(int k = entryBarIdx; k < copied; k++)
+      {
+         if(isBull)
+         {
+            if(chartLow[k] <= currentSL)
+            {
+               res.hitTP = maxHit;
+               res.isClosed = true;
+               res.exitTime = chartTime[k];
+               res.exitPrice = currentSL;
+               break;
+            }
+            if(k > entryBarIdx)
+            {
+               for(int tp = maxHit; tp < 4; tp++)
+               {
+                  if(chartHigh[k] >= tps[tp])
+                  {
+                     maxHit = tp + 1;
+                     hitTime = chartTime[k];
+                     if(maxHit == 1) currentSL = entryPrice;
+                     else if(maxHit == 2) currentSL = tps[0];
+                     else if(maxHit == 3) currentSL = tps[1];
+                  }
+               }
+               if(maxHit == 4)
+               {
+                  res.hitTP = 4;
+                  res.isClosed = true;
+                  res.exitTime = hitTime;
+                  res.exitPrice = tps[3];
+                  break;
+               }
+            }
+         }
+         else // SELL
+         {
+            double barSpread = GetBarSpread(k, chartSpread, simSpread);
+            if((chartHigh[k] + barSpread) >= currentSL)
+            {
+               res.hitTP = maxHit;
+               res.isClosed = true;
+               res.exitTime = chartTime[k];
+               res.exitPrice = currentSL;
+               break;
+            }
+            if(k > entryBarIdx)
+            {
+               for(int tp = maxHit; tp < 4; tp++)
+               {
+                  if((chartLow[k] + barSpread) <= tps[tp])
+                  {
+                     maxHit = tp + 1;
+                     hitTime = chartTime[k];
+                     if(maxHit == 1) currentSL = entryPrice;
+                     else if(maxHit == 2) currentSL = tps[0];
+                     else if(maxHit == 3) currentSL = tps[1];
+                  }
+               }
+               if(maxHit == 4)
+               {
+                  res.hitTP = 4;
+                  res.isClosed = true;
+                  res.exitTime = hitTime;
+                  res.exitPrice = tps[3];
+                  break;
+               }
+            }
+         }
+      }
+   }
+
+   if(!res.isClosed)
+   {
+      res.hitTP = maxHit;
+      res.exitTime = (maxHit > 0) ? hitTime : (copied > 0 ? chartTime[copied - 1] : 0);
+      res.exitPrice = (copied > 0) ? chartClose[copied - 1] : 0.0;
+   }
+
+   if(res.hitTP == 4)      res.outcome = "Win_1:4";
+   else if(res.hitTP == 3) res.outcome = "Win_1:3";
+   else if(res.hitTP == 2) res.outcome = "Win_1:2";
+   else if(res.hitTP == 1) res.outcome = "Win_1:1";
+   else if(res.isClosed)   res.outcome = "Loss_SL";
+   else                    res.outcome = "Open_Trade";
+}
+
+//+------------------------------------------------------------------+
 //| Export All Detected Trade Setups to CSV File                     |
 //+------------------------------------------------------------------+
 void ExportAllTradesToCSV()
@@ -28,8 +240,7 @@ void ExportAllTradesToCSV()
       return;
    }
 
-   string header = "Symbol,BoxIndex,BoxName,Timeframe,Role,Direction,BoxTimeStart,BoxTimeEnd,EntryTime,ExitTime,EntryPrice,ExitPrice,StopLoss,RiskPoints,TP1,TP2,TP3,TP4,Outcome,HitTargetRatio,IsClosed,SpreadPoints";
-   FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "ExitPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints");
+   FileWrite(handleSym, "Symbol", "BoxIndex", "BoxName", "Timeframe", "Role", "Direction", "BoxTimeStart", "BoxTimeEnd", "EntryTime", "ExitTime", "EntryPrice", "ExitPrice", "StopLoss", "RiskPoints", "TP1", "TP2", "TP3", "TP4", "Outcome", "HitTargetRatio", "IsClosed", "SpreadPoints", "SL_M0", "Pts_M0", "Exit_M0", "Hit_M0", "Out_M0", "SL_M1", "Pts_M1", "Exit_M1", "Hit_M1", "Out_M1", "SL_M2", "Pts_M2", "Exit_M2", "Hit_M2", "Out_M2", "SL_M3", "Pts_M3", "Exit_M3", "Hit_M3", "Out_M3");
 
    datetime chartTime[];
    double chartHigh[], chartLow[], chartClose[];
@@ -300,205 +511,50 @@ void ExportAllTradesToCSV()
          }
       }
 
-      int hitTP = -1;
-      bool isClosed = false;
-      datetime exitTime = 0;
-      double exitPrice = 0.0;
+      // 🌟 شبیه‌سازی دقیق ۴ مدل استاپ‌لاس به صورت موازی
+      SimSLResult slModesRes[4];
+      MqlRates m1Rates[];
+      int m1Count = 0;
 
-      if(!isEntered)
+      if(isEntered && entryTime > 0)
       {
-         hitTP = -1;
-         isClosed = false;
-         entryTime = 0;
-         exitTime = 0;
-         exitPrice = 0.0;
-      }
-      else
-      {
-         // تثبیت حد ضرر و تارگت‌ها بر مبنای تشکیل الگو تا پایان باکس (هماهنگ ۱۰۰٪ با اکسپرت)
+         // بهینه‌سازی خواندن دیتای M1 (فقط یک بار برای تمام مدل‌ها)
+         m1Count = CopyRates(_Symbol, PERIOD_M1, entryTime, chartTime[copied - 1], m1Rates);
+
+         // اطمینان از اعمال سقف و کف دقیق شکل‌گیری تا پایان باکس
          for(int ck = bStartIdx; ck <= bEndIdx && ck < copied; ck++)
          {
             if(chartHigh[ck] > patternHigh) patternHigh = chartHigh[ck];
             if(chartLow[ck] < patternLow)   patternLow  = chartLow[ck];
          }
-
-         if(isBull) slPrice = patternLow - bufferPips;
-         else       slPrice = patternHigh + bufferPips;
-
-         risk = MathAbs(entryPrice - slPrice);
-         if(risk < _Point * 2.0) risk = _Point * 2.0;
-
-         for(int tp = 0; tp < 4; tp++)
-            tps[tp] = isBull ? entryPrice + risk * (tp + 1) : entryPrice - risk * (tp + 1);
-
-         int maxHit = 0;
-         datetime hitTime = 0;
-         double currentSL = slPrice;
-
-         // دریافت کندل‌های ۱ دقیقه‌ای (M1) برای خروج دقیق و بدون خطای تایم‌فریم
-         MqlRates m1Rates[];
-         int m1Count = CopyRates(_Symbol, PERIOD_M1, entryTime, chartTime[copied - 1], m1Rates);
-
-         if(m1Count > 1)
-         {
-            for(int m = 1; m < m1Count; m++)
-            {
-               if(isBull)
-               {
-                  // اولویت قطعی حد ضرر
-                  if(m1Rates[m].low <= currentSL)
-                  {
-                     hitTP = maxHit;
-                     isClosed = true;
-                     exitTime = m1Rates[m].time;
-                     exitPrice = currentSL;
-                     break;
-                  }
-                  for(int tp = maxHit; tp < 4; tp++)
-                  {
-                     if(m1Rates[m].high >= tps[tp])
-                     {
-                        maxHit = tp + 1;
-                        hitTime = m1Rates[m].time;
-                        if(maxHit == 1) currentSL = entryPrice;
-                        else if(maxHit == 2) currentSL = tps[0];
-                        else if(maxHit == 3) currentSL = tps[1];
-                     }
-                  }
-                  if(maxHit == 4)
-                  {
-                     hitTP = 4;
-                     isClosed = true;
-                     exitTime = hitTime;
-                     exitPrice = tps[3];
-                     break;
-                  }
-               }
-               else // SELL
-               {
-                  double barSpread = simSpread;
-                  if((m1Rates[m].high + barSpread) >= currentSL)
-                  {
-                     hitTP = maxHit;
-                     isClosed = true;
-                     exitTime = m1Rates[m].time;
-                     exitPrice = currentSL;
-                     break;
-                  }
-                  for(int tp = maxHit; tp < 4; tp++)
-                  {
-                     if((m1Rates[m].low + barSpread) <= tps[tp])
-                     {
-                        maxHit = tp + 1;
-                        hitTime = m1Rates[m].time;
-                        if(maxHit == 1) currentSL = entryPrice;
-                        else if(maxHit == 2) currentSL = tps[0];
-                        else if(maxHit == 3) currentSL = tps[1];
-                     }
-                  }
-                  if(maxHit == 4)
-                  {
-                     hitTP = 4;
-                     isClosed = true;
-                     exitTime = hitTime;
-                     exitPrice = tps[3];
-                     break;
-                  }
-               }
-            }
-         }
-         else
-         {
-            for(int k = entryBarIdx; k < copied; k++)
-            {
-               if(isBull)
-               {
-                  if(chartLow[k] <= currentSL)
-                  {
-                     hitTP = maxHit;
-                     isClosed = true;
-                     exitTime = chartTime[k];
-                     exitPrice = currentSL;
-                     break;
-                  }
-                  if(k > entryBarIdx)
-                  {
-                     for(int tp = maxHit; tp < 4; tp++)
-                     {
-                        if(chartHigh[k] >= tps[tp])
-                        {
-                           maxHit = tp + 1;
-                           hitTime = chartTime[k];
-                           if(maxHit == 1) currentSL = entryPrice;
-                           else if(maxHit == 2) currentSL = tps[0];
-                           else if(maxHit == 3) currentSL = tps[1];
-                        }
-                     }
-                     if(maxHit == 4)
-                     {
-                        hitTP = 4;
-                        isClosed = true;
-                        exitTime = hitTime;
-                        exitPrice = tps[3];
-                        break;
-                     }
-                  }
-               }
-               else // SELL
-               {
-                  double barSpread = GetBarSpread(k, chartSpread, simSpread);
-                  if((chartHigh[k] + barSpread) >= currentSL)
-                  {
-                     hitTP = maxHit;
-                     isClosed = true;
-                     exitTime = chartTime[k];
-                     exitPrice = currentSL;
-                     break;
-                  }
-                  if(k > entryBarIdx)
-                  {
-                     for(int tp = maxHit; tp < 4; tp++)
-                     {
-                        if((chartLow[k] + barSpread) <= tps[tp])
-                        {
-                           maxHit = tp + 1;
-                           hitTime = chartTime[k];
-                           if(maxHit == 1) currentSL = entryPrice;
-                           else if(maxHit == 2) currentSL = tps[0];
-                           else if(maxHit == 3) currentSL = tps[1];
-                        }
-                     }
-                     if(maxHit == 4)
-                     {
-                        hitTP = 4;
-                        isClosed = true;
-                        exitTime = hitTime;
-                        exitPrice = tps[3];
-                        break;
-                     }
-                  }
-               }
-            }
-         }
-
-         if(!isClosed)
-         {
-            hitTP = maxHit;
-            exitTime = (maxHit > 0) ? hitTime : chartTime[copied - 1];
-            exitPrice = (copied > 0) ? chartClose[copied - 1] : 0.0;
-         }
       }
 
-      string outcomeStr = "Pending";
-      if(isEntered)
+      for(int sm = 0; sm < 4; sm++)
       {
-         if(hitTP == 4) outcomeStr = "Win_1:4";
-         else if(hitTP == 3) outcomeStr = "Win_1:3";
-         else if(hitTP == 2) outcomeStr = "Win_1:2";
-         else if(hitTP == 1) outcomeStr = "Win_1:1";
-         else if(isClosed)   outcomeStr = "Loss_SL";
-         else outcomeStr = "Open_Trade";
+         double smSL = CalculateSetupStopLoss(isBull, entryPrice, patternHigh, patternLow, boxHeight, evalTime, g_drawnBoxes[b].tf, pipSize, sm);
+         double smRisk = MathAbs(entryPrice - smSL);
+         if(smRisk < _Point * 2.0) smRisk = _Point * 2.0;
+
+         SimulateSingleSLMode(isBull, entryPrice, smSL, smRisk,
+                              entryBarIdx, entryTime, m1Rates, m1Count,
+                              chartTime, chartHigh, chartLow, chartClose, chartSpread, copied, simSpread,
+                              slModesRes[sm]);
       }
+
+      // تعیین مدل فعال جهت حفظ سازگاری ۱۰۰٪ با ستون‌های اصلی CSV
+      int activeMode = (int)ActiveSLMode();
+      if(activeMode < 0 || activeMode > 3) activeMode = 0;
+
+      slPrice             = slModesRes[activeMode].slPrice;
+      risk                = slModesRes[activeMode].riskPoints * _Point;
+      double   exitPrice  = slModesRes[activeMode].exitPrice;
+      datetime exitTime   = slModesRes[activeMode].exitTime;
+      int      hitTP      = slModesRes[activeMode].hitTP;
+      bool     isClosed   = slModesRes[activeMode].isClosed;
+      string   outcomeStr = slModesRes[activeMode].outcome;
+
+      for(int tp = 0; tp < 4; tp++)
+         tps[tp] = isBull ? (entryPrice + risk * (tp + 1)) : (entryPrice - risk * (tp + 1));
 
       double entrySpreadPts = (entryBarIdx >= 0) ? (GetBarSpread(entryBarIdx, chartSpread, simSpread) / _Point) : (simSpread / _Point);
 
@@ -526,7 +582,28 @@ void ExportAllTradesToCSV()
                    outcomeStr,
                    IntegerToString(hitTP),
                    (isClosed ? "True" : "False"),
-                   DoubleToString(entrySpreadPts, 1));
+                   DoubleToString(entrySpreadPts, 1),
+                   // داده‌های تفکیکی ۴ مدل استاپ‌لاس جهت آزمایشگاه و بهینه‌ساز داشبورد
+                   DoubleToString(slModesRes[0].slPrice, _Digits),
+                   DoubleToString(slModesRes[0].riskPoints, 1),
+                   DoubleToString(slModesRes[0].exitPrice, _Digits),
+                   IntegerToString(slModesRes[0].hitTP),
+                   slModesRes[0].outcome,
+                   DoubleToString(slModesRes[1].slPrice, _Digits),
+                   DoubleToString(slModesRes[1].riskPoints, 1),
+                   DoubleToString(slModesRes[1].exitPrice, _Digits),
+                   IntegerToString(slModesRes[1].hitTP),
+                   slModesRes[1].outcome,
+                   DoubleToString(slModesRes[2].slPrice, _Digits),
+                   DoubleToString(slModesRes[2].riskPoints, 1),
+                   DoubleToString(slModesRes[2].exitPrice, _Digits),
+                   IntegerToString(slModesRes[2].hitTP),
+                   slModesRes[2].outcome,
+                   DoubleToString(slModesRes[3].slPrice, _Digits),
+                   DoubleToString(slModesRes[3].riskPoints, 1),
+                   DoubleToString(slModesRes[3].exitPrice, _Digits),
+                   IntegerToString(slModesRes[3].hitTP),
+                   slModesRes[3].outcome);
       }
 
       exportedCount++;

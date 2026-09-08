@@ -148,6 +148,7 @@ def build_dashboard(custom_csv=None):
             'latency_kings': s_data.get('latency_kings', {}),
             'latency_tfs': s_data.get('latency_tfs', {}),
             'mp_intersection_list': s_data.get('mp_intersection_list', []),
+            'sl_battle_matrix': s_data.get('sl_battle_matrix', {}),
         }
 
     # 1. Update FlagPro_Modular_App initial data (merging existing symbols so none are lost)

@@ -1,0 +1,91 @@
+            <!-- ==================== TAB: ⚔️ STOP LOSS MATRIX BATTLE ==================== -->
+            <div id="tab-sl-battle" class="tab-content">
+                <div id="tab-sl-battle-container" style="padding: 18px 22px;">
+                    
+                    <!-- Header Banner -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;background:linear-gradient(135deg, #091c33, #0d2745);padding:18px 22px;border-radius:12px;border:1px solid #0284c7;box-shadow:0 4px 20px rgba(2,132,199,0.2);flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <div style="font-size:18px;font-weight:900;color:#f8fafc;display:flex;align-items:center;gap:10px;">
+                                <span style="font-size:24px;">⚔️</span>
+                                <span>آزمایشگاه و نبرد ماتریسی استاپ‌لاس‌ها (Stop Loss Battle Matrix)</span>
+                            </div>
+                            <div style="font-size:12px;color:#94a3b8;margin-top:5px;">
+                                ارزیابی و کالبدشکافی عملکرد همزمان ۴ متدولوژی مدیریت حد ضرر روی تمام معاملات چارت جاری
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <button onclick="renderSLBattleTab()" style="background:#0f2742;border:1px solid #38bdf8;color:#38bdf8;padding:6px 14px;border-radius:7px;font-size:11.5px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:6px;transition:all 0.2s;">
+                                <span>🔄 بازسازی تحلیل</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Hero Comparison Cards -->
+                    <div id="slBattleCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:14px;margin-bottom:24px;">
+                        <!-- Dynamically rendered by tab_sl_battle.js -->
+                    </div>
+
+                    <!-- Comparative Multi-Line Equity Chart Box -->
+                    <div class="section-box" style="margin-bottom:24px;background:#081424;border:1px solid #1e3a5f;padding:18px 20px;border-radius:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                            <div>
+                                <div style="font-weight:bold;color:#f1f5f9;font-size:14px;display:flex;align-items:center;gap:8px;">
+                                    <span>📈 منحنی مقایسه‌ای رشد اکوئیتی ۴ مدل استاپ‌لاس</span>
+                                </div>
+                                <div style="font-size:11px;color:#64748b;margin-top:3px;">
+                                    رسم همزمان رشد سرمایه ($100 پایه) برای هر ۴ مدل استاپ در شرایط اصطکاک و اسپرد یکسان
+                                </div>
+                            </div>
+                            <!-- Legend -->
+                            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;align-items:center;">
+                                <div style="display:flex;align-items:center;gap:5px;">
+                                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#38bdf8;"></span>
+                                    <span style="color:#93c5fd;">ثابت (Fixed)</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:5px;">
+                                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#10b981;"></span>
+                                    <span style="color:#6ee7b7;font-weight:bold;">بافر ATR (طلا ⭐)</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:5px;">
+                                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#c084fc;"></span>
+                                    <span style="color:#e9d5ff;">ای‌تی‌آر خالص (Pure)</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:5px;">
+                                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#facc15;"></span>
+                                    <span style="color:#fde047;">بافر درصدی (Adaptive)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Canvas Container -->
+                        <div style="position:relative;width:100%;height:320px;">
+                            <canvas id="slBattleCanvas" style="width:100%;height:100%;display:block;border-radius:8px;background:#050d18;border:1px solid #132742;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Head-to-Head Matrix Table -->
+                    <div class="section-box" style="margin-bottom:24px;background:#081424;border:1px solid #1e3a5f;padding:18px 20px;border-radius:12px;">
+                        <div style="font-weight:bold;color:#f1f5f9;font-size:14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+                            <span>📊 جدول مقایسه رودررو و آمارهای کلیدی (Head-to-Head KPI Matrix)</span>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:center;">
+                                <thead>
+                                    <tr style="background:#0c1f36;color:#94a3b8;border-bottom:2px solid #1e3a5f;">
+                                        <th style="padding:10px 14px;text-align:right;">شاخص و متریک ارزیابی</th>
+                                        <th style="padding:10px 12px;color:#38bdf8;">📌 ۱. ثابت پیپسی (Fixed)</th>
+                                        <th style="padding:10px 12px;color:#10b981;">🛡️ ۲. بافر داینامیک ATR ⭐</th>
+                                        <th style="padding:10px 12px;color:#c084fc;">🌊 ۳. ای‌تی‌آر خالص (Pure)</th>
+                                        <th style="padding:10px 12px;color:#facc15;">📦 ۴. بافر درصدی (Adaptive)</th>
+                                        <th style="padding:10px 12px;color:#fbbf24;">👑 برترین مدل</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="slBattleTableBody">
+                                    <!-- Populated dynamically by tab_sl_battle.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>

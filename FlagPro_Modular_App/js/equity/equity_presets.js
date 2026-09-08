@@ -1,6 +1,7 @@
 // Global Simulation State
 var simState = (typeof simState !== 'undefined') ? simState : {
     mode: 'all', // Default: Raw Test (All Trades)
+    slMode: 0,   // 0: Fixed, 1: ATR Buffer, 2: Pure ATR, 3: Box Percent
     enabledKings: new Set(),
     allowedHours: new Array(24).fill(true),
     minProfit: 0.0,

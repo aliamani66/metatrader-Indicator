@@ -51,6 +51,13 @@
                 if (!isMatchBase) continue;
                 baseTotal++;
 
+                // Stop Loss Mode multi-outcome evaluation
+                let activeSL = (typeof simState.slMode !== 'undefined') ? simState.slMode : 0;
+                let tInfo = (t.modes && t.modes[activeSL]) ? t.modes[activeSL] : null;
+                let tProfit = tInfo ? tInfo.p : t.p;
+                let tPot = tInfo ? tInfo.pot : t.pot;
+                let tHr = tInfo ? tInfo.hr : t.hr;
+
                 // King filter
                 if (simState.mode === 'kings' && !simState.enabledKings.has(t.kk)) continue;
 
@@ -58,7 +65,7 @@
                 if (!simState.allowedHours[t.h]) continue;
 
                 // Min profit filter
-                if (t.pot < simState.minProfit) continue;
+                if (tPot < simState.minProfit) continue;
 
                 // MT5 Smart Anti-Stop & Pattern Filters (Filters 1-5)
                 if (simState.filterNightHours && (t.h >= 21 || t.h <= 1)) continue;
@@ -72,13 +79,13 @@
                 if (simState.consecLossTrigger > 0) {
                     if (simState.consecLossSkipDay && lastSkipDay === tradeDate) {
                         consecSkippedCount++;
-                        if (t.p <= 0) consecSavedLosses++; else consecMissedWins++;
+                        if (tProfit <= 0) consecSavedLosses++; else consecMissedWins++;
                         continue;
                     }
                     if (skipsLeft > 0) {
                         skipsLeft--;
                         consecSkippedCount++;
-                        if (t.p <= 0) consecSavedLosses++; else consecMissedWins++;
+                        if (tProfit <= 0) consecSavedLosses++; else consecMissedWins++;
                         continue;
                     }
                 }
@@ -120,15 +127,15 @@
                 sumConcurrent += curConcurrent;
 
                 totalTrades++;
-                bal += t.p;
+                bal += tProfit;
                 if (bal > peak) peak = bal;
                 let dd = peak - bal;
                 if (dd > maxDD) maxDD = dd;
                 let ddPct = peak > 0 ? (dd / peak * 100) : 0;
-                pts.push({ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: t.p, n: t.r + ' [' + t.tf + ']', peak: Math.round(peak * 100) / 100, dd: Math.round(dd * 100) / 100, ddPct: Math.round(ddPct * 10) / 10, concurrent: curConcurrent });
-                if (t.p > 0) {
+                pts.push({ idx: totalTrades, t: t.t, b: Math.round(bal * 100) / 100, p: tProfit, n: t.r + ' [' + t.tf + ']', peak: Math.round(peak * 100) / 100, dd: Math.round(dd * 100) / 100, ddPct: Math.round(ddPct * 10) / 10, concurrent: curConcurrent });
+                if (tProfit > 0) {
                     winCnt++;
-                    grossP += t.p;
+                    grossP += tProfit;
                     curConsecWin++;
                     if (curConsecWin > maxConsecWin) maxConsecWin = curConsecWin;
                     if (curLossStreak > 0) {
@@ -137,7 +144,7 @@
                     }
                     consecLoss = 0;
                 } else {
-                    grossL += Math.abs(t.p);
+                    grossL += Math.abs(tProfit);
                     curConsecWin = 0;
                     curLossStreak++;
                     if (curLossStreak > maxConsecLoss) maxConsecLoss = curLossStreak;
@@ -615,51 +622,57 @@
             let best = null;
             let bestScore = -999999;
 
-            for (let hKey in hoursMap) {
-                let hArr = hoursMap[hKey];
-                for (let pot of pots) {
-                    for (let dropN = 0; dropN <= Math.min(7, sortedKings.length - 5); dropN++) {
-                        let activeKings = new Set(allKingsSet);
-                        for (let d = 0; d < dropN; d++) activeKings.delete(sortedKings[d]);
+            for (let slM = 0; slM < 4; slM++) {
+                for (let hKey in hoursMap) {
+                    let hArr = hoursMap[hKey];
+                    for (let pot of pots) {
+                        for (let dropN = 0; dropN <= Math.min(7, sortedKings.length - 5); dropN++) {
+                            let activeKings = new Set(allKingsSet);
+                            for (let d = 0; d < dropN; d++) activeKings.delete(sortedKings[d]);
 
-                        for (let cb of cbs) {
-                            let bal = 100.0, peak = bal, maxDD = 0.0, wins = 0, total = 0, gp = 0.0, gl = 0.0;
-                            let consecLoss = 0, skips = 0;
+                            for (let cb of cbs) {
+                                let bal = 100.0, peak = bal, maxDD = 0.0, wins = 0, total = 0, gp = 0.0, gl = 0.0;
+                                let consecLoss = 0, skips = 0;
 
-                            for (let t of kingTrades) {
-                                if (!activeKings.has(t.kk)) continue;
-                                if (!hArr[t.h]) continue;
-                                if (t.pot < pot) continue;
-                                if (skips > 0) { skips--; continue; }
+                                for (let t of kingTrades) {
+                                    if (!activeKings.has(t.kk)) continue;
+                                    if (!hArr[t.h]) continue;
+                                    let tInfo = (t.modes && t.modes[slM]) ? t.modes[slM] : null;
+                                    let tp = tInfo ? tInfo.p : t.p;
+                                    let tpot = tInfo ? tInfo.pot : t.pot;
+                                    if (tpot < pot) continue;
+                                    if (skips > 0) { skips--; continue; }
 
-                                total++;
-                                bal += t.p;
-                                if (bal > peak) peak = bal;
-                                let dd = peak - bal;
-                                if (dd > maxDD) maxDD = dd;
-                                if (t.p > 0) {
-                                    wins++; gp += t.p; consecLoss = 0;
-                                } else {
-                                    gl += Math.abs(t.p); consecLoss++;
-                                    if (cb.trig > 0 && consecLoss >= cb.trig) {
-                                        skips = cb.sk; consecLoss = 0;
+                                    total++;
+                                    bal += tp;
+                                    if (bal > peak) peak = bal;
+                                    let dd = peak - bal;
+                                    if (dd > maxDD) maxDD = dd;
+                                    if (tp > 0) {
+                                        wins++; gp += tp; consecLoss = 0;
+                                    } else {
+                                        gl += Math.abs(tp); consecLoss++;
+                                        if (cb.trig > 0 && consecLoss >= cb.trig) {
+                                            skips = cb.sk; consecLoss = 0;
+                                        }
                                     }
                                 }
-                            }
 
-                            if (total < min15) continue;
-                            let wr = (wins / total) * 100;
-                            let pf = gl > 0 ? (gp / gl) : 999;
-                            let net = bal - 100.0;
-                            let avg = net / total;
-                            let score = Math.pow(pf, 1.3) * (wr / 50.0) * Math.max(0.5, avg) / Math.max(12.0, maxDD) * 100;
+                                if (total < min15) continue;
+                                let wr = (wins / total) * 100;
+                                let pf = gl > 0 ? (gp / gl) : 999;
+                                let net = bal - 100.0;
+                                let avg = net / total;
+                                let score = Math.pow(pf, 1.3) * (wr / 50.0) * Math.max(0.5, avg) / Math.max(12.0, maxDD) * 100;
 
-                            if (score > bestScore) {
-                                bestScore = score;
-                                best = {
-                                    hKey: hKey, hArr: hArr, pot: pot, kings: Array.from(activeKings),
-                                    cb: cb, total: total, wr: wr, pf: pf, avg: avg, maxDD: maxDD, net: net
-                                };
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    best = {
+                                        slM: slM,
+                                        hKey: hKey, hArr: hArr, pot: pot, kings: Array.from(activeKings),
+                                        cb: cb, total: total, wr: wr, pf: pf, avg: avg, maxDD: maxDD, net: net
+                                    };
+                                }
                             }
                         }
                     }
@@ -709,17 +722,21 @@
                 }
                 let disabledKingsStr = disabledKingsArr.join(', ');
 
+                let slNames = ['Fixed Offset', 'ATR Buffer ⭐', 'Pure ATR', 'Adaptive Box %'];
+                let bestSLName = (typeof best.slM !== 'undefined' && slNames[best.slM]) ? slNames[best.slM] : 'Fixed Offset';
+
                 let aiPreset = {
                     id: 'ai_opt_' + Date.now(),
                     idx: aiIdx,
                     is_ai: true,
-                    title: '🤖 سناریوی کشف خودکار هوش مصنوعی (' + activeSym + ' AI Champion 🎯)',
+                    title: '🤖 سناریوی هوش مصنوعی (' + activeSym + ' | ' + bestSLName + ' | PF ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX') + ')',
                     badge: '🤖 کشف اختصاصی هوش مصنوعی',
                     badge_bg: '#6b21a8',
                     badge_col: '#f3e8ff',
-                    desc: 'بهترین ترکیب ریاضی خودکار کشف‌شده با پرافیت فاکتور ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX') + '، وین‌ریت ' + best.wr.toFixed(1) + '٪ و سود خالص $' + Math.round(best.net).toLocaleString(),
+                    desc: 'بهترین ترکیب خودکار کشف‌شده با مدل استاپ [' + bestSLName + ']، پرافیت فاکتور ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX') + '، وین‌ریت ' + best.wr.toFixed(1) + '٪ و سود خالص $' + Math.round(best.net).toLocaleString(),
                     filterText: filterDesc,
                     kingsText: kingsDesc,
+                    sl_mode: best.slM || 0,
                     min_pot: best.pot,
                     hours: [...best.hArr],
                     hours_str: allowedHoursStr,
@@ -755,7 +772,7 @@
                             <td style="padding:7px 8px;">
                                 <div style="font-weight:bold;color:#f1f5f9;font-size:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                                     <span>${aiPreset.title}</span>
-                                    <span style='background:#6b21a8;color:#f3e8ff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>🤖 کشف خودکار هوش مصنوعی</span>
+                                    <span style='background:#6b21a8;color:#f3e8ff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:bold;'>🤖 استاپ: ${bestSLName}</span>
                                 </div>
                                 <div style="color:#d8b4fe;font-size:10.5px;margin-top:2px;">${aiPreset.desc}</div>
                             </td>
@@ -797,6 +814,7 @@
                         consec_trig: aiPreset.consec_trig,
                         consec_sk: aiPreset.consec_sk,
                         consec_day: false,
+                        sl_mode: best.slM || 0,
                         createdAt: new Date().toLocaleDateString('fa-IR')
                     });
                     localStorage.setItem('flagpro_custom_presets', JSON.stringify(customList));
@@ -812,6 +830,11 @@
                 simState.consecLossSkipCount = best.cb.sk;
                 simState.consecLossSkipDay = false;
 
+                if (typeof best.slM !== 'undefined') {
+                    simState.slMode = best.slM;
+                    switchSimSLMode(best.slM);
+                }
+
                 let slider = document.getElementById('simProfitSlider');
                 if (slider) slider.value = best.pot;
                 let sliderVal = document.getElementById('simProfitSliderVal');
@@ -823,7 +846,7 @@
                 runEquitySimulation();
 
                 if (typeof showSaveNotification === 'function') {
-                    showSaveNotification('🤖 سناریوی بهینه‌شده هوش مصنوعی به ردیف اول جدول اضافه شد و پنجره خروجی (.ini) باز شد!');
+                    showSaveNotification('🤖 ترکیب طلایی کشف شد: استاپ‌لاس [' + bestSLName + '] با وین‌ریت ' + best.wr.toFixed(0) + '٪ و PF ' + (best.pf < 900 ? best.pf.toFixed(2) : 'MAX') + ' فعال شد!');
                 }
 
                 // Open MT5 Export modal immediately for the AI preset
@@ -844,6 +867,34 @@
                         symbol: activeSym
                     });
                 }
+            }
+        }
+
+        function switchSimSLMode(mode) {
+            simState.slMode = parseInt(mode, 10) || 0;
+
+            for (let m = 0; m < 4; m++) {
+                let btn = document.getElementById('btnSimSL' + m);
+                if (btn) {
+                    if (m === simState.slMode) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            }
+
+            let badge = document.getElementById('simSLModeBadge');
+            if (badge) {
+                let names = [
+                    'لبه باکس + بافر ثابت (Fixed)',
+                    'لبه باکس + بافر ATR (پیشنهادی ⭐)',
+                    'ای‌تی‌آر خالص ولاتیلیتی (Pure ATR)',
+                    'بافر درصدی الگو (Adaptive)'
+                ];
+                badge.textContent = names[simState.slMode] || 'نامشخص';
+            }
+
+            runEquitySimulation();
+            if (typeof drawEquityChart === 'function') {
+                drawEquityChart();
             }
         }
 

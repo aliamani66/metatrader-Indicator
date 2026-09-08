@@ -11,6 +11,7 @@ var allTrades = [];
 var currentExportConfig = null;
 var simState = {
     mode: 'all', // Default: Raw Test (All Trades)
+    slMode: 0,   // 0: Fixed, 1: ATR Buffer, 2: Pure ATR, 3: Box Percent
     enabledKings: new Set(),
     allowedHours: new Array(24).fill(true),
     minProfit: 0.0,
@@ -207,4 +208,9 @@ function switchDashboardSymbol(symName) {
                     initTesterCompareTab();
                 }
             } catch(e) { console.error('initTesterCompareTab error:', e); }
+            try {
+                if (typeof renderSLBattleTab === 'function') {
+                    renderSLBattleTab();
+                }
+            } catch(e) { console.error('renderSLBattleTab error:', e); }
         }

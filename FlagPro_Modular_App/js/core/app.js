@@ -45,6 +45,12 @@ function openTab(evt, tabId) {
                     initTesterCompareTab();
                 }, 50);
             }
+
+            if (tabId === 'tab-sl-battle') {
+                setTimeout(() => {
+                    if (typeof renderSLBattleTab === 'function') renderSLBattleTab();
+                }, 40);
+            }
         }
 
         let sortDirections = { 'data-score': true };
