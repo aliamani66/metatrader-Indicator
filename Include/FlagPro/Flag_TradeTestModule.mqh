@@ -528,24 +528,24 @@ void ShowTradeSetupForBox(int boxIdx)
          else       tps[tp] = entryPrice - risk * (tp + 1);
       }
 
-      datetime chartTime[];
-      double chartHigh[], chartLow[], chartClose[];
-      ArraySetAsSeries(chartTime, false);
-      ArraySetAsSeries(chartHigh, false);
-      ArraySetAsSeries(chartLow, false);
-      ArraySetAsSeries(chartClose, false);
+      datetime startReq = baseTime - PeriodSeconds(_Period) * 15;
+      datetime stopReq  = baseTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 400;
+      if(stopReq > TimeCurrent()) stopReq = TimeCurrent();
 
-      // محاسبه موقعیت زمانی باکس و لود کندل‌ها از زمان تشکیل تا کندل جاری
-      int startShift = iBarShift(_Symbol, _Period, baseTime, false);
-      if(startShift < 0) startShift = 0;
-      int barsToCopy = startShift + 30; // ۳۰ کندل قبل از تشکیل تا کندل جاری
-      if(barsToCopy > 3000) barsToCopy = 3000;
-      if(barsToCopy < 30)   barsToCopy = 30;
+      MqlRates rates[];
+      ArraySetAsSeries(rates, false);
+      int copied = CopyRates(_Symbol, _Period, startReq, stopReq, rates);
 
-      int copied = CopyTime(_Symbol, _Period, 0, barsToCopy, chartTime);
-      CopyHigh(_Symbol, _Period, 0, barsToCopy, chartHigh);
-      CopyLow(_Symbol, _Period, 0, barsToCopy, chartLow);
-      CopyClose(_Symbol, _Period, 0, barsToCopy, chartClose);
+      if(copied <= 5)
+      {
+         int startShift = iBarShift(_Symbol, _Period, baseTime, false);
+         if(startShift >= 0)
+         {
+            int barsToCopy = startShift + 50;
+            if(barsToCopy > 15000) barsToCopy = 15000;
+            copied = CopyRates(_Symbol, _Period, 0, barsToCopy, rates);
+         }
+      }
 
       if(copied > 5)
       {
@@ -559,7 +559,7 @@ void ShowTradeSetupForBox(int boxIdx)
          int startK = 0;
          for(int k = 0; k < copied; k++)
          {
-            if(chartTime[k] >= confirmTime)
+            if(rates[k].time >= confirmTime)
             {
                startK = k;
                break;
@@ -569,19 +569,19 @@ void ShowTradeSetupForBox(int boxIdx)
          for(int k = startK; k < copied; k++)
          {
             // ۱. انقضای زمانی در صورت عدم خروج
-            if(departedBar < 0 && chartTime[k] > maxBoxTime)
+            if(departedBar < 0 && rates[k].time > maxBoxTime)
             {
-               cancelReasonStr = "EXPIRED ⏱ (پایان مهلت زمانی ۴۰ کندل)";
+               cancelReasonStr = "EXPIRED ⏱ (عدم خروج قیمت ظرف ۴۰ کندل)";
                break;
             }
 
             // ۲. نقض حد ضرر قبل از ورود
-            if(isBull && chartLow[k] <= slPrice)
+            if(isBull && rates[k].low <= slPrice)
             {
                cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
                break;
             }
-            else if(!isBull && chartHigh[k] >= slPrice)
+            else if(!isBull && rates[k].high >= slPrice)
             {
                cancelReasonStr = "CANCELLED ❌ (نقض حد ضرر قبل از ورود)";
                break;
@@ -590,11 +590,11 @@ void ShowTradeSetupForBox(int boxIdx)
             // ۳. بررسی پرتاب اولیه و خروج از گره (Breakout/Departure)
             if(departedBar < 0)
             {
-               if(isBull && chartClose[k] >= minDeparturePrice) departedBar = k;
-               else if(!isBull && chartClose[k] <= minDeparturePrice) departedBar = k;
+               if(isBull && rates[k].close >= minDeparturePrice) departedBar = k;
+               else if(!isBull && rates[k].close <= minDeparturePrice) departedBar = k;
 
                datetime maxDepTime = confirmTime + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * 30;
-               if(chartTime[k] > maxDepTime)
+               if(rates[k].time > maxDepTime)
                {
                   cancelReasonStr = "NO BREAKOUT ⏱ (عدم خروج قیمت ظرف ۳۰ کندل)";
                   break;
@@ -603,26 +603,26 @@ void ShowTradeSetupForBox(int boxIdx)
             else
             {
                // ۴. بررسی پولبک و تاچ نقطه ورود
-               if(isBull && chartLow[k] <= entryPrice)
+               if(isBull && rates[k].low <= entryPrice)
                {
                   isEntered = true;
                   entryBar = k;
                   entryBarIdx = k;
-                  entryTime = chartTime[k];
+                  entryTime = rates[k].time;
                   break;
                }
-               else if(!isBull && chartHigh[k] >= entryPrice)
+               else if(!isBull && rates[k].high >= entryPrice)
                {
                   isEntered = true;
                   entryBar = k;
                   entryBarIdx = k;
-                  entryTime = chartTime[k];
+                  entryTime = rates[k].time;
                   break;
                }
 
                // بررسی مهلت بازگشت پولبک
-               datetime maxLimitTime = chartTime[departedBar] + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * ActiveLimitExpirationBars();
-               if(chartTime[k] > maxLimitTime)
+               datetime maxLimitTime = rates[departedBar].time + PeriodSeconds(g_drawnBoxes[boxIdx].tf) * ActiveLimitExpirationBars();
+               if(rates[k].time > maxLimitTime)
                {
                   cancelReasonStr = "NO PULLBACK 💨 (انقضای مهلت بازگشت پولبک)";
                   break;
@@ -638,18 +638,18 @@ void ShowTradeSetupForBox(int boxIdx)
             {
                if(isBull)
                {
-                  if(chartLow[k] <= currentSL)
+                  if(rates[k].low <= currentSL)
                   {
                      isClosed = true;
-                     exitTime = chartTime[k];
+                     exitTime = rates[k].time;
                      break;
                   }
                   for(int tp = (hitTP > 0 ? hitTP : 0); tp < 4; tp++)
                   {
-                     if(chartHigh[k] >= tps[tp])
+                     if(rates[k].high >= tps[tp])
                      {
                         hitTP = tp + 1;
-                        tpHitTime[tp] = chartTime[k];
+                        tpHitTime[tp] = rates[k].time;
                         if(hitTP == 1) currentSL = entryPrice;
                         else if(hitTP == 2) currentSL = tps[0];
                         else if(hitTP == 3) currentSL = tps[1];
@@ -664,18 +664,18 @@ void ShowTradeSetupForBox(int boxIdx)
                }
                else // SELL
                {
-                  if(chartHigh[k] >= currentSL)
+                  if(rates[k].high >= currentSL)
                   {
                      isClosed = true;
-                     exitTime = chartTime[k];
+                     exitTime = rates[k].time;
                      break;
                   }
                   for(int tp = (hitTP > 0 ? hitTP : 0); tp < 4; tp++)
                   {
-                     if(chartLow[k] <= tps[tp])
+                     if(rates[k].low <= tps[tp])
                      {
                         hitTP = tp + 1;
-                        tpHitTime[tp] = chartTime[k];
+                        tpHitTime[tp] = rates[k].time;
                         if(hitTP == 1) currentSL = entryPrice;
                         else if(hitTP == 2) currentSL = tps[0];
                         else if(hitTP == 3) currentSL = tps[1];
