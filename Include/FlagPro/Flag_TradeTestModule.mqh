@@ -221,7 +221,7 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, 20);
    ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, 30);
-   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 570);
+   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 600);
    ObjectSetInteger(0, bgName, OBJPROP_YSIZE, 160);
    ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, C'18,22,28');
    ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
@@ -234,7 +234,7 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    string btnClose = pfx + "CLOSE";
    ObjectCreate(0, btnClose, OBJ_BUTTON, 0, 0, 0);
    ObjectSetInteger(0, btnClose, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 555);
+   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 585);
    ObjectSetInteger(0, btnClose, OBJPROP_YDISTANCE, 35);
    ObjectSetInteger(0, btnClose, OBJPROP_XSIZE, 26);
    ObjectSetInteger(0, btnClose, OBJPROP_YSIZE, 20);
@@ -252,9 +252,9 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, l0, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, l0, OBJPROP_XDISTANCE, 32);
    ObjectSetInteger(0, l0, OBJPROP_YDISTANCE, 38);
+   string dirStr = isBull ? "🟢 ⬆️ BUY (صعودی)" : "🔴 ⬇️ SELL (نزولی)";
    string titleStr = StringFormat("🔍 حالت تمرکز (Focus) | باکس %s [%s] | %s",
-                                  g_drawnBoxes[boxIdx].tfTag, role,
-                                  isBull ? "BUY 🔵 (صعودی)" : "SELL 🟠 (نزولی)");
+                                  g_drawnBoxes[boxIdx].tfTag, role, dirStr);
    ObjectSetString(0, l0, OBJPROP_TEXT, titleStr);
    ObjectSetString(0, l0, OBJPROP_FONT, "Segoe UI");
    ObjectSetInteger(0, l0, OBJPROP_FONTSIZE, 9);
@@ -346,8 +346,8 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, l4, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, l4, OBJPROP_XDISTANCE, 32);
    ObjectSetInteger(0, l4, OBJPROP_YDISTANCE, 118);
-   string scoreStr = StringFormat("👑 شاخص سلاطین: %d/100 [%s]  |  فیلتر ضد استاپ: %s",
-                                  smartScore, scoreTier, filterReason);
+   string scoreStr = StringFormat("👑 شاخص سلاطین: %d/100 [%s]  |  خروج: %s  |  %s",
+                                  smartScore, scoreTier, exitPlan, filterReason);
    ObjectSetString(0, l4, OBJPROP_TEXT, scoreStr);
    ObjectSetString(0, l4, OBJPROP_FONT, "Segoe UI");
    ObjectSetInteger(0, l4, OBJPROP_FONTSIZE, 8);
@@ -378,8 +378,7 @@ void ShowTradeSetupForBox(int boxIdx)
    // غیرفعال‌سازی معامله برای تایم‌های ماکرو H1 و بالاتر
    if(!InpTradeMacroTFs && g_drawnBoxes[boxIdx].tf >= PERIOD_H1)
    {
-      Comment(StringFormat("\n📦 باکس %s [%s]\n⚠️ معامله در تایم‌های ماکرو (H1 و بالاتر) غیرفعال است (فقط تایم‌های M1, M5, M15 مجازند).",
-                           g_drawnBoxes[boxIdx].tfTag, g_drawnBoxes[boxIdx].boxName));
+      Comment("");
       PrintFormat("FlagPro: معامله برای تایم %s غیرفعال است (فقط M1, M5, M15 فعال هستند).", g_drawnBoxes[boxIdx].tfTag);
       return;
    }
@@ -860,11 +859,12 @@ void ShowTradeSetupForBox(int boxIdx)
       // برچسب نتیجه روی انتهای خط ورود
       string resLbl = pfx + "RESULT_LBL";
       ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, entryPrice);
+      string dirTxt = isBull ? "🟢 ⬆️ BUY" : "🔴 ⬇️ SELL";
       string finalTxt = "";
       if(isFiltered)
-         finalTxt = " " + role + " " + (isBull ? "BUY" : "SELL") + " [🛡️ فیلتر شده] -> شبیه‌سازی: " + resText;
+         finalTxt = " " + role + " " + dirTxt + " [🛡️ فیلتر شده] -> شبیه‌سازی: " + resText;
       else
-         finalTxt = " " + role + " " + (isBull ? "BUY" : "SELL") + " -> " + resText;
+         finalTxt = " " + role + " " + dirTxt + " -> " + resText;
       ObjectSetString(0, resLbl, OBJPROP_TEXT, finalTxt);
       ObjectSetInteger(0, resLbl, OBJPROP_COLOR, (isFiltered && isClosed) ? clrSalmon : resColor);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 9);
@@ -914,7 +914,8 @@ void ShowTradeSetupForBox(int boxIdx)
       // برچسب نتیجه روی خط ورود
       string resLbl = pfx + "RESULT_LBL";
       ObjectCreate(0, resLbl, OBJ_TEXT, 0, t2, entryPrice);
-      ObjectSetString(0, resLbl, OBJPROP_TEXT, " " + (isBull ? "BUY" : "SELL") + " -> " + resText);
+      string dirTxt = isBull ? "🟢 ⬆️ BUY" : "🔴 ⬇️ SELL";
+      ObjectSetString(0, resLbl, OBJPROP_TEXT, " " + dirTxt + " -> " + resText);
       ObjectSetInteger(0, resLbl, OBJPROP_COLOR, resColor);
       ObjectSetInteger(0, resLbl, OBJPROP_FONTSIZE, 9);
       ObjectSetInteger(0, resLbl, OBJPROP_ANCHOR, ANCHOR_LEFT);
@@ -928,8 +929,8 @@ void ShowTradeSetupForBox(int boxIdx)
                   exitPlan, cancelReasonStr, isFiltered);
 
    // ثبت در کامنت چارت و لاگ ترمینال
-   string tradeType = isBull ? "BUY 🔵" : "SELL 🟠";
-   string dirFarsi  = isBull ? "خرید (گره صعودی)" : "فروش (گره نزولی)";
+   string tradeType = isBull ? "BUY 🟢 ⬆️" : "SELL 🔴 ⬇️";
+   string dirFarsi  = isBull ? "خرید (گره صعودی 🟢 ⬆️)" : "فروش (گره نزولی 🔴 ⬇️)";
 
    string statusDisplay = "";
    if(isFiltered)
@@ -973,7 +974,7 @@ void ShowTradeSetupForBox(int boxIdx)
       statusDisplay
    );
 
-   Comment(logMsg);
+   Comment("");
    Print(logMsg);
 }
 
