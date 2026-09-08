@@ -221,7 +221,7 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, 20);
    ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, 30);
-   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 600);
+   ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 610);
    ObjectSetInteger(0, bgName, OBJPROP_YSIZE, 160);
    ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, C'18,22,28');
    ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
@@ -234,9 +234,9 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    string btnClose = pfx + "CLOSE";
    ObjectCreate(0, btnClose, OBJ_BUTTON, 0, 0, 0);
    ObjectSetInteger(0, btnClose, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 585);
-   ObjectSetInteger(0, btnClose, OBJPROP_YDISTANCE, 35);
-   ObjectSetInteger(0, btnClose, OBJPROP_XSIZE, 26);
+   ObjectSetInteger(0, btnClose, OBJPROP_XDISTANCE, 574);
+   ObjectSetInteger(0, btnClose, OBJPROP_YDISTANCE, 34);
+   ObjectSetInteger(0, btnClose, OBJPROP_XSIZE, 24);
    ObjectSetInteger(0, btnClose, OBJPROP_YSIZE, 20);
    ObjectSetString(0, btnClose, OBJPROP_TEXT, "✕");
    ObjectSetString(0, btnClose, OBJPROP_FONT, "Arial");
@@ -246,15 +246,31 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    ObjectSetInteger(0, btnClose, OBJPROP_BORDER_COLOR, clrRed);
    ObjectSetInteger(0, btnClose, OBJPROP_SELECTABLE, false);
 
+   // نشانگر برجسته جهت معامله (سبز درخشان برای صعودی، قرمز درخشان برای نزولی)
+   string btnDir = pfx + "DIR_BADGE";
+   ObjectCreate(0, btnDir, OBJ_BUTTON, 0, 0, 0);
+   ObjectSetInteger(0, btnDir, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, btnDir, OBJPROP_XDISTANCE, 445);
+   ObjectSetInteger(0, btnDir, OBJPROP_YDISTANCE, 34);
+   ObjectSetInteger(0, btnDir, OBJPROP_XSIZE, 122);
+   ObjectSetInteger(0, btnDir, OBJPROP_YSIZE, 20);
+   ObjectSetString(0, btnDir, OBJPROP_TEXT, isBull ? "▲ BUY (صعودی)" : "▼ SELL (نزولی)");
+   ObjectSetString(0, btnDir, OBJPROP_FONT, "Segoe UI");
+   ObjectSetInteger(0, btnDir, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, btnDir, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, btnDir, OBJPROP_BGCOLOR, isBull ? C'16,135,50' : C'180,30,30');
+   ObjectSetInteger(0, btnDir, OBJPROP_BORDER_COLOR, isBull ? clrLime : clrRed);
+   ObjectSetInteger(0, btnDir, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, btnDir, OBJPROP_STATE, false);
+
    // ۲. ردیف ۰: عنوان پنل و نام باکس
    string l0 = pfx + "TITLE";
    ObjectCreate(0, l0, OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, l0, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, l0, OBJPROP_XDISTANCE, 32);
-   ObjectSetInteger(0, l0, OBJPROP_YDISTANCE, 38);
-   string dirStr = isBull ? "🟢 ⬆️ BUY (صعودی)" : "🔴 ⬇️ SELL (نزولی)";
-   string titleStr = StringFormat("🔍 حالت تمرکز (Focus) | باکس %s [%s] | %s",
-                                  g_drawnBoxes[boxIdx].tfTag, role, dirStr);
+   ObjectSetInteger(0, l0, OBJPROP_YDISTANCE, 37);
+   string titleStr = StringFormat("🔍 حالت تمرکز (Focus) | باکس %s [%s]",
+                                  g_drawnBoxes[boxIdx].tfTag, role);
    ObjectSetString(0, l0, OBJPROP_TEXT, titleStr);
    ObjectSetString(0, l0, OBJPROP_FONT, "Segoe UI");
    ObjectSetInteger(0, l0, OBJPROP_FONTSIZE, 9);
@@ -272,18 +288,18 @@ void RenderFocusHUD(int boxIdx, string role, bool isBull, bool isEntered,
    {
       if(isEntered)
       {
-         statusStr = StringFormat("🛡️ فیلتر شده (عدم معامله) | شبیه‌سازی: %s", resText);
+         statusStr = StringFormat("🛡️ فیلتر شده (عدم معامله)  •  شبیه‌سازی: %s", resText);
          resColor = (StringFind(resText, "STOP LOSS") >= 0) ? clrSalmon : clrSkyBlue;
       }
       else
       {
-         statusStr = StringFormat("🛡️ فیلتر شده (عدم معامله) | وضعیت ستاپ: %s", (cancelReasonStr != "" ? cancelReasonStr : "عدم تاچ ورود"));
+         statusStr = StringFormat("🛡️ فیلتر شده (عدم معامله)  •  وضعیت: %s", (cancelReasonStr != "" ? cancelReasonStr : "عدم تاچ ورود"));
          resColor = clrSandyBrown;
       }
    }
    else if(isEntered)
    {
-      statusStr = StringFormat("📊 وضعیت معامله: %s | ریسک: %.1f پیپ | R:R معادل: 1:%.0f",
+      statusStr = StringFormat("📊 وضعیت: %s  •  ریسک: %.1f پیپ  •  R:R: 1:%.0f",
                                resText, riskPips, (hitTP > 0 ? (double)hitTP : 0.0));
    }
    else
